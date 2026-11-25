@@ -42,9 +42,13 @@ The node kinds are `rule,splice,token,elided,projection,insertion`. The wire kin
 
 An omitted leaf gives its terminal and any explicit or equality-derived default. Its kind records omitted origin. An absent default field decodes to the empty string.
 
-Children are ordered local occurrence IDs. Flatten splice children only for structural display and matching. A primary is its marked child’s ID. A synthetic occurrence names its producer. A braced item names its part as `{"node":id}`.
+Children are ordered local occurrence IDs. Flatten splice children only for structural display and matching. A primary is its marked child’s ID. Only `projection` and `insertion` carry `producer`. It is the local integer ID of the rule or splice that executes the item.
 
-An insertion has no part. Synthetic records stay beside the original tree. In particular, a braced item over the whole node points to its origin without becoming its origin’s child.
+Zero is valid. A bare splice emission records the called splice. Forwarding preserves the producer. Resolve `producer` and `part.node` in the same stage and reading table as their node. A braced item names its part as `{"node":id}`.
+
+A whole-occurrence projection can use the same ID for both links. For example, occurrence 6 can select a part at occurrence 9. The projection records `"producer":6,"part":{"node":9}`. An insertion by occurrence 6 records `"producer":6` and omits `part`.
+
+Synthetic records stay beside the original tree. In particular, a braced item over the whole node points to its origin without becoming its origin’s child.
 
 Within a stage output, the token member `node` is a local integer ID. The containing stage and reading zero identify its producing table. Origin records omit that field. A bag uses a JSON object with keys in Unicode scalar order. An absent key has no member.
 
@@ -62,7 +66,9 @@ Number body occurrences in left-to-right preorder before splice flattening. Appe
 
 Sparse IDs are legal. Allocation order never enters the wire.
 
-Retain the reporting stage’s complete chosen table and both tables of a displayed ambiguity. Keep the complete structural table of a failed stage with a chosen reading. Earlier chosen stages default to compact records. Keep their roots, token origins and the transitive targets of primary, part, producer and face links. Omit their child arrays.
+Retain the reporting stage’s complete chosen table and both tables of a displayed ambiguity. Keep the complete structural table of a failed stage with a chosen reading. Earlier chosen stages default to compact records. Keep their roots, token origins and targets of primary, part, producer and face links. If a target has no child array, still follow its links.
+
+Visit each occurrence once. Omit their child arrays.
 
 With `stageTrees:"all"`, keep all occurrences and child arrays. Retention cannot add an evaluation demand. Use iterative traversals for deep results.
 
@@ -78,7 +84,7 @@ The `span` counts stage-input tokens and `source` counts original Unicode scalar
 
 An insertion records its rule as `insertedBy`. Its span, source and text are empty. A projection over an empty part has no `insertedBy`.
 
-An elided leaf stores its resolved default in the `default` field when the grammar supplies a default operand. A written token with an empty value still uses the written leaf kind. Effective names for rules, instances, terminals and tests follow the engine's canonical spelling.
+A written token with an empty value still uses the written leaf kind. Effective names for rules, instances, terminals and tests follow the engine's canonical spelling.
 
 A named diagnostic has this form, for either an error or a warning:
 
@@ -86,7 +92,7 @@ A named diagnostic has this form, for either an error or a warning:
 {"stage":"words","code":"y-cmavo","rule":"y-cmavo","span":[2,3],"source":[3,7],"message":"this word uses a y-final cmavo"}
 ```
 
-The six shown members are required. An error can add `rejection` after `message`, as below. `code` is the diagnostic rule's effective name, and `rule` identifies that same rule. `message` is its evaluated recipe. A warning has no `feature` member.
+The six shown members are required. An error can add `rejection` after `message`, as below. `code` is the diagnostic rule's effective name, and `rule` identifies that same rule. `message` is its evaluated message. A warning has no `feature` member.
 
 `span` counts the stage's input tokens, and `source` counts original code points. A warning can have an empty span. An error reads at least one token, but its source can be empty. Spliced occurrences keep these fields at the call occurrence. Coordinates belong to the raising stage and never change during flow. Report order follows engine §12.1, including carried diagnostics and erasure.
 
@@ -303,15 +309,17 @@ It denotes the whole occurrence. Its term must be a bag constructor under the ex
 
 A braced item inherits its part’s strings without an extra DOM field.
 
-For example, the following document distinguishes bare emission from a rule without a directive. Its locations assume one directive or rule per source line.
+The following stage grammar document has an empty public key mask and uses bare emission. Its input supplies the user key `Word`. The locations assume one declaration per line.
 
 ```json
-{"format":50,"rules":[{"name":"text","op":"define","alternatives":[{"gates":[],"expr":{"primary":{"ref":"Word"}}}],"emit":{"items":[]},"conditions":[],"at":[2,1]}],"directives":[{"name":"ambiguity-resolution","steps":[{"step":"greedy"}],"at":[1,1]}],"constants":[]}
+{"format":50,"rules":[{"name":"text","op":"define","alternatives":[{"gates":[],"expr":{"primary":{"ref":"Word"}}}],"emit":{"items":[]},"conditions":[],"at":[3,1]}],"directives":[{"name":"ambiguity-resolution","steps":[{"step":"greedy"}],"at":[1,1]}],"constants":[{"name":"OUTPUTS","op":"define","value":{"bag":[]},"at":[2,1]}]}
 ```
 
 A constant name omits its dollar sign. A template parameter omits its at sign. A call records `{call:name,args:[ARG,…],at:P}`. A parameter records `{param:name,at:P}`. Template parameter and argument arrays are nonempty.
 
 Parameters must be distinct. Each argument takes exactly one form from the following table. Marked expression actuals use the expression records below and must be closed after substitution. The final position belongs to the argument record itself. Store the parsed category and ignore grouping that changes no category.
+
+Reduce an unmarked grouped single symbol, including a parameter, to its symbol argument. Normalize a supplied single-symbol `body` wrapper before flow analysis, instance naming and position inspection.
 
 | Argument | Record or payload |
 |---|---|
@@ -342,7 +350,11 @@ A body record has exactly one of these forms. `S` is a string literal expression
 
 Body records hold no resolved token classes or generated helpers. A `seq` keeps its order and nesting. An ordered subset keeps its written positions and permits at most sixteen operands. The optional's `elidable` member occurs only as `true`. A `splice` holds a rule reference or exact call.
 
-The source mark before a captured symbol wraps the whole capture. `primary` never changes the terminal identity or action count. A capture binds one symbol. Reject a label around a group, optional or repeat. For a terminator binder, put the capture inside the elidable optional.
+The source mark before a captured symbol wraps the whole capture. `primary` never changes the terminal identity or action count. A base symbol (`SYMBOL_BASE`) is a reference, call, splice, literal, wildcard, range or declared symbol parameter. A filter accepts a base symbol. A value test accepts a base symbol or one with a key filter (`SYMBOL_OR_TAG_TEST`).
+
+A capture accepts any of these symbol forms (`SYMBOL`). A group, optional, repetition or empty expression cannot take a label.
+
+A primary accepts a legal symbol or its capture (`SYMBOL_OR_CAPTURE`). It follows the route and placement rules in [Rule bags](notation.md#rule-bags). The parser wraps tests around the whole splice record. Inside `splice`, `TARGET_RULE` is exactly one rule reference or call. For a terminator binder, put the capture inside the elidable optional.
 
 A sole-symbol copy requires no serialized mark. An elidable head must resolve to a user terminal. Its default belongs to the optional. A chain occupies the entire alternative. A remainder occurs only in a query target.
 
@@ -384,7 +396,7 @@ It is never a bag expression. The same requirement record applies to a pattern a
 
 Print a property of the implicit item as `'key`, with one apostrophe. A named copy from that item has the same spelling in its entry.
 
-In `$r.all(' ≇ #·CAI)`, each item of `$r` must bind one node. The comparison reads `{"item":true}` on the left. The splice and self-comparison restrictions of §[the structural comparison rules](notation.md#comparing-two-constituents) still apply.
+In `$r.all(' ≇ #·CAI)`, each item of `$r` must bind one node. The comparison reads `{"item":true}` on the left. The splice and self-comparison restrictions of [the structural comparison rules](notation.md#comparing-two-constituents) still apply.
 
 A normalized operator array represents one operation. Its final `at` locates the first combining operator in source order. A failure inside a positioned operand uses that operand’s own location.
 
@@ -411,6 +423,7 @@ Every bag entry and list item has a kind, a gates array, an optional guard and a
 | `output`, forwarding | `{"capture":N,T}` with a nonempty name. |
 | `output`, braced item | `{"capture":N,"term":E,T}`. An empty capture name denotes the rule. E must be a bag constructor. |
 | `output`, insertion | `{"insert":true,"term":E,T}`. E must be a bag constructor. |
+
 | Method argument kind | Element in `args` |
 |---|---|
 | Ordinary operand, predicate, numeric cap | E. Predicates also accept ordinary function references. A cap uses the integer record. |
@@ -483,7 +496,7 @@ TERMINALATOM is an undecorated `terminal`, `literal`, `range`, `wildcard`, or st
 
 A rule test reads the rule's working keys. A rule value test reads its certified value. A tested rule atom cannot carry `children`.
 
-Every test takes an atom, so no test object stands alone. In a pattern, the `_Elided` requirement tests leaf origin. A positive test cannot stand on a rule atom.
+Every test takes an atom, so no test object stands alone. In a pattern, the `_Elided` requirement tests leaf origin. A rule atom can carry only the negated origin requirement. A wildcard tests leaf origin. Reject a positive origin requirement on a rule atom at the mark.
 
 A node test can add `"exact":true`, then `"children":[ITEM...]` where permitted below. If the object has an `at` member, that member follows both additions. This order also applies to calls and parameters before expansion. Both additions are optional.
 
@@ -571,6 +584,10 @@ The following examples omit source positions to show the boundaries:
 ```text
 #a              {"pattern":{"name":"a"}}
 #⁅ a ⁆          {"pattern":{"any":true,"children":[{"child":{"name":"a"}}]}}
+#·⁅⁆            {"pattern":{"any":true,"exact":true,"children":[]}}
+#⁅ A ⁅ B C ⁆ ⁆  {"pattern":{"any":true,"children":[{"child":{"terminal":"A"}},{"child":{"any":true,"children":[{"child":{"terminal":"B"}},{"child":{"terminal":"C"}}]}}]}}
+```
+
 Union and intersection require at least two operands. They flatten direct operands of their own kind in written order. Difference keeps two operands. Each of these operations ends with `at` at its first combining operator.
 
 After substitution the loader flattens a pattern intersection that substitution nests inside another intersection. This step precedes expanded-pattern validation. Supplied or cached records cannot contain a nested pattern intersection.
@@ -597,7 +614,9 @@ The names dependency of a cached document is a resource map. If source conversio
 
 `data/preparsed/FAMILY.json` holds the DOMs of all grammar documents under `grammars/FAMILY/`. `tools/sync.js` generates each file and copies it into every package. Its shape is `{"format":50,"bootstrap":HASH,"unicode":HASH,"properties":HASH_OR_NULL,"bundledNames":{RESOURCE:HASH},"documents":{PATH:{"hash":HASH,"names":{RESOURCE:HASH},"dom":DOM}}}`. `PATH` is relative to the package root, including the `grammars/` prefix. Each `HASH` is the FNV-1a hash of engine §8. `unicode` hashes the text of `data/unicode/unicode.txt`.
 
-The required `gencmu.json` omits the `bootstrap` header member. The hash of its complete text supplies that fingerprint for every other family. The notation reader uses its required entries without checking their source text hashes. Ordinary cache lookups still compare all other applicable identity members. Each document key selects its own family's preparsed file (engine §8), besides the required `gencmu.json`. Missing or malformed optional files give cache misses.
+The required `gencmu.json` omits the `bootstrap` header member. The hash of its complete text supplies that fingerprint for every other family. The notation reader uses its required entries without checking their source text hashes. Ordinary cache lookups still compare all other applicable identity members. Each document key selects its own family's preparsed file (engine §8), besides the required `gencmu.json`.
+
+Missing, malformed or obsolete optional files give cache misses. An invalid record in a selected current document gives the same error as a supplied DOM.
 
 JSON integers have no leading zero except `0` and `-0`. A `\u` escape holds exactly four ASCII hexadecimal digits.
 
@@ -605,7 +624,7 @@ For an ordinary entry, a library compares format, bootstrap fingerprint, core-ta
 
 `bundledNames` records the bundled standard names file and every bundled extra, with normalized paths in code-point order. Each value hashes the pinned resource text. Caller replacements never change this registry. Present resource keys require full comparison even if the supplied text matches a registered hash. Absent keys can use the registry even in a portable map.
 
-This optional cache metadata leaves the DOM and bootstrap format unchanged. A missing or malformed registry disables the shortcut in engine §8.
+A missing or malformed registry disables the shortcut in engine §8.
 
 If source conversion loads names data, the cache writer records `names` after `hash`. This nonempty map contains the standard file and every selected extra. Its keys are normalized resolved resource paths in code-point order. Each value hashes that file's text with FNV-1a. Core abbreviations require no names dependency. When `names` is present, the loader compares paths and hashes for `data/unicode/unicode-names.txt` plus the current inherited and local extras (engine §8).
 
@@ -632,7 +651,7 @@ Brackets write the final stage's tree as nested groups. Tree patterns do not cha
 2. Render an elided node as its lowercased terminal between `⟨` and `⟩` when elisions are visible. Otherwise drop that node.
 3. Render the children of each rule. Drop children that produce no group or leaf. Render a single remaining child directly. Render several children as a group.
 
-   If no child is left, the node is empty. If one child is left, the node is that child. Otherwise, the node is a group.
+   If no child is left, the node is empty.
 4. The depth *d* of a group counts groups only: a child group of a group at depth *d* is at *d*+1. A group is written between `(` `)` when *d* mod 3 is 0, `[` `]` when 1, and `{` `}` when 2. One space separates its members.
 
 In the `lojban/cll` pipeline, `lo mlatu cu citka le finpe` is `([lo mlatu] cu [citka {le finpe}])`, `mi ui klama` is `([mi ui] klama)`, `ba'e mi klama` is `([ba'e mi] klama)`, and `mi ui nai klama` is `([mi {ui nai}] klama)`.
@@ -643,14 +662,16 @@ The originating core table is the Unicode table used for that parse (engine §1)
 
 The tree has one node per line, and children are indented two spaces under their parent. Each kind of node is written as follows:
 
-- A rule node gives its name. A single-line source excerpt can follow ` · ` where its leaves have no satellites or line breaks.
+- A rule node gives its name. If its only descendants are token nodes on one source line, append ` · ` and the source text. If a face has satellites or a displayed image contains a line break, omit the excerpt.
 - A token node gives its terminal and quoted image. The renderer uses the canonical string escapes of engine §9.1. For example, a line feed is `‹LF›`.
-- Satellites indent below their primary. The prefix `◂ ` marks a satellite before the primary, and `▸ ` marks one after it. Each line lists its classes and quoted image.
+- Print satellite lines after the primary line, with the before group first. Indent each satellite two spaces below its primary. Prefix satellites before the primary with `◂ `. Prefix satellites after it with `▸ `. A class key starts and ends with an uppercase ASCII letter. Join the classes in Unicode scalar order with ` ∪ `, then add a space and the quoted image. If a satellite has no classes, print its quoted image alone. Apply the same rules to nested satellites.
 - An elided node gives its terminal in angle brackets.
 
 The tree renderer joins a chain of rule nodes with one child on one line, using ` › `.
 
 ### Display JSON
+
+A hollow rule has no token or elided descendant. Brackets omit it. Tree listings and display JSON omit it except at the root. A hollow root named `text` renders as `text` in a tree listing and `{"text":[]}` in display JSON.
 
 The display JSON is the tree projected for reading, and it is not the canonical form. A rule node is an object with one member, its rule name. If the node has one child, the value of this member is the projection of that child. Otherwise, the value is the array of the projections of its children. A token node is `{"TERMINAL":"image"}`, and an elided node is `{"TERMINAL":null}`.
 

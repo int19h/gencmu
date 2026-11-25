@@ -105,7 +105,7 @@ Use example filenames that do not clash with your own files. The commands below 
 
    A tag is a named mark on a token. Make sure that KIhEI appears in the forms output. Read `value` for comparisons and `image` for visible spelling.
 
-   Keep lexicon keys lowercase. Use a straight apostrophe in those keys.
+   Use lowercase Lojban spellings as the values. Write a straight apostrophe in those spellings. Keep the class name `KIhEI` as shown.
 
 3. Add the syntax construct.
 
@@ -453,11 +453,12 @@ The token retains the comma run as its text and source. Its empty value does not
 
 A parent reads a child's working bag. If a parent needs a property, put it in the child's rule term. A braced emission item changes only the new node that it selects.
 
-The projection in this example publishes `x` when the child emits. The parent over `ab` reads the child's ordinary value and publishes `ab`.
+When the child emits, its projection publishes `x`. The parent over `ab` reads the child's ordinary value and publishes `ab`.
 
 ```text
 %const $DEFAULTS $n ↦ {value: $n.children!'value.join(), image: $n.children!'image.join()}
 %const $OUTPUTS {}
+%ambiguity-resolution greedy
 
 %rule text
   child | parent

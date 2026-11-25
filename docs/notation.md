@@ -22,7 +22,7 @@ flowchart LR
   s2 -- tokens --> s3["later grammar stages"]
 ```
 
-Stage zero has no grammar. It only supplies the character tokens. Each grammar stage parses its whole input with its own grammar, starting at the rule `text`. The first grammar stage reads the tokens of stage zero, or tokens that a caller supplies instead. The emitted tokens of each grammar stage are the input of the next. "Values and images" describes stage zero, and "Pipelines" describes how a pipeline document declares the stages.
+Stage zero supplies character tokens without a grammar. In parse results, wire index zero names the first grammar stage. The origin token table has index minus one. Each grammar stage parses its whole input with its own grammar, starting at the rule `text`. The first grammar stage reads the tokens of stage zero, or tokens that a caller supplies instead. The emitted tokens of each grammar stage are the input of the next. "Values and images" describes stage zero, and "Pipelines" describes how a pipeline document declares the stages.
 
 The examples in this document come mostly from the bundled Lojban grammars. Names such as `KOhA`, `sumti` and `🆓` are rules and tags that those grammars define. The notation gives them no meaning of its own. Where an example depends on Lojban, the text says so.
 
@@ -151,7 +151,7 @@ An engine membership can stand in a terminal, filter or pattern. A constructor c
 
 Either terminal can take a test. Neither a range nor an engine tag can mark an elidable optional. Emission inserts tokens with `ε` and explicit clauses, never with a range or property literal. Expected terminals and tree leaves use canonical spellings, such as `"a".."z"`.
 
-A string uses straight double quotes, such as `"la"`. It can be a terminal, a condition value, or a recipe atom. Strings accept `‹…›` escapes, and backslashes and dollar signs are plain characters. String terms can join with `++`. [String literals and escapes](#string-literals-and-escapes) defines exact scalars and names.
+A string uses straight double quotes, such as `"la"`. It can be a terminal, a condition operand or part of a diagnostic message. Strings accept `‹…›` escapes, and backslashes and dollar signs are plain characters. String terms can join with `++`. [String literals and escapes](#string-literals-and-escapes) defines exact scalars and names.
 
 ## Tests
 
@@ -165,9 +165,13 @@ A requirement mask names visible keys or permitted engine tests. An empty mask a
 
 A value test accepts a string literal, string constant or parameter that resolves to a string. A rule test in a body or pattern requires a certificate. That proof establishes that its value equals the ordered join of its original input values. A recognition read of a rule's `'value` requires the same proof. The loader reports a failed proof at the read. See [engine value proofs](engine.md#proof-for-a-rule-value).
 
-A test follows one rule reference, call, terminal or symbol parameter. A group, optional, repetition or `ε` cannot take a test. A capture wraps the tested symbol. For example, `$l:LA="la"` captures the token read by `LA="la"`. Spaces and comments can separate a symbol from its test.
+A test follows one rule reference, call, splice, terminal or symbol parameter. On a splice, the test follows the complete spliced call. A group, optional, repetition or `ε` cannot take a test. A capture wraps the tested symbol. For example, `$l:LA="la"` captures the token read by `LA="la"`. Spaces and comments can separate a symbol from its test.
 
-`_Elided` tests origin in a body filter, pattern or elidable head. A synthetic restoration candidate and an omitted leaf pass the positive test. A written token fails it even when its value is empty. `[+T<_Elided>]` accepts omission only. A containing rule or later token never acquires omitted origin.
+`_Elided` tests omitted origin. In a body it can appear on a terminal filter or on the head of an elidable optional. `[+T<_Elided>]` accepts omission only. A synthetic restoration candidate and an omitted leaf pass the positive test. A written token fails the test even when its value is empty.
+
+A body filter on a rule reference, call or splice cannot name `_Elided` with either sign. The loader reports the error at the opening angle bracket, even under a disabled gate. A parameter target needs a terminal after substitution. If the argument supplies an invalid target, the loader reports its written position and keeps the filter as context.
+
+In a pattern, a positive origin requirement needs a leaf test, including the wildcard. A rule atom can use the negated requirement and always satisfies it. A positive origin test on a rule atom fails at the mark. Ordinary engine keys can still test a rule's bag.
 
 ## Operators
 
@@ -402,13 +406,11 @@ A splice is one transparent call of a rule. `*foo`, `*🆓`, and `*f(x)` splice 
 
 The asterisk stands directly before the name. A splice stands wherever a body rule reference or call can stand. It cannot stand in a pattern or supply a stage root.
 
-The call keeps its conditions, tags, value, image, emission, erasure, diagnostic, and suppression clauses. It creates no output node. Its children take its place in order. Other occurrences of that rule remain ordinary calls.
+The call keeps its term, conditions, emission, erasure, diagnostic and suppression. The occurrence table retains the call. Structural patterns see its children in the parent's sequence. The call's close is transparent to `greedy` and `lazy`.
 
-For a sole-symbol copy, a splice supplies its call's bag. An unerased splice flattens its children for tree patterns and tree comparison. Its close is transparent to `greedy` and `lazy`.
+`$x:*foo` binds the working call with its bag, span and working children. A binding at an empty place is still present. A sole-symbol copy can take the call's bag. Bare emission at the splice creates a projection over that call.
 
-`$x:*foo` captures the anonymous call, with its span, tags, input strings, and observed child sequence. Its presence is always true, including for an empty call. Its constituent recipes still supply emitted strings where selected.
-
-`$x ≅ $y` compares anonymous constituents by their ordered observed child sequences. `$x ≅ #foo` is false because the call has no named root. Its own `$` uses the anonymous working view. The caller's capture uses the exported view, as "The structural tree" defines.
+A node-to-node comparison rejects a splice capture on either side. The restriction follows that capture through a list or function binding.
 
 The loader rejects a splice whose rule any stage ranking step, pattern, or neighbor target names. It resolves names through pattern constants, choices, template families, and instance keys. A query target does not forbid a splice, because a query parses its target independently.
 
@@ -416,7 +418,7 @@ Spliced and ordinary calls share the rule's same-span cycle key (engine §4). A 
 
 ## Errors and warnings
 
-A diagnostic is a named error or warning from a chosen occurrence. A rule can carry `%error` or `%warning`, followed by exactly one message recipe. It cannot carry both. A template cannot carry either directive.
+A diagnostic is a named error or warning from a chosen occurrence. A rule can carry `%error` or `%warning`, followed by one string expression. It cannot carry both. A template cannot carry either directive.
 
 ```jbogenbau
 %rule unmatched-fi
@@ -438,7 +440,7 @@ In that convention, a moved guard uses `$.following-tokens` after the opener, ne
 
 A chosen occurrence raises its diagnostic in its own stage. Spliced calls retain their spans, and each chain level counts separately. Failing conditions create no occurrence. The stage evaluates messages once after choice, before emission.
 
-Disabled and suppressed warnings evaluate none. Queries, recognition, ranking, and reconstruction evaluate no messages. The recipe language has no message that can fail. Engine §12.1 defines the guard for a failure.
+A live enabled diagnostic evaluates its message after choice. An expression failure gives a `grammar` result with the completed verdict and eligible diagnostic prefix. The failed stage publishes no output and runs no reconstruction. See [Deferred reports](engine.md#121-deferred-reports).
 
 A diagnostic travels on one emitted token to later stages. Its message and coordinates remain those of its raising stage. An erased carrier drops it. A stage that emits no tokens retains its diagnostics at stage level. The reporting stage is the caller's `until` stage, or the pipeline's last stage.
 
@@ -632,7 +634,7 @@ A constant starts with `$` and a capitalized user name. A capture starts with `$
 
 An escape is a delimited spelling of one scalar. It uses single guillemets `‹ ›` (U+2039, U+203A). `‹U+0301›` names a code point in hexadecimal. `‹COMBINING ACUTE ACCENT›` uses its formal Unicode name, and `‹ZWJ›` uses a name alias.
 
-Every string literal accepts escape syntax, including terminals, tests, recipes, conditions, classifier keys, call arguments, and include or names-resource paths. A `%names` path restricts name escapes to core abbreviations (engine §1). An escape contributes exactly one scalar. Its source spelling does not survive in the DOM. Unescaped literal text follows ordinary source decomposition. Decoded escape scalars receive no further decomposition or mark reordering.
+Every string literal accepts escape syntax, including terminals, tests, expressions, call arguments, and include or names-resource paths. A `%names` path restricts name escapes to core abbreviations (engine §1). An escape contributes exactly one scalar. Its source spelling does not survive in the DOM. Unescaped literal text follows ordinary source decomposition. Decoded escape scalars receive no further decomposition or mark reordering.
 
 A literal `‹` must use an escape, as in `"‹U+2039›"`. Without an open escape, `›` is an ordinary character. Escape decoding never scans its result again. Thus `"‹U+2039›ZWJ›"` contains the literal text `‹ZWJ›`.
 
@@ -702,7 +704,9 @@ Comparisons keep the types of their operands. A map keeps the types of its resul
 
 ### Lists, functions and numbers
 
-A list keeps the order, duplicates and nesting of its items. A list literal uses commas, as in `[a, *$xs, condition? b]`. The splat `*` inserts each item of a list. A false guard skips one item. `↓` concatenates one level of a list of lists.
+A list keeps the order, duplicates and nesting of its items. The loader infers one common element type from the items and their context. An unconstrained empty list supports operations that need no element type.
+
+A list literal uses commas. If `$xs` is a list of strings, `["a", *$xs, "a" ∈ $xs? "b"]` combines two items with a splat. The splat `*` inserts each item of a list. A false guard skips one item. `↓` concatenates one level of a list of lists.
 
 `$xs!'value` reads one key of each item. `$xs!.span` calls one method on each item. The short map takes exactly one selector. The next method applies to the resulting list, as in `$xs!'value.join()`.
 
@@ -716,7 +720,7 @@ A map evaluates each reached item in order. A list predicate can stop at the fir
 
 `.split(delimiter)` reads left to right and keeps the nonempty pieces between exact, nonoverlapping matches. An empty delimiter is an error. A literal or constant empty delimiter fails during loading. Evaluation fails if a computed delimiter is empty.
 
-`.ngrams(width)` lists adjacent runs of Unicode scalars in start order, with overlaps and duplicates. The width is a positive decimal literal with no leading zero. A width greater than the input length gives an empty list.
+`.ngrams(width)` lists adjacent runs of Unicode scalars in start order, with overlaps and duplicates. The width is a positive decimal literal with no leading zero. A width greater than the input length in Unicode scalars gives an empty list. The width has no machine-size limit. For example, `"a".ngrams(18446744073709551616)` gives `[]`.
 
 `∈` and `∉` test one comparable element against a list. List difference `∖` removes every item equal to the right operand or to an item in the right list. If both interpretations fit, the right operand is a list of exclusions. List element equality compares nested lists by length, order and element equality. It compares key sets by membership. Nodes and functions have no list element equality.
 
@@ -728,7 +732,7 @@ A predicate is a test that holds or fails. A tree pattern is a predicate on one 
 
 `$x ≅ $y` compares two constituents instead (see "Comparing two constituents" below). `≇` negates the answer after the ordinary missing-capture simplification. Patterns never recognize the captured text again or inspect another reading.
 
-The left operand must be a bare capture, including `$`. The type of the right operand decides what the comparison does. [Engine §9](engine.md#9-from-notation-tree-to-dom) defines the diagnostic for a bare name in the right position.
+The left operand must be a bare capture or the current function item. In either case it must bind one node. The type of the right operand decides what the comparison does. [Engine §9](engine.md#9-from-notation-tree-to-dom) defines the diagnostic for a bare name in the right position.
 
 ### The structural tree
 
@@ -742,13 +746,13 @@ A terminal leaf records the terminal that read it, rather than every tag on its 
 
 A structurally empty node contains no terminal read, omitted marker, or seal. Parent sequences remove structurally empty named children, including empty `🆓` nodes and empty wrappers. A seal from a ranked choice or erased constituent counts as a leaf here. A node that contains a seal remains in its parent sequence. A direct capture of an empty named rule retains its named root for a root-name test.
 
-An erased occurrence exports its named root with one seal as its only child. The root retains its tags and input span value. When the occurrence reads no tokens, this rule still applies. Its seal and named root remain in parent sequences.
+An erased occurrence exports its named root with one seal as its only child. The root retains its effective keys and has empty strings for value and image. Its seal retains the original token values for structural comparison. When the occurrence reads no tokens, this rule still applies. Its seal and named root remain in parent sequences.
 
-A spliced erased occurrence exports the seal without a named root. A capture of that splice sees an anonymous child sequence containing the seal. The splice does not expose the erased children.
+A spliced erased occurrence exports the seal without a named root. A structural pattern on the parent sees that seal at the splice. The splice does not expose the erased children.
 
 The erased definition's own clauses use its ordinary structure before export. Its own `$` retains that working view, including its splice mode. Captures inside the definition retain the ordinary views of the occurrences that they bind. An erased child supplies its own sealed view. A chain level or recursive occurrence of an erased definition is an erased child, so its parent level sees it sealed.
 
-An outside capture receives the exported view. Outside patterns can test the erased root's name, tags, value, and child list. Every node test fails at its only child, the seal. Every downward walk stops there. A sibling gap can consume it.
+An outside capture receives the exported view. Outside patterns can test the erased root's name, visible keys and child list. A value test on an erased rule must still satisfy the rule certificate. Every node test fails at its only child, the seal. Every downward walk stops there. A sibling gap can consume it.
 
 A node test first tests the candidate. If that test fails and the candidate has one structural child, the test follows that child. The search repeats this step. A branching node or seal stops it. A node test with a child list tests both parts at the same visited node.
 
@@ -846,7 +850,7 @@ Outside child lists, binding starts with a node test and its child list, groupin
 
 Parentheses only group. They never introduce a child list or a subtree boundary. Juxtaposition, optional brackets, braces, gaps, and `|` require a child list. A nested `#` cannot act as a pattern atom or child item. `#(a b)` is invalid, and its child-list spelling is `#⁅ a b ⁆`.
 
-A call's arguments retain their own grammar, including pattern literals and grouped body expressions. Thus `#pair(#a, "b")` can name an instance with a pattern argument. Its inner `#a` belongs to the call argument rather than the enclosing pattern's child syntax.
+A call's arguments retain their own grammar, including pattern literals and grouped body expressions. For a template with pattern and symbol parameters, `#checked(= #a, "b")` names one instance. The inner `#a` belongs to the marked argument.
 
 Union and intersection each flatten operands of their own kind, including through parentheses. Runs of `∩` form one flat intersection, in written order. Difference retains exactly two operands. Order and duplicates remain significant for pattern keys.
 
@@ -860,7 +864,7 @@ Each path tests its operand at every endpoint, including the candidate. The oper
 
 One tag test followed by one value test can follow a terminal atom. Its value or tags must belong to the same matched leaf. Written leaves use their original token's value and tags. An omitted T leaf has its terminal key and default value, including during reconstruction. Use `<_Elided>` to test its origin.
 
-A terminal atom accepts one signed tag test and one exact value test, in that order. A rule, emoji, family or call atom accepts the same two tests. Its tag test reads the constituent's tags, and its value test reads the input value of its span. A test needs an atom, so a test alone, as `#<T>` or `#=""`, is an error.
+A terminal atom accepts one signed tag test and one exact value test, in that order. A rule, emoji, family or call atom accepts the same two tests. Its tag test reads the occurrence's working keys. Its value test requires the same input-join proof as a rule value test in a body. A test needs an atom, so a test alone, as `#<T>` or `#=""`, is an error.
 
 Pattern set operators combine complete predicates and cannot mix them with tag sets. `∅` denotes the empty pattern. `#A<B>` means `#(A<B>)`, and `#A<B>=""` means `#(A<B>="")`.
 
@@ -880,15 +884,14 @@ The left operand of `≅` or `≇` must name one bound node. It can be a bare ca
 
 The compared tree is the structural tree above. Helpers are flattened, chain levels are kept, and a ranked group is one seal. Equality compares the two trees from their roots, child by child in order. It does not follow a single child, as a node test does. Two trees are equal by these rules:
 
-- If two anonymous spliced constituents have equal observed child sequences in order, they are equal. An anonymous constituent never equals a named rule node.
 - If two rule nodes have the same rule and equal children in order, they are equal. Each template instance is a rule of its own. So nodes of two different instances are not equal, and nodes of one instance compare by their children. A parent drops a structurally empty child from its sequence. A directly captured empty named rule keeps its root, with no children. So two captures of different empty rules are not equal.
 - If one terminal read two written leaves and their tokens have equal values, the leaves are equal. A literal, an escaped literal and an equal string constant are one terminal. The bag and image of the token take no part.
 
 - If two omitted leaves have equal terminators, they are equal. An omitted leaf never equals a written leaf. The default value of the terminator takes no part (see "Elided terminators").
 - If the token values of the spans of two seals are equal sequences, the seals are equal. The sequence has one value for each original token of the span, in order, and an empty value is an element. The chosen interior, private captures, tags and omissions take no part. A seal of an empty span is still a seal.
-- In the `elision-only` check, a capture of a terminal that reads a restored terminator has the empty projection (engine §7.5). Two empty projections are equal, and an empty projection equals nothing else. Such a capture is present.
+- In reconstruction, a terminal that reads a synthetic token binds an omitted leaf. Its terminal identifies it in comparisons. Its default supplies its value. It contributes a child and no original input token. A restored optional keeps its written-only slot empty.
 
-An erased named constituent compares as its rule with one seal child over its span. When their ordered token-value sequences are equal, two erased occurrences of one rule compare equal. Their internal brackets do not distinguish them. An erased splice compares as an anonymous sequence containing that seal.
+An erased named constituent compares as its rule with one seal child over its span. When their ordered token-value sequences are equal, two erased occurrences of one rule compare equal. Their internal brackets do not distinguish them. In a parent comparison, the child sequence of an erased splice contains that seal. A splice capture cannot be an operand of node equality.
 
 The comparison uses structure and written leaf values. Source coordinates, other bag entries and emission take no part.
 
@@ -907,8 +910,11 @@ The predicate compares every captured resumption with the earlier verb.
 
 A classifier is a constant bag that groups exact strings. Each entry holds one string, a list of strings, or a key set that names other entries.
 
+This forms stage fragment uses a `cmavo-shape` whose value is certified as the input join.
+
 ```text
 %const $LEXICON {
+  A: ["a", "e", "ji", "o", "u"],
   UI: ["ui", "ia"],
   CAI: ["cai", "pei"],
   FUhE: "fu'e",
@@ -919,7 +925,7 @@ A classifier is a constant bag that groups exact strings. Each entry holds one s
   ^$c:cmavo-shape → {Word, Cmavo, *$LEXICON.classify($c'value)}
 ```
 
-`$LEXICON.classify("ui")` gives `{UI, Indicator}`. The lookup starts with each class that directly contains the string. It adds the classes that refer to those matches until no new key appears. A reference cycle with no direct match contributes nothing. A match in a cycle reaches each applicable key once.
+`$LEXICON.classify("ui")` gives `{UI, Indicator}`. The lookup starts with each class that directly contains the string. It adds the classes that refer to those matches until no new key appears. A reference cycle with no direct match contributes nothing. Each matching class appears once, even when repeated spellings or multiple reference paths reach it. Two unconditional direct writes to one key in a constructor are a load error.
 
 Each effective table entry needs a value. An empty list declares a class with no direct strings. The empty string counts as a string member. An unknown reference is a load error. A known name that a gate or deletion removes contributes nothing. A reference or deletion alone cannot declare that name.
 
@@ -988,7 +994,7 @@ Inside such a parse, a condition can ask about the very span that is being parse
 
 Every nested query, including `parse`, follows written-terminator priority (engine §4). A nested reading cannot leave out an elidable optional where the same construct can read that whole optional as written. Two Lojban examples show this. In the Zantufa pipeline, `cy to roi toi klama` gives `([cy {to roi toi}] klama)`. A nested `tag` cannot read `cy to roi` as `cy roi` with an empty parenthesis, because the parenthesis can read on to its written `toi`.
 
-In the same way, the `lojban/experimental` pipeline gives `(mi [klama {na (to broda toi)}])` for `mi klama na to broda toi`. There `broda` stays inside the parenthesis. The priority has a cost: a positive query can fail where a parse without it succeeds. Take `r → A c [+T] T` and `c → B`. Then `parse` of `r` over `A B T` fails, because `[+T]` takes the written `T`. Several readings that the priority keeps do not cause an ambiguity error.
+In the same way, the `lojban/experimental` pipeline gives `(mi [klama {na (to broda toi)}])` for `mi klama na to broda toi`. There `broda` stays inside the parenthesis. The priority has a cost: a positive query can fail where a parse without it succeeds. Take `%rule r A c [+T] T` and `%rule c B`. Then `parse` of `r` over `A B T` fails, because `[+T]` takes the written `T`. Several readings that the priority keeps do not cause an ambiguity error.
 
 A lookahead tests a rule without reading the input. A PEG is a grammar that tries alternatives in order. PEG is short for parsing expression grammar. `parse(C …)` with `.onward` or `.following-tokens` is a lookahead, like the lookahead of a PEG.
 
@@ -1142,9 +1148,9 @@ In a rule term, the guard uses one neighbor atom on `$` with optional negation. 
 
 The loader retains correlated obligations for both possible outcomes. It prunes covered contradictory assignments. More than eight variants of an effective production receive an audit note. More than sixteen fail.
 
-An output guard reads the chosen neighbors. An aligned query uses projected spans. A restored synthetic token alone is not a neighbor over original input.
+An output guard reads the chosen neighbors. An aligned query uses projected spans. A neighbor must cover original input, with an original token at each physical end. A synthetic terminal alone gives no offer.
 
-Inside a nested query, the tests read the query's own reading. Its two ends act as the ends of the input. In an aligned query, atoms read projected spans. A synthetic token has an empty projected span, so it never counts as a neighbor. A rule that a query reaches gets a default answer at the query's edges. The audit lists every such rule as a note.
+Inside a nested query, the tests read the query's own reading. Its two ends act as the ends of the input. In an aligned query, atoms read projected spans. A rule that a query reaches gets a default answer at the query's edges. The audit lists every such rule as a note.
 
 ## Bags
 
@@ -1183,7 +1189,7 @@ If neither term is present, one plain mandatory symbol supplies its whole bag. A
 
 A sole-symbol copy adds no primary edge. Use `→ {}` to suppress that copy.
 
-`$DEFAULTS` is a function from a node to a bag. It supplies defaults to each unerased rule occurrence, including chain levels and spliced calls. Leaves, braced items and insertions receive no defaults. A stage can define explicit joins as follows.
+`$DEFAULTS` is a function from a node to a bag. It supplies defaults to each unerased rule occurrence, including chain levels and spliced calls. Leaves, braced items and insertions receive no defaults. The Lojban phoneme, forms and words bases define the two joins below. The Eberban letters and forms bases and the notation lexical base also define them. Bundled pass-through and tree-only stages omit this function.
 
 ```text
 %const $DEFAULTS $n ↦ {value: $n.children!'value.join(), image: $n.children!'image.join()}
@@ -1586,9 +1592,15 @@ Each marked alternative stands on lines of its own, and no other top-level alter
 
 No line of a grammar block holds more than 100 characters, counted as Unicode code points. This covers rule bodies, headers, conditions, emission items and constant entries. An alternative can run over several lines, and each of these lines counts. A comment line does not count, because a comment stays on one line.
 
-A line that holds only one string does not count either, because a string cannot break. A long line breaks only where it is too long. It breaks first before a clause, then between two top-level items, and only then inside a term or brackets. A string concatenation can break after `++`.
+A line that holds only one string does not count, because a string cannot break. A string concatenation can break after `++`.
 
-Indent a continuation more deeply than its alternative.
+Break a long line before a clause first. Then break between top-level items before breaking inside a term or bracket. If the term or its body needs several lines, put the term on a separate line. Indent it four columns past its owner. Count from the header, the alternative bar or the unbarred alternative’s first item.
+
+End a continued condition line with its operator. In a condition list, indent its continuation two columns past the condition start. Align a guard continuation with the guard's condition. Inside brackets, continue one column past the opening bracket. Break first at the loosest operator. Indent a continuation within a tighter operand more deeply.
+
+Put a long constant value two columns past its header. If a constant breaks at an operator, end the line with that operator. Use one row per entry in an ordered table. For a long child pattern, break between items and indent the continuation two columns. For an overlong bracketed choice, break before one of its own bars. If it is a bracketed sequence, split between its items. Indent either continuation past the alternative.
+
+A grouped choice and a ranked group can each occupy one alternative line. For example, `("a" | "e") → {Vowel}` and `a ≻ b` each describe one alternative.
 
 ```text
 %rule su-survivor
@@ -1596,14 +1608,29 @@ Indent a continuation more deeply than its alternative.
   | ^$b:unit<¬Trailing-Pause> skipped<Gap-Pause> su-suffix
       → {Trailing-Pause, value: $b'value ++ $PAUSE, image: $b'image ++ $PAUSE}
 %emit
-  $b
 ```
 
-Keep the written order of constructor entries because later entries can replace earlier ones. Put a long constructor or list on several lines, with one entry or item per line. Break long expressions at their loosest operator. Increase the indent for a continuation of a tighter operand.
+Keep the written order of constructor entries. For a long constructor or list, put one entry on each line. Apply the same break rules to output items.
 
 A statement term can hold entries common to its alternatives. If an alternative needs a child's whole bag, mark that child as its primary. A statement term prevents an implicit sole-symbol copy.
 
-A comment on a definition or alternative stands on its own lines before that form. A comment between a header and its first alternative describes that alternative.
+A comment on a whole definition stands on its own lines before the definition. A comment on one alternative or entry goes on its own lines immediately before that part. Keep comments off header and alternative lines. A comment between a header and the first alternative or entry describes that part.
+
+Before factoring shared bodies, gates or terms, make sure that the result preserves bindings, writes, primary selection and reading order. A shared header term applies before every alternative term. If a moved term suppresses the plain symbol copy, keep a primary. If grouping preserves the result, combine adjacent bodies with matching gates and terms. If an identical first or last item can move without changing bindings, put it outside the group. Put a sole alternative after a bare header without a leading bar.
+
+If grouping alters the meaning or order of table rows, keep them separate. The following fragment groups two spellings on each row and preserves the complete vowel's bag through a primary.
+
+```text
+%rule accented-full-vowel → {Vowel}
+  | ("a" | "A") stress-mark → {value: "a", image: "A"}
+  | ("e" | "E") stress-mark → {value: "e", image: "E"}
+
+%rule stressed-vowel → {Stressed}
+  | ^accented-full-vowel
+  | ("y" | "Y") stress-mark → {value: "y", image: "Y"}
+```
+
+Each row of `accented-full-vowel` has its own pair of strings. The primary on the first `stressed-vowel` alternative keeps both strings and `Vowel`.
 
 ## Railroad diagrams
 

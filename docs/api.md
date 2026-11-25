@@ -48,7 +48,7 @@ A DOM (document object model) is the parsed form of a grammar document, as `docs
 
 Within one load, a document read serves every include with the same path and inherited names. Separate loads read the current text again.
 
-Each document under `grammars/FAMILY/` uses only `data/preparsed/FAMILY.json`, besides the bootstrap. A bundled pipeline therefore reads only its own family's file. A missing or malformed optional file gives cache misses. If no matching cache entry exists, the library reads the document through the notation grammar.
+Each document under `grammars/FAMILY/` uses only `data/preparsed/FAMILY.json`, besides the bootstrap. A bundled pipeline therefore reads only its own family's file. A missing, malformed or obsolete optional file gives cache misses. If no matching cache entry exists, the library reads the document through the notation grammar. An invalid record in a selected current DOM reports the same error as a supplied DOM.
 
 An ordinary entry requires matching text hash, bootstrap fingerprint, core-table hash, properties fingerprint, and DOM format. Bootstrap entries bypass source text hash checks, as engine §8 defines. The properties fingerprint is mandatory, with `null` for a custom core without a companion. A document that loads names data requires matching paths and fingerprints for its standard file and selected extras.
 
@@ -58,7 +58,7 @@ Core abbreviations depend only on the core hash. Numeric escapes alone add no na
 
 A pipeline that cannot be loaded is an error. A pipeline cannot be loaded when a document is missing, does not parse as the notation, or does not stitch (combine) into a valid grammar. It also cannot be loaded when a document on disk is not valid UTF-8 (engine §1).
 
-An existing document that cannot be read causes a `grammar` error: “the document could not be read: REASON”. The message names the document path and the operating-system reason. An include read failure also identifies the `%include` line and column. A missing document keeps the “was not found” error.
+For an unreadable document, the library reports a `grammar` error with the message “the document could not be read: REASON”. The message names the document path and the operating-system reason. An include read failure also identifies the `%include` line and column. A missing document keeps the “was not found” error.
 
 An unreadable optional `data/preparsed/FAMILY.json` gives a cache miss. A tie while the notation reads a document is a load error too (engine §8).
 
@@ -76,7 +76,7 @@ Ranked-choice loading errors also carry `code`, `group`, `option`, `expression`,
 
 Use `loaderForNotation(50)` in JavaScript, `LoaderForNotation(50)` in Go or `loader_for_notation(50)` in Python and Rust to select it explicitly. The factory selects the loader for bundled, disk and source-map inputs. A request for an unsupported notation version returns a `usage` error.
 
-The loader reads each source with the selected reader. A mismatched supplied DOM or mandatory bootstrap fails. An obsolete optional cache misses and the loader reads the source again. Locations agree across source, cache and supplied DOMs.
+The loader reads each source with the selected reader. A mismatched supplied DOM or mandatory bootstrap fails. An obsolete optional cache misses and the loader reads the source again. An invalid record in a selected current cache reports the same error and location as a supplied DOM.
 
 ### The pipeline's features
 
@@ -116,7 +116,7 @@ An `elision-only` error also has a witness, the pair of actions where its two re
 
 The check passes only with the admitted restored witness's class as the sole best admitted class (engine §7.10). A check that cannot recognize its chosen reconstruction before filtering and erased collapse reports a `grammar` error with the code `elision-witness-lost` (engine §7.9). It marks a defect of the library, not of the text.
 
-Here, `grammar` is for a defect found only while parsing. One example is a nested parse asked about its own span as the same rule. Another is a classifier's entry that adds a class twice under the features of the parse.
+Here, `grammar` is for a defect found only while parsing. One example is a nested parse asked about its own span as the same rule. Another is a reached call to `.split` with a computed empty delimiter. A classifier returns each matching class once, even when repeated spellings or reference paths reach it.
 
 Parsing is synchronous, and you can use a loaded pipeline for any number of parses. In Python, Go and Rust, any number of threads can share one pipeline and parse at once. Each JavaScript pipeline runs on one thread, and the playground worker has its own pipelines.
 
@@ -126,7 +126,9 @@ The result exposes its origin input, stages, chosen tree reference, error and wa
 
 A `reported` error contains the ordered `errors` that count at the reporting stage. Each diagnostic has `stage`, `code`, `rule`, `span`, `source`, and `message`. Errors can also have a competitor `rejection` member (engine §12.1). Warnings use the six-member shape and have no `feature` member.
 
-A `reported` result keeps the chosen tree, its `unique` or `resolved` verdict, and the reporting stage's emitted output, with `ok:false`. Earlier stages continue despite chosen errors, with diagnostics carried on output tokens. Errors cannot be disabled. Erasure drops both carried errors and warnings, while suppression applies only in the raising stage.
+A `reported` result gives `ok:false` and keeps the chosen tree and verdict. A publishing stage keeps its output, including an empty array. A tree-only stage omits output.
+
+Earlier stages continue despite chosen errors, with diagnostics carried on output tokens. Errors cannot be disabled. Erasure drops both carried errors and warnings, while suppression applies only in the raising stage.
 
 `until` selects the reporting stage. For example, inspection through forms reports surviving forms errors while preserving the emitted forms tokens. A tie lists errors and warnings from its two shown readings. Rejection, feature-conflict, and grammar envelopes also retain diagnostics under engine §12.1.
 
@@ -163,7 +165,30 @@ A named instance uses its public name everywhere, including `insertedBy`, warnin
 
 A node records its kind, identity, span and source. It can record children, a primary, an emitting occurrence, a part or a display face. A token leaf names the index that it reads in its stage input. An elided leaf uses the `default` member for a saved operand, including an explicit empty string.
 
-Earlier stages retain compact records by default. Use `stageTrees:"all"` to retain every occurrence and its children. The reporting stage keeps its full chosen table. Every surviving reference resolves after the pipeline and caller data go away.
+Earlier stages retain compact records by default. Full retention keeps every occurrence and its children. Use the same configuration on the text and supplied-token entry points.
+
+| Library | Retain full stage trees | Result token bag |
+| --- | --- | --- |
+| JavaScript | `pipeline.parse(text, {stageTrees: "all"})`, also with `tokens` | `token.props` of type `Props` |
+| Python | `stage_trees="all"` on `Pipeline.parse` and `Pipeline.parse_tokens` | `Token.props` of type `Props` |
+| Go | `gencmu.ParseOptions{StageTrees: "all"}` on `Parse` and `ParseTokens` | `Token.Props` of type `gencmu.Props` |
+| Rust | `ParseOptions { stage_trees: StageTrees::All, ..Default::default() }` on `parse` and `parse_tokens` | `Token::props`, a public field of type `gencmu::Props` |
+
+JavaScript, Python and Go accept `"compact"` and `"all"`. An omitted configuration selects compact mode. The zero-value empty string of Go's `StageTrees` field also selects compact mode. Other strings give a `usage` error. Rust's public `gencmu::StageTrees` enum has variants `Compact` and `All`. Its default is `Compact`.
+
+### Native property bags
+
+A payload is a string, bounded integer, list of payloads or another bag. JavaScript uses `Record<string, true | PropertyValue>` for `Props`. Only own properties are entries. JavaScript uses arrays for lists.
+
+Python uses `dict[str, Literal[True] | PropertyValue]` for `Props`. A reader tests identity with `True` before it tests the integer type. Go uses `map[string]any` for `Props`. A Go entry holds `true` for a bare key or a payload of type `string`, `uint8`, `[]any` or `Props`.
+
+Rust uses `BTreeMap<String, Option<PropertyValue>>` for `Props`. An entry with `None` represents a bare key. The public `PropertyValue` enum has variants `String(String)`, `Number(u8)`, `List(Vec<PropertyValue>)` and `Bag(Props)`.
+
+An absent key has no entry. Zero, the empty string and an empty collection are values. The bare marker can occur only as the value of an entry in a bag. Every canonical writer uses `props`. The native type leaves the caller restrictions below in place.
+
+### Result ownership
+
+The reporting stage keeps its full chosen table. Every surviving reference resolves after the pipeline and caller data go away.
 
 The result owns its public bags and records. Mutating a supplied buffer or a returned result cannot change a later parse. Source positions count Unicode scalars. Spans and token indices count tokens of their stage.
 
@@ -197,6 +222,8 @@ A caller token accepts `props` with bare ordinary keys and supported bare engine
 
 If the caller omits `props`, the library accepts bare tag lists and the existing string fields. A record that mixes `props` with the bare tag-list encoding is a usage error. A caller cannot supply other valued properties. A grammar stage can produce those properties.
 
+With the bare tag-list encoding, JavaScript omits a field for the text default. Python uses `None`. Rust uses `None` in `Option<String>`. Go uses `nil` in `Value *string` and `Image *string`. Supply an empty string to preserve it, with a non-nil pointer in Go. The two fields default independently.
+
 The library normalizes supported aliases before building the origin interface. It rejects invalid scalar strings, unsupported memberships and a membership with a value. It also rejects forged origin fields and nonempty diagnostic lists. Empty diagnostic lists are allowed.
 
 The engine adds no memberships from the text, value or image. For example, `{"text":"A","props":{"Stressed":true,"value":"a","image":"A"}}` compares as `a` and displays as `A`. Include the range fields where the port requires them.
@@ -223,7 +250,7 @@ import { loadPipeline, loadPipelineFile } from "gencmu/node";
 import { loadPipelineSources, toJson, toBrackets } from "gencmu";
 
 const pipeline = loadPipeline("lojban/cll");
-const result = pipeline.parse("mi klama", { features: ["y-cmavo"], until: "words" });
+const result = pipeline.parse("mi klama", { features: ["y-cmavo"], until: "words", stageTrees: "all" });
 const supplied = pipeline.parse("A", {
     tokens: [{ text: "A", props: {value: "a", image: "A", _General_Category_Uppercase_Letter: true, _General_Category_Letter: true}, span: [0, 1], source: [0, 1] }],
     until: "phonemes"
@@ -237,7 +264,7 @@ toJson(result); toBrackets(result, { showElided: true });
 ```
 
 - `loadPipeline(name)`, `loadPipelineFile(path)`, and `bundledPipelines()` come from `gencmu/node`. `loadPipelineSources(sources, path)` comes from both `gencmu` and `gencmu/node`, and its `sources` is a `Map` or a plain object. The `gencmu/node` version fills missing bundled resources with the custom-core exception above, and it loads names on demand. The portable `gencmu` version requires `data/unicode/unicode.txt` and `data/preparsed/gencmu.json` in the map. It also requires `data/unicode/unicode-names.txt` for source names outside the core abbreviation map. Additional properties require `data/unicode/unicode-properties.txt` in the map.
-- `pipeline.parse(text, { tokens, features, withoutFeatures, until, elisionOnly })` returns a `ParseResult`.
+- `pipeline.parse(text, { tokens, features, withoutFeatures, until, elisionOnly, stageTrees })` returns a `ParseResult`.
 - `pipeline.features` is an array of `{ name, kind, default }`.
 - `toJson(result)` writes the canonical JSON as text, and `resultJson(result)` returns it as a value. `toBrackets`, `toTree`, `displayValue` and `prettyJson` render it. `toJson` and `prettyJson` do not recurse, because a tree can nest deeper than the call stack allows.
 - Errors are `GencmuError`, with `kind` and `where`.
@@ -256,14 +283,14 @@ The JavaScript entry points also export helpers for the CLI and playground:
 - `fnv1a64(text)` returns the FNV-1a hash of the UTF-8 bytes as 16 hexadecimal digits.
 - `stitchText(pipeline)` returns one jbogenbau text with the pipeline's includes expanded and its strings in canonical spelling.
 - `compactJson(value)` returns JSON text without spacing and supports values deeper than the call stack.
-- `nodeBrackets(root, tokens, { showElided })` renders any result tree over its indexed tokens as brackets. The configuration argument is optional.
-- `nodeTree(root, tokens, text)` renders any result tree over its indexed tokens as a tree listing. The source text is optional.
-- `explainWarnings(result)` formats each warning's evaluated `message` and its source excerpt, in result order. It uses the warning's `code`, rule, stage, and position. It uses the raising-stage coordinates of carried warnings. It does not look up feature descriptions, reevaluate recipes,.
+- `explainWarnings(result)` formats each warning's evaluated `message` and its source excerpt, in result order. It uses the warning's `code`, rule, stage, and position. The formatter uses the stored message and coordinates, including the raising-stage coordinates of carried warnings.
 - `bundledGrammarsDirectory()` returns the bundled grammar directory and comes only from `gencmu/node`.
 
-The portable `gencmu` entry point and `gencmu/node` both export the first six helpers.
+The portable `gencmu` entry point and `gencmu/node` both export the first four helpers.
 
-Both helpers take `stage.input` as their `tokens` argument. Find that stage by name in `result.stages`, then pass its tree as `root`. The tree listing uses the input tokens' originating Unicode table.
+Use `toBrackets(result)` or `toTree(result)` to render a complete result. For earlier-stage structure, parse with `stageTrees:"all"`. Find the stage by name and resolve its root ID in that stage's chosen occurrence table.
+
+An input index of minus one names `result.input.tokens`. Any other input index names the predecessor stage's output. Resolve faces against the stage and reading that their references name. For an individual root, rendering needs its occurrence table, input tokens and the tables for referenced faces. A tree listing also needs the originating Unicode table.
 
 The types are in the package's declarations (`lib/js/types/`).
 
@@ -275,7 +302,7 @@ The types are in the package's declarations (`lib/js/types/`).
 import gencmu
 
 pipeline = gencmu.load_pipeline("lojban/cll")
-result = pipeline.parse("mi klama", features={"y-cmavo"}, until="words")
+result = pipeline.parse("mi klama", features={"y-cmavo"}, until="words", stage_trees="all")
 tokens = [gencmu.Token(text="A", value="a", image="A", tags={"_General_Category_Uppercase_Letter", "_General_Category_Letter"}, span=(0, 1), source=(0, 1))]
 supplied = pipeline.parse_tokens(tokens, "A", until="phonemes")
 result.ok, result.tree, result.error, result.warnings
@@ -291,12 +318,12 @@ The Python loaders also take `use_cache=False`. With it, the loader reads every 
 
 - `bundled_pipelines() -> list[str]` lists the bundled full names.
 - `load_pipeline(name)`, `load_pipeline_file(path)` and `load_pipeline_sources(sources, path)` load a pipeline. `sources` is a mapping from path to text.
-- `Pipeline.parse(text, *, features=(), without_features=(), until=None, elision_only=None) -> ParseResult` parses a text.
-- `Pipeline.parse_tokens(tokens: Sequence[Token], text: str, *, features=(), without_features=(), until=None, elision_only=None) -> ParseResult` parses supplied tokens.
+- `Pipeline.parse(text, *, features=(), without_features=(), until=None, elision_only=None, stage_trees="compact") -> ParseResult` parses a text.
+- `Pipeline.parse_tokens(tokens: Sequence[Token], text: str, *, features=(), without_features=(), until=None, elision_only=None, stage_trees="compact") -> ParseResult` parses supplied tokens.
 - `Pipeline.features` is a tuple of `Feature`, a dataclass with `name`, `kind` and `default`.
 - Other pipeline attributes and helpers are private and use names that start with `_`.
 - `ParseResult`, `Stage`, `Node`, `Token`, `ParseWarning`, `ParseError`, `Action`, `Expected` and `Restoration` are dataclasses. The warning class is not called `Warning`, because `Warning` is a built-in exception.
-- `ParseResult` exposes `ok`, `stages`, `tree`, `error`, `warnings`, and `features`, as defined above.
+- `ParseResult` exposes `ok`, `input`, `stages`, `tree`, `error`, `warnings`, and `features`, as defined above.
 - `Expected` describes an expected terminal with `terminal` and `rules`. `ParseError.expected` holds a list of these records.
 - `Action` describes a derivation step with `kind` and the applicable `token`, `terminal`, `rule`, `production`, `span`, or `at` fields. `ParseError.witness` holds two actions.
 - `Restoration` describes an inserted terminator with `terminal`, `at`, `source`, and optional `value`. `ParseError.completion` holds a list of these frozen dataclasses.
@@ -311,8 +338,8 @@ The package needs Python 3.14 or later. It is pure Python with no runtime depend
 import gencmu "github.com/int19h/gencmu/lib/go"
 
 pipeline, err := gencmu.LoadPipeline("lojban/cll")
-result, err := pipeline.Parse("mi klama", gencmu.ParseOptions{Features: []string{"y-cmavo"}, Until: "words"})
-result.OK; result.Tree; result.Error; result.Warnings
+result, err := pipeline.Parse("mi klama", gencmu.ParseOptions{Features: []string{"y-cmavo"}, Until: "words", StageTrees: "all"})
+ok, tree, parseError, warnings := result.OK, result.Tree, result.Error, result.Warnings
 value, image := "a", "A"
 supplied, err := pipeline.ParseTokens("A", []gencmu.InputToken{{
     Text: "A", Value: &value, Image: &image, Tags: []string{"_General_Category_Uppercase_Letter", "_General_Category_Letter"},
@@ -328,7 +355,7 @@ gencmu.Brackets(result, gencmu.BracketOptions{ShowElided: true})
 
 - `BundledPipelines() []string` lists the bundled full names.
 - `LoadPipeline(name)`, `LoadPipelineFile(path)` and `LoadPipelineSources(sources map[string]string, path string)` each return `(*Pipeline, error)`. A load error is a `*gencmu.Error`.
-- `(*Pipeline).Parse(text string, options ParseOptions) (*ParseResult, error)` parses a text. The error is for a mistake of the caller, such as an unknown stage name. A text that does not parse is a result. `ParseOptions` has `Features []string`, `WithoutFeatures []string`, `Until string` and `ElisionOnly *bool`.
+- `(*Pipeline).Parse(text string, options ParseOptions) (*ParseResult, error)` parses a text. The error is for a mistake of the caller, such as an unknown stage name. A text that does not parse is a result. `ParseOptions` has `Features []string`, `WithoutFeatures []string`, `Until string`, `ElisionOnly *bool` and `StageTrees string`.
 
   `Until` is a string, so Go cannot distinguish an empty name from no name. An empty `Until` runs every stage.
 
@@ -346,6 +373,7 @@ let pipeline = gencmu::load_pipeline("lojban/cll")?;
 let result = pipeline.parse("mi klama", &gencmu::ParseOptions {
     features: vec!["y-cmavo".into()],
     until: Some("words".into()),
+    stage_trees: gencmu::StageTrees::All,
     ..Default::default()
 })?;
 let supplied = pipeline.parse_tokens(&[gencmu::InputToken {
@@ -365,7 +393,7 @@ Rust exposes the optional fields of ranked-choice loading errors through `code()
 
 - `bundled_pipelines() -> Vec<String>` lists the bundled full names.
 - `load_pipeline(name)`, `load_pipeline_file(path)` and `load_pipeline_sources(sources, path)` each return `Result<Pipeline, gencmu::Error>`.
-- `Pipeline::parse(&self, text: &str, options: &ParseOptions) -> Result<ParseResult, Error>` parses a text. `ParseOptions` has `features`, `without_features`, `until` and `elision_only`.
+- `Pipeline::parse(&self, text: &str, options: &ParseOptions) -> Result<ParseResult, Error>` parses a text. `ParseOptions` has `features`, `without_features`, `until`, `elision_only` and `stage_trees`.
 - `Pipeline::parse_tokens(&self, tokens: &[InputToken], options: &ParseOptions) -> Result<ParseResult, Error>` parses supplied tokens with the same configuration.
 - `Pipeline::features(&self) -> &[Feature]` lists the features. Each `Feature` has `name`, `kind` and `default`.
 - `to_json(&ParseResult) -> String` writes the canonical JSON.
