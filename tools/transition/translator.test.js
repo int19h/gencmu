@@ -21,6 +21,13 @@ function hasSite(root, line, column) {
   return false;
 }
 
+function matchesSite(record, expected) {
+  const dom = record?.dom ?? record;
+  if (!expected.owner) return hasSite(dom, expected.line, expected.column);
+  const owner = expected.owner.split("/").slice(1).reduce((node, part) => node?.[part], dom);
+  return owner?.at?.[0] === expected.line && owner.at[1] === expected.column;
+}
+
 test("the translator keeps statement, alternative and emission terms on their owners", () => {
   const grammar = '%rule text :- "head"\n  | $x:A := "body"\n%emits $x :: Result';
   const { fixture, status, diagnostics } = translateSharedCase("engine", "probe", {
@@ -35,6 +42,21 @@ test("the translator keeps statement, alternative and emission terms on their ow
   assert.equal(rule.alternatives[0].term.bag[0].value.string, "body");
   assert.equal(rule.emit.items[0].capture, "x");
   assert.equal(rule.emit.items[0].term.bag[0].key, "Result");
+});
+
+test("the input value join excludes nonempty elidable defaults", () => {
+  for (const name of [
+    "267-default-emission", "267-default-image", "267-default-template-constant",
+    "267-default-template-head", "267-default-template-string", "reparse-original-rule-test",
+  ]) {
+    const file = name + ".json";
+    const migrated = translateSharedCase("engine", file, legacyFixture("engine", file));
+    const { documents, pipelineDocument } = migrated.fixture;
+    assert.match(documents["main.md"], /value: \$\.span\.tokens!'value\.join\(\)/, name);
+    assert.match(documents[pipelineDocument], /image: \$node\.children!'image\.join\(\)/, name);
+    assert.ok(migrated.changes.some(change => change.document === "main.md" &&
+      change.reason.includes("route with an omitted default")), name);
+  }
 });
 
 test("the translator follows an old span receiver and keeps its literal operands", () => {
@@ -142,7 +164,7 @@ for (const [id, record] of Object.entries(negatives)) {
         assert.equal(expected, undefined);
       } else {
         assert.equal(expected.kind, "grammar");
-        assert.ok(hasSite(compiled[expected.document], expected.line, expected.column),
+        assert.ok(matchesSite(compiled[expected.document], expected),
           `${expected.document}:${expected.line}:${expected.column} needs a DOM record at the expected site`);
       }
       return;
@@ -249,7 +271,7 @@ test("each written migration has format 50 source or an expected source error", 
           const dom = scoped.compileDocument(text, file);
           assert.equal(dom.format, 50, id);
           if (record.expected?.document === file && record.expected.line) {
-            assert.ok(hasSite(dom, record.expected.line, record.expected.column), id);
+            assert.ok(matchesSite(dom, record.expected), id);
           }
         }
       }
@@ -257,7 +279,7 @@ test("each written migration has format 50 source or an expected source error", 
       const source = document ?? ["```jbogenbau", ...fixture.source, "```"].join("\n");
       const dom = compiler.compileDocument(source, id);
       assert.equal(dom.format, 50, id);
-      if (record.expected?.line) assert.ok(hasSite(dom, record.expected.line, record.expected.column), id);
+      if (record.expected?.line) assert.ok(matchesSite(dom, record.expected), id);
     }
   }
 });
@@ -400,12 +422,120 @@ test("an item without the tested capture needs a hand migration", () => {
 
 test("the whole optional retains its body in its format 50 counterpart", () => {
   const name = "helper-tags.json";
-  const { counterpart, status } = translateSharedCase("engine", name, legacyFixture("engine", name));
-  assert.equal(status, "retired");
-  assert.equal(counterpart.status, "native-pending");
-  const [text, rule] = compiler.compileDocument(counterpart.fixture.documents["main.md"]).rules;
+  const { fixture, status, load, expected } = translateSharedCase("engine", name, legacyFixture("engine", name));
+  assert.equal(status, "native-pending");
+  assert.equal(load, true);
+  const [text, rule] = compiler.compileDocument(fixture.documents["main.md"]).rules;
   assert.equal(text.alternatives[0].expr.ref, "w");
   assert.equal(rule.alternatives[0].expr.optional.ref, "A");
   assert.deepEqual(rule.emit.items, []);
-  assert.deepEqual(counterpart.expected, { props: { value: "a", image: "a" } });
+  assert.deepEqual(expected, { props: { value: "a", image: "a" } });
+});
+
+for (const suffix of ["", "-not", "-reject", "-not-reject"]) {
+  test(`the optional list preserves the outer comparison${suffix}`, () => {
+    const name = `item-comparison-optional-pattern${suffix}.json`;
+    const migrated = translateSharedCase("engine", name, legacyFixture("engine", name));
+    assert.equal(migrated.status, "translated");
+    const { rules } = compiler.compileDocument(migrated.fixture.documents["main.md"]);
+    const rule = rules.find(rule => rule.name === "text");
+    assert.ok(rule.alternatives[0].expr.seq[2].optional);
+    const [outer, list] = rule.conditions[0].all;
+    assert.deepEqual([outer.left.capture, outer.right.capture], ["x", "y"]);
+    assert.equal(outer.op, "≅");
+    assert.equal(list.method, "all");
+    assert.equal(list.receiver.capture, "c");
+    assert.equal(list.args[0].body.left.capture, list.args[0].lambda);
+    assert.ok(migrated.changes.some(change => change.reason.includes("run on an empty list")));
+  });
+}
+
+for (const name of [
+  "item-condition-optional-braces-empty", "item-condition-optional-braces-fails",
+  "item-condition-through-helper", "item-condition-through-helper-holds",
+  "item-comparison-optional-tree", "item-comparison-optional-tree-reject",
+]) {
+  test(`the optional list keeps the item-only condition in ${name}`, () => {
+    const file = name + ".json";
+    const moved = translateSharedCase("engine", file, legacyFixture("engine", file));
+    assert.equal(moved.status, "translated");
+    const { rules } = compiler.compileDocument(moved.fixture.documents["main.md"]);
+    const predicates = rules.flatMap(rule => rule.conditions).filter(condition => condition.method === "all");
+    assert.ok(predicates.length);
+  });
+}
+
+test("mixed recipes join the written child values and skip synthetic values", () => {
+  const migrated = translateSharedCase("engine", "omission-with-recipe", {
+    grammar: '%rule text item [$end:+T ≝ "end"]\n%emits\n%rule item A := "cooked"',
+  });
+  assert.equal(migrated.status, "translated");
+  const { documents, pipelineDocument } = migrated.fixture;
+  const { rules } = compiler.compileDocument(documents["main.md"]);
+  const value = rules[0].alternatives[0].term.bag[0];
+  const { constants } = compiler.compileDocument(documents[pipelineDocument]);
+  const defaults = constants.find(item => item.name === "DEFAULTS").value;
+  const image = defaults.body.bag[1];
+  const map = value.value.receiver;
+  assert.equal(map.map.method, "children");
+  assert.equal(map.by.body.if.right.pattern.requirements[0].value.tag, "_Elided");
+  assert.equal(map.by.body.then.string, "");
+  assert.equal(map.by.body.else.property, "value");
+  assert.equal(image.value.receiver.map.method, "children");
+});
+
+test("the tested rule keeps its input join when another rule cooks a value", () => {
+  const name = "reparse-original-rule-test.json";
+  const prior = legacyFixture("engine", name);
+  const base = translateSharedCase("engine", name, prior);
+  const unrelated = translateSharedCase("engine", name, {
+    ...prior, grammar: prior.grammar + '\n%rule unused Z := "cooked"',
+  });
+  const testedRule = outcome => compiler.compileDocument(outcome.fixture.documents["main.md"]).rules.find(rule => rule.name === "a");
+  assert.equal(unrelated.status, "translated");
+  assert.deepEqual(testedRule(unrelated), testedRule(base));
+  assert.match(unrelated.fixture.documents["main.md"], /a="a"/);
+  const value = testedRule(unrelated).alternatives[0].term.bag[0].value;
+  assert.equal(value.receiver.map.receiver.method, "span");
+  const uncertain = translateSharedCase("engine", name, {
+    ...prior, grammar: prior.grammar.replace("%rule a (A", "%rule a (cooked") + '\n%rule cooked A := "cooked"',
+  });
+  assert.equal(uncertain.status, "needs-hand");
+  assert.match(uncertain.reason, /input-join proof/);
+  const mixedAlternatives = translateSharedCase("engine", name, {
+    ...prior, grammar: prior.grammar.replace('%rule a (A [+T="ta"])', '%rule a (A [+T="ta"]) | Z := "cooked"'),
+  });
+  assert.equal(mixedAlternatives.status, "needs-hand");
+  assert.match(mixedAlternatives.reason, /input-join proof/);
+});
+
+test("a same-named recipe in a separate stage leaves the tested rule alone", () => {
+  const first = '%stage first\n%ambiguity-resolution greedy\n%rule text a="a"\n%rule a item [+T ≝ "end"]\n%rule item A';
+  const second = '%stage second\n%ambiguity-resolution greedy\n%rule text item\n%rule item A := "cooked"';
+  const moved = translateSharedCase("engine", "omission-in-one-stage", {
+    pipelineDocument: "p.md", documents: { "p.md": "\x60\x60\x60jbogenbau\n" + first + "\n" + second + "\n\x60\x60\x60" },
+  });
+  assert.equal(moved.status, "translated");
+  assert.match(moved.fixture.documents["p.md"], /%rule a item \[\+T ≝ "end"\] → \{value: \$\.span\.tokens!'value\.join\(\)\}/);
+});
+
+test("the translator records changes to output, display and working reads", () => {
+  const migrated = translateSharedCase("engine", "recipe-record", {
+    grammar: '%rule text $x:r\n%conditions $x.emitted.value = "a"\n%rule r A',
+  });
+  // The old grammar rejects this recognition demand, so a recorded
+  // migration is required for it. A late read prints the working property.
+  const valid = translateSharedCase("engine", "recipe-record-late", {
+    grammar: '%rule text (A | B) := "a"\n%emits $ := $.emitted.value',
+  });
+  assert.equal(migrated.status, "needs-negative");
+  assert.equal(valid.status, "translated");
+  assert.ok(valid.changes.some(change => change.reason.includes("$OUTPUTS")));
+  assert.ok(valid.changes.some(change => change.reason.includes("display primary")));
+  assert.ok(valid.changes.some(change => change.reason.includes("working value property")));
+  const { rules: [rule] } = compiler.compileDocument(valid.fixture.documents["main.md"]);
+  assert.equal(rule.alternatives.length, 1);
+  assert.equal(rule.alternatives[0].expr.choice.length, 2);
+  assert.deepEqual(rule.alternatives[0].expr.choice.map(node => node.primary.ref), ["A", "B"]);
+  assert.equal(rule.alternatives[0].term.bag[0].value.string, "a");
 });

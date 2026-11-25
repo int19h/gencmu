@@ -4,7 +4,7 @@
     "expected": {
       "document": "main.md",
       "line": 4,
-      "column": 17,
+      "column": 1,
       "description": "a chain item or separator cannot bind a capture directly"
     }
   },
@@ -867,7 +867,7 @@
     "reason": "The same written operand causes a retained fault at the original position.",
     "expected": {
       "line": 2,
-      "column": 12,
+      "column": 1,
       "description": "an ordered subset takes at most sixteen operands"
     }
   },
@@ -875,7 +875,7 @@
     "reason": "The same written operand causes a retained fault at the original position.",
     "expected": {
       "line": 2,
-      "column": 9,
+      "column": 1,
       "description": "an ordered subset takes at most sixteen operands"
     }
   },
@@ -938,16 +938,16 @@
     "reason": "The same written operand causes a retained fault at the original position.",
     "expected": {
       "line": 2,
-      "column": 14,
+      "column": 1,
       "description": "a chain item or separator cannot bind a capture directly"
     }
   },
   "notation/braces-order-chain-capture.json": {
-    "reason": "The chain follows another symbol. Its opening brace wins over the inner capture.",
+    "reason": "The normalized body retains the enclosing operator. The rule owns the misplaced chain fault before any inner capture fault.",
     "expected": {
       "description": "a chain must occupy a whole alternative",
       "line": 2,
-      "column": 11
+      "column": 1
     }
   },
   "notation/braces-order-test-chain.json": {
@@ -1140,42 +1140,42 @@
     }
   },
   "notation/chain-in-and.json": {
-    "reason": "The same written operand causes a retained fault at the original position.",
+    "reason": "The normalized body retains the enclosing operator. The rule owns the misplaced chain fault before any inner capture fault.",
     "expected": {
       "line": 2,
-      "column": 9,
+      "column": 1,
       "description": "a chain must occupy a whole alternative"
     }
   },
   "notation/chain-in-braces.json": {
-    "reason": "The same written operand causes a retained fault at the original position.",
+    "reason": "The normalized body retains the enclosing operator. The rule owns the misplaced chain fault before any inner capture fault.",
     "expected": {
       "line": 2,
-      "column": 11,
+      "column": 1,
       "description": "a chain must occupy a whole alternative"
     }
   },
   "notation/chain-in-choice.json": {
-    "reason": "The same written operand causes a retained fault at the original position.",
+    "reason": "The normalized body retains the enclosing operator. The rule owns the misplaced chain fault before any inner capture fault.",
     "expected": {
       "line": 2,
-      "column": 11,
+      "column": 1,
       "description": "a chain must occupy a whole alternative"
     }
   },
   "notation/chain-in-group.json": {
-    "reason": "The same written operand causes a retained fault at the original position.",
+    "reason": "The normalized body retains the enclosing operator. The rule owns the misplaced chain fault before any inner capture fault.",
     "expected": {
       "line": 2,
-      "column": 13,
+      "column": 1,
       "description": "a chain must occupy a whole alternative"
     }
   },
   "notation/chain-in-optional.json": {
-    "reason": "The same written operand causes a retained fault at the original position.",
+    "reason": "The normalized body retains the enclosing operator. The rule owns the misplaced chain fault before any inner capture fault.",
     "expected": {
       "line": 2,
-      "column": 11,
+      "column": 1,
       "description": "a chain must occupy a whole alternative"
     }
   },
@@ -1183,7 +1183,7 @@
     "reason": "The same written operand causes a retained fault at the original position.",
     "expected": {
       "line": 2,
-      "column": 37,
+      "column": 28,
       "description": "a chain cannot be the query target"
     }
   },
@@ -1191,7 +1191,7 @@
     "reason": "The same written operand causes a retained fault at the original position.",
     "expected": {
       "line": 2,
-      "column": 35,
+      "column": 28,
       "description": "a chain cannot be the query target"
     }
   },
@@ -1199,15 +1199,15 @@
     "reason": "The same written operand causes a retained fault at the original position.",
     "expected": {
       "line": 2,
-      "column": 35,
+      "column": 28,
       "description": "a chain cannot be the query target"
     }
   },
   "notation/chain-in-sequence.json": {
-    "reason": "The same written operand causes a retained fault at the original position.",
+    "reason": "The normalized body retains the enclosing operator. The rule owns the misplaced chain fault before any inner capture fault.",
     "expected": {
       "line": 2,
-      "column": 11,
+      "column": 1,
       "description": "a chain must occupy a whole alternative"
     }
   },
@@ -1487,7 +1487,7 @@
     "reason": "The same written operand causes a retained fault at the original position.",
     "expected": {
       "line": 2,
-      "column": 13,
+      "column": 1,
       "description": "a chain item or separator cannot bind a capture directly"
     }
   },
@@ -2108,7 +2108,7 @@
     "expected": {
       "line": 3,
       "column": 18,
-      "description": "only a rule atom, call or parameter can have a child list"
+      "description": "only an untested rule atom, call or parameter can have a child list"
     }
   },
   "notation/layered-pattern-62.json": {
@@ -2116,7 +2116,7 @@
     "expected": {
       "line": 3,
       "column": 18,
-      "description": "only a rule atom, call or parameter can have a child list"
+      "description": "only an untested rule atom, call or parameter can have a child list"
     }
   },
   "notation/layered-pattern-63.json": {
@@ -2124,7 +2124,7 @@
     "expected": {
       "line": 3,
       "column": 18,
-      "description": "only a rule atom, call or parameter can have a child list"
+      "description": "only an untested rule atom, call or parameter can have a child list"
     }
   },
   "notation/layered-pattern-64.json": {
@@ -2132,7 +2132,7 @@
     "expected": {
       "line": 3,
       "column": 19,
-      "description": "only a rule atom, call or parameter can have a child list"
+      "description": "only an untested rule atom, call or parameter can have a child list"
     }
   },
   "notation/layered-pattern-65.json": {
@@ -2140,7 +2140,7 @@
     "expected": {
       "line": 3,
       "column": 18,
-      "description": "only a rule atom, call or parameter can have a child list"
+      "description": "only an untested rule atom, call or parameter can have a child list"
     }
   },
   "notation/layered-pattern-66.json": {
@@ -3893,7 +3893,7 @@
     "expected": {
       "document": "pipeline.md",
       "line": 5,
-      "column": 24,
+      "column": 16,
       "description": "a width must be positive"
     }
   },
@@ -3902,7 +3902,7 @@
     "expected": {
       "document": "pipeline.md",
       "line": 5,
-      "column": 24,
+      "column": 16,
       "description": "a width must be positive"
     }
   },
@@ -4214,7 +4214,6 @@
   },
   "notation/property-in-tag-term.json": {
     "reason": "The source supplies a reserved membership directly without provenance.",
-    "native": true,
     "section": "Engine §§1, 3.7",
     "entry": "pipeline.md",
     "documents": {
@@ -4225,7 +4224,8 @@
       "kind": "grammar",
       "document": "notation.md",
       "line": 2,
-      "column": 17
+      "column": 17,
+      "description": "a constructor cannot write an engine key without provenance"
     }
   },
   "notation/range-decomposed-endpoint.json": {
@@ -4922,7 +4922,6 @@
   },
   "engine/properties-provenance-alternative.json": {
     "reason": "The source supplies a reserved membership directly without provenance.",
-    "native": true,
     "section": "Engine §§1, 3.7",
     "entry": "p.md",
     "documents": {
@@ -4933,12 +4932,12 @@
       "kind": "grammar",
       "document": "g.md",
       "line": 3,
-      "column": 11
+      "column": 11,
+      "description": "a constructor cannot write an engine key without provenance"
     }
   },
   "engine/properties-provenance-emission.json": {
     "reason": "The source supplies a reserved membership directly without provenance.",
-    "native": true,
     "section": "Engine §§1, 3.7",
     "entry": "p.md",
     "documents": {
@@ -4949,12 +4948,12 @@
       "kind": "grammar",
       "document": "g.md",
       "line": 3,
-      "column": 10
+      "column": 10,
+      "description": "a constructor cannot write an engine key without provenance"
     }
   },
   "engine/properties-provenance-header-guard.json": {
     "reason": "The source supplies a reserved membership directly without provenance.",
-    "native": true,
     "section": "Engine §§1, 3.7",
     "entry": "p.md",
     "documents": {
@@ -4965,12 +4964,12 @@
       "kind": "grammar",
       "document": "g.md",
       "line": 2,
-      "column": 24
+      "column": 21,
+      "description": "a constructor cannot write an engine key without provenance"
     }
   },
   "engine/properties-provenance-insertion.json": {
     "reason": "The source supplies a reserved membership directly without provenance.",
-    "native": true,
     "section": "Engine §§1, 3.7",
     "entry": "p.md",
     "documents": {
@@ -4981,7 +4980,8 @@
       "kind": "grammar",
       "document": "g.md",
       "line": 3,
-      "column": 9
+      "column": 9,
+      "description": "a constructor cannot write an engine key without provenance"
     }
   },
   "engine/query-closed-ngrams.json": {
@@ -5337,7 +5337,6 @@
   },
   "engine/values-lit-union.json": {
     "reason": "The source supplies a reserved membership directly without provenance.",
-    "native": true,
     "section": "Engine §§1, 3.7",
     "entry": "pipeline.md",
     "documents": {
@@ -5348,7 +5347,8 @@
       "kind": "grammar",
       "document": "main.md",
       "line": 3,
-      "column": 23
+      "column": 23,
+      "description": "a constructor cannot write an engine key without provenance"
     }
   },
   "engine/values-recipe-absent-capture.json": {
@@ -5446,7 +5446,7 @@
     "expected": {
       "document": "notation.md",
       "line": 2,
-      "column": 14,
+      "column": 1,
       "description": "an elidable optional starts with an ungrouped user terminal or parameter and can bind only its sole terminator"
     },
     "reason": "Keep the written construct that causes the same source fault.",
@@ -5477,8 +5477,8 @@
     "expected": {
       "document": "notation.md",
       "line": 2,
-      "column": 29,
-      "description": "an integer cannot start with a leading zero"
+      "column": 21,
+      "description": "a width must be positive"
     },
     "reason": "Keep the written construct that causes the same source fault.",
     "document": "```jbogenbau\n%rule text A → {*\"x\".ngrams(01)}\n```\n"
@@ -5547,7 +5547,7 @@
     "expected": {
       "document": "notation.md",
       "line": 2,
-      "column": 13,
+      "column": 1,
       "description": "an elidable optional starts with an ungrouped user terminal or parameter and can bind only its sole terminator"
     },
     "reason": "Keep the written construct that causes the same source fault.",
@@ -5557,7 +5557,7 @@
     "expected": {
       "document": "notation.md",
       "line": 2,
-      "column": 11,
+      "column": 1,
       "description": "an elidable optional starts with an ungrouped user terminal or parameter and can bind only its sole terminator"
     },
     "reason": "Keep the written construct that causes the same source fault.",
@@ -5567,7 +5567,7 @@
     "expected": {
       "document": "notation.md",
       "line": 2,
-      "column": 11,
+      "column": 1,
       "description": "an elidable optional starts with an ungrouped user terminal or parameter and can bind only its sole terminator"
     },
     "reason": "Keep the written construct that causes the same source fault.",
@@ -5577,7 +5577,7 @@
     "expected": {
       "document": "notation.md",
       "line": 2,
-      "column": 11,
+      "column": 1,
       "description": "an elidable optional starts with an ungrouped user terminal or parameter and can bind only its sole terminator"
     },
     "reason": "Keep the written construct that causes the same source fault.",
@@ -5597,7 +5597,7 @@
     "expected": {
       "document": "notation.md",
       "line": 2,
-      "column": 11,
+      "column": 1,
       "description": "an elidable optional starts with an ungrouped user terminal or parameter and can bind only its sole terminator"
     },
     "reason": "Keep the written construct that causes the same source fault.",
@@ -5607,7 +5607,7 @@
     "expected": {
       "document": "notation.md",
       "line": 2,
-      "column": 11,
+      "column": 1,
       "description": "an elidable optional starts with an ungrouped user terminal or parameter and can bind only its sole terminator"
     },
     "reason": "Keep the written construct that causes the same source fault.",
@@ -5627,7 +5627,7 @@
     "expected": {
       "document": "notation.md",
       "line": 2,
-      "column": 11,
+      "column": 1,
       "description": "an elidable optional starts with an ungrouped user terminal or parameter and can bind only its sole terminator"
     },
     "reason": "Keep the written construct that causes the same source fault.",
@@ -5637,7 +5637,7 @@
     "expected": {
       "document": "notation.md",
       "line": 2,
-      "column": 11,
+      "column": 1,
       "description": "an elidable optional starts with an ungrouped user terminal or parameter and can bind only its sole terminator"
     },
     "reason": "Keep the written construct that causes the same source fault.",
@@ -5647,7 +5647,7 @@
     "expected": {
       "document": "notation.md",
       "line": 2,
-      "column": 11,
+      "column": 1,
       "description": "an elidable optional starts with an ungrouped user terminal or parameter and can bind only its sole terminator"
     },
     "reason": "Keep the written construct that causes the same source fault.",
@@ -5657,7 +5657,7 @@
     "expected": {
       "document": "notation.md",
       "line": 2,
-      "column": 11,
+      "column": 1,
       "description": "an elidable optional starts with an ungrouped user terminal or parameter and can bind only its sole terminator"
     },
     "reason": "Keep the written construct that causes the same source fault.",
@@ -5667,7 +5667,7 @@
     "expected": {
       "document": "notation.md",
       "line": 2,
-      "column": 11,
+      "column": 1,
       "description": "an elidable optional starts with an ungrouped user terminal or parameter and can bind only its sole terminator"
     },
     "reason": "Keep the written construct that causes the same source fault.",
@@ -5677,7 +5677,7 @@
     "expected": {
       "document": "notation.md",
       "line": 2,
-      "column": 11,
+      "column": 1,
       "description": "an elidable optional starts with an ungrouped user terminal or parameter and can bind only its sole terminator"
     },
     "reason": "Keep the written construct that causes the same source fault.",
@@ -5687,7 +5687,7 @@
     "expected": {
       "document": "notation.md",
       "line": 2,
-      "column": 11,
+      "column": 1,
       "description": "an elidable optional starts with an ungrouped user terminal or parameter and can bind only its sole terminator"
     },
     "reason": "Keep the written construct that causes the same source fault.",
@@ -6053,8 +6053,8 @@
     "expected": {
       "document": "main.md",
       "line": 5,
-      "column": 50,
-      "description": "an integer cannot start with a leading zero"
+      "column": 42,
+      "description": "a width must be positive"
     },
     "reason": "Keep the written construct that causes the same source fault.",
     "documents": {
@@ -6067,7 +6067,7 @@
     "expected": {
       "document": "main.md",
       "line": 5,
-      "column": 50,
+      "column": 42,
       "description": "a width must be positive"
     },
     "reason": "Keep the written construct that causes the same source fault.",
@@ -6870,7 +6870,6 @@
   "notation/definition-order-conditions-emits.json": {
     "reason": "Keep both operand domains and the written operation that requires a compatible pair.",
     "section": "Engine §10, Operators and truth",
-    "native": true,
     "documents": {
       "notation.md": "```jbogenbau\n%rule a $x:A\n%conditions ($x.source-text ⊆ {A})\n%emit ${*$}, $x{*$x}\n```\n",
       "pipeline.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%include \"notation.md\"\n%rule text ε\n```\n"
@@ -6880,7 +6879,8 @@
       "kind": "grammar",
       "document": "notation.md",
       "line": 3,
-      "column": 29
+      "column": 29,
+      "description": "⊆ requires key sets"
     }
   },
   "notation/definition-order-items.json": {
@@ -8145,12 +8145,30 @@
     "entry": "main.md"
   },
   "notation/267-emitted-in-tag-guard.json": {
-    "retired": "Expression contexts read properties of a working node. The separate emitted method inside a clause is gone.",
-    "section": "Engine §§3.7, 10"
+    "native": true,
+    "section": "Engine §§3.7, 4",
+    "reason": "A rule term can read a child's certified value. The added rule gives the old symbol a supplier.",
+    "load": true,
+    "entry": "main.md",
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%const $DEFAULTS $n ↦ {value: $n.span.tokens!'value.join(), image: $n.children!'image.join()}\n%rule text ^$x:w → {($x'value = \"ab\")? T}\n%rule w \"ab\"\n```\n"
+    }
   },
   "notation/267-emitted-in-tags.json": {
-    "retired": "Expression contexts read properties of a working node. The separate emitted method inside a clause is gone.",
-    "section": "Engine §§3.7, 10"
+    "native": true,
+    "section": "Engine §3.7, Rule bags",
+    "reason": "The classifier reads the working value from its own unfinished bag.",
+    "expected": {
+      "kind": "grammar",
+      "document": "main.md",
+      "line": 6,
+      "column": 36,
+      "owner": "/rules/0/alternatives/0/term/bag/0/value/args/0"
+    },
+    "entry": "main.md",
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%const $DEFAULTS $n ↦ {value: $n.span.tokens!'value.join(), image: $n.children!'image.join()}\n%const $WORDS {A: [\"a\"]}\n%rule text ^A → {*$WORDS.classify($'value)}\n```\n"
+    }
   },
   "notation/diagnostic-method-recipe.json": {
     "retired": "Expression contexts read properties of a working node. The separate emitted method inside a clause is gone.",
@@ -8224,8 +8242,20 @@
     "section": "Engine §11.3"
   },
   "engine/deferral-capture-order.json": {
-    "retired": "The old carrier listed attachment captures. Presentation now follows the structural sibling order.",
-    "section": "Engine §11.3"
+    "reason": "Both optional bindings can forward consuming publications. The second item reverses their cover order.",
+    "section": "Engine §§9.3, 11.1",
+    "native": true,
+    "expected": {
+      "kind": "grammar",
+      "document": "main.md",
+      "line": 6,
+      "column": 11,
+      "owner": "/rules/0/emit/items/1"
+    },
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%const $OUTPUTS {}\n%rule text [$a:a] [$b:b] (X ≻ Y)\n%emit $b, $a\n%rule a A\n%emit\n%rule b B\n%emit\n```\n"
+    },
+    "entry": "main.md"
   },
   "notation/braces-257-deep.json": {
     "reason": "Keep the written input and the first structural fault under format 50.",
@@ -9043,8 +9073,14 @@
     "section": "Engine §3.7"
   },
   "engine/i276-message-emitted.json": {
-    "retired": "The emitted receiver is gone. A message reads a working key, subject to its demand rules.",
-    "section": "Engine §§9.3, 10"
+    "native": true,
+    "section": "Engine §§9.3, 10",
+    "reason": "The error message can read the working value after recognition. It makes no query or publication demand.",
+    "load": true,
+    "entry": "main.md",
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%const $DEFAULTS $n ↦ {value: $n.span.tokens!'value.join(), image: $n.children!'image.join()}\n%rule text A %error $'value\n```\n"
+    }
   },
   "engine/item-condition-different-expansions.json": {
     "reason": "Map each capture list to ordered values or a key set. Keep the written operands and their order.",
@@ -9582,7 +9618,7 @@
     "expected": {
       "document": "notation.md",
       "line": 2,
-      "column": 13,
+      "column": 1,
       "description": "an elidable optional starts with an ungrouped user terminal or parameter and can bind only its sole terminator"
     },
     "document": "```jbogenbau\n%rule a [ + KU { ... B } $x:A]\n```\n"
@@ -9919,7 +9955,8 @@
       "kind": "grammar",
       "document": "notation.md",
       "line": 3,
-      "column": 1
+      "column": 53,
+      "owner": "/rules/0/emit/items/2"
     },
     "section": "Engine §§9.3, 11.1",
     "native": true
@@ -9935,7 +9972,8 @@
       "kind": "grammar",
       "document": "notation.md",
       "line": 3,
-      "column": 1
+      "column": 34,
+      "owner": "/rules/0/emit/items/1"
     },
     "section": "Engine §§9.3, 11.1",
     "native": true
@@ -9950,8 +9988,9 @@
     "expected": {
       "kind": "grammar",
       "document": "main.md",
-      "line": 3,
-      "column": 1
+      "line": 4,
+      "column": 16,
+      "owner": "/rules/0/emit/items/1"
     },
     "section": "Engine §§9.3, 11.1",
     "native": true
@@ -10021,15 +10060,15 @@
       "p.md": "```jbogenbau\n%stage first\n%ambiguity-resolution greedy\n%rule text A\n%emit\n%stage second\n%features f\n%conditions $'value = \"a\"\n%ambiguity-resolution greedy\n%rule text f? A\n```\n"
     },
     "entry": "p.md",
-    "reason": "A stage feature condition cannot read a publication value or claim verbatim text.",
+    "reason": "The feature condition has an input span. It cannot read a working or published value property.",
     "expected": {
       "kind": "grammar",
       "document": "p.md",
       "line": 8,
-      "column": 14
+      "column": 14,
+      "description": "a property read needs a node or bag"
     },
-    "section": "Engine §13",
-    "native": true
+    "section": "Engine §13"
   },
   "engine/stage-features-illegal-verbatim.json": {
     "documents": {
@@ -10057,7 +10096,8 @@
       "kind": "grammar",
       "document": "main.md",
       "line": 4,
-      "column": 1
+      "column": 35,
+      "owner": "/rules/1/alternatives/0/term/bag/0/guard"
     },
     "section": "Engine §3.7, Neighbor guards",
     "native": true
@@ -10073,7 +10113,8 @@
       "kind": "grammar",
       "document": "main.md",
       "line": 4,
-      "column": 1
+      "column": 24,
+      "owner": "/rules/1/alternatives/0/term/bag/0/guard/not"
     },
     "section": "Engine §3.7, Neighbor guards",
     "native": true
@@ -10089,7 +10130,8 @@
       "kind": "grammar",
       "document": "main.md",
       "line": 3,
-      "column": 1
+      "column": 23,
+      "owner": "/rules/0/alternatives/0/term/bag/0/guard"
     },
     "section": "Engine §3.7, Neighbor guards",
     "native": true
@@ -10105,7 +10147,8 @@
       "kind": "grammar",
       "document": "main.md",
       "line": 3,
-      "column": 1
+      "column": 40,
+      "owner": "/rules/0/alternatives/0/term/bag/0/guard"
     },
     "section": "Engine §3.7, Neighbor guards",
     "native": true
@@ -10121,7 +10164,8 @@
       "kind": "grammar",
       "document": "main.md",
       "line": 4,
-      "column": 1
+      "column": 45,
+      "owner": "/rules/1/alternatives/0/term/bag/0/value"
     },
     "section": "Engine §3.7, Neighbor guards",
     "native": true
@@ -10137,7 +10181,8 @@
       "kind": "grammar",
       "document": "main.md",
       "line": 3,
-      "column": 1
+      "column": 47,
+      "owner": "/rules/0/alternatives/0/term/bag/0/value"
     },
     "section": "Engine §3.7, Neighbor guards",
     "native": true
@@ -10152,8 +10197,9 @@
     "expected": {
       "kind": "grammar",
       "document": "main.md",
-      "line": 3,
-      "column": 1
+      "line": 4,
+      "column": 1,
+      "owner": "/rules/1"
     },
     "section": "Engine §3.7, Neighbor guards",
     "native": true
@@ -10168,8 +10214,9 @@
     "expected": {
       "kind": "grammar",
       "document": "main.md",
-      "line": 3,
-      "column": 1
+      "line": 4,
+      "column": 1,
+      "owner": "/rules/1"
     },
     "section": "Engine §3.7, Neighbor guards",
     "native": true
@@ -11055,5 +11102,349 @@
       "p.md": "```jbogenbau\n%stage a\n%include \"a.md\"\n%stage b\n%include \"b.md\"\n```\n"
     },
     "entry": "p.md"
+  },
+  "engine/267-item-ranked-prefix-states.json": {
+    "native": true,
+    "section": "Engine §4, Rule value tests",
+    "reason": "The first conjunct demands the outer word's value before a private ranked capture is read. Its changed value fails certification.",
+    "expected": {
+      "kind": "grammar",
+      "document": "main.md",
+      "line": 6,
+      "column": 15
+    },
+    "entry": "main.md",
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%const $DEFAULTS $n ↦ {value: $n.span.tokens!'value.join(), image: $n.children!'image.join()}\n%rule text $v:w (\" \" $e:q ≻ \" \" $e:q)\n%conditions $v'value ≠ \"unused\" ∧ $v'value = $e'value\n%rule w ^\"a\" → {image: value: \"no\"}\n  | ^\"a\" → {image: value: \"yes\"}\n%rule q ^\"a\" → {image: value: \"yes\"}\n```\n"
+    }
+  },
+  "engine/267-item-right-chain.json": {
+    "native": true,
+    "section": "Engine §4, Rule value tests",
+    "reason": "Keep the chain direction and test each nested item against the certified word value.",
+    "load": true,
+    "entry": "main.md",
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%const $DEFAULTS $n ↦ {value: $n.span.tokens!'value.join(), image: $n.children!'image.join()}\n%rule text {({$e:w} \" \") ... / \",\"}\n%conditions $e.all($item ↦ $item'value ≠ \"cd\")\n%rule w \"a\" \"b\" | \"c\" \"d\"\n```\n"
+    }
+  },
+  "engine/267-presence-b.json": {
+    "native": true,
+    "section": "Engine §4, Rule value tests",
+    "reason": "The presence guard suppresses the absent-capture read on the b route. The a route still uses an uncertified changed value.",
+    "expected": {
+      "kind": "grammar",
+      "document": "main.md",
+      "line": 8,
+      "column": 19
+    },
+    "entry": "main.md",
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%const $DEFAULTS $n ↦ {value: $n.span.tokens!'value.join(), image: $n.children!'image.join()}\n%rule text\n  | ^$x:\"a\" → {image: value: \"yes\"}\n  | ^\"b\" → {image: value: $.verbatim-text}\n%conditions $x ⟹ $'value = \"yes\"\n```\n"
+    }
+  },
+  "engine/267-whole-recipe.json": {
+    "native": true,
+    "section": "Engine §4, Rule value tests",
+    "reason": "A recognition read cannot use the changed value of the whole occurrence without an input-join certificate.",
+    "expected": {
+      "kind": "grammar",
+      "document": "main.md",
+      "line": 6,
+      "column": 14
+    },
+    "entry": "main.md",
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%const $DEFAULTS $n ↦ {value: $n.span.tokens!'value.join(), image: $n.children!'image.join()}\n%rule text ^A → {image: value: \"kept\"}\n%conditions $'value = \"kept\"\n```\n"
+    }
+  },
+  "engine/267-condition-verbatim-ranked.json": {
+    "native": true,
+    "section": "Engine §4, Rule value tests",
+    "reason": "The early value read reaches a verbatim claim and cannot use that recipe as an input join.",
+    "expected": {
+      "kind": "grammar",
+      "document": "main.md",
+      "line": 6,
+      "column": 15
+    },
+    "entry": "main.md",
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%const $DEFAULTS $n ↦ {value: $n.span.tokens!'value.join(), image: $n.children!'image.join()}\n%rule text \"s\" ($x:r ≻ $x:r)\n%conditions $x'value = \"a\"\n%rule r \"a\" → {image: value: $.verbatim-text}\n```\n"
+    }
+  },
+  "engine/267-item-ranked-whole.json": {
+    "native": true,
+    "section": "Engine §4, Rule value tests",
+    "reason": "The whole occurrence must depend on the same ranked child recipes. The child join reaches w's changed values.",
+    "entry": "main.md",
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%const $DEFAULTS $n ↦ {value: $n.children!'value.join(), image: $n.children!'image.join()}\n%rule text w (\"b\" (\"c\" ≻ \"d\") ≻ \"e\")\n%conditions $'value = \"yesbc\"\n%rule w ^\"a\" → {image: value: \"no\"}\n  | ^\"a\" → {image: value: \"yes\"}\n```\n"
+    },
+    "expected": {
+      "kind": "grammar",
+      "document": "main.md",
+      "line": 6,
+      "column": 14,
+      "owner": "/rules/0/conditions/0/left"
+    }
+  },
+  "engine/267-condition-template.json": {
+    "native": true,
+    "section": "Engine §4, Rule value tests",
+    "reason": "The instance reads its original input value through the default input join.",
+    "load": true,
+    "entry": "main.md",
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%const $DEFAULTS $n ↦ {value: $n.span.tokens!'value.join(), image: $n.children!'image.join()}\n%rule part(@X) @X\n%rule text $x:part(\"a\")\n%conditions $x'value = \"a\"\n```\n"
+    }
+  },
+  "engine/267-condition-verbatim-child.json": {
+    "native": true,
+    "section": "Engine §§3.7, 4",
+    "reason": "The early image read passes through the child join to a verbatim claim.",
+    "expected": {
+      "kind": "grammar",
+      "document": "main.md",
+      "line": 6,
+      "column": 15
+    },
+    "entry": "main.md",
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%const $DEFAULTS $n ↦ {value: $n.span.tokens!'value.join(), image: $n.children!'image.join()}\n%rule text $x:r\n%conditions $x'image = \"b\"\n%rule r child\n%rule child ^\"b\" → {image: $.verbatim-text}\n```\n"
+    }
+  },
+  "engine/267-condition-unused-image.json": {
+    "native": true,
+    "section": "Engine §4, Rule value tests",
+    "reason": "The value read needs no image. The input join supplies a certified value even though the unused image claims verbatim text.",
+    "load": true,
+    "entry": "main.md",
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%const $DEFAULTS $n ↦ {value: $n.span.tokens!'value.join(), image: $n.children!'image.join()}\n%rule text $x:r\n%conditions $x'value = \"b\"\n%rule r child\n%rule child ^\"b\" → {image: $.verbatim-text}\n```\n"
+    }
+  },
+  "engine/267-item-flat-reject.json": {
+    "native": true,
+    "section": "Engine §4, Rule value tests",
+    "reason": "The universal predicate preserves the mandatory outer word and each inner word. Both use the certified input join.",
+    "load": true,
+    "entry": "main.md",
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%const $DEFAULTS $n ↦ {value: $n.span.tokens!'value.join(), image: $n.children!'image.join()}\n%rule text $v:w {\" \" $e:w}\n%conditions $e.all($item ↦ $v'value = $item'value)\n%rule w {\"a\"..\"z\"}\n```\n"
+    }
+  },
+  "engine/267-distinct-walks.json": {
+    "native": true,
+    "section": "Engine §4, Rule value tests",
+    "reason": "Both distinct walks still supply changed values. The early read requires the input-join certificate.",
+    "expected": {
+      "kind": "grammar",
+      "document": "main.md",
+      "line": 6,
+      "column": 15
+    },
+    "entry": "main.md",
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%const $DEFAULTS $n ↦ {value: $n.span.tokens!'value.join(), image: $n.children!'image.join()}\n%rule text $x:r\n%conditions $x'value = \"yes\"\n%rule r ^A → {image: value: \"no\"}\n  | ^A → {image: value: \"yes\"}\n```\n"
+    }
+  },
+  "engine/267-item-left-chain.json": {
+    "native": true,
+    "section": "Engine §4, Rule value tests",
+    "reason": "Keep the chain direction and test each nested item against the certified word value.",
+    "load": true,
+    "entry": "main.md",
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%const $DEFAULTS $n ↦ {value: $n.span.tokens!'value.join(), image: $n.children!'image.join()}\n%rule text {... ({$e:w} \" \") / \",\"}\n%conditions $e.all($item ↦ $item'value ≠ \"cd\")\n%rule w \"a\" \"b\" | \"c\" \"d\"\n```\n"
+    }
+  },
+  "engine/267-capture-recipe.json": {
+    "native": true,
+    "section": "Engine §4, Rule value tests",
+    "reason": "Keep the empty prefix recipe and the rule's child join. If the prefix is written, the child join drops its input value, so the early read is uncertified.",
+    "entry": "main.md",
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%const $DEFAULTS $n ↦ {value: $n.children!'value.join(), image: $n.children!'image.join()}\n%rule text $a:r $b:r\n%conditions $a'value = $b'value\n%rule r [prefix] A\n%rule prefix ^P → {image: value: \"\"}\n```\n"
+    },
+    "expected": {
+      "kind": "grammar",
+      "document": "main.md",
+      "line": 6,
+      "column": 15,
+      "owner": "/rules/0/conditions/0/left"
+    }
+  },
+  "engine/267-condition-guard.json": {
+    "native": true,
+    "section": "Engine §4, Rule value tests",
+    "reason": "The guard reads r's changed value during recognition. That supplier fails the input-join certificate.",
+    "expected": {
+      "kind": "grammar",
+      "document": "main.md",
+      "line": 6,
+      "column": 17
+    },
+    "entry": "main.md",
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%const $DEFAULTS $n ↦ {value: $n.span.tokens!'value.join(), image: $n.children!'image.join()}\n%rule text $x:r\n%conditions {($x'value = \"yes\")? T} = {T}\n%rule r ^\"a\" → {image: value: \"yes\"}\n```\n"
+    }
+  },
+  "engine/267-condition-verbatim-direct.json": {
+    "native": true,
+    "section": "Engine §4, Rule value tests",
+    "reason": "The early value read reaches a verbatim claim and cannot use that recipe as an input join.",
+    "expected": {
+      "kind": "grammar",
+      "document": "main.md",
+      "line": 6,
+      "column": 15
+    },
+    "entry": "main.md",
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%const $DEFAULTS $n ↦ {value: $n.span.tokens!'value.join(), image: $n.children!'image.join()}\n%rule text $x:r\n%conditions $x'value = \"b\"\n%rule r \"b\" → {image: value: $.verbatim-text}\n```\n"
+    }
+  },
+  "engine/267-item-flat-accept.json": {
+    "native": true,
+    "section": "Engine §4, Rule value tests",
+    "reason": "The universal predicate preserves the mandatory outer word and each inner word. Both use the certified input join.",
+    "load": true,
+    "entry": "main.md",
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%const $DEFAULTS $n ↦ {value: $n.span.tokens!'value.join(), image: $n.children!'image.join()}\n%rule text $v:w {\" \" $e:w}\n%conditions $e.all($item ↦ $v'value = $item'value)\n%rule w {\"a\"..\"z\"}\n```\n"
+    }
+  },
+  "engine/267-condition-verbatim-unranked.json": {
+    "native": true,
+    "section": "Engine §4, Rule value tests",
+    "reason": "The early value read reaches a verbatim claim and cannot use that recipe as an input join.",
+    "expected": {
+      "kind": "grammar",
+      "document": "main.md",
+      "line": 6,
+      "column": 15
+    },
+    "entry": "main.md",
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%const $DEFAULTS $n ↦ {value: $n.span.tokens!'value.join(), image: $n.children!'image.join()}\n%rule text $x:r\n%conditions $x'value = \"a\"\n%rule r \"a\" → {image: value: $.verbatim-text}\n```\n"
+    }
+  },
+  "engine/267-condition-verbatim-later-expansion.json": {
+    "native": true,
+    "section": "Engine §4, Rule value tests",
+    "reason": "The first route uses a certified input join. The later route reaches bad's verbatim recipe.",
+    "expected": {
+      "kind": "grammar",
+      "document": "main.md",
+      "line": 6,
+      "column": 15
+    },
+    "entry": "main.md",
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%const $DEFAULTS $n ↦ {value: $n.span.tokens!'value.join(), image: $n.children!'image.join()}\n%rule text ($x:good | $x:bad)\n%conditions $x'value ≠ \"\"\n%rule good \"a\" → {image: value: $.span.tokens!'value.join()}\n%rule bad \"b\" → {image: value: $.verbatim-text}\n```\n"
+    }
+  },
+  "engine/267-presence-a.json": {
+    "native": true,
+    "section": "Engine §4, Rule value tests",
+    "reason": "The presence guard suppresses the absent-capture read on the b route. The a route still uses an uncertified changed value.",
+    "expected": {
+      "kind": "grammar",
+      "document": "main.md",
+      "line": 8,
+      "column": 19
+    },
+    "entry": "main.md",
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%const $DEFAULTS $n ↦ {value: $n.span.tokens!'value.join(), image: $n.children!'image.join()}\n%rule text\n  | ^$x:\"a\" → {image: value: \"yes\"}\n  | ^\"b\" → {image: value: $.verbatim-text}\n%conditions $x ⟹ $'value = \"yes\"\n```\n"
+    }
+  },
+  "engine/267-condition-whole-extension.json": {
+    "native": true,
+    "section": "Engine §4, Rule value tests",
+    "reason": "The first supplier uses an input join. The extension leaves the original condition in place and adds an uncertified supplier.",
+    "expected": {
+      "kind": "grammar",
+      "document": "main.md",
+      "line": 6,
+      "column": 14
+    },
+    "entry": "main.md",
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%const $DEFAULTS $n ↦ {value: $n.span.tokens!'value.join(), image: $n.children!'image.join()}\n%rule text \"a\" → {image: value: $.span.tokens!'value.join()}\n%conditions $'value = \"yes\"\n%extend-rule text \"b\" → {image: value: $.verbatim-text}\n```\n"
+    }
+  },
+  "engine/267-condition-verbatim-outer-binding.json": {
+    "native": true,
+    "section": "Engine §4, Rule value tests",
+    "reason": "The flag excludes the bad route from the reached comparison. The good route still reads a changed value before recognition completes.",
+    "expected": {
+      "kind": "grammar",
+      "document": "main.md",
+      "line": 6,
+      "column": 39
+    },
+    "entry": "main.md",
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%const $DEFAULTS $n ↦ {value: $n.span.tokens!'value.join(), image: $n.children!'image.join()}\n%rule text ($flag:\"a\" $x:good | $x:bad) {$e:\"z\"}\n%conditions $e.all($item ↦ ($flag ⟹ $x'value = $item'value))\n%rule good \"g\" → {image: value: \"z\"}\n%rule bad \"b\" → {image: value: $.verbatim-text}\n```\n"
+    }
+  },
+  "engine/267-item-ranked-private.json": {
+    "native": true,
+    "section": "Engine §4, Rule value tests",
+    "reason": "Keep the ranked routes and the private item read. Both routes use an input-join supplier.",
+    "load": true,
+    "entry": "main.md",
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%const $DEFAULTS $n ↦ {value: $n.span.tokens!'value.join(), image: $n.children!'image.join()}\n%rule text ($e:w ≻ $e:w)\n%conditions $e'value ≠ \"cd\"\n%rule w \"c\" \"d\"\n```\n"
+    }
+  },
+  "engine/267-condition-verbatim-item.json": {
+    "native": true,
+    "section": "Engine §4, Rule value tests",
+    "reason": "Each reached predicate item reads r's uncertified value.",
+    "expected": {
+      "kind": "grammar",
+      "document": "main.md",
+      "line": 6,
+      "column": 33
+    },
+    "entry": "main.md",
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%const $DEFAULTS $n ↦ {value: $n.span.tokens!'value.join(), image: $n.children!'image.join()}\n%rule text {$x:r}\n%conditions $x.all($item ↦ $item'value = \"a\")\n%rule r \"a\" → {image: value: $.verbatim-text}\n```\n"
+    }
+  },
+  "engine/ranked-recipe-export-cycle-and-absent-carrier-image.json": {
+    "native": true,
+    "section": "Engine §§2.1, 3.7",
+    "reason": "A private capture can serve late emission. Keep the ranked routes and the late selection. The recursive read of the unfinished rule bag still fails.",
+    "entry": "main.md",
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%const $OUTPUTS {}\n%rule text ($x:A ≻ B) → {image: $'image}\n%emit $x\n```\n"
+    },
+    "expected": {
+      "kind": "grammar",
+      "document": "main.md",
+      "line": 5,
+      "column": 34,
+      "owner": "/rules/0/alternatives/0/term/bag/0/value"
+    }
+  },
+  "engine/ranked-recipe-export-cycle-and-absent-carrier-value.json": {
+    "native": true,
+    "section": "Engine §§2.1, 3.7",
+    "reason": "A private capture can serve late emission. Keep the ranked routes and the late selection. The recursive read of the unfinished rule bag still fails.",
+    "entry": "main.md",
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%const $OUTPUTS {}\n%rule text ($x:A ≻ B) → {value: $'value}\n%emit $x\n```\n"
+    },
+    "expected": {
+      "kind": "grammar",
+      "document": "main.md",
+      "line": 5,
+      "column": 34,
+      "owner": "/rules/0/alternatives/0/term/bag/0/value"
+    }
   }
 }

@@ -1,6 +1,6 @@
 // Print format 50 source from the written format 49 records. A decision that
 // depends on the intended grammar raises MigrationRequired at the old site.
-import { capturesUsed, DOM_TRUE, simplify, termType } from "../lib/js/src/dom.js";
+import { capturesMentioned, capturesUsed, DOM_TRUE, simplify, termType } from "../lib/js/src/dom.js";
 import { SPAN_METHODS } from "../lib/js/src/methods.js";
 import { layeredPatternText } from "../lib/js/src/pattern-shapes.js";
 import { stringName } from "../lib/js/src/tags.js";
@@ -15,8 +15,14 @@ const list = items => `[${items.join(", ")}]`;
 const gate = item => (item.negated ? "¬" : "") + item.feature + "?";
 const keyword = (op, noun) => `%${op === "define" ? "" : op + "-"}${noun}`;
 const classifierName = name => `CLASSIFIER-${name}`;
-const bareSymbol = node => ["ref", "call", "param", "literal", "range", "wildcard", "splice", "test", "capture"]
+const bareSymbol = node => ["ref", "call", "param", "literal", "range", "wildcard"]
   .some(key => Object.hasOwn(node, key));
+const symbolBase = node => node.test || node.capture !== undefined ? symbolBase(node.expr) : node;
+const singletonRoutes = node => {
+  if (node.choice || node.ranked) return (node.choice ?? node.ranked).flatMap(singletonRoutes);
+  return [symbolBase(node)];
+};
+const rankedRoute = node => Boolean(node.ranked || node.choice?.some(rankedRoute));
 const bindsOnEveryRoute = (node, name) => {
   if (node.capture === name) return true;
   if (node.choice || node.ranked) return (node.choice ?? node.ranked).every(part => bindsOnEveryRoute(part, name));
@@ -29,9 +35,17 @@ function skipsAbsentItem(condition, name) {
   const absent = simplify(condition, capture => capture === name ? false : undefined);
   if (absent === DOM_TRUE) return true;
   // A comparison with a required absent operand does not attach to the item.
-  // Require a direct method read so no inner guard can remove that operand.
+  // A direct read has no inner guard that can remove the required operand.
   return !!absent.op && [absent.left, absent.right].some(operand =>
+    operand.capture === name || operand.captured === name ||
     operand.method && operand.receiver?.capture === name && capturesUsed(operand).includes(name));
+}
+
+function requiresItem(node, name) {
+  if (node.repeat && !node.chain) return bindsOnEveryRoute(node.repeat, name);
+  if (node.seq) return node.seq.some(part => requiresItem(part, name));
+  const routes = node.choice ?? node.ranked ?? node.and;
+  return Boolean(routes?.every(part => requiresItem(part, name)));
 }
 
 // Bound the position of every direct capture on all routes. The carrier must
@@ -65,14 +79,14 @@ export class MigrationRequired extends Error {
   }
 }
 
-export function translateDom49(dom, unicode, uniqueConstants, omittedValues = new Set(), isUndefined = () => false) {
+export function translateDom49(dom, unicode, uniqueConstants, omittedValues = new Set(), isUndefined = () => false, valueWriters = new Map()) {
   if (dom.format !== 49) throw new Error("The translator requires a format 49 DOM.");
-  const printer = new Printer(dom, unicode, uniqueConstants, omittedValues, isUndefined);
+  const printer = new Printer(dom, unicode, uniqueConstants, omittedValues, isUndefined, valueWriters);
   return printer.document(dom);
 }
 
 class Printer {
-  constructor(dom, unicode, uniqueConstants, omittedValues, isUndefined) {
+  constructor(dom, unicode, uniqueConstants, omittedValues, isUndefined, valueWriters) {
     this.unicode = unicode;
     this.constants = new Map(dom.constants
       .filter(item => item.op === "define" &&
@@ -84,6 +98,7 @@ class Printer {
     this.repeated = new Set();
     this.item = undefined;
     this.omittedValues = omittedValues;
+    this.valueWriters = valueWriters;
     this.isUndefined = isUndefined;
   }
 
@@ -204,6 +219,8 @@ class Printer {
     }
     this.sharedItems = [...this.repeated].filter(name => !scalar.has(name) && alternativesWithItem.every(local => local.has(name)));
     this.partialItems = partialItems;
+    this.emptyItems = new Set(this.sharedItems.filter(name =>
+      item.alternatives.some(alt => !requiresItem(alt.expr, name))));
     const head = [keyword(item.op, "rule"), item.name].join(" ") +
       (item.params ? `(${item.params.map(param => "@" + param).join(", ")})` :
         item.args ? `(${item.args.map(arg => this.argument(arg)).join(", ")})` : "");
@@ -214,12 +231,22 @@ class Printer {
       this.attachmentPrimary(attachment, item) : undefined;
     let rebuiltSingleton = false;
     const alternatives = item.alternatives.flatMap(alt => {
-      const term = this.ownerTerm(alt, item.image !== undefined);
-      const needPrimary = bareSymbol(alt.expr) &&
-        primary === undefined && (headerTerm !== undefined || term !== undefined) &&
+      const value = this.valueWriters.get(alt);
+      const term = this.ownerTerm(alt, item.image !== undefined, false, value);
+      if (value) this.changes.push(value.startsWith("$.span") ?
+        "Join the input token values on the route with an omitted default." :
+        "Join the written child values on the route with an omitted default.");
+      const recipeKeepsKeys = primary === undefined && (headerTerm !== undefined || term !== undefined) &&
         item.tags === undefined && alt.tags === undefined;
-      const parent = item.alternatives.length > 1 && alt.expr.ranked ? "choice" : undefined;
-      const body = (needPrimary ? "^" : "") + this.body(alt.expr, parent, primary);
+      const routes = recipeKeepsKeys ? singletonRoutes(alt.expr) : [];
+      const needPrimary = routes.length > 0 && routes.every(bareSymbol);
+      if (routes.some(node => node.splice) ||
+          routes.some(bareSymbol) && (!needPrimary || rankedRoute(alt.expr))) {
+        this.hand("Preserve the working keys of every singleton recipe route.");
+      }
+      if (needPrimary) this.changes.push("Mark the singleton child as the display primary to retain its inherited keys.");
+      const parent = needPrimary && alt.expr.choice || item.alternatives.length > 1 && alt.expr.ranked ? "choice" : undefined;
+      const body = this.body(alt.expr, parent, primary, needPrimary);
       const selectsWhole = item.emit && (!item.emit.items.length ||
         item.emit.items.length === 1 && item.emit.items[0].capture === "");
       if (selectsWhole && item.alternatives.length === 1 && !item.conditions.length &&
@@ -301,23 +328,37 @@ class Printer {
       this.hand("Preserve the item frame and its co-bound operands.");
     }
     const [name] = names;
-    if (this.partialItems.has(name)) {
-      if (!skipsAbsentItem(node, name)) this.hand("An item route can omit this capture. A predicate over the list would skip that item.");
+    const canSkip = this.partialItems.has(name) || this.emptyItems.has(name);
+    const outer = [];
+    if (canSkip && node.all) {
+      const firstItem = node.all.findIndex(part => capturesMentioned(part).includes(name));
+      if (firstItem > 0) {
+        for (const part of node.all.slice(0, firstItem)) outer.push(part);
+        const itemParts = node.all.slice(firstItem);
+        node = itemParts.length === 1 ? itemParts[0] : { all: itemParts };
+      }
+    }
+    if (canSkip) {
+      if (!skipsAbsentItem(node, name)) this.hand("An item route can omit this capture. A predicate over the list would skip that route.");
       this.changes.push("An item without the capture satisfies the old condition or receives no copy of it.");
     }
+    const outerTerms = outer.map(part => this.term(part, "truth"));
     while (used.has(local) || this.repeated.has(local) || this.bindings.has(local)) local += "-item";
     this.item = { name, local };
     try {
       const term = this.term(node, "truth");
       this.changes.push("Use an ordered universal predicate over the item capture. It tests each reached item with its outer bindings.");
-      return `$${name}.all($${local} ↦ ${term})`;
+      const predicate = `$${name}.all($${local} ↦ ${term})`;
+      if (!outer.length) return predicate;
+      this.changes.push("Keep the outer checks before the list predicate so they also run on an empty list.");
+      return `(${[...outerTerms, predicate].join(" ∧ ")})`;
     } finally {
       this.item = undefined;
     }
   }
 
 
-  ownerTerm(owner, inheritedImage = false, insertion = false) {
+  ownerTerm(owner, inheritedImage = false, insertion = false, defaultValue) {
     const entries = [];
     const direct = new Set();
     for (const entry of owner.tags === undefined ? [] : this.tagEntries(owner.tags)) {
@@ -330,6 +371,7 @@ class Printer {
       if (owner.value) entries.push(`value: ${this.term(owner.value)}`);
       if (owner.image) entries.push(`image: ${this.term(owner.image)}`);
     }
+    if (defaultValue) entries.push(`value: ${defaultValue}`);
     if (insertion) {
       if (!owner.value && !owner.image) entries.push('image: value: ""');
       else if (!owner.value) entries.push('value: ""');
@@ -371,12 +413,13 @@ class Printer {
     }).join(", ")}`;
   }
 
-  body(node, parent, primary) {
+  body(node, parent, primary, singletonPrimary = false) {
     for (const kind of ["seq", "and", "choice", "ranked"]) {
       if (!node[kind]) continue;
-      const text = node[kind].map(child => this.body(child, kind, primary)).join(operators[kind]);
+      const text = node[kind].map(child => this.body(child, kind, primary, singletonPrimary)).join(operators[kind]);
       return parent && precedence[kind] <= precedence[parent] ? `(${text})` : text;
     }
+    if (singletonPrimary) return "^" + this.body(node, parent, primary);
     if (node.optional) {
       const [head, ...tail] = node.optional.seq ?? [node.optional];
       if (!node.elidable) return `[${this.body(node.optional, undefined, primary)}]`;
@@ -558,7 +601,10 @@ class Printer {
       const observed = receiver.method === "emitted" ? receiver.receiver : receiver;
       const capture = observed.capture ?? observed.captured;
       if (this.repeated.has(capture) && capture !== this.item?.name) this.hand(`Resolve the ordered string read on repeated capture $${capture}.`);
-      if (receiver.method === "emitted") return `${this.term(receiver.receiver)}'${method}`;
+      if (receiver.method === "emitted") {
+        this.changes.push(`Read the working ${method} property in place of the old emitted recipe.`);
+        return `${this.term(receiver.receiver)}'${method}`;
+      }
       return this.stringRead(this.term(receiver), receiver, method);
     }
     if (method === "classify") return `$${classifierName(args[0].classifier)}.classify(${this.term(receiver, "string")})`;

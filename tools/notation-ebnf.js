@@ -100,7 +100,10 @@ export function syntaxEbnf(dom) {
       if (rule.op !== "define") throw new Error(`unrepresented rule operation ${rule.op}`);
       const body = rule.alternatives.map(alt => {
         only(alt, "gates", "expr");
-        return prefix(alt) + expression(alt.expr);
+        const compound = alt.expr.choice || alt.expr.ranked || alt.expr.and || alt.expr.seq;
+        const grouped = Boolean((alt.expr.choice || alt.expr.ranked) && rule.alternatives.length > 1 ||
+          compound && alt.gates.length);
+        return prefix(alt) + expression(alt.expr, grouped);
       }).join(" | ");
       return [`${rule.name} = ${body}`, ...rule.conditions.map(node => `  assert ${term(node)}`)].join("\n");
     } catch (error) {

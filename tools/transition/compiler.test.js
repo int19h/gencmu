@@ -54,6 +54,7 @@ const sourceErrors = new Map([
   ["shared-capture-guard/control/3", /\$x is absent from this expansion/],
   ["shared-capture-guard/control/4", /\$y is captured by no alternative/],
   ["empty-term/malformed", /stage syntax/],
+  ["truth-conversions/control/4", /wrong receiver or arguments/],
   ["eberban-omitted-cai/malformed", /_Elided/],
   ["expression-depth/malformed", /nested more than 256 deep/],
   ["expression-depth/control/1", /nested more than 256 deep/],

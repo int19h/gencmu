@@ -64,8 +64,8 @@ export function notation50Resources(root, { readSource } = {}) {
     }
     const caches = new Map([[bundle.bootstrap, bootstrap]]);
     for (const [family, entries] of families) {
-      const optional = `${bundle.cacheRoot}/${family}.json`;
-      const file = optional === bundle.bootstrap ? bundle.bootstrapFamilyCache : optional;
+      const familyCache = `${bundle.cacheRoot}/${family}.json`;
+      const file = familyCache === bundle.bootstrap ? bundle.bootstrapFamilyCache : familyCache;
       caches.set(file, serialize({ bootstrap: fnv1a64(bootstrap), ...header, documents: entries }));
     }
     return caches;
