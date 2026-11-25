@@ -33389,6 +33389,7 @@
         made.featureDeclarations = stage.documents.flatMap(run => run.dom.directives
           .filter(directive => directive.name === "features")
           .map(directive => ({ directive, document: run.path })));
+        checkConstants(constants);
         for (const { directive, document } of made.featureDeclarations) {
           for (const condition of directive.conditions50 ?? []) checkFeatureCondition(condition, constants, document);
         }
@@ -33722,15 +33723,7 @@
       throw new GencmuError("grammar", place + ": a %features condition cannot " + description,
         { document, ...(at ? { line: at[0], column: at[1] } : {}) });
     };
-    /**
-     * @param {any} node
-     * @returns {string | undefined}
-     */
-    const closedString = node => {
-      if (node?.string !== undefined) return node.string;
-      if (node?.const !== undefined) return constants.get(node.const)?.at(-1)?.record.value?.string;
-      return undefined;
-    };
+    const closedString = (/** @type {any} */ node) => closedText(node, constants);
     /** @type {any[]} */
     const stack = [condition];
     /** @type {Set<string>} */
@@ -33749,6 +33742,71 @@
       if (node.method === "split" && closedString(node.args?.[0]) === "") fail("split with an empty delimiter", node);
       if (node.lambda !== undefined && node.lambda !== "") bound.add(node.lambda);
       for (const [key, value] of Object.entries(node)) if (key !== "at" && value && typeof value === "object") stack.push(value);
+    }
+  }
+
+  /**
+   * The string that a closed expression of literals, constants and `++`
+   * gives, or undefined for any other expression. A constant reads its last
+   * version, or the version before `before` within a redefinition.
+   * @param {any} node
+   * @param {Map<string, any[]>} constants
+   * @param {any} [before] the version that holds the expression
+   * @returns {string | undefined}
+   */
+  function closedText(node, constants, before) {
+    if (!node || typeof node !== "object") return undefined;
+    if (node.string !== undefined) return node.string;
+    if (node.const !== undefined) {
+      const versions = constants.get(node.const) ?? [];
+      const index = before ? versions.indexOf(before) : -1;
+      const version = index > 0 && versions[index].record.name === node.const ? versions[index - 1] : versions.at(-1);
+      if (!version || version === before) return undefined;
+      return closedText(version.record.value, constants, version);
+    }
+    if (node.concat) {
+      let text = "";
+      for (const part of node.concat) {
+        const piece = closedText(part, constants, before);
+        if (piece === undefined) return undefined;
+        text += piece;
+      }
+      return text;
+    }
+    return undefined;
+  }
+
+  /**
+   * The checks of the constants of a stage at load (part 3 §11): each
+   * constant that a constant reads exists, and a split of a closed
+   * expression has a delimiter that is not empty.
+   * @param {Map<string, any[]>} constants
+   */
+  function checkConstants(constants) {
+    for (const versions of constants.values()) for (const version of versions) {
+      const { record, document } = version;
+      /**
+       * @param {string} description
+       * @param {any} at
+       * @returns {never}
+       */
+      const fail = (description, at) => {
+        throw new GencmuError("grammar", (at ? document + ":" + at[0] + ":" + at[1] : document) + ": " + description,
+          { document, ...(at ? { line: at[0], column: at[1] } : {}) });
+      };
+      /** @type {any[]} */
+      const stack = [record.value];
+      while (stack.length) {
+        const node = stack.pop();
+        if (!node || typeof node !== "object") continue;
+        if (Array.isArray(node)) {
+          for (const item of node) stack.push(item);
+          continue;
+        }
+        if (node.const !== undefined && node.const !== "INPUTS" && !constants.has(node.const)) fail("the constant $" + node.const + " is not defined", node.at);
+        if (node.method === "split" && closedText(node.args?.[0], constants, version) === "") fail(".split() has an empty delimiter", record.at);
+        for (const [key, value] of Object.entries(node)) if (key !== "at" && value && typeof value === "object") stack.push(value);
+      }
     }
   }
 
