@@ -23,6 +23,8 @@ node tools/sync.js --check --part=sources
 
 Run `node tools/sync.js --check --part=format50` to compare only the format 50 resources and their browser bundle.
 
+Add `--family=lojban` to the generated check to select one format 49 family. Use `eberban`, `gencmu` and `lojban` for the three legacy checks.
+
 ## Translate shared cases
 
 The translator reads format 49 DOMs. It writes format 50 source and preserves the format 49 assertions as reference data. The diagnostic map records the old position and its corresponding declaration or operand. A position with no unique match needs review.

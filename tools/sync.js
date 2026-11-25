@@ -57,6 +57,11 @@ const copies = ["lib/js/grammars", "lib/python/src/gencmu/grammars", "lib/go/gra
 const grammars = path.join(root, "grammars");
 const check = process.argv.includes("--check");
 const part = process.argv.find(arg => arg.startsWith("--part="))?.slice("--part=".length);
+const family = process.argv.find(arg => arg.startsWith("--family="))?.slice("--family=".length);
+if (family !== undefined && (part !== "generated" || !/^[a-z][a-z0-9-]*$/.test(family) ||
+  !fs.existsSync(path.join(grammars, family)))) {
+  throw new Error("--family requires a bundled format 49 family and --part=generated");
+}
 if (part !== undefined && part !== "format50" && (!check || !["generated", "sources"].includes(part))) {
   throw new Error("--part takes format50, or generated and sources with --check");
 }
@@ -404,7 +409,8 @@ let moved = false;
 const reader = loaderWith(bootstrapText);
 /** @type {Map<string, {text: string, dom: any}>} each grammar document as this pass reads it */
 const read = new Map();
-for (const file of grammarFiles()) {
+const legacyFiles = grammarFiles().filter(file => family === undefined || file.startsWith(family + "/"));
+for (const file of legacyFiles) {
   if (!file.endsWith(".md")) continue;
   const text = fs.readFileSync(path.join(grammars, file), "utf8");
   read.set(file, { text, dom: extractGrammarText(text, file, reader.unicode).blocks === 0 ? { rules: [] } : reader.readDocument(text, `grammars/${file}`) });
@@ -412,7 +418,7 @@ for (const file of grammarFiles()) {
 // Whether a test on an elided terminator allows its omission, in each
 // stage of each pipeline that reads the document. With no such test, this
 // costs nothing.
-const outcomes = elisionOutcomes(reader, grammarFiles().filter((file) => file.endsWith("/pipeline.md")).map(file => `grammars/${file}`), new Map([...read].map(([file, { dom }]) => [`grammars/${file}`, dom])));
+const outcomes = elisionOutcomes(reader, legacyFiles.filter((file) => file.endsWith("/pipeline.md")).map(file => `grammars/${file}`), new Map([...read].map(([file, { dom }]) => [`grammars/${file}`, dom])));
 for (const [file, { text, dom }] of read) {
   const { text: next, files } = withDiagrams(file, text, dom, outcomes.get(`grammars/${file}`));
   for (const [relative, svg] of files) diagrams.set(relative, svg);
@@ -428,7 +434,7 @@ write(BOOTSTRAP_PATH, bootstrapText);
 // DOM is the one that pass read.
 const loader = moved ? loaderWith(bootstrapText) : reader;
 const documents = {};
-for (const file of grammarFiles()) {
+for (const file of legacyFiles) {
   if (!file.endsWith(".md")) continue;
   const text = fs.readFileSync(path.join(grammars, file), "utf8");
   // A document holds grammar when the reader finds a block in it.
@@ -455,17 +461,17 @@ for (const [resource,entries] of families) {
     unicode:loader.unicodeHash, properties:loader.propertiesHash, bundledNames, documents:entries};
   familyTexts.set(resource,JSON.stringify(envelope) + "\n");
 }
-if (familyTexts.get(BOOTSTRAP_PATH) !== bootstrapText) throw new Error("the preparsed bootstrap does not reach its fixpoint");
+if ((!family || family === "gencmu") && familyTexts.get(BOOTSTRAP_PATH) !== bootstrapText) {
+  throw new Error("the preparsed bootstrap does not reach its fixpoint");
+}
 
-
-// The top-level alternatives of a rule keep the layout of
 for (const [file,text] of familyTexts) write(file,text);
 
 // The SVG files of the railroad diagrams. They are documentation, so no
 // package ships them. A file under docs/diagrams/ that this run does not
 // write, such as the diagram of a rule that is gone, goes.
 for (const [relative, text] of diagrams) write(relative, text);
-for (const relative of existing(DIAGRAMS)) {
+for (const relative of existing(family ? `${DIAGRAMS}/${family}` : DIAGRAMS)) {
   if (diagrams.has(relative) || diagrams50.has(relative) || relative.startsWith(`${DIAGRAMS}/50/`)) continue;
   stale.push(relative);
   if (check) continue;

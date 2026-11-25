@@ -145,7 +145,7 @@ Factors are symbols, groups and the operators that apply to them. A capture or p
 %rule feature-gate
   ["¬"] Identifier "?"
 %conditions
-  $.source-text = $.span.tokens!'value.join()
+  $.decomposed-source-text = $.span.tokens!'value.join()
 
 %rule tested-factor
   untested-factor {symbol-test}

@@ -324,10 +324,12 @@ export class DomBuilder {
       const at = this.at(test);
       if (test.rule === "tag-test") {
         const requirements = this.requirements(test);
-        if (requirements.some(req => req.value.tag === "_Elided" && (!pattern || !req.negated))) {
-          const targetIsRule = base.call || base.splice || base.name || /^[a-z]/.test(base.ref ?? "") ||
-            base.ref && this.unicode.isEmojiName(base.ref);
-          if (targetIsRule) this.fail(test, "the _Elided origin test applies only to a terminal");
+        const originTest = requirements.findIndex(req => req.value.tag === "_Elided" && (!pattern || !req.negated));
+        const targetIsRule = base.call || base.splice || base.name || /^[a-z]/.test(base.ref ?? "") ||
+          base.ref && this.unicode.isEmojiName(base.ref);
+        if (originTest !== -1 && targetIsRule) {
+          const site = pattern ? part(parts(test, "tag-requirement")[originTest], "test-operand") : test;
+          this.fail(site, "the _Elided origin test applies only to a terminal");
         }
         result = { test: "tags", requirements, expr: result, at };
       } else {
