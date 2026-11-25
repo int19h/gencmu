@@ -4221,5 +4221,97 @@
         }
       }
     ]
+  },
+  {
+    "id": "stitched-definition-order",
+    "description": "Stitch the stage before checking nullable error productions. Check nullable error productions before static emission overlap.",
+    "manuals": [
+      {
+        "file": "docs/engine.md",
+        "heading": "Definition checks"
+      },
+      {
+        "file": "docs/engine.md",
+        "heading": "Emission overlap"
+      }
+    ],
+    "valid": {
+      "source": [
+        "%stage main",
+        "%ambiguity-resolution greedy",
+        "%const $OUTPUTS {}",
+        "%rule text \"a\""
+      ],
+      "input": "a",
+      "expect": {
+        "outcome": "accept"
+      }
+    },
+    "malformed": {
+      "source": [
+        "%stage main",
+        "%ambiguity-resolution greedy",
+        "%const $OUTPUTS {}",
+        "%rule text \"a\"",
+        "%rule empty ε %error \"empty\"",
+        "%extend-rule missing \"m\""
+      ],
+      "input": "a",
+      "expect": {
+        "outcome": "grammar",
+        "phase": "load",
+        "cause": "An extension with no definition fails during stitching.",
+        "at": {
+          "line": 6,
+          "column": 1
+        }
+      }
+    },
+    "controls": [
+      {
+        "source": [
+          "%stage main",
+          "%ambiguity-resolution greedy",
+          "%const $OUTPUTS {}",
+          "%rule text \"a\"",
+          "%rule r $a:a $b:b %emit $b, $a",
+          "%rule a \"a\" %emit",
+          "%rule b \"b\" %emit",
+          "%extend-rule missing \"m\""
+        ],
+        "input": "a",
+        "expect": {
+          "outcome": "grammar",
+          "phase": "load",
+          "cause": "An extension with no definition fails during stitching.",
+          "at": {
+            "line": 8,
+            "column": 1
+          }
+        }
+      },
+      {
+        "source": [
+          "%stage main",
+          "%ambiguity-resolution greedy",
+          "%const $OUTPUTS {}",
+          "%rule text \"a\"",
+          "%rule r $a:a $b:b %emit $b, $a",
+          "%rule a \"a\" %emit",
+          "%rule b \"b\" %emit",
+          "%rule empty ε %error \"empty\""
+        ],
+        "input": "a",
+        "expect": {
+          "outcome": "grammar",
+          "phase": "load",
+          "cause": "A nullable error production fails before static emission overlap.",
+          "at": {
+            "line": 8,
+            "column": 1
+          }
+        }
+      }
+    ]
   }
 ]

@@ -55,15 +55,8 @@ function typeMatrix(legacy) {
   };
 }
 
-export function translateNegative49(id, legacy, description) {
+export function translateNegative49(id, legacy) {
   if (id.startsWith("engine/notation-r2-")) return typeMatrix(legacy);
-  if (/^engine\/267-(?:capture-recipe|condition-|distinct-walks|item-|presence-|whole-recipe)/.test(id) &&
-      description === "a method has the wrong receiver or arguments" &&
-      [legacy.grammar, ...Object.values(legacy.documents ?? {})].some(text =>
-        /%conditions[\s\S]*\.emitted\.(?:value|image)\b/.test(text ?? ""))) {
-    return { retired: true, section: "Engine §§3.7, 10",
-      reason: "The separate emitted receiver is gone. A condition reads a working key under the early demand rules." };
-  }
 }
 
 const retiredFaults = [

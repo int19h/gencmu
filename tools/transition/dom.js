@@ -1,9 +1,9 @@
 import { GencmuError } from "../../lib/js/src/errors.js";
-import { CAPTURE_NAME, KEY_STEPS, validSteps } from "../../lib/js/src/dom.js";
+import { KEY_STEPS, validSteps } from "../../lib/js/src/dom.js";
 import { methods50 } from "../../lib/js/src/format50/signatures.js";
-import { documentFault50, validateBag50, validateBindings50, validateBody50, validateDeclarationShape50,
-  validateDocumentDefinitions50, validateDocumentDepth50, validateOrigin50, validatePatternChildren50,
-  withOwner50 } from "../../lib/js/src/format50/validate.js";
+import { documentFault50, elidableForm50, validateArgument50, validateBag50, validateBody50, validateDeclarationShape50,
+  validateDocumentDefinitions50, validateDocumentDepth50, validateOrigin50, validatePatternChildren50, validateQuery50,
+  validateSubsetSize50, withOwner50 } from "../../lib/js/src/format50/validate.js";
 
 const EXPRESSION_WRAPPERS = new Set([
   "expr", "disj", "conj", "comparison", "union", "inter", "sum", "post", "atom", "grouped-expr",
@@ -32,10 +32,10 @@ function baseFactor(node) {
   while (["factor", "tested-factor", "untested-factor", "symbol-argument"].includes(node.rule)) node = rules(node)[0];
   return node;
 }
-function walks(node, pred) {
-  return pred(node) || rules(node).some(child => walks(child, pred));
-}
 
+function containsCapture(node) {
+  return ["capture", "captured-terminator"].includes(node.rule) || rules(node).some(containsCapture);
+}
 const isSymbol = body => ["ref", "call", "param", "literal", "range", "wildcard", "splice", "test"]
   .some(key => Object.hasOwn(body, key));
 
@@ -73,7 +73,6 @@ export class DomBuilder {
     let preamble = true;
     for (const statement of parts(tree, "statement")) {
       const node = rules(statement)[0];
-      this.declarationSite = { at: this.at(node) };
       let category, record;
       switch (node.rule) {
         case "rule":
@@ -217,7 +216,7 @@ export class DomBuilder {
   alternative(node, kind, owner) {
     const gates = parts(node, "feature-gate").map(gate => this.gate(gate));
     const source = part(node, kind);
-    const expr = this.body(source, true);
+    const expr = this.ownedBody(source, owner, true);
     validateBody50(expr, withOwner50(expr, this.domFault, owner));
     const term = part(node, "alternative-term");
     return { gates, expr, ...(term && { term: this.expression(part(term, "bag")) }) };
@@ -242,64 +241,69 @@ export class DomBuilder {
     return { feature, kind: "gate", negated };
   }
 
-  body(node, whole = false, elidable = false, chain = false, blockedPrimary = false) {
+  ownedBody(node, owner, whole = false) {
+    const previous = this.bodyOwner;
+    this.bodyOwner = owner;
+    try {
+      return this.body(node, whole);
+    } finally {
+      this.bodyOwner = previous;
+    }
+  }
+
+  body(node, whole = false, elidable = false) {
     let children = rules(node);
     let optionals = 0;
+    let grouped = false;
     while (children.length === 1 && (BODY_WRAPPERS.has(node.rule) || node.rule === "optional" &&
         children[0].rule !== "captured-terminator" && leaves(node).every(leaf => this.value(leaf) !== "+"))) {
-      if (node.rule === "group") whole = false;
+      if (node.rule === "group" && whole) grouped = true;
       if (node.rule === "optional") optionals++;
       node = children[0];
       children = rules(node);
     }
     if (optionals) {
-      let result = this.body(node, false, false, chain, true);
+      let result = this.body(node);
       for (let i = 0; i < optionals; i++) result = { optional: result };
       return result;
     }
     const first = children[0];
-    const expr = (child = first, top = whole, isElidable = elidable, insideChain = chain, blocked = blockedPrimary) =>
-      this.body(child, top, isElidable, insideChain, blocked);
+    const expr = (child = first, top = whole, isElidable = elidable) =>
+      this.body(child, top, isElidable);
     switch (node.rule) {
       case "choice":
         return { choice: children.map(child => expr(child, false, elidable)) };
       case "ranked-choice":
-        return { ranked: children.map(child => expr(child, false, false, chain, true)) };
+        return { ranked: children.map(child => expr(child, false, false)) };
       case "some-of":
-        if (children.length > 16) this.fail(first, "an ordered subset takes at most sixteen operands");
+        validateSubsetSize50(children.length, this.bodyOwner, this.domFault);
         return { and: children.map(child => expr(child, false, elidable)) };
       case "sequence":
         return { seq: children.map((child, index) => expr(child, false, elidable && index === 0)) };
       case "optional":
-        return this.optional(node, first, chain);
+        return this.optional(node, first);
       case "repetition": {
         const marks = leaves(node).filter(leaf => this.value(leaf) === "...");
         if (marks.length > 1) this.fail(marks[1], "a chain can have only one marker");
-        if (marks.length && !whole) this.fail(node, "a chain must occupy a whole alternative");
+        if (marks.length && grouped) this.fail(node, "a chain must occupy a whole alternative");
         const separatorMark = children[1] && leaves(children[1]).find(leaf => this.value(leaf) === "...");
         if (separatorMark) this.fail(separatorMark, "a chain marker cannot label a separator");
-        return { repeat: expr(first, false, false, !!marks.length, true),
-          ...(children[1] && { separator: expr(children[1], false, false, !!marks.length, true) }),
+        return { repeat: expr(first, false, false),
+          ...(children[1] && { separator: expr(children[1], false, false) }),
           ...(marks.length && { chain: marks[0].span[0] < first.span[0] ? "left" : "right" }) };
       }
       case "capture":
       case "captured-terminator": {
-        if (chain) this.fail(first, "a chain item or separator cannot bind a capture directly");
         const capture = this.binder(first);
-        if (!CAPTURE_NAME.test(capture)) {
-          this.domFault(this.declarationSite, "a capture name must use lowercase letters, digits, hyphens or underscores");
-        }
         if (GROUPS.has(baseFactor(children[1]).rule)) this.fail(first, "a capture wraps one symbol");
         const target = expr(children[1], false, elidable);
         if (!isSymbol(target)) this.fail(first, "a capture wraps one symbol");
         return { capture, expr: target };
       }
       case "marked-factor": {
-        if (blockedPrimary) this.fail(node, "a primary must mark a mandatory child that is not a splice");
         const atom = baseFactor(first.rule === "capture" ? rules(first)[1] : first);
-        if (GROUPS.has(atom.rule) || atom.rule === "splice") this.fail(node, "a primary marks one ungrouped symbol or capture that is not a splice");
+        if (GROUPS.has(atom.rule)) this.fail(node, "a primary marks one ungrouped symbol or capture that is not a splice");
         const target = expr(first, false, elidable);
-        if (!isSymbol(target) && !Object.hasOwn(target, "capture")) this.fail(node, "a primary marks one symbol or capture");
         return { primary: target };
       }
       case "tested-factor": {
@@ -333,21 +337,22 @@ export class DomBuilder {
     }
   }
 
-  optional(node, route, chain) {
+  optional(node, route) {
     const captured = route.rule === "captured-terminator";
     const elidable = captured || leaves(node).some(leaf => this.value(leaf) === "+");
-    if (!elidable) return { optional: this.body(route, false, false, chain, true) };
-    const choice = rules(route);
-    const sequence = captured ? choice.slice(1) : rules(rules(choice[0])[0]);
+    if (!elidable) return { optional: this.body(route) };
+    const parts = rules(route);
+    const sequence = captured ? parts.slice(1) : rules(rules(parts[0])[0]);
     const head = sequence[0] && baseFactor(sequence[0]);
-    if (!head || !["tag", "parameter"].includes(head.rule) ||
-        head.rule === "tag" && !/^[A-Z]/.test(this.value(head)) ||
-        !captured && this.value(route) !== this.value(sequence[0]) ||
-        !captured && (choice.length !== 1 || choice[0].rule !== "some-of" ||
-          rules(choice[0]).length !== 1 || sequence.some(factor => walks(factor, item => item.rule === "capture" || item.rule === "captured-terminator")))) {
-      this.fail(route, "an elidable optional starts with an ungrouped user terminal or parameter and can bind only its sole terminator");
+    if (head?.rule === "group" ||
+        !captured && (parts.length !== 1 || parts[0].rule !== "some-of" || rules(parts[0]).length !== 1 ||
+          !sequence[0] || this.value(route) !== this.value(sequence[0]) ||
+          sequence.length === 1 && head.rule === "capture")) {
+      this.fail(route, elidableForm50);
     }
-    const optional = this.body(route, false, true, chain, true);
+    if (!head || !["tag", "parameter"].includes(head.rule) || head.rule === "tag" && !/^[A-Z]/.test(this.value(head)) ||
+        sequence.slice(1).some(containsCapture)) this.domFault(this.bodyOwner, elidableForm50);
+    const optional = this.body(route, false, true);
     const symbol = captured ? optional.expr : optional.seq?.[0] ?? optional;
     const value = this.defaults?.get(symbol);
     return { optional, elidable: true, ...(value && { default: value }) };
@@ -429,14 +434,14 @@ export class DomBuilder {
     else if (first.rule === "requirement-argument") result = { requirements: this.requirements(first), at };
     else if (first.rule === "target-argument") result = { targets: rules(first).map(target => this.target(target)), at };
     else {
-      const body = this.body(first);
+      const body = this.ownedBody(first, { at });
       if (body.ref !== undefined) {
         const key = /^[A-Z_]/.test(body.ref) ? "tag" : "rule";
         result = { [key]: body.ref, at };
       } else if (isSymbol(body)) result = { ...body, at: body.at ?? at };
       else result = { body, at };
     }
-    validateBindings50(result, withOwner50(result, this.domFault, result), { closed: true });
+    validateArgument50(result, withOwner50(result, this.domFault, result));
     return result;
   }
 
@@ -522,11 +527,8 @@ export class DomBuilder {
         return this.method(node, { item: true });
       case "string":
         return { string: this.strings.decode(this.token(node)) };
-      case "integer": {
-        const integer = this.value(node);
-        if (!/^(?:0|[1-9][0-9]*)$/.test(integer)) this.fail(node, "an integer cannot start with a leading zero");
-        return { integer };
-      }
+      case "integer":
+        return { integer: this.value(node) };
       case "constant-reference":
         return { const: this.value(node).slice(1), at: this.at(node) };
       case "application":
@@ -585,13 +587,11 @@ export class DomBuilder {
       case "width-selector": {
         const at = part(selector, "integer");
         const integer = this.expression(at).integer;
-        if (method === "ngrams" && integer === "0") this.fail(at, "a width must be positive");
         args.push({ integer });
         break;
       }
       case "predicate-selector": {
         const predicate = part(selector, "predicate");
-        if (!predicate && method === "all") this.fail(node, ".all takes one predicate");
         if (predicate) args.push(this.predicate(predicate));
         break;
       }
@@ -604,9 +604,7 @@ export class DomBuilder {
       case "parse-selector": {
         const query = part(selector, "query-body");
         const choice = part(query, "choice");
-        const body = this.body(choice, true);
-        if (body.chain) this.fail(choice, "a chain cannot be the query target");
-        validateBindings50(body, withOwner50(body, this.domFault, { at: this.at(node) }), { query: true });
+        const body = this.ownedBody(choice, { at: this.at(node) });
         const sequence = [];
         if (this.value(query) === "…") sequence.push({ remainder: true });
         for (const operand of body.seq ?? [body]) sequence.push(operand);
@@ -615,7 +613,9 @@ export class DomBuilder {
         break;
       }
     }
-    return { method, ...(receiver !== undefined && { receiver }), args, at: this.at(node) };
+    const result = { method, ...(receiver !== undefined && { receiver }), args, at: this.at(node) };
+    if (method === "parse") validateQuery50(result, withOwner50(result, this.domFault, result));
+    return result;
   }
 
   predicate(node) {

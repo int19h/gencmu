@@ -244,7 +244,7 @@ export function translateSharedCase(family, file, testCase) {
     return { id, status: "deferred", reason: `The case waits for the format 50 migration of ${testCase.pipeline}.` };
   }
   const authored = negativeMigrations[id];
-  if (authored?.load && authored.entry && authored.documents) {
+  if (authored?.entry && authored.documents) {
     return recordedNegative(id, testCase, testCase.documents, authored.entry);
   }
   if (family === "notation" && testCase.expect.error) {
@@ -335,7 +335,7 @@ export function translateSharedCase(family, file, testCase) {
       }
       const recorded = recordedNegative(id, testCase, sources, entry);
       if (recorded) return recorded;
-      const native = translateNegative49(id, testCase, error.description);
+      const native = translateNegative49(id, testCase);
       if (native) {
         if (!native.retired) return convertedNegative(id, testCase, native);
         const { retired, ...record } = native;
@@ -363,8 +363,12 @@ export function translateSharedCase(family, file, testCase) {
       "Join the input token values. This excludes omitted defaults and preserves the rule value proof." :
       "Exclude omitted leaves from the child value join. Keep the values that written children supply." });
   }
-  if (stages.size) translated[entry] += "\n" + fence([...stages].map(name =>
-    `%extend-stage ${name}\n${defaults}\n${outputs}`).join("\n"));
+  if (stages.size) {
+    for (const name of stages) changes.push({ document: entry,
+      reason: `Add $OUTPUTS to stage ${name} to retain its output field and pass the used keys to consumers.` });
+    translated[entry] += "\n" + fence([...stages].map(name =>
+      `%extend-stage ${name}\n${defaults}\n${outputs}`).join("\n"));
+  }
   const fixture = { ...caseInput(testCase), documents: translated, pipelineDocument: entry };
   if (missingArgument && testCase.expect?.where) {
     const document = testCase.expect.where.document;

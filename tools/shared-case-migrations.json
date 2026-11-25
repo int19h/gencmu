@@ -1215,31 +1215,27 @@
     }
   },
   "engine/helper-tags.json": {
-    "retired": true,
     "section": "Engine §3.7, Rule bags",
     "reason": "A whole optional no longer copies the bag of its only symbol.",
-    "counterpart": {
-      "status": "native-pending",
-      "section": "Engine §3.7, Rule bags",
-      "fixture": {
-        "pipelineDocument": "main.md",
-        "documents": {
-          "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%const $OUTPUTS {A}\n%const $DEFAULTS $n ↦ {value: $n.children!'value.join(), image: $n.children!'image.join()}\n%rule text w\n%rule w [A]\n%emit\n```\n"
-        },
-        "tokens": [
-          {
-            "text": "a",
-            "props": {
-              "A": true
-            }
-          }
-        ]
+    "load": true,
+    "fixture": {
+      "pipelineDocument": "main.md",
+      "documents": {
+        "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%const $OUTPUTS {A}\n%const $DEFAULTS $n ↦ {value: $n.children!'value.join(), image: $n.children!'image.join()}\n%rule text w\n%rule w [A]\n%emit\n```\n"
       },
-      "expected": {
-        "props": {
-          "value": "a",
-          "image": "a"
+      "tokens": [
+        {
+          "text": "a",
+          "props": {
+            "A": true
+          }
         }
+      ]
+    },
+    "expected": {
+      "props": {
+        "value": "a",
+        "image": "a"
       }
     }
   }
