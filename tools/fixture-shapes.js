@@ -2,8 +2,11 @@
 // All other members are errors. Rules describe combinations of members.
 // Opaque payloads deliberately reach the library without a shape restriction.
 import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
+import { UnicodeTable } from "../lib/js/src/unicode.js";
 
 const string = "string", boolean = "boolean", any = "any", record = "record";
+const nonempty = { pattern: /\S/u };
 const positive = "positive", natural = "natural";
 const list = (item, min = 0) => ({ list: item, min });
 const caseList = (item) => list(item, 1);
@@ -20,6 +23,7 @@ const together = (a, b) => (value) => has(value, a) === has(value, b) ? [] : [`$
 const position = object({ document: string }, { line: positive, column: positive });
 const coordinates = { line: positive, column: positive };
 const options = object({}, { features: strings, withoutFeatures: strings, until: { pattern: /./s }, elisionOnly: boolean });
+const treeEmissionOptions = object({}, { ...options.optional, stageTrees: choice("compact", "all") });
 const feature = object({ name: string, kind: choice("gate", "warning"), default: boolean });
 const rejection = object({token:natural,source:pair,line:positive,column:positive,expected:list(object({terminal:string,rules:strings}))});
 const warning = object({ stage: string, code: string, rule: string, span: pair, source: pair, message:string },{rejection});
@@ -45,6 +49,122 @@ const notation = object({ document: string, expect: object({}, { dom: {check:dom
   { description: string, cacheMisses: boolean }, [
     (v) => v.cacheMisses === true && !has(v.expect, "dom") ? ["cacheMisses requires a DOM expectation"] : [],
   ]);
+const jsonPointer = { pattern: /^(?:\/(?:[^~/]|~[01])*)*$/u };
+const memberPointer = { pattern: /^(?:\/(?:[^~/]|~[01])*)+$/u };
+const treeEmissionAssertion = object({ path: jsonPointer }, {
+  equals: any, matches: record, contains: record, excludes: record, absent: choice(true),
+}, [exactly("equals", "matches", "contains", "excludes", "absent"),
+  (v) => has(v, "absent") && !v.path ? ["absence requires a member pointer"] : []]);
+const treeEmissionReference = object({
+  path: memberPointer,
+  target: { tuple: ["path-index", choice(0, 1, 2), natural] },
+}, {}, [(v) => v.target[0] === -1 && v.target[1] !== 0 ? ["an origin reference uses reading zero"] : []]);
+const treeEmissionExpectation = object({
+  outcome: choice("accept", "rejected", "ambiguous", "grammar", "dom", "invalid-dom", "invalid-result"),
+}, {
+  phase: choice("load", "lowering", "recognition", "publication", "decode"),
+  cause: nonempty, at: object(coordinates), roundTrip: choice(true),
+  assertions: caseList(treeEmissionAssertion), references: caseList(treeEmissionReference),
+}, [
+  together("phase", "cause"),
+  (v) => ["grammar", "invalid-dom", "invalid-result"].includes(v.outcome) === has(v, "cause")
+    ? [] : ["only error outcomes require phase and cause"],
+  (v) => has(v, "at") && v.outcome !== "grammar"
+    ? ["a source position requires a diagnostic that owns a position"] : [],
+]);
+const treeEmissionDomPaths = object({ json: string, cache: choice("hit", "miss") }, {
+  supplied: treeEmissionExpectation,
+}, [(v) => v.cache === "miss"
+  ? v.supplied?.outcome === "invalid-dom" && v.supplied.phase === "load"
+    ? [] : ["a cache miss needs a supplied DOM load error"]
+  : has(v, "supplied") ? ["a cache hit uses the case expectation for the supplied DOM"] : [],
+  (v) => v.supplied && ["assertions", "references", "roundTrip"].some((key) => has(v.supplied, key))
+    ? ["a supplied DOM load error has no result"] : [],
+]);
+const treeEmissionCaller = object({ text: string, props: map(either(string, choice(true))) }, {}, [
+  (v) => Object.entries(v.props).flatMap(([key, value]) => {
+    if (key === "_Elided") return ["caller properties cannot include _Elided"];
+    if (!treeEmissionCallerKey(key)) return [`invalid caller key ${JSON.stringify(key)}`];
+    const stringKey = key === "value" || key === "image";
+    return stringKey === (typeof value === "string") ? [] : [`invalid caller property ${key}`];
+  }),
+]);
+const treeEmissionCase = object({ expect: treeEmissionExpectation }, {
+  source: caseList(string), document: string, pipeline: nonempty, overlay: caseList(string),
+  resultJson: string, domJson: string, domPaths: treeEmissionDomPaths, input: string, options: treeEmissionOptions,
+  tokens: list(treeEmissionCaller),
+}, [
+  exactly("source", "document", "pipeline", "resultJson", "domJson"),
+  (v) => has(v, "overlay") && !has(v, "pipeline") ? ["an overlay requires a bundled pipeline"] : [],
+  (v) => (has(v, "source") || has(v, "pipeline")) === has(v, "input")
+    ? [] : ["only source and pipeline cases require parse input"],
+  (v) => (has(v, "tokens") || has(v, "options")) && !has(v, "input")
+    ? ["tokens and options require parse input"] : [],
+  (v) => v.tokens && [...v.tokens.map((token) => token.text).join(" ")].length > [...(v.input ?? "")].length
+    ? ["caller token sources exceed the input text"] : [],
+  (v) => has(v, "domPaths") && !has(v, "source") && !has(v, "document")
+    ? ["alternate DOM paths require source or a document"] : [],
+  (v) => has(v, "document") && v.domPaths?.cache === "hit" && v.expect.outcome !== "dom"
+    ? ["a document cache hit requires a decoded DOM"] : [],
+  treeEmissionOutcomeProblems,
+]);
+const treeEmissionPair = object({
+  id: { pattern: /^[a-z][a-z0-9-]*$/ },
+  description: nonempty,
+  manuals: caseList(object({
+    file: choice("docs/api.md", "docs/engine.md", "docs/notation.md", "docs/output.md"),
+    heading: nonempty,
+  })),
+  valid: treeEmissionCase,
+  malformed: treeEmissionCase,
+}, { bundledSource: nonempty, controls: caseList(treeEmissionCase) }, [
+  (v) => has(v, "bundledSource") && !has(v.valid, "pipeline") ? ["bundledSource requires a bundled pipeline"] : [],
+  (v) => ["accept", "rejected", "ambiguous", "dom"].includes(v.valid.expect.outcome)
+    ? [] : ["the valid case requires a valid grammar or document"],
+  (v) => ["grammar", "invalid-dom", "invalid-result"].includes(v.malformed.expect.outcome)
+    ? [] : ["the malformed case requires an invalid grammar, document or result"],
+]);
+const treeEmissionPairs = {
+  ...caseList(treeEmissionPair),
+  rules: [(pairs) => pairs.length === new Set(pairs.map((pair) => pair.id)).size ? [] : ["repeated pair id"]],
+};
+
+let callerUnicode;
+function treeEmissionCallerKey(key) {
+  if (!key.startsWith("_")) return /^(?!.*--)[A-Za-z][A-Za-z0-9_-]*$/u.test(key);
+  callerUnicode ??= new UnicodeTable(
+    readFileSync(new URL("../data/unicode/unicode.txt", import.meta.url), "utf8"),
+    readFileSync(new URL("../data/unicode/unicode-properties.txt", import.meta.url), "utf8"),
+  );
+  return callerUnicode.canonicalTag(key) === key;
+}
+
+function treeEmissionOutcomeProblems(value) {
+  const { expect } = value;
+  const { outcome, phase } = expect;
+  const parse = has(value, "source") || has(value, "pipeline");
+  const resultOutcome = ["accept", "rejected", "ambiguous"].includes(outcome);
+  const compatible = parse
+    ? resultOutcome || (outcome === "grammar" && phase !== "decode")
+    : has(value, "document")
+      ? outcome === "dom" || (outcome === "grammar" && phase === "load")
+      : has(value, "domJson")
+        ? outcome === "invalid-dom" && phase === "load"
+        : outcome === "invalid-result" && phase === "decode";
+  if (!compatible) return ["outcome or phase does not apply to the input"];
+
+  const result = parse && (resultOutcome ||
+    ["lowering", "recognition", "publication"].includes(phase));
+  const problems = [];
+  if (has(expect, "at") && !has(value, "source") && !has(value, "document")) {
+    problems.push("a source position requires source or a document");
+  }
+  if (has(expect, "assertions") && !result && outcome !== "dom") problems.push("assertions need a result or DOM");
+  if ((has(expect, "references") || has(expect, "roundTrip")) && !result) {
+    problems.push("references and roundTrip need a result");
+  }
+  return problems;
+}
 const suppliedExpectation = object({}, { dom: record, error: object(coordinates), message: string }, [
   exactly("dom", "error"), (v) => has(v, "message") && !has(v, "error") ? ["message requires error"] : [],
 ]);
@@ -160,6 +280,7 @@ const textManifest = object({ grammar_commit: { pattern: /^[0-9a-f]{40}$/ }, sou
 // A directory's format applies to each member. Documentation is not a fixture.
 // Text formats have their row rules below, next to the JSON descriptions.
 export const fixtureShapes = {
+  "tree-emission/pairs.json": { shape: treeEmissionPairs, scalarStrings: true },
   "engine/*.json": { shape: engine },
   "notation/*.json": { shape: notation },
   "corpus/*.jsonl": { shape: corpus, format: "jsonl", scalarStrings: true },

@@ -33,8 +33,10 @@ function inspect(shape, value, at, problems) {
   } else if (shape.list || shape.tuple) {
     if (!Array.isArray(value)) { fail("expected an array"); return; }
     if (shape.tuple && value.length !== shape.tuple.length) { fail(`expected ${shape.tuple.length} entries`); return; }
+    const before = problems.length;
     if (value.length < (shape.min ?? 0)) fail(`expected at least ${shape.min} entries`);
     value.forEach((item, index) => inspect(shape.list ?? shape.tuple[index], item, `${at}[${index}]`, problems));
+    if (problems.length === before) for (const rule of shape.rules ?? []) for (const message of rule(value)) fail(message);
   } else {
     if (!isRecord(value)) { fail("expected an object"); return; }
     if (shape.map) {

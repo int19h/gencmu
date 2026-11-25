@@ -2,7 +2,7 @@
 
 A shared case supplies input and an expected outcome. A runner loads that case and compares the library's result with its expectations.
 
-Every gencmu library runs every shared case that its API can express. A library skips a usage case when its token or string types cannot express the invalid field. If a case fails in one library and passes in another, there is a bug. The bug is in the library that disagrees with `docs/engine.md`, or in the specification itself.
+Every gencmu library runs every shared case that its API can express, except those in `tree-emission/`. A library skips a usage case when its token or string types cannot express the invalid field. If a case fails in one library and passes in another, there is a bug. The bug is in the library that disagrees with `docs/engine.md`, or in the specification itself.
 
 A runner refuses unknown case members and control members with the wrong type. This includes configuration (`options`), parse lists (`parses`), and expectations (`expect`).
 
