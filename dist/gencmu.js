@@ -25829,6 +25829,14 @@
      * @returns {any}
      */
     comparison(node, scope) {
+      // A structural comparison of two captured nodes runs on the chosen
+      // derivation, through the recognizer, which compares their trees.
+      if (node.op === "≅" || node.op === "≇") {
+        if (this.stage.lateQuery && node.left.capture !== undefined && node.right.capture !== undefined) {
+          return this.stage.lateQuery("compare", node, scope);
+        }
+        this.fail(`the format 50 engine cannot yet compare with ${node.op} and a pattern after the choice of a parse`, node, scope);
+      }
       /** @type {any} */
       const left = this.evaluate(node.left, scope);
       /** @type {any} */
@@ -28309,6 +28317,17 @@
      * @returns {any}
      */
     lateQuery(data, kind, node, scope) {
+      // A structural comparison reads the captures of the node that holds it.
+      if (kind === "compare") {
+        const holder = scope.node;
+        if (!holder?.derivation || !data.context) {
+          throw evaluationError("the format 50 engine cannot yet compare this node after the choice of a parse", node.at, scope.document);
+        }
+        const bridge = new Bridge({ rules: [], directives: [], constants: [] }, scope.document ?? "", new Map());
+        bridge.hidden = { demanded: new Set(), domains: new Map() };
+        const condition = bridge.truth(node);
+        return settled(() => holds(data.context, condition, /** @type {any} */ (new LateScope(holder.derivation, data.context, holder.reading))));
+      }
       let base = node;
       while (base.receiver) base = base.receiver;
       if (base.capture === undefined) throw evaluationError("this query has no occurrence to read", node.at, scope.document);
