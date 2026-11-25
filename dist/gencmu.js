@@ -26164,6 +26164,7 @@
       /** @type {any} */ this.producer = undefined;
       /** @type {any} */ this.part = undefined;
       /** @type {any} */ this.item = undefined;
+      /** @type {any} the chosen reading that holds a rule node */ this.reading = undefined;
       /** @type {Map<string, any> | undefined} */ this.captures = undefined;
       /** @type {Occurrence | null | undefined} */ this.primary = undefined;
       /** @type {() => Bag} */ this.makeBag = () => { throw new Error(`a node of kind ${kind} has no bag`); };
@@ -28315,7 +28316,7 @@
       const bridge = new Bridge({ rules: [], directives: [], constants: [] }, scope.document ?? "", new Map());
       bridge.hidden = { demanded: new Set(), domains: new Map() };
       // The recognizer reads a late scope as it reads a scope of its chart.
-      const recognizerScope = /** @type {any} */ (new LateScope(occurrence.derivation, data.context));
+      const recognizerScope = /** @type {any} */ (new LateScope(occurrence.derivation, data.context, occurrence.reading));
       if (kind === "keys") {
         const term = bridge.tagsOf(rebase(node), node.at);
         return keySet([...asSet(settled(() => evaluate(data.context, term, recognizerScope)))].filter(key => !isHiddenKey(key)));
@@ -28453,6 +28454,9 @@
       // A left-recursive rule makes a tree as deep as its text, so the build
       // uses its own stack and visits each node after its children.
       const made = new Map();
+      // A late neighbor test reads the rules and terminals that start and end
+      // at each place of the reading (engine §4).
+      data.reading = { root, first: null, last: null };
       /** @type {[any, boolean][]} */
       const stack = [[root, false]];
       while (stack.length) {
@@ -28605,6 +28609,7 @@
       }
       occurrence.captures = captures;
       occurrence.primary = origin?.primary !== undefined ? primary : null;
+      occurrence.reading = data.reading;
       occurrence.makeBag = () => this.ruleBag(occurrence, data);
       return occurrence;
     }
@@ -28810,10 +28815,12 @@
     /**
      * @param {any} node
      * @param {any} context
+     * @param {{root: any, first: Map<number, Set<string>> | null, last: Map<number, Set<string>> | null}} reading
      */
-    constructor(node, context) {
+    constructor(node, context, reading) {
       this.node = node;
       this.context = context;
+      this.reading = reading;
     }
 
     /** @param {any} name */
@@ -28822,8 +28829,47 @@
       return derivationIdentity(this.context, capturedNode(this.node, name));
     }
 
-    boundary() {
-      throw new GencmuError("grammar", "the format 50 engine cannot yet test a neighbor after the choice of a parse");
+    /**
+     * Whether a rule or terminal of the args starts where the receiver ends,
+     * or ends where it starts, in the chosen reading. A non-empty node of a
+     * rule or a written token counts, as in the emission of format 49.
+     * @param {any} atom
+     */
+    boundary(atom) {
+      if (!this.reading.first || !this.reading.last) {
+        /** @type {Map<number, Set<string>>} */
+        const first = new Map();
+        /** @type {Map<number, Set<string>>} */
+        const last = new Map();
+        /**
+         * @param {Map<number, Set<string>>} map
+         * @param {number} at
+         * @param {string} name
+         */
+        const offer = (map, at, name) => {
+          let names = map.get(at);
+          if (!names) map.set(at, names = new Set());
+          names.add(name);
+        };
+        const pending = [this.reading.root];
+        while (pending.length) {
+          const node = pending.pop();
+          if (node.start < node.end) {
+            const name = "read" in node ? node.read.terminal : node.production.helper ? null : node.production.lhs;
+            if (name !== null) {
+              offer(first, node.start, name);
+              offer(last, node.end, name);
+            }
+          }
+          if (!("read" in node)) for (const child of node.children) pending.push(child);
+        }
+        this.reading.first = first;
+        this.reading.last = last;
+      }
+      const span = this.capture(atom.receiver.capture);
+      const followed = atom.method === "followed-by";
+      const offers = (followed ? this.reading.first : this.reading.last).get(followed ? span.end : span.start);
+      return !!offers && atom.args.some((/** @type {any} */ target) => offers.has(target.rule ?? target.terminal));
     }
 
     /** @param {any} name */

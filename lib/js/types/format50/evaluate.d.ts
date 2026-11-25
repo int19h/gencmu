@@ -277,6 +277,7 @@ export declare class Occurrence {
     /** @type {any} */ producer: any;
     /** @type {any} */ part: any;
     /** @type {any} */ item: any;
+    /** @type {any} the chosen reading that holds a rule node */ reading: any;
     /** @type {Map<string, any> | undefined} */ captures: Map<string, any> | undefined;
     /** @type {Occurrence | null | undefined} */ primary: Occurrence | null | undefined;
     /** @type {() => Bag} */ makeBag: () => Bag;
