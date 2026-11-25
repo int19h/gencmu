@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { GencmuError } from "../../lib/js/src/errors.js";
+import { compactJson } from "../../lib/js/src/output.js";
 import { operandFields50, validateDocument50 } from "../../lib/js/src/format50/validate.js";
 import { createTransitionCompiler } from "../transition-compiler.js";
 import { inspectConverted50 } from "./dom.js";
@@ -26,11 +27,24 @@ export function diagnostic(action) {
   return null;
 }
 
-function reorder(node, order) {
-  if (Array.isArray(node)) return node.map(child => reorder(child, order));
-  if (!node || typeof node !== "object") return node;
-  const fields = order(Object.entries(node));
-  return Object.fromEntries(fields.map(([key, child]) => [key, reorder(child, order)]));
+function reorder(root, order) {
+  if (root === null || typeof root !== "object") return root;
+  const allocate = node => Array.isArray(node) ? [] : Object.create(null);
+  const result = allocate(root);
+  const pending = [[root, result]];
+  while (pending.length) {
+    const [node, copy] = pending.pop();
+    const fields = Array.isArray(node) ? node.entries() : order(Object.entries(node));
+    const children = [];
+    for (const [key, child] of fields) {
+      if (child && typeof child === "object") {
+        copy[key] = allocate(child);
+        children.push([child, copy[key]]);
+      } else copy[key] = child;
+    }
+    for (let i = children.length - 1; i >= 0; i--) pending.push(children[i]);
+  }
+  return result;
 }
 
 function shuffle(seed) {
@@ -120,7 +134,7 @@ export function createDifferential() {
     }
     counts[source ? state === "prefix" ? "prefix" : "invalid" : "valid"]++;
     const configuration = { document, unicode };
-    const roundtrip = (node, order) => JSON.parse(JSON.stringify(reorder(node, order)));
+    const roundtrip = (node, order) => JSON.parse(compactJson(reorder(node, order)));
     const reverseFields = fields => fields.reverse();
     const variants = [
       ["reverse", roundtrip(dom, reverseFields), reverseFields],
