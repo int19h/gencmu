@@ -319,7 +319,7 @@ The format 49 copy of this document is `grammars/lojban/common/forms.md`. On the
 
 The lookup gives `Indicator` where it gives an indicator class. The format 49 lexicon adds that tag to each emitted token with such a class. A token that a caller gives `UI` directly therefore needs `Indicator` from the caller too. The CLL phoneme stage gives no such token.
 
-Three rules put their tags or strings on the node, and not only on the token. They are `pause-token` with its value, `foreign-token` with its run tags, and `ordinary-word` with `Run-Initial` and `Run-Final`. So a parent can read them. No rule of this stage reads them on a node.
+Three rules put their tags or strings on the node, and not only on the token. They are `pause-token` with its value, `foreign-token` with its run tags, and `ordinary-word` with `Run-Initial` and `Run-Final`. So a parent can read them, as `run-words` copies the tags of its later word. Run division tests neither the boundary flags nor the replacement pause value.
 
 A repetition passes no tags from a single item. No rule of a Lojban pipeline reads a tag that reaches it only that way.
 

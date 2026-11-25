@@ -154,7 +154,7 @@ The rule `attitudinal-nai` reads the pair. Its primary is the attitudinal word, 
 <p><img src="../../../docs/diagrams/50/lojban/cll/indicators/nai.svg" alt="Railroad diagram of the rule nai"></p>
 </details>
 
-`indicator`, `fuhe` and `attitudinal` test their classes in conditions, not in a tag test on `Word`. So a failed indicator run expects one plain `Word`. Each test reads a bare tag of the word, such as `$i'Indicator`.
+`indicator`, `fuhe` and `attitudinal` test their classes in conditions, not in a tag test on `Word`. These alternatives contribute plain `Word` to the expected terminals. The optional emphasis run can also contribute `Word<BAhE>`. The tests of `indicator` and `fuhe` read a bare tag of the word, such as `$i'Indicator`. The test of `attitudinal` asks whether the classes of the word overlap `{UI, CAI}`.
 
 A `ba'e` before an indicator marks the indicator and goes with it. So does a `ba'e` before the `nai` of an attitudinal. Emphasis leaves the word's meaning intact. Each UI or CAI permits one NAI. So `mi .e .ui ba'e nai do` negates the `.ui` and leaves the `.e` as it is.
 
