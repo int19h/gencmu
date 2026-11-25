@@ -2895,11 +2895,11 @@ pattern-intersection = pattern-path {"∩" pattern-path}
 pattern-path = ("⋮" | "⋱") pattern-primary | pattern-primary ["⋰"]
 pattern-primary = pattern-node | bare-child-list | "(" pattern-union ")"
 pattern-node = [$exact:"·"] $atom:pattern-atom [$list:child-list]
-  assert ($exact ⟹ $exact.onward.parse(pattern-exact-start …))
+  assert $exact.all(.onward.parse(pattern-exact-start …))
   assert ($list ⟹ $atom.onward.parse(pattern-attached-start …))
   assert (¬($list) ⟹ ¬($atom.onward.parse(pattern-attached-start …)))
 bare-child-list = [$exact:"·"] child-list
-  assert ($exact ⟹ $exact.onward.parse(pattern-exact-start …))
+  assert $exact.all(.onward.parse(pattern-exact-start …))
 pattern-atom = (pattern-rule | tag | string | range | wildcard | constant-reference) [symbol-test {symbol-test}]
 pattern-rule = Lowercase-Name | Emoji-Name | call | parameter
 child-list = "⁅" [child-choice] "⁆"
