@@ -507,3 +507,250 @@ test("independent guards use separate presence witnesses", () => {
   const source = `%rule r → {${entries}}\n  | ${optionals}\n  | $c:C`;
   assert.equal(read(source).format, 50);
 });
+
+for (const present of ["$b", "$b.present"]) {
+  for (const [body, missing] of [
+    ["[$b:+B]", true],
+    ["[$b:B]", true],
+    ["$b:B", false],
+    ["[$b:+B<¬_Elided>]", false],
+    ["[$b:+B≠\"\"]", false],
+    ["[$b:+B=\"b\"]", true],
+    ["A [D [$b:B]]", true],
+    ["(D | $b:B)", true],
+    ["(D ≻ $b:B)", true],
+    ["D & $b:B", true],
+    ["[{$b:B}]", true],
+    ["{($b:B | D)}", true],
+    ["{D / $b:B}", true],
+    ["{$b:B}", false],
+  ]) {
+    test(`scope follows the structural routes of ${body} with ${present}`, () => {
+      const head = `%rule r → {(¬${present})? *$c.flags}`;
+      const source = head + "\n | " + body + "\n | $c:C";
+      if (missing) assertFault(() => read(source), /\$c is absent/, 2, head.indexOf(".flags") + 1);
+      else assert.equal(read(source).format, 50);
+    });
+  }
+}
+
+for (const [head, first, after, capture, line, anchor] of [
+  ["%rule r → {k: ($b ? $c'k | $d'k)}", "[$b:B]", "", "d", 2, "$d'"],
+  ["%rule r → {k: (¬$b ? $d'k | $c'k)}", "[$b:B]", "", "d", 2, "$d'"],
+  ["%rule r → {k: ($b ? $c'k | $d'k)}", "B\n | $b:B", "", "d", 2, "$d'"],
+  ["%rule r → {$b? *$c.flags, (¬$b)? *$d.flags}", "[$b:B]", "", "d", 2, "$d."],
+  ["%rule r → {$b? *$c.flags}", "[$b:B] → {(¬$b)? *$d.flags}", "", "d", 3, "$d."],
+  ["%rule r → {$b? *$c.flags}", "A [$b:B]", "\n%error ($b ? \"ok\" | $d'k)", "d", 5, "$d'"],
+  ["%rule r", "A [$b:B]", "\n%emit $b? ${*$c.flags}, (¬$b)? ${*$d.flags}", "d", 5, "$d."],
+  ["%rule r → {$first? *$c.flags, $second? *$d.flags}", "[$first:F] [$second:S] B", "", "d", 2, "$d."],
+  ["%rule r → {$q? *$c.flags, $b? *$d.flags}", "$b:B & $q:Q", "", "d", 2, "$d."],
+  ["%rule r → {$b? *$c.flags, (¬$b)? *$d.flags}", "($b:B | A)", "", "c", 2, "$c."],
+  ["%rule r → {($a ∧ $b)? *$c.flags, $b? *$d.flags}", "{($a:A | $b:B)}", "", "d", 2, "$d."],
+  ["%rule r → {($a ∧ $b)? *$c.flags}", "{($a:A | $b:B)}", "", "c", 2, "$c."],
+  ["%rule r → {$b? *$c.flags, (¬$b)? *$d.flags}", "{A / $b:B}", "", "d", 2, "$d."],
+  ["%rule r → {(¬$b)? *$c.flags, (¬$b)? *$d.flags}", "[$b:B]", "", "c", 2, "$c."],
+]) {
+  const source = `${head}\n | ${first}\n | $c:C $d:D${after}`;
+  test(`the first failing expansion of ${source} reads $${capture}`, () => {
+    const row = source.split("\n")[line - 2];
+    assertFault(() => read(source), new RegExp(`\\$${capture} is absent`), line, row.indexOf(anchor) + 3);
+  });
+}
+
+test("the first site wins when scope and type faults share an expansion", () => {
+  const head = '%rule r → {k: "x" + 1, (¬$b)? *$c.flags}';
+  const source = head + "\n | [$b:B]\n | $c:C";
+  assertFault(() => read(source), /requires number operands/, 2, head.indexOf("+") + 1);
+  const guarded = '%rule r → {($d\'k)? *("x" + 1)}';
+  assertFault(() => read(guarded + "\n | A\n | $d:D"), /\$d is absent/, 2, guarded.indexOf("'") + 1);
+});
+
+test("a capture of an empty rule still binds a node", () => {
+  const source = '%rule r → {(¬$b.present)? *$c.flags}\n | $b:empty\n | $c:C\n%rule empty ε';
+  assert.equal(read(source).format, 50);
+});
+
+for (const expr of [
+  '[].all($x ↦ $x = "a")',
+  '["a"].all($x ↦ $x = "a")',
+  '[]!($x ↦ $x ≠ 1)',
+  '[1]!($x ↦ $x ≠ 1)',
+  '[].any($x ↦ $x < 1)',
+  '[].any($x ↦ 1 ≥ $x)',
+  '[].all($x ↦ $x ⊆ {A})',
+  '[].all($x ↦ {A} ⊈ $x)',
+  '[].all($x ↦ $x ∈ [[1]])',
+  '[].all($x ↦ 1 ∉ $x)',
+  '[].all($x ↦ ¬($x ∖ {A}))',
+  '[].all($x ↦ ¬([1] ∖ $x))',
+  '[].all($x ↦ ($x ∪ {A}) = {A})',
+  '[].all($x ↦ ($x ∩ {A}) = {A})',
+  '[].all($x ↦ $x ≅ #a)',
+]) {
+  test(`an empty list element takes its type from ${expr}`, () => {
+    assert.equal(read("%const $V " + expr).format, 50);
+  });
+}
+
+for (const [expr, anchor] of [
+  ['[1].all($x ↦ $x = "a")', " = "],
+  ['[].all($x ↦ $x = [1])', " = "],
+  ['[] = [1]', " = "],
+  ['[].all($x ↦ $x ∈ [{a: 1}])', " ∈ "],
+]) {
+  test(`a comparable operand is still required in ${expr}`, () => {
+    const source = "%const $V " + expr;
+    assertFault(() => read(source), /requires comparable operands|requires compatible operands/,
+      2, source.indexOf(anchor) + 2);
+  });
+}
+
+function reverseMembers(value) {
+  if (Array.isArray(value)) return value.map(reverseMembers);
+  if (!value || typeof value !== "object") return value;
+  return Object.fromEntries(Object.entries(value).reverse().map(([key, child]) => [key, reverseMembers(child)]));
+}
+
+function compareDiagnostics(source, dom, message, [line, column]) {
+  let expected;
+  assert.throws(() => read(source), error => {
+    assert.match(error.description, message);
+    assert.deepEqual(error.where, { document: "probe.md", line, column });
+    expected = error;
+    return true;
+  });
+  for (const record of [JSON.parse(JSON.stringify(dom)), reverseMembers(dom)]) {
+    assert.throws(() => validateDocument50(record, { document: "probe.md", unicode: compiler.unicode }), error => {
+      assert.equal(error.kind, expected.kind);
+      assert.equal(error.description, expected.description);
+      assert.deepEqual(error.where, expected.where);
+      return true;
+    });
+  }
+}
+
+for (const [name, term] of [
+  ["conditional", "{k: ($.span.starts-input ? $c'k | $d'k)}"],
+  ["conditional test and branches", "{k: ($c'k ? $d'k | $d'k)}"],
+  ["implication", "{($c'k ⟹ $d'k)? k}"],
+  ["comparison", "{($c'k = $d'k)? k}"],
+  ["addition", "{k: $c'k + $d'k}"],
+  ["concatenation", "{k: $c'k ++ $d'k}"],
+  ["conjunction", "{($c'k ∧ $d'k)? k}"],
+  ["disjunction", "{($c'k ∨ $d'k)? k}"],
+  ["union", "{k: $c'k ∪ $d'k}"],
+  ["intersection", "{k: $c'k ∩ $d'k}"],
+  ["difference", "{k: $c'k ∖ $d'k}"],
+  ["method receiver and argument", "{k: $c'k.join($d'k)}"],
+  ["map receiver and short selector", "{k: $c'k!.select($d'k)}"],
+  ["map receiver and named binder", "{k: $c'k!($each ↦ $d'k)}"],
+  ["guard and copy source", "{($c'k)? $d'k}"],
+  ["guard and written value", "{($c'k)? k: $d'k}"],
+  ["guard and list item", "{k: [($c'k)? $d'k]}"],
+  ["guard and splat", "{($c'k)? *$d'k}"],
+  ["bag entries", "{k: $c'k, j: $d'k}"],
+  ["list items", "{k: [$c'k, $d'k]}"],
+]) {
+  test(`source and supplied DOM agree on the operand order of ${name}`, () => {
+    const head = "%rule r → " + term;
+    const dom = read(head + "\n | $c:C $d:D\n | $c:C $d:D");
+    dom.rules[0].alternatives[0].expr = { ref: "A" };
+    compareDiagnostics(head + "\n | A\n | $c:C $d:D", dom, /\$c is absent/, [2, head.indexOf("$c'k") + 3]);
+  });
+}
+
+test("a supplied output guard precedes the output term", () => {
+  const emit = "%emit ($c'k)? ${k: $d'k}";
+  const dom = read("%rule r\n | $c:C $d:D\n | $c:C $d:D\n" + emit);
+  dom.rules[0].alternatives[0].expr = { ref: "A" };
+  compareDiagnostics("%rule r\n | A\n | $c:C $d:D\n" + emit, dom, /\$c is absent/, [5, emit.indexOf("$c'k") + 3]);
+});
+
+test("a supplied method visits the receiver before it infers a predicate binder", () => {
+  const leaf = '%const $A ["x"].all($x ↦ $x = "a")';
+  const dom = read(leaf);
+  const comparison = dom.constants[0].value.args[0].body;
+  dom.constants[0].value.receiver.list[0].value = { integer: "123" };
+  compareDiagnostics(leaf.replace('"x"', "123"), dom, /operands of one type/, comparison.at);
+});
+
+for (const [name, source, getOperands] of [
+  ["a body repeat", "%rule r {f(= 255) / g(= 254)}", dom => {
+    const { repeat, separator } = dom.rules[0].alternatives[0].expr;
+    return [repeat, separator];
+  }],
+  ["a pattern call", "%const $P #f(= 255)⁅ g(= 254) ⁆", dom => {
+    const pattern = dom.constants[0].value.pattern;
+    return [pattern, pattern.children[0].child];
+  }],
+  ["a pattern repeat", "%const $P #⁅ {f(= 255) / g(= 254)} ⁆", dom => {
+    const [{ repeat, separator }] = dom.constants[0].value.pattern.children;
+    return [repeat[0].child, separator[0].child];
+  }],
+  ["two call arguments", "%rule r f(= 255, = 254)", dom => {
+    const { args } = dom.rules[0].alternatives[0].expr;
+    return args.map(arg => ({ args: [arg] }));
+  }],
+]) {
+  test(`source and supplied DOM agree on operands of ${name}`, () => {
+    const dom = read(source);
+    const [first, second] = getOperands(dom).map(call => call.args[0]);
+    first.expression.integer = "256";
+    second.expression.integer = "257";
+    compareDiagnostics(source.replace("255", "256").replace("254", "257"), dom, /count literal/, first.at);
+  });
+}
+
+test("a supplied exact edit visits its head before its statement term and body", () => {
+  const source = "%extend-rule f(= 255) → {k: 254}\n | g(= 253)";
+  const dom = read(source);
+  const rule = dom.rules[0];
+  rule.args[0].expression.integer = "256";
+  rule.term.bag[0].value.integer = "257";
+  rule.alternatives[0].expr.args[0].expression.integer = "258";
+  compareDiagnostics(source.replace("255", "256").replace("254", "257").replace("253", "258"),
+    dom, /count literal/, rule.args[0].at);
+});
+
+test("supplied names use the first unknown read in semantic order", () => {
+  const head = "%rule r → {k: ($c'k ? $d'k | $e'k)}";
+  const body = "\n | $c:C $d:D $e:E";
+  const dom = read(head + body);
+  const { value } = dom.rules[0].term.bag[0];
+  value.if.receiver.capture = "x";
+  value.then.receiver.capture = "y";
+  value.else.receiver.capture = "z";
+  compareDiagnostics(head.replace("$c", "$x").replace("$d", "$y").replace("$e", "$z") + body,
+    dom, /\$x is captured by no alternative/, value.if.at);
+});
+
+test("supplied type faults use the written operand order", () => {
+  const source = "%const $N ((123 + 1) = (2 + 123))";
+  const dom = read(source);
+  const { left, right } = dom.constants[0].value;
+  left.left = { string: "x" };
+  right.right = { string: "y" };
+  compareDiagnostics(source.replace("123", '"x"').replace("123", '"y"'),
+    dom, /requires number operands/, left.at);
+});
+
+for (const [name, source, getSymbol] of [
+  ["body test", '%rule r f(= 255)<A>="x"', dom => dom.rules[0].alternatives[0].expr],
+  ["pattern test", '%const $P #f(= 255)<A>="x"', dom => dom.constants[0].value.pattern],
+]) {
+  test(`a supplied ${name} retains the tested symbol fault with both tests`, () => {
+    const dom = read(source);
+    const filter = getSymbol(dom).expr;
+    const [actual] = filter.expr.args;
+    actual.expression.integer = "256";
+    compareDiagnostics(source.replace("255", "256"), dom, /count literal/, actual.at);
+  });
+}
+
+test("a supplied elidable optional visits its body with the written default present", () => {
+  const source = '%rule r [+T ≝ "end" f(= 255)]';
+  const dom = read(source);
+  const [actual] = dom.rules[0].alternatives[0].expr.optional.seq[1].args;
+  actual.expression.integer = "256";
+  compareDiagnostics(source.replace("255", "256"), dom, /count literal/, actual.at);
+});

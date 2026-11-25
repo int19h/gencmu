@@ -18424,6 +18424,32 @@
 
 
   const argumentsError = "an argument cannot read or declare captures";
+
+  // DOM member order is for serialization. Walk every record's children in
+  // semantic order, including a guard before its payload and a test's symbol
+  // before its requirements or value. Arrays keep their written order.
+  const operandKeys50 = [
+    "rules", "directives", "constants",
+    "gates", "guard", "receiver", "args", "instance", "steps",
+    "expr", "term", "alternatives", "conditions", "error", "warning", "emit", "items",
+    "if", "then", "else", "left", "right", "map", "by",
+    "all", "any", "not", "union", "intersection", "difference", "concat", "flatten", "arg",
+    "bag", "list", "source", "value", "requirements", "targets", "body", "expression",
+    "primary", "splice", "seq", "choice", "ranked", "and", "optional", "default", "repeat", "separator",
+    "literal", "range", "pattern", "children", "child",
+  ];
+
+  /** @internal */
+  function operandFields50(node) {
+    if (Array.isArray(node)) return Array.from(node.entries(), ([index, child]) => [String(index), child]);
+    const fields = [];
+    for (const key of operandKeys50) {
+      const child = node[key];
+      if (child && typeof child === "object" && Object.hasOwn(node, key)) fields.push([key, child]);
+    }
+    return fields;
+  }
+
   const baseSymbol = node => ["ref", "call", "param", "literal", "range", "wildcard", "splice", "test"]
     .some(key => Object.hasOwn(node, key));
   const ruleName50 = /^(?!.*--)[a-z][A-Za-z0-9_-]*$/;
@@ -18472,9 +18498,7 @@
       if (!node || typeof node !== "object") continue;
       const site = Array.isArray(node.at) ? node : parent;
       sites.set(node, site);
-      for (const [key, child] of Object.entries(node)) {
-        if (key !== "at") pending.push([child, site]);
-      }
+      for (const [, child] of operandFields50(node)) pending.push([child, site]);
     }
     return (node, message) => fail(Array.isArray(node?.at) ? node : sites.get(node) ?? owner, message);
   }
@@ -18499,8 +18523,8 @@
         if (closed && !scope.has(node.capture)) fail(node, argumentsError);
       }
       if (node.item && !implicit) fail(node, "an implicit receiver needs a function binding");
-      const children = Object.values(node);
-      for (let i = children.length - 1; i >= 0; i--) pending.push([children[i], scope, implicit]);
+      const children = operandFields50(node);
+      for (let i = children.length - 1; i >= 0; i--) pending.push([children[i][1], scope, implicit]);
     }
   }
 
@@ -18537,9 +18561,7 @@
     if (size > 16) fail(node, "an ordered subset takes at most sixteen operands");
   }
 
-  function validateOmission(node, fail) {
-    if (!node.elidable) return;
-    const optional = node.optional;
+  function elidableHead50(optional) {
     const start = optional.seq?.[0] ?? optional;
     let head = start.capture !== undefined ? start.expr : start;
     const tests = [];
@@ -18547,18 +18569,42 @@
       tests.push(head);
       head = head.expr;
     }
+    return { start, head, tests };
+  }
+
+  function omissionAllowed50(node) {
+    const { head, tests } = elidableHead50(node.optional);
+    const fallback = tests.find(test => test.test === "=")?.value;
+    const value = (node.default ?? fallback ?? { string: "" }).string;
+    let known = true;
+    for (const test of tests) {
+      if (test.requirements) {
+        for (const { negated, value: requirement } of test.requirements) {
+          const tag = requirement.tag;
+          if (!tag || !head.ref && tag !== "_Elided") known = false;
+          else if ((tag === "_Elided" || tag === head.ref) === negated) return false;
+        }
+      } else if (!node.default && test.test === "=" && test.value === fallback) {
+        continue;
+      } else if (value === undefined || test.value?.string === undefined) {
+        known = false;
+      } else if ((test.value.string === value) !== (test.test === "=")) {
+        return false;
+      }
+    }
+    return known ? true : undefined;
+  }
+
+  function validateOmission(node, fail) {
+    if (!node.elidable) return;
+    const optional = node.optional;
+    const { start, head } = elidableHead50(optional);
     if (!head?.param && !/^[A-Z]/.test(head?.ref ?? "") ||
         start.capture !== undefined && optional.seq || optional.seq?.slice(1).some(part => captureSlots50(part).size)) {
       fail(node, elidableForm50);
     }
-    const value = node.default?.string;
-    if (value === undefined) return;
-    for (const test of tests) {
-      if (test.value?.string !== undefined && (test.value.string === value) !== (test.test === "=") ||
-          test.requirements?.some(({ negated, value }) => value.tag && (head.ref || value.tag === "_Elided") &&
-            (value.tag === "_Elided" || value.tag === head.ref) === negated)) {
-        fail(node.default, "the default does not pass the omission predicate");
-      }
+    if (node.default?.string !== undefined && omissionAllowed50(node) === false) {
+      fail(node.default, "the default does not pass the omission predicate");
     }
   }
 
@@ -18707,8 +18753,8 @@
       if (part.capture !== undefined && !part.expr && !scope.has(part.capture) && !bindings.has(part.capture)) {
         fail(part, `$${part.capture} is captured by no alternative of ${rule.name}`);
       }
-      const children = Object.values(part);
-      for (let i = children.length - 1; i >= 0; i--) pending.push([children[i], scope, implicit]);
+      const children = operandFields50(part);
+      for (let i = children.length - 1; i >= 0; i--) pending.push([children[i][1], scope, implicit]);
     }
   }
 
@@ -18776,45 +18822,114 @@
     }
   }
 
+  // Compare route keys in structural expansion order. The keys contain choice
+  // indices, optional routes and subset masks in the order the body reads them.
+  function routeOrder50(left, right) {
+    for (let i = 0; i < Math.min(left.length, right.length); i++) {
+      if (left[i] !== right[i]) return left[i] - right[i];
+    }
+    return left.length - right.length;
+  }
+
+  function keepFirstRoute50(routes, state, route) {
+    const old = routes.get(state);
+    if (!old || routeOrder50(route, old) < 0) routes.set(state, route);
+  }
+
   function* captureWitness50(body, required, forbidden, names) {
-    if (!required.every(name => names(body).has(name))) return false;
-    if (body.capture !== undefined) return !forbidden.has(body.capture);
+    if (!required.every(name => names(body).has(name))) return;
+    if (body.capture !== undefined) return forbidden.has(body.capture) ? undefined : [];
     if (body.primary) return yield captureWitness50(body.primary, required, forbidden, names);
     if (body.optional) {
-      if (!body.elidable && required.length === 0) return true;
-      return yield captureWitness50(body.optional, required, forbidden, names);
+      if (!required.length && (!body.elidable || omissionAllowed50(body) === true)) return [0];
+      const route = yield captureWitness50(body.optional, required, forbidden, names);
+      if (route) return [1, ...route];
+      return;
     }
     if (body.choice || body.ranked) {
-      for (const child of body.choice ?? body.ranked) {
-        if (yield captureWitness50(child, required, forbidden, names)) return true;
+      for (const [index, child] of (body.choice ?? body.ranked).entries()) {
+        const route = yield captureWitness50(child, required, forbidden, names);
+        if (route) return [index, ...route];
       }
-      return false;
+      return;
     }
-    if (body.repeat) {
-      const itemNeeds = required.filter(name => names(body.repeat).has(name));
-      const separatorNeeds = required.filter(name => !names(body.repeat).has(name));
-      if (!separatorNeeds.length && (yield captureWitness50(body.repeat, itemNeeds, forbidden, names))) return true;
-      if (!(yield captureWitness50(body.repeat, [], forbidden, names))) return false;
-      if (body.separator && !(yield captureWitness50(body.separator, [], forbidden, names))) return false;
-      // Separate iterations can supply the required names of a flat list.
-      for (const name of required) {
-        if (names(body.repeat).has(name)) {
-          if (!(yield captureWitness50(body.repeat, [name], forbidden, names))) return false;
-        } else if (!(yield captureWitness50(body.separator, [name], forbidden, names))) return false;
-      }
-      return true;
-    }
-    if (body.seq || body.and) {
-      let selected = false;
-      for (const child of body.seq ?? body.and) {
+    if (body.repeat) return yield repeatWitness50(body, required, forbidden, names);
+    if (body.and) {
+      let mask = 0;
+      let route = [];
+      for (const [index, child] of body.and.entries()) {
         const needed = required.filter(name => names(child).has(name));
-        const possible = yield captureWitness50(child, needed, forbidden, names);
-        if ((body.seq || needed.length) && !possible) return false;
-        selected ||= possible;
+        if (!needed.length && (required.length || mask)) continue;
+        const childRoute = yield captureWitness50(child, needed, forbidden, names);
+        if (!childRoute) {
+          if (needed.length) return;
+          continue;
+        }
+        mask += 2 ** index;
+        route = route.concat(childRoute);
       }
-      return selected;
+      return mask ? [mask, ...route] : undefined;
     }
-    return true;
+    if (body.seq) {
+      let route = [];
+      for (const child of body.seq) {
+        const needed = required.filter(name => names(child).has(name));
+        const childRoute = yield captureWitness50(child, needed, forbidden, names);
+        if (!childRoute) return;
+        route = route.concat(childRoute);
+      }
+      return route;
+    }
+    return [];
+  }
+
+  function* repeatRoutes50(body, bits, forbidden, names) {
+    const relevant = [...bits].filter(([name]) => names(body).has(name));
+    const routes = new Map();
+    const pending = [[0, 0n, [], forbidden]];
+    while (pending.length) {
+      const [index, mask, required, absent] = pending.pop();
+      const route = yield captureWitness50(body, required, absent, names);
+      if (!route) continue;
+      if (index === relevant.length) {
+        routes.set(mask, route);
+      } else {
+        const [name, bit] = relevant[index];
+        pending.push([index + 1, mask, required, new Set([...absent, name])]);
+        pending.push([index + 1, mask | bit, [...required, name], absent]);
+      }
+    }
+    return routes;
+  }
+
+  function* repeatWitness50(body, required, forbidden, names) {
+    const base = yield captureWitness50(body.repeat, required, forbidden, names);
+    if (base) return [0, ...base];
+    const bits = new Map(required.map((name, index) => [name, 1n << BigInt(index)]));
+    const all = (1n << BigInt(required.length)) - 1n;
+    const items = yield repeatRoutes50(body.repeat, bits, forbidden, names);
+    const separators = body.separator ? yield repeatRoutes50(body.separator, bits, forbidden, names) : new Map([[0n, []]]);
+    const inputs = new Map();
+    for (const [x, item] of items) for (const [y, separator] of separators) {
+      keepFirstRoute50(inputs, x | y, body.chain === "right" ? item.concat(separator) : separator.concat(item));
+    }
+    // Base productions come first. Follow the recursive productions until
+    // they supply the requested bindings, with no extra iterations.
+    let current = items;
+    const seen = new Set(current.keys());
+    let iterations = 1;
+    while (current.size) {
+      const next = new Map();
+      for (const [x, prefix] of inputs) for (const [y, prior] of current) {
+        const mask = x | y;
+        if (!seen.has(mask)) keepFirstRoute50(next, mask, prefix.concat(prior));
+      }
+      const route = next.get(all);
+      if (route) return [iterations, ...route];
+      for (const mask of next.keys()) seen.add(mask);
+      current = next;
+      iterations++;
+    }
   }
 
   const deferredTruth = Symbol("specialized truth");
@@ -18825,13 +18940,35 @@
     }
   }
 
-  function checkExpansionScope(root, alternative, slots, fail, forwarding = false) {
+  function captureRoutes50(body) {
+    const slots = new WeakMap();
+    const names = node => {
+      if (!slots.has(node)) slots.set(node, captureSlots50(node));
+      return slots.get(node);
+    };
+    const routes = new WeakMap();
+    const unconstrained = new Map();
+    return function* witness(presence = unconstrained) {
+      if (routes.has(presence)) return routes.get(presence);
+      const required = [];
+      const forbidden = new Set();
+      for (const [name, present] of presence) {
+        if (present) required.push(name);
+        else forbidden.add(name);
+      }
+      const route = yield captureWitness50(body, required, forbidden, names);
+      routes.set(presence, route);
+      return route;
+    };
+  }
+
+  function checkExpansionScope(root, slots, witness, note, forwarding = false) {
     const containsMissing = new WeakMap();
     function* readsMissing(part) {
       if (!part || typeof part !== "object") return false;
       if (containsMissing.has(part)) return containsMissing.get(part);
       let missing = Boolean(part.capture && !slots.has(part.capture));
-      for (const child of Object.values(part)) {
+      for (const [, child] of operandFields50(part)) {
         if (missing) break;
         missing = yield readsMissing(child);
       }
@@ -18839,11 +18976,11 @@
       return missing;
     }
 
-    const cache = new WeakMap();
-    const names = body => {
-      if (!cache.has(body)) cache.set(body, captureSlots50(body));
-      return cache.get(body);
-    };
+    function* report(node, description, presence) {
+      const route = yield witness(presence);
+      if (route) note(route, node, description);
+    }
+
     // A separate operand check inherits its enclosing guard assignments.
     // Assignments from one entry do not constrain another entry.
     function* check(part, bindings, outerPresence, output = false) {
@@ -18852,19 +18989,13 @@
       while (choices.length) {
         const presence = choices.pop();
         try {
-          yield expansionScope(part, slots, fail, bindings, presence, check, false, output);
+          yield expansionScope(part, slots, report, bindings, presence, check, false, output);
         } catch (error) {
           if (!(error instanceof CapturePresence50)) throw error;
           for (const value of [false, true]) {
             const next = new Map(presence);
             next.set(error.name, value);
-            const required = [];
-            const forbidden = new Set();
-            for (const [name, present] of next) {
-              if (present) required.push(name);
-              else forbidden.add(name);
-            }
-            if (yield captureWitness50(alternative.expr, required, forbidden, names)) choices.push(next);
+            if (yield witness(next)) choices.push(next);
           }
         }
       }
@@ -18872,10 +19003,10 @@
     run(check(root, new Set([""]), new Map(), forwarding));
   }
 
-  function* expansionScope(root, slots, fail, bindings, presence, check, truth = false, forwarding = false) {
+  function* expansionScope(root, slots, report, bindings, presence, check, truth = false, forwarding = false) {
     if (!root || typeof root !== "object") return;
     const walk = (part, asTruth = false) => asTruth ?
-      expansionScope(part, slots, fail, bindings, presence, check, true) : check(part, bindings, presence);
+      expansionScope(part, slots, report, bindings, presence, check, true) : check(part, bindings, presence);
     if (root.method === "present" && root.receiver?.capture !== undefined) {
       return yield walk(root.receiver, true);
     }
@@ -18883,7 +19014,8 @@
       const name = root.capture;
       if (!bindings.has(name) && !slots.has(name)) {
         if (truth) return false;
-        fail(root, `$${name} is absent from this expansion`);
+        yield report(root, `$${name} is absent from this expansion`, presence);
+        return;
       }
       if (truth && !bindings.has(name)) {
         if (presence.has(name)) return presence.get(name);
@@ -18928,8 +19060,8 @@
       }
       return unknown ? undefined : !result;
     }
-    for (const [key, child] of Object.entries(root)) {
-      if (key !== "at" && key !== "guard") yield walk(child);
+    for (const [key, child] of operandFields50(root)) {
+      if (key !== "guard") yield walk(child);
     }
     if (!truth) return;
     const literal = yield closedTruth50(root);
@@ -18941,7 +19073,7 @@
       if (!item || typeof item !== "object") continue;
       if (item.const || item.param || item.apply) return deferredTruth;
       inputDependent ||= item.capture !== undefined || item.item === true;
-      for (const child of Object.values(item)) pending.push(child);
+      for (const [, child] of operandFields50(item)) pending.push(child);
     }
     return inputDependent ? undefined : deferredTruth;
   }
@@ -19006,22 +19138,65 @@
   }
 
   function validateDefinitionExpansion50(rule, alternative, slots, fail, check = validateClosedTypes, afterTerms) {
-    const visit = (node, forwarding = false, message = false) => {
-      if (!node) return;
-      if (forwarding) {
-        if (node.term && slots.get(node.capture)) fail(node, "a braced output item needs a node");
+    const witness = captureRoutes50(alternative.expr);
+    let fault;
+    let late = false;
+    let clause;
+    let sites;
+    const siteOrder = node => {
+      if (!sites) {
+        sites = new WeakMap();
+        const pending = [[clause, false]];
+        let index = 0;
+        while (pending.length) {
+          const [part, ready] = pending.pop();
+          if (!part || typeof part !== "object") continue;
+          if (ready) {
+            sites.set(part, index++);
+          } else {
+            pending.push([part, true]);
+            const children = operandFields50(part);
+            for (let i = children.length - 1; i >= 0; i--) pending.push([children[i][1], false]);
+          }
+        }
       }
-      checkExpansionScope(node, alternative, slots, fail, forwarding);
-      const hiddenKeys = node === rule.term ? directKeys(alternative.term?.bag) : undefined;
-      const hiddenStrings = node === rule.term ? laterStringFields50(alternative.term?.bag) : undefined;
-      check(node, fail, { slots, forwarding, message, nodeTerm: !message, hiddenKeys, hiddenStrings });
+      return sites.get(node) ?? Infinity;
+    };
+    const note = (route, node, description) => {
+      const order = fault ? routeOrder50(route, fault.route) : -1;
+      if (order < 0 || order === 0 && clause === fault.clause && siteOrder(node) < siteOrder(fault.node)) {
+        fault = { route, node, description, late, clause };
+      }
+    };
+    const collected = Symbol("collected type fault");
+    const noteType = (node, description) => {
+      const route = run(witness());
+      if (route) note(route, node, description);
+      throw collected;
+    };
+    const visit = (node, forwarding = false, message = false, body = false) => {
+      if (!node) return;
+      clause = node;
+      sites = undefined;
+      try {
+        if (body) return check(node, noteType);
+        if (forwarding && node.term && slots.get(node.capture)) noteType(node, "a braced output item needs a node");
+        checkExpansionScope(node, slots, witness, note, forwarding);
+        const hiddenKeys = node === rule.term ? directKeys(alternative.term?.bag) : undefined;
+        const hiddenStrings = node === rule.term ? laterStringFields50(alternative.term?.bag) : undefined;
+        check(node, noteType, { slots, forwarding, message, nodeTerm: !message, hiddenKeys, hiddenStrings });
+      } catch (error) {
+        if (error !== collected) throw error;
+      }
     };
     visit(rule.term);
-    check(alternative.expr, fail);
+    visit(alternative.expr, false, false, true);
     visit(alternative.term);
-    afterTerms?.();
+    late = true;
     visit(rule.error ?? rule.warning, false, true);
     for (const item of rule.emit?.items ?? []) visit(item, true);
+    if (!fault || fault.late) afterTerms?.();
+    if (fault) fail(fault.node, fault.description);
   }
 
   function boundaryFault(root) {
@@ -19046,8 +19221,8 @@
         }
         first ??= node;
       }
-      const children = Object.values(node);
-      for (let i = children.length - 1; i >= 0; i--) pending.push([children[i], locals]);
+      const children = operandFields50(node);
+      for (let i = children.length - 1; i >= 0; i--) pending.push([children[i][1], locals]);
     }
     const receiver = first?.receiver?.capture;
     if (!fault && receiver && [...captures].some(name => name !== receiver)) {
@@ -19091,6 +19266,7 @@
   const incompatible = Symbol("incompatible types");
   const kindOf = type => Array.isArray(type) ? "list" : type;
   const elementOf = type => Array.isArray(type) ? type[0] : undefined;
+  const openType = type => type === undefined || type === emptyElement;
 
   function joinTypes(left, right, constraint = false) {
     if (left === incompatible || right === incompatible) return incompatible;
@@ -19108,7 +19284,7 @@
 
   function comparableElement(type) {
     while (Array.isArray(type)) type = type[0];
-    return type === undefined || type === emptyElement || comparable.has(type);
+    return openType(type) || comparable.has(type);
   }
 
   function sameElementType(left, right) {
@@ -19173,7 +19349,7 @@
     const remember = (node, value) => {
       if (value !== undefined) types.set(node, value);
     };
-    const invalid = (value, allowed) => value !== undefined && value !== emptyElement && !allowed.includes(kindOf(value));
+    const invalid = (value, allowed) => !openType(value) && !allowed.includes(kindOf(value));
     const pending = [[root, false, new Map(), false, truth]];
     const captureTypes = new Map([...slots].map(([name, list]) => [name, list ? ["node"] : "node"]));
     const predicates = new WeakMap();
@@ -19197,7 +19373,7 @@
           pending.push([node.body, false, frame, true, predicates.has(node)]);
           continue;
         }
-        const children = Object.entries(node);
+        const children = operandFields50(node);
         for (let i = children.length - 1; i >= 0; i--) {
           const [key, child] = children[i];
           const childTruth = key === "if" || key === "guard" || key === "not" ||
@@ -19348,9 +19524,9 @@
       }
       const group = node.union ?? node.intersection ?? node.difference;
       if (group && node.at) {
-        const known = group.map(type).filter(value => value !== undefined);
+        const known = group.map(type).filter(value => !openType(value));
         const listDifference = node.difference && kindOf(type(group[0])) === "list";
-        const openDifference = node.difference && type(group[0]) === undefined;
+        const openDifference = node.difference && openType(type(group[0]));
         if (listDifference) {
           const [left, right] = group.map(type);
           const member = elementOf(left);
@@ -19377,8 +19553,8 @@
       }
       if (needsTruth && node.op === "+") fail(node, "this operand does not have a truth value");
       if (["=", "≠"].includes(node.op)) {
-        if ([left, right].some(value => value !== undefined && !comparable.has(value)) ||
-            left !== undefined && right !== undefined && left !== right) {
+        if ([left, right].some(value => !openType(value) && !comparable.has(value)) ||
+            joinTypes(left, right) === incompatible) {
           fail(node, `${node.op} requires comparable operands of one type`);
         }
       }
@@ -19523,11 +19699,7 @@
       if (node.children) validatePatternChildren50(node, locate);
       if (node.bag) validateBag50(node.bag, locate);
       if (inRepeat && node.siblings) locate(node, "a repeated child list cannot contain a sibling gap");
-      const parts = node === declaration && declaration.alternatives ?
-        [["args", node.args], ["term", node.term], ["alternatives", node.alternatives], ["conditions", node.conditions],
-          ["error", node.error], ["warning", node.warning], ["emit", node.emit]] : Object.entries(node);
-      for (const [key, value] of parts.reverse()) {
-        if (key === "at") continue;
+      for (const [key, value] of operandFields50(node).reverse()) {
         const repeated = inRepeat && key !== "child" || Array.isArray(node.repeat) && (key === "repeat" || key === "separator");
         pending.push([value, node.method === "ngrams" && key === "args" || width && Array.isArray(node),
           repeated, key === "pattern" || inPattern && key !== "body", key === "value" && Object.hasOwn(node, "negated")]);
@@ -19662,8 +19834,7 @@
         else if (!node.by.property) push(node.by, depth + 1);
         continue;
       }
-      for (const [key, child] of Object.entries(node)) {
-        if (key === "at") continue;
+      for (const [key, child] of operandFields50(node)) {
         push(child, key === "literal" || key === "range" || key === "requirements" ? depth : depth + 1);
       }
     }

@@ -19,6 +19,7 @@
 // and the DOM's positions. From a rule's position, a small scanner finds
 // where each alternative begins, and stops at the next keyword.
 import fs from "node:fs";
+import { operandFields50 } from "../lib/js/src/format50/validate.js";
 import { UnicodeTable } from "../lib/js/src/unicode.js";
 import { extractGrammarText, splitLines } from "../lib/js/src/markdown.js";
 
@@ -909,7 +910,7 @@ function format50ClauseProblems(markdown, dom, path) {
         }
       }
     }
-    for (const child of Object.values(node)) walk.push(child);
+    for (const [, child] of operandFields50(node).reverse()) walk.push(child);
   }
   const beforeBody = start => {
     let index = start - 1;

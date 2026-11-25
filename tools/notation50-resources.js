@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { isDeepStrictEqual } from "node:util";
 import { fnv1a64 } from "../lib/js/src/hash.js";
 import { resolvePath } from "../lib/js/src/markdown.js";
 import { compareCodePoints } from "../lib/js/src/tags.js";
@@ -28,7 +29,7 @@ export function notation50Resources(root, { readSource } = {}) {
   const documents = {};
   for (const [file, entries] of required) {
     const first = entries[0].entry;
-    if (entries.some(reading => JSON.stringify(reading.entry) !== JSON.stringify(first))) {
+    if (entries.some(reading => !isDeepStrictEqual(reading.entry, first))) {
       throw new Error(`${file}: the required bootstrap has more than one reading`);
     }
     documents[file] = first;
@@ -57,7 +58,7 @@ export function notation50Resources(root, { readSource } = {}) {
     for (const [file, entries] of readings) {
       if (Object.hasOwn(documents, file)) continue;
       const [entry, ...otherReadings] = entries;
-      if (otherReadings.some(other => JSON.stringify(other) !== JSON.stringify(entry))) continue;
+      if (otherReadings.some(other => !isDeepStrictEqual(other, entry))) continue;
       const family = file.split("/")[1];
       if (!families.has(family)) families.set(family, {});
       families.get(family)[file] = entry;

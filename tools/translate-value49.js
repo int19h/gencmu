@@ -5,19 +5,38 @@ export const childValue49 = "$node.children!'value.join()";
 export const inputValue49 = "$.span.tokens!'value.join()";
 export const writtenChildValue49 = "$.children!($child ↦ ($child ≅ #·_<_Elided> ? \"\" | $child'value)).join()";
 
-function* records(root) {
+// Include the old declaration and recipe fields as well as body operands.
+const operandKeys49 = [
+  "rules", "directives", "constants", "classifiers", "implications",
+  "receiver", "args", "instance", "steps", "expr", "tags", "value", "image", "alternatives",
+  "conditions", "error", "warning", "emit", "items",
+  "if", "then", "left", "right", "nonempty", "not", "any", "all", "concat",
+  "union", "intersection", "difference", "pattern", "children", "child", "entries", "keys",
+  "requirements", "targets", "body", "seq", "choice", "ranked", "and",
+  "optional", "default", "repeat", "separator", "splice", "literal", "range",
+];
+
+function* records(root, localBody = false) {
   const pending = [root];
   while (pending.length) {
     const item = pending.pop();
     if (!item || typeof item !== "object") continue;
     yield item;
-    for (const child of Object.values(item)) pending.push(child);
+    if (Array.isArray(item)) {
+      for (let index = item.length - 1; index >= 0; index--) pending.push(item[index]);
+      continue;
+    }
+    for (let index = operandKeys49.length - 1; index >= 0; index--) {
+      const key = operandKeys49[index];
+      const child = item[key];
+      if (child && typeof child === "object" && !(localBody && item.call && key === "args")) pending.push(child);
+    }
   }
 }
 
-export function omittedTerminals49(root) {
+export function omittedTerminals49(root, localBody = false) {
   const terminals = new Set();
-  for (const node of records(root)) {
+  for (const node of records(root, localBody)) {
     if (!node.elidable) continue;
     let head = node.optional.seq?.[0] ?? node.optional;
     if (head.capture !== undefined) head = head.expr;
@@ -96,9 +115,36 @@ function reaches(names, rules) {
   return result;
 }
 
+function checkBodyArguments(declarations) {
+  const definitions = new Map();
+  for (const rule of declarations) {
+    if (!rule.alternatives && !rule.instance) continue;
+    if (!definitions.has(rule.name)) definitions.set(rule.name, []);
+    definitions.get(rule.name).push(rule);
+  }
+  for (const declaration of declarations) {
+    const roots = [declaration.args && declaration.alternatives &&
+      { call: declaration.name, args: declaration.args, at: declaration.at }, declaration];
+    for (const call of records(roots)) {
+      if (!call.call || !call.args) continue;
+      const targets = definitions.get(call.call) ?? [];
+      for (const [index, argument] of call.args.entries()) {
+        if (!argument.body || !omittedTerminals49(argument.body).size) continue;
+        const target = targets[0];
+        const parameter = target?.params?.[index];
+        if (targets.length === 1 && target.op === "define" && parameter &&
+            !Array.from(records(target)).some(part => part.param === parameter)) continue;
+        throw new MigrationRequired("Prove the instance value when its body argument can supply a nonempty omitted default.",
+          argument.at ?? call.at ?? declaration.at);
+      }
+    }
+  }
+}
+
 export function omittedValueSuppliers49(entry, doms, stageNames) {
   const writers = new Map();
   for (const declarations of groupedRules(entry, doms, stageNames)) {
+    checkBodyArguments(declarations);
     const rules = new Map();
     const affected = new Map();
     for (const rule of declarations) {
@@ -109,7 +155,7 @@ export function omittedValueSuppliers49(entry, doms, stageNames) {
       valueDependencies(rule.instance, facts.edges);
       for (const alt of rule.alternatives ?? []) {
         valueDependencies(alt.expr, facts.edges);
-        if (!rule.erased && !rule.value && !alt.value && omittedTerminals49(alt.expr).size) affected.set(alt, rule);
+        if (!rule.erased && !rule.value && !alt.value && omittedTerminals49(alt.expr, true).size) affected.set(alt, rule);
       }
     }
     if (!affected.size) continue;

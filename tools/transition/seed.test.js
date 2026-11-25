@@ -107,3 +107,19 @@ test("the seed audit accepts two visits to a completed include", t => {
   });
   assert.equal(status, 0);
 });
+
+test("the seed audit emits the same records after reordering members", t => {
+  const reverseMembers = value => {
+    if (Array.isArray(value)) return value.map(reverseMembers);
+    if (!value || typeof value !== "object") return value;
+    return Object.fromEntries(Object.entries(value).reverse().map(([key, child]) => [key, reverseMembers(child)]));
+  };
+  const original = audit(t, () => {});
+  const reordered = audit(t, bootstrap => {
+    bootstrap.documents = reverseMembers(bootstrap.documents);
+  });
+  assert.equal(original.status, 0);
+  assert.equal(reordered.status, 0);
+  const records = result => result.stdout.slice(result.stdout.indexOf("\n") + 1);
+  assert.equal(records(reordered), records(original));
+});
