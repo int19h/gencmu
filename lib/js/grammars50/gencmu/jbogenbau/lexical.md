@@ -2,9 +2,9 @@
 
 The lexical stage opens the [notation pipeline](pipeline.md). A stage is one step of a pipeline. A token is one unit that a stage reads or selects.
 
-This stage reads the decomposed character tokens of stage zero. A token's value is the string that exact comparisons read. Its image is the string that people see. Each input token carries its decomposed scalar as both strings and the stored engine tags.
+This stage reads the decomposed character tokens of stage zero. A token's value is the string that exact comparisons read. Its image is the string that people see. Each input token carries its decomposed scalar as both strings and the stored engine keys.
 
-A property is a key with an optional value in a token's bag. The rules read characters by string terminals, ranges, or engine tags such as `_White_Space`.
+A property is a key with an optional value in a token's bag. The rules read characters by string terminals, ranges, or engine keys such as `_White_Space`.
 
 The stage passes these token kinds to [syntax.md](syntax.md):
 
@@ -14,7 +14,7 @@ The stage passes these token kinds to [syntax.md](syntax.md):
 - Emoji names
 - Strings
 - Integers
-- Engine tags
+- Engine keys
 - Wildcards
 - Captures
 - Constants
@@ -31,8 +31,6 @@ It discards whitespace and comments. Each emitted token covers the exact source 
 The greedy reading favors the longest complete piece. It reads `...` as one punctuation token rather than three periods.
 
 The default function joins the values and images of a rule's children. The output mask lists the keys that syntax reads.
-
-If a line comment begins or no name character follows, the name ends. This prevents a token from ending inside a longer name.
 
 ```jbogenbau
 %ambiguity-resolution greedy
@@ -81,7 +79,9 @@ The left-recursive rule lets greedy ranking compare the length of each piece.
 
 ## Names and engine keys
 
-A name starts with an ASCII letter. Letters, digits, hyphens and underscores can follow it. A name ends before a comment.
+A name starts with an ASCII letter. Letters, digits, hyphens and underscores can follow it.
+
+If a line comment begins or no name character follows, the name ends. This prevents a token from ending inside a longer name.
 
 An emoji name is one scalar with `Emoji_Presentation` and without `Emoji_Component`. Adjacent emoji names stay separate.
 
