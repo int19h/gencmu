@@ -6,7 +6,7 @@ A jbogenbau grammar is an attribute grammar with EBNF rule bodies. An attribute 
 
 Rule bodies use an EBNF dialect of the notation's own. "Operators" lists its forms. A token is one unit that a grammar reads or emits. A phoneme is a unit of sound.
 
-A tag is a mark on a token or constituent. Each constituent carries one attribute, its set of identifier tags, computed bottom-up from its parts. The Lojban grammars use tags such as `KOhA` and `Word`.
+A tag is a visible key on a node or token. A rule builds its bag of properties from its children and local expressions.
 
 Conditions over the parts restrict which parses exist. A condition can also ask whether a part parses as another rule. This takes the grammar beyond context-free grammars, whose rules only combine symbols. It goes beyond them in the way that Boolean grammars do. In a Boolean grammar, a rule can also require that the same text matches, or does not match, another rule.
 
@@ -22,7 +22,7 @@ flowchart LR
   s2 -- tokens --> s3["later grammar stages"]
 ```
 
-Stage zero has no grammar. It only supplies the character tokens. Each grammar stage parses its whole input with its own grammar, starting at the rule `text`. The first grammar stage reads the tokens of stage zero, or tokens that a caller supplies instead. The emitted tokens of each grammar stage are the input of the next. "Values and images" describes stage zero, and "Pipelines" describes how a pipeline document declares the stages.
+Stage zero supplies character tokens without a grammar. In parse results, wire index zero names the first grammar stage. The origin token table has index minus one. Each grammar stage parses its whole input with its own grammar, starting at the rule `text`. The first grammar stage reads the tokens of stage zero, or tokens that a caller supplies instead. The emitted tokens of each grammar stage are the input of the next. "Values and images" describes stage zero, and "Pipelines" describes how a pipeline document declares the stages.
 
 The examples in this document come mostly from the bundled Lojban grammars. Names such as `KOhA`, `sumti` and `🆓` are rules and tags that those grammars define. The notation gives them no meaning of its own. Where an example depends on Lojban, the text says so.
 
@@ -30,19 +30,17 @@ An ordinary choice is unordered: its alternatives have no priority by position. 
 
 ## Values and images
 
-Every token has a value and an image. Its value is the string that exact comparisons read. Its image is the string that people see. Tags never supply either string. A constituent stores neither string.
+Every published token has two strings in its bag. The `value` identifies the token in exact comparisons. The `image` gives its spelling for display. A rule node can lack either string. Any effective entry for either name on a node must be a string. In an ordinary data bag, both names follow the usual key rules.
 
-Stage zero decomposes the text first, into Unicode Normalization Form D. So `é` arrives as `e` and U+0301, whether it was written precomposed or not. A grammar reads only decomposed characters. Every token's `text` and `source` still give the original spelling.
+Stage zero decomposes the text into Unicode Normalization Form D. For example, it emits `e` and U+0301 for `é`. Both strings start as the decomposed scalar. The token's text and source keep the original spelling.
 
-Stage zero, named `input`, supplies character tokens. Both strings start as the decomposed scalar. A recipe is an expression that supplies a string. Later stages set strings through grammar recipes, or concatenate their non-erased parts. Forwarding keeps stored values and images. The engine never trims, merges, lowercases, or removes characters.
+Write `$x'value` to read a node's value. Write `$x.span.tokens!'value.join()` to join the values of its original input tokens. A join of children instead reads their computed values, including omitted defaults and empty strings from erased children. A stage can declare those joins in `$DEFAULTS`.
 
-Notation tokens follow the same image rules. The operator `≇` has decomposed image `≅` followed by U+0338, while its `text` retains `≇`. Tree renderings show the image.
-
-A string walk builds strings from constituent parts. The section "Two walks and recipes" defines how recipes replace those parts.
+Notation tokens follow these rules too. The decomposed image of `≇` is `≅` followed by U+0338. Its text retains `≇`.
 
 ## Rules
 
-A grammar is a sequence of rules, directives (see "Directives"), constants (see "Constants"), classifiers (see "Classifiers") and implications (see "Implications"). Each one begins with a keyword, which is a word after `%`, and ends where the next one begins. A rule is `%rule`, its name, its body, and its clauses:
+A grammar contains rules, directives and constant definitions. Each statement begins with a keyword after `%`. A rule gives its name, body and clauses.
 
 ```jbogenbau
 %rule sumti-tail
@@ -75,23 +73,15 @@ Outside line comments, line breaks and indentation mean nothing. So a long list 
   | VUhU 🆓
 ```
 
-The bundled grammars can lay out these four plain alternatives in this way, or on one line, as "Layout of the bundled grammars" says. There, a sole alternative's clauses follow its body, and the header carries the clauses that every alternative shares.
+A rule can give a bag term after an alternative or on the statement header. A term uses `→ {…}`. A statement term requires a leading `|` before the first alternative.
 
-These separators can also stand first: `&` in bodies, `∪` and `∩` in terms, `∧` and `∨` in conditions, and clause-list commas. `∖` in terms, `/` in braces, and `≻` in ranked choices cannot stand first.
+- `%conditions` states what must hold of a reading.
+- `%error` or `%warning` supplies one string expression.
+- `%suppress-warnings` names warnings to suppress inside the occurrence.
+- `%emit` selects the output nodes.
+- `%erased` replaces emission and removes the occurrence from counted parts.
 
-A clause assigns tags or strings. Clauses come in the order `:: T`, `:= value`, then `:- image`, with each optional. `T` is a tag term, a term whose value is a set of tags. Clauses can stand after an alternative or on the definition header. A header with any clause requires a leading `|` before its first alternative.
-
-A `:: T` clause gives constituent tags, with definition and alternative tags unioned. Trailing keywords impose conditions or define output:
-
-- `%conditions` follows the body and states what must hold of the parts.
-- `%error` or `%warning` follows conditions and supplies one message recipe.
-- `%suppress-warnings` follows the diagnostic clause and names warnings that the subtree does not report.
-- `%emits` follows suppression and states what the constituent hands to the next stage.
-- `%erased` stands instead of `%emits` and removes the constituent from emission and counted parts.
-
-Each trailing clause is optional and occurs at most once, in this order.
-
-The sections below explain these forms.
+Each trailing clause is optional and occurs at most once in this order.
 
 `--` outside a string starts a line comment, which ends at the next line ending or the end of the file.
 
@@ -101,11 +91,11 @@ The reader recognizes strings before comments, so `"a--b"` is one string. Commen
 
 A name cannot contain `--`. So `foo--bar` reads as the name `foo` followed by a comment.
 
-A comment and its newline count as whitespace between a symbol and its test, and before an attached pattern child list. Comments do not change adjacency around a run of bare tag names.
+A comment and its newline count as whitespace between a symbol and its test, and before a pattern child list.
 
 ## Names and terminals
 
-Names use ASCII letters, digits, hyphens, and underscores, and a rule, classifier, or stage starts with a lowercase letter. A feature name starts with an ASCII letter of either case, followed by ASCII letters, digits, or hyphens. A rule name can also be one valid emoji scalar, as defined below. A tag starts with a capital or `_`. A tag terminal reads a token carrying that stored tag. For example, `KOhA` reads a token that carries the tag `KOhA`, such as a word that a Lojban lexicon gives that class.
+Names use ASCII letters, digits, hyphens, and underscores, and a rule or stage starts with a lowercase letter. A feature name starts with an ASCII letter of either case, followed by ASCII letters, digits, or hyphens. A rule name can also be one valid emoji scalar, as defined below. A tag starts with a capital or `_`. A tag terminal reads a token carrying that stored tag. For example, `KOhA` reads a token that carries the tag `KOhA`, such as a word that a Lojban lexicon gives that class.
 
 An emoji rule name contains exactly one code point with `Emoji_Presentation` and without `Emoji_Component`. The grammar's Unicode table supplies both properties. Host Unicode data never determines this repertoire. The bundled table pins it to Unicode 15.1.0.
 
@@ -115,9 +105,9 @@ An emoji name suits a rule that a grammar refers to in many places, because it k
 
 A free modifier is a Lojban word or phrase that can stand almost anywhere, such as a vocative. The constituent of `🆓` is a node of the tree like that of any rule. So the free modifiers in one slot are grouped under it.
 
-`#` introduces patterns, and `@` introduces parameters. Neither is a rule name. `/` remains the separator inside braces. `~` and `^` have no syntax role.
+`#` introduces patterns, and `@` introduces parameters. `/` separates items and separators inside braces. `^` marks a primary. `~` has no syntax role.
 
-A tag is an identifier string. A tag has no strength: a token either carries it or not. A class starts and ends with an uppercase ASCII letter and never starts with `_`.
+A tag is a capitalized key or a supported engine membership. A terminal or filter tests its presence without reading its value. A class starts and ends with an uppercase ASCII letter.
 
 - A class is a tag such as `KOhA`, `BRIVLA`, or `FOREIGN`.
 - A mark is a tag such as `Word`, `Stressed`, or `Run-Initial`.
@@ -125,11 +115,9 @@ A tag is an identifier string. A tag has no strength: a token either carries it 
 
 The class and mark examples are tags of the Lojban grammars. `KOhA` names a Lojban word class, and its lowercase `h` stands for an apostrophe.
 
-A tag literal is a singleton tag set written as its capitalized name. `KOhA` denotes the same tag in a body, a tag term, and a set expression. Bare adjacent tag names form one union atom. The section "Juxtaposition" gives its grouping rules.
+In a body, a tag name is a terminal. A string literal or string constant reads one ordinary token with that value. `_` consumes any ordinary token.
 
-A bare lowercase name names a rule or classifier, never a tag. Capitalized user tags can contain underscores. A leading underscore belongs to the engine inventory of engine §1. `_` alone is a wildcard terminal, not a tag.
-
-A tag literal is a terminal in a body. A string literal or string constant is also a terminal. It consumes one ordinary token whose value equals that string. `_` consumes any ordinary token. These terminals work at every stage. Tags never determine the token's value or image.
+In an expression, write a key set as `{KOhA, Word}`. Lowercase keys are visible to named reads, copies, splats and `.keys`. Terminal and pattern key tests see only tags.
 
 A scalar value is a Unicode code point outside surrogates. A string escape names one exact scalar. `"a"` and `"‹U+0061›"` have the same terminal identity. `"‹U+0301›"` contains a combining acute accent.
 
@@ -159,39 +147,31 @@ Case matters. Aliases such as `_Letter`, without a property name, are errors. En
 
 A range and an engine tag are terminals in a body. A range tests the value and an engine tag tests stored membership. Each reads one token with one reading. A capture names a matched part, as in `$c:"0".."9"` or `$c:_General_Category_Letter`. A grammar can forward or filter engine tags but never introduce them.
 
-An engine tag can stand in a tag test, a pattern, a condition, and a body terminal. A tag-set constant cannot hold an engine-tag literal, even inside a filter. Neither side of `%implies` can name one. Tag terms can filter forwarded membership, as in `:: $c.tags ∩ _General_Category_Uppercase_Letter`. [Engine §1](engine.md#engine-tag-provenance) defines the exact `lit` test for nested filters.
+An engine membership can stand in a terminal, filter or pattern. A constructor can copy an existing membership, list it in a mask, or delete it. A grammar cannot create a stored membership from a permission. See [engine key provenance](engine.md#engine-tag-provenance).
 
-Either terminal can take a test. Neither a range nor an engine tag can mark an elidable optional. Emission inserts tokens with `ε` and explicit clauses, never with a range or property literal. Expected terminals and tree leaves use canonical spellings, such as `"a".."z"`.
+Either terminal can take a test. Neither a range nor an engine tag can mark an elidable optional. Emission inserts tokens with `ε{…}`. Expected terminals and tree leaves use canonical spellings, such as `"a".."z"`.
 
-A string uses straight double quotes, such as `"la"`. It can be a terminal, a condition value, or a recipe atom. Strings accept `‹…›` escapes, and backslashes and dollar signs are plain characters. String terms can join with `++`. [String literals and escapes](#string-literals-and-escapes) defines exact scalars and names.
+A string uses straight double quotes, such as `"la"`. It can be a terminal, a condition operand or part of a diagnostic message. Strings accept `‹…›` escapes, and backslashes and dollar signs are plain characters. String terms can join with `++`. [String literals and escapes](#string-literals-and-escapes) defines exact scalars and names.
 
 ## Tests
 
-A span is a range between input token boundaries.
+A span is a half-open range between input token boundaries. A reference or terminal can carry one key filter and one value test. The filter comes first, and both must hold.
 
-A reference or terminal can carry one tag test and one value test. The tag test comes first, and both must hold. Here, `X` denotes its symbol:
+- `X<A B>` requires both keys. `X<¬A ¬B>` forbids both keys.
+- `X<$C>` requires each key in the constant mask. `X<¬$C>` forbids each one.
+- `X="s"` compares the occurrence's `value` with `s`. `X≠"s"` requires a different value.
 
-- `X="s"` requires the exact input value `s`. `X≠"s"` requires another value.
-- `X<A B>` requires both tags on the symbol. `X<¬A ¬B>` forbids both tags.
-- `X<$C>` requires every tag of a tag-set constant. `X<¬$C>` forbids every tag of that constant.
+A requirement mask names visible keys or permitted engine tests. An empty mask always passes. Scalar comparisons belong in expressions outside the filter.
 
-A terminal's own tags are the tags of the token that it reads. A reference's own tags are the tags of its constituent (see "Tags"). A symbol with tests is a tested symbol. The symbol matches only where every test holds.
+A value test accepts a string literal, string constant or parameter that resolves to a string. A rule test in a body or pattern requires a certificate. That proof establishes that its value equals the ordered join of its original input values. A recognition read of a rule's `'value` requires the same proof. The loader reports a failed proof at the read. See [engine value proofs](engine.md#proof-for-a-rule-value).
 
-A value test reads values, not spellings. So different spellings that earlier stages map to one value pass the same test. In the `lojban/bpfk` pipeline, for example, stressed `lA`, Cyrillic `ла`, and zbalermorna `la` match `LA="la"` after phoneme mapping and word classification. A reference reads its complete input value.
+A test follows one rule reference, call, splice, terminal or symbol parameter. On a splice, the test follows the complete spliced call. A group, optional, repetition or `ε` cannot take a test. A capture wraps the tested symbol. For example, `$l:LA="la"` captures the token read by `LA="la"`. Spaces and comments can separate a symbol from its test.
 
-A reference's value joins the values of its input tokens with no separator. In Lojban, for example, a sumti over `lo mlatu` has value `lomlatu`, so `sumti="lomlatu"` succeeds. The words stage erases the pause between the two words. Concatenation supplies no separator, although the source text remains `lo mlatu`.
+`_Elided` tests omitted origin. In a body it can appear on a terminal filter or on the head of an elidable optional. `[+T<_Elided>]` accepts omission only. A synthetic restoration candidate and an omitted leaf pass the positive test. A written token fails the test even when its value is empty.
 
-A test reads the input of its own stage. In Lojban, for example, the emitted letter word `broda bu` has value `broda bu` when its gap recipe supplies one space. A test in the next stage reads this emitted value. In the words stage, `lerfu-word="broda bu"` instead tests its input span. For `broda .y. bu`, that span includes the hesitation and pauses.
+A body filter on a rule reference, call or splice cannot name `_Elided` with either sign. The loader reports the error at the opening angle bracket, even under a disabled gate. A parameter target needs a terminal after substitution. If the argument supplies an invalid target, the loader reports its written position and keeps the filter as context.
 
-`s` is a string literal or string constant. Comparison has no special rule for case or for any character, such as a comma. So `LE="La"` and `LE="l,a"` are legal exact tests. Tag requirements contain signed tags, tag-set constants, or template parameters.
-
-A parameter can splice a requirement list, as "Parameterized rules" explains. They hold no capture or input method. Groups and general set expressions do not stand inside a tag test.
-
-A test belongs to its one symbol, so every item of `{UI="ui"}` must have value `ui`. In `$l:LA="la"`, the capture wraps `LA`, and the test belongs to that target. A written test follows a rule reference, call, terminal, or parameter whose argument must be one symbol. A test after a group, optional, braces, or `ε` is an error, such as `(LE NU)="lonu"`. Spaces and comments can stand between a symbol and its test, or inside the test, although the grammars omit them.
-
-A test holds or fails as a condition does, including over an empty span. `X=""` and `X≠"la"` hold for a rule that reads nothing. An empty `<>` or empty constant requirement holds vacuously. An elidable terminator can carry either test kind or both. All its tests control both written and omitted routes.
-
-A test does not replace a class. A token that a caller supplies with value `la` and only tag `Word` cannot match `LA="la"`. A captured `cmavo` with condition `$c.tags ∩ UI = ∅` can instead use `cmavo<¬UI>`. A combined test spells `_<Stressed>≠"y"`. A second test of either kind, or a tag test after a value test, is an error.
+In a pattern, a positive origin requirement needs a leaf test, including the wildcard. A rule atom can use the negated requirement and always satisfies it. A positive origin test on a rule atom fails at the mark. Ordinary engine keys can still test a rule's bag.
 
 ## Operators
 
@@ -231,7 +211,7 @@ A chain, like a list, can leave out `/ s`. So `{... selbri-4}` is a left chain o
 
 ### How braces are written
 
-Braces are a primary, like parentheses and brackets. So an operator outside them treats them as one operand. `{A B} & C` repeats the sequence `A B`, and `[{x}]` makes the whole list optional.
+Braces are one factor, like parentheses and brackets. So an operator outside them treats them as one operand. `{A B} & C` repeats the sequence `A B`, and `[{x}]` makes the whole list optional.
 
 Inside one pair of braces, the item `x` and the separator `s` are each a full choice, as inside parentheses. Each can hold sequences, `&`, `|`, optionals, groups and other flat braces. So `{a | b / c | d}` is items from `a | b`, separated by `c | d`. The separator of `{... simple-tense-modal / jek | joik}` is `jek | joik`. Like a choice in parentheses, each side can begin with `|`. The separator `/` cannot stand first.
 
@@ -243,11 +223,11 @@ A pair of braces has at most one marker, and the separator has none. So `{... x 
 
 A chain is the whole of its rule. That means two things. First, the chain is the whole expression of its alternative. A chain inside parentheses, brackets, other braces, a capture, a sequence, a choice or `&` is an error of the document.
 
-Second, that alternative is the only alternative of its rule that the gates leave (see "Feature gates"). A warning does not remove an alternative. So a rule with another alternative beside its chain is an error of the grammar for the features that leave both. For those features, gencmu finds the error when it prepares the grammar, as it finds an error of a classifier. A `%extend-rule` of a chain's rule can cause this error.
+Second, that alternative is the only alternative of its rule that the gates leave (see "Feature gates"). A warning does not remove an alternative. So a rule with another alternative beside its chain is an error of the grammar for the features that leave both. For those features, gencmu finds the error when it prepares the grammar, before recognition. An `%extend-rule` of a chain's rule can cause this error.
 
-The chain's alternative can still have gates and tags of its own, and its rule can have clauses. A chain can be optional, or part of a sequence, through a rule. Name the chain as a rule. Then write the rule's name there, as in `[tag]`.
+The chain's alternative can still have gates and a term of its own, and its rule can have trailing clauses. A chain can be optional, or part of a sequence, through a rule. Name the chain as a rule. Then write the rule's name there, as in `[tag]`.
 
-The body of a `parse` query is not an alternative, so a chain cannot be the whole of it (see "Conditions"). A query reads no tree. Its forest gives only emptiness, `.error-free` and `.tags`, and no ranking applies inside it. So nothing in a query reads the nested levels of a chain (see "Chains in the tree").
+A chain cannot be the entire target of a query. A named rule in a query can contain a chain and expose its root through the forest.
 
 Write the flat list `{x / s}` in the body, or name the chain as a rule and write its name. A right chain whose separator starts with `[+T]` can count other readings than the flat list (see "Elided terminators"). Name that chain as a rule to keep its readings.
 
@@ -308,19 +288,17 @@ A Lojban example from the syntax grammar of `lojban/cll` is `%rule tag {... tens
 The clauses of the rule serve every level, as they serve every alternative:
 
 - A condition on `$` holds of each level. So a condition of a left chain holds of every prefix, and one of a right chain of every suffix. A condition on the whole chain alone belongs to a rule that refers to the chain's rule.
-- A level has the tags of the rule's tag terms, where the rule writes them (see "Tags"). Where it writes none, the level of one item has the item's tags if the item is one symbol, and every longer level has none.
-- A warning on the chain's alternative gives one warning for each level in the chosen tree, each with the text of its level.
-- `%emits`, `%erased`, and constituent recipes serve each level. `%emits $` emits the outermost level as one token. Its string walk uses level recipes without executing inner emission lists.
+- Each level builds the bag of its rule, including stage defaults where applicable.
+- If the stage publishes, bare `%emit` selects the outer level. A level with no selection forwards the outputs of its children.
 
-A chain cannot directly hold a capture in its item or separator (see "Captures"). Flat braces inside a chain can hold item captures. Other clauses refer to a whole level, `$`.
+A chain cannot directly hold a capture in its item or separator (see "Captures"). Flat braces inside a chain can bind lists. Other clauses refer to a whole level, `$`.
 
-A right chain is not the same as an optional suffix. In a rule `r`, the body `x [s r]` and the chain `{x ... / s}` read the same words. But the level of one item is `x` alone in the chain, and `x` with an empty optional in the suffix. That makes three differences:
+A right chain is not the same as an optional suffix. In a rule `r`, the body `x [s r]` and the chain `{x ... / s}` read the same words. But the level of one item is `x` alone in the chain, and `x` with an empty optional in the suffix. That makes two differences for elision:
 
 - The suffix can be an elidable optional, `[+T s′ r]`, where `s` is `T s′`. Where that suffix is absent, it leaves an elided node, and `late #·_<_Elided>` counts it. The chain has no optional there, so it elides nothing. So a text can tie, or resolve otherwise, under `late #·_<_Elided>`, and `elision-only` sees a different terminator. A plain suffix, `[s r]`, elides nothing, as the chain does.
-- A single-symbol `x` gives that level its tags in the chain. The optional-suffix form inherits none unless the rule writes tags.
 - Where `s` starts with `[+T]`, the suffix and chain apply different rules for written-terminator priority (see [Conditions](#conditions)). In the suffix, the marked optional starts the optional's content. In the chain, it follows the item's last symbol, which a query can extend. Engine §4 gives the exact rule. An omission names no separate constituent that it ends.
 
-Where the suffix is plain and `s` does not begin with an elidable optional, the two group the words in the same way. The tags of a level of one item can still differ, as the second difference says.
+If the suffix is plain and `s` does not begin with an elidable optional, the two group the words in the same way. Neither body takes an implicit bag copy from `x`. If `x` is one [logical symbol](#ambiguity), the chain has one at its base level and the suffix form has two.
 
 ## Ranked choices
 
@@ -339,7 +317,7 @@ An earlier option can exclude a later option even when intervening options are a
   ME 🆓 (sumti ≻ mex) [+MEhU] 🆓 [MOI 🆓]
 ```
 
-Binding, from strongest to weakest, is primary expressions, sequence, `&`, then choice. At a choice level, the separator is either `|` or `≻`. Mixing them at that level is a reader error. Parentheses start another level.
+Binding, from strongest to weakest, is factors, sequence, `&`, then choice. At a choice level, the separator is either `|` or `≻`. Mixing them at that level is a reader error. Parentheses start another level.
 
 A ranked choice supplies a seal, an opaque leaf. Outside patterns cannot inspect the selected option through this leaf.
 
@@ -358,17 +336,17 @@ The seal hides no error occurrence from ranking or reports. Diagnostics still be
 | `{(a ≻ b)}` | Repeat ranked items that must read at least one token. |
 | `(ε ≻ a)` | Compare empty options only against other empty options. |
 
-Thus `a | b ≻ c` and `a ≻ b | c` require parentheses. A whole rule body can be `a ≻ b`. Without header clauses, a leading `|` starts the ordinary alternative list.
+Thus `a | b ≻ c` and `a ≻ b | c` require parentheses. A whole rule body can be `a ≻ b`. Without a statement term, a leading `|` starts the ordinary alternative list.
 
-After header clauses, `|` introduces an ordinary body or one ranked alternative. A rule with header clauses can therefore write `| a ≻ b` without parentheses. Its document object model (DOM) contains the same ranked expression as `a ≻ b`.
+After a statement term, `|` introduces an ordinary body or one ranked alternative. A rule with a statement term can therefore write `| a ≻ b` without parentheses. Its document object model (DOM) contains the same ranked expression as `a ≻ b`.
 
 Every ranked expression needs at least two operands. `ε` supplies an explicit empty operand. Each operand is a complete `&` expression. `≻` has no operator meaning inside strings, conditions, or tree patterns.
 
 Optionals and repetitions accept ranked content in their expression positions. A repetition separator can contain a ranked group too. Repetition items must still read at least one token. An elidable optional still requires its leading terminal.
 
-Ranked options have no local gate, tag clause, or emission clause. Ordinary alternative gates and trailing tags apply to the whole expression. Where a ranking step must count a group only under a feature, name a rule for the group.
+Ranked options have no local gates or terms. Gates and terms on the enclosing alternative apply to the whole ranked expression.
 
-Captures inside a ranked choice belong to that choice. They can serve only conditions ready before that choice closes. They cannot feed later conditions, tag terms, emission items, or parent recipes. No capture can wrap a sequence or ranked choice. Losing options run no recipes, and a winning recipe error never triggers fallback.
+A condition inside an option can read its ready captures. A late expression can use a private binding where its option wins. A capture cannot wrap a sequence or ranked choice. A late error does not select a different option.
 
 A derivation is one reading that the grammar builds. Boundary offers record neighbor nodes at a constituent's edges (engine §4.2). Boundary offers use the actual derivation. `followed-by` and `preceded-by` can see nodes inside ranked options and erased constituents.
 
@@ -384,9 +362,7 @@ Outside patterns see one seal for the whole ranked choice, even when its complet
 
 An action reads one token or closes a constituent. Internal named rules and ready conditions on their captures retain their own pattern views. The seal changes no output tree, omission, action, or captured constituent. An author who needs that hidden structure outside the choice cannot rank that position.
 
-The choice must discard its returned tags locally or return a provably empty set. A common explicit tag term can replace inheritance. The loader applies the closure in engine §2.1. A private capture cannot supply that common term.
-
-`parse` inspects eligible structural readings before ranked filtering ([engine §4](engine.md#4-recognition)). The tags of a forest are a union over those readings.
+An early reader outside the group needs an identical expression from every active option. The expression must use common input and bindings. A forest reads eligible proofs before ranked admission.
 
 After admission, the steps of the stage directive rank the admitted parses in order (see "Ambiguity").
 
@@ -396,9 +372,9 @@ A feature is a name that is on or off at each stage of a parse. The pipeline can
 
 An alternative can begin with gates, which make it depend on features.
 
-A gate, `name?`, keeps the alternative only while the feature is on. `¬name?` keeps it only while the feature is off. All gates of an alternative must hold. A classifier entry can carry gates too.
+A gate, `name?`, keeps its alternative or item only while the feature is on. `¬name?` keeps it only while the feature is off. All gates of an alternative or item must hold. Constructor entries, list items and emission items can begin with gates.
 
-`?` has no other use in the notation. `!` has no notation role.
+In expressions, `?` also marks guards and conditionals such as `(condition ? a | b)`. Use `!` to map a property, method or function over a list.
 
 When its code is enabled, a warning rule reports by that code (see "Errors and warnings"). Warning controls change no recognition or ranking.
 
@@ -430,13 +406,11 @@ A splice is one transparent call of a rule. `*foo`, `*🆓`, and `*f(x)` splice 
 
 The asterisk stands directly before the name. A splice stands wherever a body rule reference or call can stand. It cannot stand in a pattern or supply a stage root.
 
-The call keeps its conditions, tags, value, image, emission, erasure, diagnostic, and suppression clauses. It creates no output node. Its children take its place in order. Other occurrences of that rule remain ordinary calls.
+The call keeps its term, conditions, emission, erasure, diagnostic and suppression. The occurrence table retains the call. Structural patterns see its children in the parent's sequence. The call's close is transparent to `greedy` and `lazy`.
 
-For tag inheritance, a splice is one logical symbol with the called constituent's tags. An unerased splice flattens its children for tree patterns and tree comparison. Its close is transparent to `greedy` and `lazy`.
+`$x:*foo` binds the working call with its bag, span and working children. A binding at an empty place is still present. A sole-symbol copy can take the call's bag. Bare emission at the splice creates a projection over that call.
 
-`$x:*foo` captures the anonymous call, with its span, tags, input strings, and observed child sequence. Its presence is always true, including for an empty call. Its constituent recipes still supply emitted strings where selected.
-
-`$x ≅ $y` compares anonymous constituents by their ordered observed child sequences. `$x ≅ #foo` is false because the call has no named root. Its own `$` uses the anonymous working view. The caller's capture uses the exported view, as "The structural tree" defines.
+A node-to-node comparison rejects a splice capture on either side. The restriction follows that capture through a list or function binding.
 
 The loader rejects a splice whose rule any stage ranking step, pattern, or neighbor target names. It resolves names through pattern constants, choices, template families, and instance keys. A query target does not forbid a splice, because a query parses its target independently.
 
@@ -444,7 +418,7 @@ Spliced and ordinary calls share the rule's same-span cycle key (engine §4). A 
 
 ## Errors and warnings
 
-A diagnostic is a named error or warning from a chosen occurrence. A rule can carry `%error` or `%warning`, followed by exactly one message recipe. It cannot carry both. A template cannot carry either directive.
+A diagnostic is a named error or warning from a chosen occurrence. A rule can carry `%error` or `%warning`, followed by one string expression. It cannot carry both. A template cannot carry either directive.
 
 ```jbogenbau
 %rule unmatched-fi
@@ -454,9 +428,9 @@ A diagnostic is a named error or warning from a chosen occurrence. A rule can ca
 
 The rule's name is its diagnostic code. Errors and warnings share one code namespace. Across the pipeline, a name has exactly one role: gate, warning code, or error code. A warning rule's name must also meet the feature-name rules. For an instance, the loader applies the code-name requirements to its final effective name after stitching (engine §2.3).
 
-The clause order is `%conditions`, then `%error` or `%warning`, then `%suppress-warnings`, then `%emits` or `%erased`. Each clause is optional. Diagnostics and suppression attach to the productions of their definition. An extension supplies its own clauses and inherits none from the base definition.
+The clauses occur in the order listed under [Rules](#rules). An extension owns its own clauses.
 
-A recipe computes a string from captured input (see "Two walks and recipes"). A message uses the recipe language of "Two walks and recipes", except that `.emitted` is forbidden. It reads `$` and captures of the chosen derivation, uses string methods, and joins strings with `++`. It cannot query another parse or read absent, item, or private ranked captures. Missing captures follow recipe rules, rather than condition applicability.
+A message is a string expression on the reporting occurrence. It can read the occurrence's finished bag, input, source and claim-free fields of legal captures. It cannot use publication, queries, verbatim claims or private ranked bindings, even through a function. A message cannot read an absent capture or a repeated item binding as one node.
 
 An error production must read at least one token. The loader rejects a nullable error production at its definition, even behind a gate or an impossible condition. Its conservative test ignores tests and conditions and treats gated alternatives as present (engine §3.6). Warning productions can be empty because warnings contribute no blame.
 
@@ -466,7 +440,7 @@ In that convention, a moved guard uses `$.following-tokens` after the opener, ne
 
 A chosen occurrence raises its diagnostic in its own stage. Spliced calls retain their spans, and each chain level counts separately. Failing conditions create no occurrence. The stage evaluates messages once after choice, before emission.
 
-Disabled and suppressed warnings evaluate none. Queries, recognition, ranking, and reconstruction evaluate no messages. The recipe language has no message that can fail. Engine §12.1 defines the guard for a failure.
+A live enabled diagnostic evaluates its message after choice. An expression failure gives a `grammar` result with the completed verdict and eligible diagnostic prefix. The failed stage publishes no output and runs no reconstruction. See [Deferred reports](engine.md#121-deferred-reports).
 
 A diagnostic travels on one emitted token to later stages. Its message and coordinates remain those of its raising stage. An erased carrier drops it. A stage that emits no tokens retains its diagnostics at stage level. The reporting stage is the caller's `until` stage, or the pipeline's last stage.
 
@@ -476,9 +450,9 @@ Ranking first compares source blame, with less blamed input preferred. At equal 
 
 Overlapping sources still add their charges. Erased subtrees contribute zero, and warnings contribute nothing. Grammar preferences follow equal measures, including in ranked admission.
 
-A chosen error before the reporting stage does not stop the pipeline. A `reported` result at the reporting stage keeps its chosen tree, `unique` or `resolved` verdict, and emitted output. Its `ok` is false. An error-bearing tie reports ambiguity and lists the errors and warnings of its two shown readings. For overlapping lists, engine §12.1 defines identity and multiplicity.
+A chosen error before the reporting stage does not stop the pipeline. A `reported` result at the reporting stage keeps its chosen tree and its `unique` or `resolved` verdict. A publishing stage also keeps its emitted output. Its `ok` is false. An error-bearing tie reports ambiguity and lists the errors and warnings of its two shown readings. For overlapping lists, engine §12.1 defines identity and multiplicity.
 
-A caller enables or disables warnings by code through the feature controls. `%features` supplies defaults. A disabled warning changes no accepted reading, chosen tree, or output. An error cannot be disabled.
+A caller enables or disables warnings by code through the feature controls. `%features` supplies defaults. A warning switch changes no recognition or ranking. A disabled warning evaluates no message. An error cannot be disabled.
 
 ### Suppressing warnings
 
@@ -512,12 +486,11 @@ A stage reads its input with one grammar. The loader assembles that grammar from
 - `%redefine-rule` replaces a rule defined before it in the stage. It is an error if none was. The earlier alternatives are gone.
 - `%extend-rule` adds alternatives to a rule defined before it in the stage. It is an error if none was.
 
-```jbogenbau
-%extend-rule consonant :: ∅
-  | "б" := "b"
-  | "в" := "v"
-%emits
-  $
+```text
+%extend-rule consonant
+  | "б" → {image: value: "b"}
+  | "в" → {image: value: "v"}
+%emit
 
 %redefine-rule text
   | ¬cbm? [{NAI}] {CMEVLA} 🆓 [joik-jek] text-1
@@ -528,7 +501,7 @@ So `%rule` never quietly replaces a rule. A misspelled name in `%redefine-rule` 
 
 The alternatives that an extension adds carry the extension's own clauses, not those of the base rule. The clauses of the base rule do not apply to them. So an extension says everything about what it adds. The loader, the part of gencmu that reads the documents, reports every replacement and extension: which document changed which rule. So a reader can see the effect of a pipeline on its base in one place.
 
-A ranking step that names a rule counts the redefinition and the extensions of that rule too, because the name is the stitched rule's. A step that tests a tag counts an added alternative only where that alternative's own clauses or its inheritance give the tag (see "Ambiguity"). The printed audit report names each redefinition or extension of a rule that a step names or whose tags a step can match.
+A ranking step that names a rule counts the redefinition and the extensions of that rule too, because the name is the stitched rule's. A step that tests a tag counts an added alternative only where that alternative's working bag supplies the key (see "Ambiguity"). The printed audit report names each redefinition or extension of a rule that a step names or whose tags a step can match.
 
 The notation has no way to remove a single alternative. A rule is small enough to restate, and a restated rule reads better than a list of deletions.
 
@@ -548,7 +521,7 @@ The opening parenthesis follows the name directly. `pair ("a", "b")` is not a ca
 
 Parameters start with `@` and an ASCII letter, followed by ASCII letters, digits, hyphens, or underscores. Case counts. A declaration has one or more distinct parameters. Calls supply exactly that many positional arguments. No defaults, variable argument counts, or overloading exist.
 
-Each parameter belongs to its definition's body and clauses. Another template receives it only through an explicit argument. Arguments cannot declare or read captures, including `$` and capture methods. Recipes written in the template can read that template's captures.
+Each parameter belongs to its definition's body and clauses. Another template receives it only through an explicit argument. Arguments cannot declare or read captures, including `$` and capture methods. Expressions written in the template can read that template's captures.
 
 Each argument is one term. A parenthesized body expression or `ε` passes a sequence as one argument. A parenthesized single symbol reads as that symbol:
 
@@ -562,7 +535,7 @@ Each argument is one term. A parenthesized body expression or `ε` passes a sequ
 
 Substitution replaces parsed nodes, without reparsing or regrouping nearby syntax. A choice passed to a body position remains one grouped choice. A ranked choice retains its own priority and seal. Ordinary position restrictions still apply after expansion. For example, a choice cannot replace the symbol in `$x:@X`.
 
-Parameters can occupy body operands, pattern operands, query bodies, filter requirements, and terms in conditions, tags, values, and images. A parameter cannot construct a name or occupy a declaration name, gate, method name, capture binder, carrier, or attachment. It cannot replace a directive operand, classifier name, or integer argument. The head after `[+` can be a user tag or a parameter whose argument becomes exactly one bare user-tag atom. A rule, sequence, tested argument, constant, or tag-set expression is invalid there.
+A parameter can supply a body, symbol, pattern, query target, requirement or expression. It cannot construct a name, gate, key, binder or method. An elidable head needs one untested user terminal after substitution.
 
 ### The two list substitutions
 
@@ -581,9 +554,9 @@ A boundary-target choice splices into one complete target entry, in written orde
 %rule a = filtered("a", <¬Ogonek ¬Caron>)
 ```
 
-Here the letter's boundary test names `h | b | unvoiced`. The filter on `a` requires `<¬Accent ¬Ogonek ¬Caron>`. A list under `¬@Excluded` is an error. A requirement list is distinct from a tag set, and `<>` is an empty list. A boundary-target choice must remain nonempty.
+Here the letter's boundary test names `h | b | unvoiced`. The filter on `a` requires `<¬Accent ¬Ogonek ¬Caron>`. A list under `¬@Excluded` is an error. A requirement list is distinct from a key set, and `<>` is an empty list. A boundary-target choice must remain nonempty.
 
-These are the only list substitutions. A parenthesized body choice does not splice into boundary targets. Other terms retain their usual grouping and type rules. Recipe substitution flattens concatenations in operand order before validation, with empty operands and source attribution preserved. [Engine §2.3](engine.md#23-templates-and-instances) defines argument reading and conversion.
+These are the only list substitutions. A parenthesized body choice does not splice into boundary targets. Other terms retain their usual grouping and type rules. Substitution flattens string concatenations in operand order before validation. It preserves empty operands and their source locations. [Engine §2.3](engine.md#23-templates-and-instances) defines argument reading and conversion.
 
 ### Names and layering
 
@@ -635,35 +608,23 @@ Expansion precedes ordinary rule validation and lowering. Errors identify the te
 
 ## Constants
 
-A constant names a value that several rules use, such as a list of classes. Its name is `$` and a name that begins with a capital. By convention, the whole name is in capitals, as in `$SU-STOPS`. The loader stitches a constant as it stitches a rule, and the constant belongs to its stage.
+A constant belongs to a stage. Its name begins with `$` and a capital. `%const` defines a name once. `%redefine-const` requires an earlier definition.
 
-`%const $NAME value` defines a constant. It is an error if a constant of that name was defined before it in the stage. `%redefine-const $NAME value` redefines the constant value. It is an error if no constant of that name was defined before it in the stage.
-
-```jbogenbau
-%const $SU-STOPS NIhO ∪ LU ∪ TUhE ∪ TO
+```text
 %const $PAUSE " "
-%redefine-const $MAGIC-WORDS $MAGIC-WORDS ∪ RAhOI ∪ LOhAI ∪ LEhAI
+%const $SU-STOPS {NIhO, LU, TUhE, TO}
+%const $RAW $s ↦ $s.tokens!'value.join()
 ```
 
-The three lines come from the Lojban grammars. The first line defines a constant of the words stage in `grammars/lojban/common/stream.md`. The last line extends the magic words of the Zantufa pipeline in `grammars/lojban/zantufa/stream.md`. A magic word is a Lojban word that acts on other words, such as `si`.
+An ordinary data constant uses closed operands. A function constant takes one explicit parameter and closes over constants. Call it as `$F(expression)`. A function can occupy a constant or argument slot. It cannot appear as a bag value, list item or return value.
 
-Quote marker classes enter through the marker constants. The `lojban/experimental` pipeline leaves LOhAI and LEhAI out, because it reads their bare markers as words. `$PAUSE` is the words stage's string constant `" "`, which names the quiet pause value.
+A lexical self-reference inside a redefinition selects the preceding version, including in a function call. Every other reference selects the final stitched version and can refer forward. The loader rejects unknown names and cycles. It infers each version independently. Each use must fit the version it reads.
 
-The value is a string, string set, tag set, or pattern, never a span. A closed term reads no capture or input. It contains strings, tags, patterns, `∅`, constants, set operators, and closed string concatenations. `.split` and `.ngrams` on closed strings are closed too. Input methods, `.classify`, and guarded terms are errors here. Classifiers depend on features, but constants do not.
+A constant can use a gated entry or a closed classifier lookup. A stage feature decision cannot depend on a gate of that stage, even through a function.
 
-A tag-set constant cannot hold an engine-tag literal, even inside a filter. A pattern constant can read engine tags as terminal atoms or tag requirements.
+A string constant can stand as a terminal or range endpoint. A key-set constant can stand in a filter. A pattern constant can stand in a pattern. Mark a template expression argument with `=`, as in `ordinary-word(= {Run-Initial}, split-first-y)`. A marked argument must be closed after substitution.
 
-Inside a `%redefine-const`, the constant's own name is its value before the redefinition. So one redefinition can extend a set with `∪`, narrow it with `∩` or `∖`, or replace it. A redefinition keeps the type of the value, so a set cannot become a string. That type also gives `∅` its kind. So `%redefine-const $A ∅` makes a set empty, but `%const $E ∅` is an error.
-
-Every user constant reference uses its name's final definition in the stitched stage. Other names can refer forward. After `%const $A A`, `%const $B $A` and `%redefine-const $A B`, both final values are `B`.
-
-Inside `%redefine-const $X EXPR`, `$X` denotes X's immediately previous definition. This exception applies throughout EXPR, including nested patterns. It does not pass through another constant. A previous definition's other names still use their final definitions.
-
-Each declaration creates a version, an immutable definition of one constant. The loader resolves lexical self-references to the preceding version and all other references to final versions. It rejects unknown names, dependency cycles and type changes across every definition, including replaced definitions. A cycle error names its dependency path and source positions.
-
-A constant stands wherever its type is required. A string constant can be a terminal or range endpoint in a body. A tag-set constant belongs in terms and tag tests. A pattern constant belongs in patterns. A never-defined constant is an error, including in a replaced definition.
-
-The loader gives the constants their values when it stitches each stage. So a document that several pipelines include takes the values of each pipeline. The loader reports a constant error at its reference or incorrect definition. The reader reports an engine-tag literal outside a pattern at that literal.
+An unmarked parameter passes its category through. An unmarked brace or bracket argument reads as a body repetition or optional.
 
 ### String literals and escapes
 
@@ -671,7 +632,7 @@ A constant starts with `$` and a capitalized user name. A capture starts with `$
 
 An escape is a delimited spelling of one scalar. It uses single guillemets `‹ ›` (U+2039, U+203A). `‹U+0301›` names a code point in hexadecimal. `‹COMBINING ACUTE ACCENT›` uses its formal Unicode name, and `‹ZWJ›` uses a name alias.
 
-Every string literal accepts escape syntax, including terminals, tests, recipes, conditions, classifier keys, call arguments, and include or names-resource paths. A `%names` path restricts name escapes to core abbreviations (engine §1). An escape contributes exactly one scalar. Its source spelling does not survive in the DOM. Unescaped literal text follows ordinary source decomposition. Decoded escape scalars receive no further decomposition or mark reordering.
+Every string literal accepts escape syntax, including terminals, tests, expressions, call arguments, and include or names-resource paths. A `%names` path restricts name escapes to core abbreviations (engine §1). An escape contributes exactly one scalar. Its source spelling does not survive in the DOM. Unescaped literal text follows ordinary source decomposition. Decoded escape scalars receive no further decomposition or mark reordering.
 
 A literal `‹` must use an escape, as in `"‹U+2039›"`. Without an open escape, `›` is an ordinary character. Escape decoding never scans its result again. Thus `"‹U+2039›ZWJ›"` contains the literal text `‹ZWJ›`.
 
@@ -697,29 +658,71 @@ Every White_Space scalar except U+0020 requires an escape. A backslash remains l
 %const $PIECES "a b".split(" ")
 ```
 
-### String concatenation
+## Expressions
 
-`a ++ b` joins string `a` followed by string `b`, without a separator. Both operands must be strings. Sets, tags, patterns, captures, and spans are errors, so use `$x.value` to read a captured string.
+An expression computes one result. A bag, list, string, number, node, span, forest, pattern, truth value or function can be that result. The operator or method determines which types it accepts.
 
-In a term or constant, adjacent string literals form a string set before `++` applies. Thus `"a" "b" ++ "c"` means `("a" "b") ++ "c"`. It fails because the left operand is a set.
+The apostrophe reads a key, and a dot calls a method. In `$x'value`, `value` is a key of the node. In `$x.span`, `span` is a method that returns the input window. A method with no argument positions omits parentheses. A method that accepts arguments requires parentheses, even for an empty argument list such as `.join()`.
 
-Guarded terms bind less tightly than comparisons. Method selection binds tighter than `++`. Concatenation binds tighter than intersection. Intersection binds tighter than union and difference, which bind tighter than comparisons.
+A source string starts with a double quote. A dollar sign introduces a capture, bound argument, occurrence or constant. A lowercase name adjacent to `(` starts a template call in a grammar context. `$F(` starts a function call in an expression.
 
-Concatenation groups from the left. Parentheses can group terms outside recipes. Parentheses can group a constant in a body or pattern, but cannot group a value-test operand or classifier key.
+| Binding, strongest first | Form |
+| --- | --- |
+| Atom, group, conditional | `(condition ? a \| b)` requires parentheses. It evaluates only the selected branch. |
+| Property, method, map, flatten | `' . ! ↓` apply from left to right. |
+| Concatenation and addition | `++ +` group from the left. |
+| Intersection | `∩` groups from the left. |
+| Union and difference | `∪ ∖` group from the left. |
+| Comparison | One of `= ≠ < ≤ > ≥ ∈ ∉ ⊆ ⊈ ≅ ≇`. |
+| Negation, conjunction, disjunction | `¬` nests to the right. Then `∧` binds more tightly than `∨`. |
+| Implication and function | `⟹` groups from the right. A binder before `↦` takes the following expression. |
 
-A concatenation of closed strings is closed and can define a constant. For example, `%const $PAIR "b" ++ "r"` defines `"br"`. Conditions can test `$l.value ++ $r.value ∈ $INITIAL`.
+The surrounding form tells the reader which grammar to use. In a body, brackets enclose an optional and braces enclose a repetition. In an expression, they enclose a list and a bag. A comma ends an item at its own delimiter depth. The bar in a conditional belongs to that conditional. A bar inside a body, pattern or neighbor choice stays inside that operand.
 
-Body terminals, value tests, pattern terminals, range endpoints, and classifier keys accept string literals or string constants. Inline `++` is invalid in these positions. A constant can hold any string concatenation.
+A test of a bare flag uses `$x'Flag`. If the receiver has no valued route for the key, the read gives true for presence and false for absence. When the key can carry a value, the read requires a value on every route that reaches it.
 
-String and string-set terms share forms where their required types permit them. These string positions occur in bodies, patterns, or classifier entries, where adjacent strings describe sequences or separate keys. One rule for all their string positions keeps the reading predictable.
+Use `$x.has(k)` to test the presence of a key that can carry a value. Use `$x.has-value(k)` to test whether it has a value. Neither test evaluates the value. The first excludes absence on its true path. The second excludes both absence and bare presence on its true path. For example, `$x.has-value(note) ⟹ $x'note ≠ ""` can read a string from a key with all three states.
 
-Side-by-side strings in a body or pattern child list describe a sequence of tokens. `"e" "‹U+0301›"` reads two tokens. In a classifier entry, `"e" "‹U+0301›" ∈ K` gives two keys.
+A refinement narrows the possible states of one receiver and literal key. On the right of `∧` and `⟹`, the engine assumes that the left operand is true. On the right of `∨`, it assumes that the left operand is false. Negation exchanges the paths. A conditional refines each branch separately. A guard refines only the entry or item that it enables.
 
-`"e" ++ "‹U+0301›"` produces one string: `e` followed by U+0301. A terminal with that value reads one token. A constant holding that value supplies one classifier key. The constant makes this change explicit.
+Five positions convert their operands to truth. They are a condition clause, a guard, a conditional test, a Boolean operand and the result of an `.all` or `.any` predicate.
 
-A range endpoint must resolve to one scalar because a range orders scalar values.
+| Operand | Truth |
+| --- | --- |
+| Truth | Its own value. |
+| Bound node | True, even for an omitted leaf. |
+| Capture name | True where bound. For a list of bindings, test whether the list is nonempty. |
+| Span | True where its window has an original input token. |
+| List | True where it has an item. |
+| Bag or key set | True where it has a present key. |
+| Forest | True where it has an eligible root. |
+| String, number, pattern or function | Type error. |
 
-A recipe joins its atoms with `++`, for example `:= $a.value ++ "-" ++ $b.value`. A single atom needs no operator. This applies to value and image recipes on definitions, alternatives, and emission items.
+Comparisons keep the types of their operands. A map keeps the types of its results. A valued key with an empty list is false in a truth position even though `.has(k)` is true.
+
+### Lists, functions and numbers
+
+A list keeps the order, duplicates and nesting of its items. The loader infers one common element type from the items and their context. An unconstrained empty list supports operations that need no element type.
+
+A list literal uses commas. If `$xs` is a list of strings, `["a", *$xs, "a" ∈ $xs? "b"]` combines two items with a splat. The splat `*` inserts each item of a list. A false guard skips one item. `↓` concatenates one level of a list of lists.
+
+`$xs!'value` reads one key of each item. `$xs!.span` calls one method on each item. The short map takes exactly one selector. The next method applies to the resulting list, as in `$xs!'value.join()`.
+
+A function takes one argument. Write an explicit binder as `$row ↦ $row'prefix'value`. Inside the function, `'` denotes the argument of the innermost function. `'key` reads its key and `.method` calls its method. Use a named reference to read an outer argument. A binder cannot hide another live name.
+
+`.all(…)`, `.any(…)` and `!(…)` accept a whole function or a function reference. They also accept an implicit function that starts with `'` or `.` after at most one `¬`. For example, `$xs.any('Counted)` tests whether an item carries the flag. A body that starts with a bag constructor needs an explicit binder, as in `$xs!($x ↦ {note: $x'note})`.
+
+A map evaluates each reached item in order. A list predicate can stop at the first deciding item. A later predicate cannot hide an error from an earlier map. For an empty list, `.all` gives true and `.any` gives false.
+
+`.join()` concatenates strings. `.join(separator)` puts the separator between successive items. An empty list gives the empty string. `.union` combines a list of key sets and gives `{}` for an empty list.
+
+`.split(delimiter)` reads left to right and keeps the nonempty pieces between exact, nonoverlapping matches. An empty delimiter is an error. A literal or constant empty delimiter fails during loading. Evaluation fails if a computed delimiter is empty.
+
+`.ngrams(width)` lists adjacent runs of Unicode scalars in start order, with overlaps and duplicates. The width is a positive decimal literal with no leading zero. A width greater than the input length in Unicode scalars gives an empty list. The width has no machine-size limit. For example, `"a".ngrams(18446744073709551616)` gives `[]`.
+
+`∈` and `∉` test one comparable element against a list. List difference `∖` removes every item equal to the right operand or to an item in the right list. If both interpretations fit, the right operand is a list of exclusions. List element equality compares nested lists by length, order and element equality. It compares key sets by membership. Nodes and functions have no list element equality.
+
+Numbers are natural numbers. A literal count, a stored count and a cap must fit 0 through 255. Decimal literals use ASCII digits and only zero starts with zero. Addition computes the exact mathematical sum, even above 255. `.at-most(k)` caps the number at literal `k`. The loader proves the bound before a result can enter a bag.
 
 ## Tree patterns
 
@@ -727,27 +730,27 @@ A predicate is a test that holds or fails. A tree pattern is a predicate on one 
 
 `$x ≅ $y` compares two constituents instead (see "Comparing two constituents" below). `≇` negates the answer after the ordinary missing-capture simplification. Patterns never recognize the captured text again or inspect another reading.
 
-The left operand must be a bare capture, including `$`. The type of the right operand decides what the comparison does. [Engine §9](engine.md#9-from-notation-tree-to-dom) defines the diagnostic for a bare name in the right position.
+The left operand must be a bare capture or the current function item. In either case it must bind one node. The type of the right operand decides what the comparison does. [Engine §9](engine.md#9-from-notation-tree-to-dom) defines the diagnostic for a bare name in the right position.
 
 ### The structural tree
 
-Patterns observe named rules, terminal reads, and omitted terminators before bracket output collapses unary nodes. Generated helpers and unerased spliced calls flatten their children in order. Named chain levels retain their nodes unless their occurrence is spliced. An absent plain optional contributes no child. Recipes do not change this structural observation.
+Patterns observe named rules, terminal reads, and omitted terminators before bracket output collapses unary nodes. Generated helpers and unerased spliced calls flatten their children in order. Named chain levels retain their nodes unless their occurrence is spliced. An absent plain optional contributes no child. Bag terms and emission do not change this structural observation.
 
 Observable nodes are rule nodes and terminal leaves. Terminal leaves can be written or omitted. Seals are not observable nodes.
 
-A terminal leaf records the terminal that read it, rather than every tag on its token. A literal, escaped literal, and equal string constant share one terminal identity. An omitted T contributes one leaf labeled T, with empty value and pattern tags `{T, _Elided}`. Its empty span does not remove it.
+A terminal leaf records the terminal that read it, rather than every tag on its token. A literal, escaped literal, and equal string constant share one terminal identity. An omitted T contributes one leaf with terminal key T and its default value. Its empty span does not remove it.
 
-This leaf adds no tags to the empty helper or the enclosing constituent. `_Elided` is a mark that only the tag test of a pattern can name. No token and no rule node carries it, and no tag clause can give it. Anywhere but in a pattern tag test, it is an error (engine §9.3).
+`_Elided` tests the leaf's origin outside its bag. The leaf's terminal key and default value remain observable.
 
 A structurally empty node contains no terminal read, omitted marker, or seal. Parent sequences remove structurally empty named children, including empty `🆓` nodes and empty wrappers. A seal from a ranked choice or erased constituent counts as a leaf here. A node that contains a seal remains in its parent sequence. A direct capture of an empty named rule retains its named root for a root-name test.
 
-An erased occurrence exports its named root with one seal as its only child. The root retains its tags and input span value. When the occurrence reads no tokens, this rule still applies. Its seal and named root remain in parent sequences.
+An erased occurrence exports its named root with one seal as its only child. The root retains its effective keys and has empty strings for value and image. Its seal retains the original token values for structural comparison. When the occurrence reads no tokens, this rule still applies. Its seal and named root remain in parent sequences.
 
-A spliced erased occurrence exports the seal without a named root. A capture of that splice sees an anonymous child sequence containing the seal. The splice does not expose the erased children.
+A spliced erased occurrence exports the seal without a named root. A structural pattern on the parent sees that seal at the splice. The splice does not expose the erased children.
 
 The erased definition's own clauses use its ordinary structure before export. Its own `$` retains that working view, including its splice mode. Captures inside the definition retain the ordinary views of the occurrences that they bind. An erased child supplies its own sealed view. A chain level or recursive occurrence of an erased definition is an erased child, so its parent level sees it sealed.
 
-An outside capture receives the exported view. Outside patterns can test the erased root's name, tags, value, and child list. Every node test fails at its only child, the seal. Every downward walk stops there. A sibling gap can consume it.
+An outside capture receives the exported view. Outside patterns can test the erased root's name, visible keys and child list. A value test on an erased rule must still satisfy the rule certificate. Every node test fails at its only child, the seal. Every downward walk stops there. A sibling gap can consume it.
 
 A node test first tests the candidate. If that test fails and the candidate has one structural child, the test follows that child. The search repeats this step. A branching node or seal stops it. A node test with a child list tests both parts at the same visited node.
 
@@ -755,15 +758,11 @@ The prefix `·` (U+00B7) makes one node test exact. It tests only the candidate,
 
 Thus `#sumti` accepts a sumti or its unary wrappers. `#·sumti` requires the candidate itself to be sumti. Neither test passes through a branch. Set operations combine each predicate's complete answer on the same candidate. `P ∖ Q` means P holds and the whole predicate Q fails on the same candidate.
 
-A rule test can carry a tag test, as in `#·passed-step<Resumption>`. The test reads the constituent's tags. Those are the tags that its `::` clauses give it, or the tags that it inherits from its one logical symbol (engine §3.7). It never reads the tags of an emission item, which exist only after the parse.
+A test on a rule, such as `#·passed-step<Resumption>`, reads the rule's working keys. A value test such as `#·verb="duna"` reads its certified value.
 
-A value test can follow the tag test, as in `#·verb="duna"`. It compares the input value of the constituent's span, as a test on a body reference does. That value depends on the span alone, so a ranking step can use it too.
+In a pattern, `_` matches any written or omitted leaf. A written leaf exposes its token's bag. An omitted leaf exposes its terminal key and resolved default. `#·_<_Elided>` tests the omitted origin. A rule's primary does not add a structural step.
 
-In a pattern, `_` matches any leaf, written or omitted, whichever terminal read it. It matches no rule node and no seal. So `#_<T>` matches a leaf whose tags satisfy the test, and `#·_<_Elided>` matches exactly an omitted terminator. A test on `_` reads the tags and value of a written leaf's token. On an omitted leaf, it reads `{T, _Elided}` and the empty string. `#·_` tests the candidate alone, and `#_` follows the single-child search.
-
-A `::` clause cannot compare `$` with a pattern that tests the tags of a rule, emoji, family or call atom (engine §9.3). Such a clause defines the very tags that the pattern reads. A value test, a terminal test and a test on `_` read no rule tags, so such a clause can use them. A pattern on a captured part can test rule tags, because the part is complete.
-
-A `%conditions` clause can compare `$` with such a pattern, since a condition reads tags and defines none. Such a comparison first runs the constituent's tag term (engine §4, step 4), whatever atoms the match visits. So a tag-term error can surface there even where the pattern fails on a name alone. A comparison of two constituents reads no tags, so it runs no tag term.
+A rule constructor cannot inspect its own unfinished bag through a pattern. A condition can inspect its finished bag. A structural comparison of two nodes does not demand their bags.
 
 This structural tree shows the search. `x`, `a` and `w` are rule nodes, and `B` and `C` are terminal leaves:
 
@@ -786,7 +785,7 @@ The item `C` fails at `w`, which has one child, so it moves on to the leaf `C`. 
 | `#sumti` | A rule named sumti through single-child wrappers |
 | `#·sumti` | Exactly the candidate named sumti |
 | `#·sumti<Tense>` | Exactly the candidate named sumti, whose tags include Tense |
-| `#·sumti="mi"` | Exactly the candidate named sumti, whose input value is mi |
+| `#·sumti="mi"` | Exactly the candidate named sumti, whose certified value is mi |
 | `#_` | Any written or omitted leaf, through single-child wrappers |
 | `#_<Tense>` | A leaf whose tags include Tense, through single-child wrappers |
 | `#·_<_Elided>` | Exactly the candidate, an omitted terminator |
@@ -845,11 +844,11 @@ Within a child list, juxtaposition sequences items and `|` chooses complete sequ
 
 An omitted terminator is a child like a written one. When it is the last child, a last-child path reaches it and never passes it to an earlier sibling.
 
-Outside child lists, binding is node test with attachments, grouping, path, intersection, then union or difference, from strongest to weakest. Union and difference share precedence and associate left. First-path `⋰` follows one primary, while descendant `⋮` and last-path `⋱` precede one primary. A path operand is a whole pattern. Chained paths require parentheses.
+Outside child lists, binding starts with a node test and its child list, grouping, path, intersection, then union or difference, from strongest to weakest. Union and difference share precedence and associate left. First-path `⋰` follows one pattern atom, while descendant `⋮` and last-path `⋱` precede one. A path operand is a whole pattern. Chained paths require parentheses.
 
 Parentheses only group. They never introduce a child list or a subtree boundary. Juxtaposition, optional brackets, braces, gaps, and `|` require a child list. A nested `#` cannot act as a pattern atom or child item. `#(a b)` is invalid, and its child-list spelling is `#⁅ a b ⁆`.
 
-A call's arguments retain their own grammar, including pattern literals and grouped body expressions. Thus `#pair(#a, "b")` can name an instance with a pattern argument. Its inner `#a` belongs to the call argument rather than the enclosing pattern's child syntax.
+A call's arguments retain their own grammar, including pattern literals and grouped body expressions. For a template with pattern and symbol parameters, `#checked(= #a, "b")` names one instance. The inner `#a` belongs to the marked argument.
 
 Union and intersection each flatten operands of their own kind, including through parentheses. Runs of `∩` form one flat intersection, in written order. Difference retains exactly two operands. Order and duplicates remain significant for pattern keys.
 
@@ -861,13 +860,13 @@ Within a child list, paths bind before sequence, and sequence binds before `|`. 
 
 Each path tests its operand at every endpoint, including the candidate. The operand retains each node test's search or exact prefix. Set operands also retain separate searches. `#(a ∩ ⁅ b c ⁆)` can match its parts at different depths, while `#a⁅ b c ⁆` requires the same node.
 
-One tag test followed by one value test can follow a terminal atom. Its value or tags must belong to the same matched leaf. Written leaves use their original token's value and tags. Omitted T leaves use empty value and `{T, _Elided}`, including during reconstruction. A written token with empty value also satisfies `T=""`.
+One tag test followed by one value test can follow a terminal atom. Its value or tags must belong to the same matched leaf. Written leaves use their original token's value and tags. An omitted T leaf has its terminal key and default value, including during reconstruction. Use `<_Elided>` to test its origin.
 
-A terminal atom accepts one signed tag test and one exact value test, in that order. A rule, emoji, family or call atom accepts the same two tests. Its tag test reads the constituent's tags, and its value test reads the input value of its span. A test needs an atom, so a test alone, as `#<T>` or `#=""`, is an error.
+A terminal atom accepts one signed tag test and one exact value test, in that order. A rule, emoji, family or call atom accepts the same two tests. Its tag test reads the occurrence's working keys. Its value test requires the same input-join proof as a rule value test in a body. A test needs an atom, so a test alone, as `#<T>` or `#=""`, is an error.
 
-Pattern set operators combine complete predicates and cannot mix them with tag sets. `∅` obtains pattern type from context. An untyped `%const $EMPTY ∅` remains an error. `#A<B>` means `#(A<B>)`, and `#A<B>=""` means `#(A<B>="")`.
+Pattern set operators combine complete predicates and cannot mix them with key sets. `∅` denotes the empty pattern. `#A<B>` means `#(A<B>)`, and `#A<B>=""` means `#(A<B>="")`.
 
-Patterns reject splices, captures, emissions, alternative tags, feature gates, elision markers, chain repetitions, and direct chained path prefixes. `&` has no pattern or child operator role. Patterns cannot contain recursive constants.
+Patterns reject splices, captures, emissions, terms, feature gates, elision markers, chain repetitions, and direct chained path prefixes. `&` has no pattern or child operator role. Patterns cannot contain recursive constants.
 
 Optional and repeat bodies and choice arms must contain written items. A repeat body must have a way to consume at least one child. A sibling gap cannot occur within a repeat's item or separator at that sibling level. Gaps inside an attached child list remain valid because they consume another node's children.
 
@@ -879,283 +878,89 @@ The DOM accepts exactly the reader's shapes, apart from source coordinates. Read
 
 ### Comparing two constituents
 
-The right operand of `≅` is a term, and its type decides what the comparison does. If the term has pattern type, the comparison holds when the left constituent matches the pattern. If the term has constituent type, it holds when the two constituents have equal structural trees. A term of any other type is a type error at the operand.
-
-The right operand takes its type by these rules:
-
-- A bare capture, including `$`, has constituent type.
-- A pattern literal has pattern type. `∅` has pattern type here, as in every pattern position, and nothing matches it. So `$x ≅ ∅` is false for a present capture, and `$x ≇ ∅` is true.
-- If every operand of a union, an intersection or a difference has pattern type, the operation has pattern type. Any other operand is a type error at the operation. Parentheses keep the type of their contents.
-- A constant and a parameter take the type of their value after they resolve. No template argument reads a capture, so no parameter has constituent type.
-- A guarded term is a type error here. It gives a tag set or a string set (see "Conditions"), and a false guard gives `∅`. To guard a comparison, guard the whole condition, as in `G ⟹ ($x ≅ $y)`.
-- A method result keeps its own type, and no method gives constituent type. So a span such as `$y.first-token`, `$y.onward` or `$y.without-elision` is a type error. So are a string, a string set and a tag set.
-- The conversion of `=` to input values does not apply before the type is chosen. So `$x ≅ $y.value` is a type error.
+The left operand of `≅` or `≇` must name one bound node. It can be a bare capture, `$` or the current function item `'`. The right operand must be a pattern or another bound node. A test against `∅` never matches. A comparison of a binding with itself is an error.
 
 The compared tree is the structural tree above. Helpers are flattened, chain levels are kept, and a ranked group is one seal. Equality compares the two trees from their roots, child by child in order. It does not follow a single child, as a node test does. Two trees are equal by these rules:
 
-- If two anonymous spliced constituents have equal observed child sequences in order, they are equal. An anonymous constituent never equals a named rule node.
 - If two rule nodes have the same rule and equal children in order, they are equal. Each template instance is a rule of its own. So nodes of two different instances are not equal, and nodes of one instance compare by their children. A parent drops a structurally empty child from its sequence. A directly captured empty named rule keeps its root, with no children. So two captures of different empty rules are not equal.
-- If one terminal read two written leaves and their tokens have equal values, the leaves are equal. A literal, an escaped literal and an equal string constant are one terminal. The tags, image and attachments of the token take no part.
+- If one terminal read two written leaves and their tokens have equal values, the leaves are equal. A literal, an escaped literal and an equal string constant are one terminal. The bag and image of the token take no part.
+
 - If two omitted leaves have equal terminators, they are equal. An omitted leaf never equals a written leaf. The default value of the terminator takes no part (see "Elided terminators").
 - If the token values of the spans of two seals are equal sequences, the seals are equal. The sequence has one value for each original token of the span, in order, and an empty value is an element. The chosen interior, private captures, tags and omissions take no part. A seal of an empty span is still a seal.
-- In the `elision-only` check, a capture of a terminal that reads a restored terminator has the empty projection (engine §7.5). Two empty projections are equal, and an empty projection equals nothing else. Such a capture is present.
+- In reconstruction, a terminal that reads a synthetic token binds an omitted leaf. Its terminal identifies it in comparisons. Its default supplies its value. It contributes a child and no original input token. A restored optional keeps its written-only slot empty.
 
-An erased named constituent compares as its rule with one seal child over its span. When their ordered token-value sequences are equal, two erased occurrences of one rule compare equal. Their internal brackets do not distinguish them. An erased splice compares as an anonymous sequence containing that seal.
+An erased named constituent compares as its rule with one seal child over its span. When their ordered token-value sequences are equal, two erased occurrences of one rule compare equal. Their internal brackets do not distinguish them. In a parent comparison, the child sequence of an erased splice contains that seal. A splice capture cannot be an operand of node equality.
 
-Nothing else counts. Tags, images, source spans, attachments and emission take no part. Tags stay out as a matter of policy. A tag term can read the tags of a token or the words around a span, so two equal trees can carry different tags. So the comparison tests the tree, not the tokens. Its answer depends only on the derivations of the two constituents, as the answer of a pattern does.
+The comparison uses structure and written leaf values. Source coordinates, other bag entries and emission take no part.
 
 Eberban resumes a verb only where the repeated verb has the words of the earlier one. Its syntax compares the two verbs, each with its free suffixes, in this way:
 
-```jbogenbau
+```text
 %rule resumed-step
   [si-free] $v:annotated-verb step-tail {resume-head $e:annotated-verb step-tail}
 %conditions
-  $v ≅ $e
+  $e.all($item ↦ $item ≅ $v)
 ```
 
-`$e` is an item capture, so the condition holds of each resumption in the list (see "Item captures"). At the advance over `$e`, the parser evaluates it, before the item reads its `step-tail`.
+The predicate compares every captured resumption with the earlier verb.
 
 ## Classifiers
 
-A classifier gives a value its classes. A lexicon is a typical classifier: it gives each word its word classes. `%classifier` and a name start a classifier, and its entries follow. This example follows a Lojban lexicon, which gives particles their classes:
+A classifier is a constant bag that groups exact strings. Each entry holds one string, a list of strings, or a key set that names other entries.
 
-```jbogenbau
-%classifier lexicon
-  "mi" "do" "ko'a" "ko'e" ∈ KOhA
-  "ui" "u'i" ∈ UI
-  "de'i" "ti'u" ∈ BAI
+This forms stage fragment uses a `cmavo-shape` whose value is certified as the input join.
 
-%classifier lexicon
-  date-li? "de'i" "na'a" "ti'u" ∈ LI
-  date-li? "de'i" "ti'u" ∉ BAI
+```text
+%const $LEXICON {
+  A: ["a", "e", "ji", "o", "u"],
+  UI: ["ui", "ia"],
+  CAI: ["cai", "pei"],
+  FUhE: "fu'e",
+  Indicator: {UI, CAI, FUhE}
+}
+
+%rule source-word
+  ^$c:cmavo-shape → {Word, Cmavo, *$LEXICON.classify($c'value)}
 ```
 
-An entry is one or more keys, `∈` or `∉`, and one class. A `%classifier` can also have no entries. A key is a string literal or string constant. `∈` adds the class to each key, and `∉` removes it from each key. A word in several classes has several entries.
+`$LEXICON.classify("ui")` gives `{UI, Indicator}`. The lookup starts with each class that directly contains the string. It adds the classes that refer to those matches until no new key appears. A reference cycle with no direct match contributes nothing. Each matching class appears once, even when repeated spellings or multiple reference paths reach it. Two unconditional direct writes to one key in a constructor are a load error.
 
-A constant key can contain a quotation mark or backslash. For example, `%const $QUOTE "‹U+0022›"` supplies the key in `$QUOTE ∈ K`. `%const $BACKSLASH "‹U+005C›"` likewise supplies a backslash key.
+Each effective table entry needs a value. An empty list declares a class with no direct strings. The empty string counts as a string member. An unknown reference is a load error. A known name that a gate or deletion removes contributes nothing. A reference or deletion alone cannot declare that name.
 
-Line breaks mean nothing here, as everywhere in the notation. An entry ends after its class, and by convention each entry stands on a line of its own.
-
-A key is an exact string, with no engine normalization. So a lexicon writes its keys in the values that its stage receives. The Lojban lexicons of the forms stage, for example, write normalized values. `"Mi"` and `"ko,a"` are legal distinct keys. A class starts and ends with a capital and never starts with `_`. `KOhA` is a class, while `Indicator` is not.
-
-An entry can begin with gates, as an alternative can (see "Feature gates"). An entry whose gates do not all hold does nothing. Diagnostic clauses belong to rules, never classifier entries.
-
-The name of a classifier begins with a lower-case letter. A classifier belongs to its stage, as a rule does. Every `%classifier` of one name in a stage adds entries to one classifier. gencmu applies the entries in the order of the stage, whatever documents they come from. A key has the classes that hold after the last entry.
-
-An entry that adds a class that a key already has is an error. So is an entry that removes a class that a key does not have. These errors depend on the features, so they are errors of the grammar. gencmu reports one at its entry, for a parse that turns on the features that make it. A mistake in how an entry is written is an error of the document, even where the entry's gates do not hold.
-
-`string.classify(classifier)` (see "Conditions") is the set of the classes that the classifier gives the string. It is empty for a string that no entry names. A `classify` that names a classifier that no `%classifier` of the stage declares is an error. `span.parse(rule).tags` asks a rule for the tags of a span. In the word grammar of `lojban/cll`, for example, `brivla-shape` asks `brivla-scan` in this way.
-
-The audit data lists every membership change, with its key, class, gates and document. The printed report shows the gated memberships and those that more than one entry changes.
-
-## Implications
-
-An implication says that some tags bring other tags with them:
-
-```jbogenbau
-%implies UI ∪ CAI ∪ DAhO ∪ FUhE ∪ FUhO ⟹ Indicator
-```
-
-`%implies A ⟹ B` says that each token that the stage emits with a tag of `A` also carries every tag of `B`. `A` and `B` are tag sets. Each is a closed term, as a constant's value is (see "Constants"). A constant in them has its final value, as in a rule.
-
-The stage applies its implications when it emits a token. First it gives the token the tags that the emission gives it (see "Emission"). Then it adds `B` for each implication whose `A` shares a tag with the token. It repeats this until no tag changes. So implications chain, and a cycle ends, because an implication only adds tags.
-
-Implications change only emitted tags. They never supply or alter a value or image. Neither side of `%implies` can name an engine tag. Recipes and plain concatenation determine token strings independently.
-
-Implications apply only to the tokens that the stage emits. They do not change a constituent's tags, the value of a term or the classes of a classifier. A later stage applies only its own implications. In `lojban/cll`, for example, the lexicon's implication in the forms stage marks each word of these classes `Indicator`. The words stage can drop that mark from a quote's marker, and nothing adds it again.
+A layer can use `%redefine-const $LEXICON {*$LEXICON, KIhEI: "ki'ei", A: $LEXICON'A ∖ "ji"}`. Outside a lookup, a producer supplies each key that its consumers require.
 
 ## Captures
 
-Writing `$name:symbol` captures one symbol of a body. The symbol can carry a tag test followed by a value test. A capture gives the matched part a name for conditions, tags, and recipes. Its name starts lowercase and contains lowercase letters, digits, hyphens, or underscores.
+A capture labels one symbol, as in `$x:A`. If every route binds it once, it gives one node. Mutually exclusive branches can bind the same slot, as in `($x:a | $x:b) c`. If a route can omit the binding, the slot gives a list of zero or one node. A repetition gives a flat list in input order.
 
-A capture wraps one symbol. A capture cannot stand directly in a chain's item or separator. An elidable optional accepts only the capture of its sole terminator, as `[$j:+JI]`. A capture can stand in a group, choice, `&` item, plain optional, or flat braces, at any depth. Inside flat braces it is an item capture, which "Item captures" below explains.
+Place the label before the symbol inside the optional or repetition. A label cannot wrap a bracket, braces or a group. The terminator binder is `[$j:+JI]` and gives a list of zero or one written leaf.
 
-A name can stand at most once in each production (below), so two branches of a choice can capture one name, as two alternatives can. `A ($x:B | $x:C)` is valid, but `[$x:A] $x:B` and `$x:A & $x:B` are errors, because one of their productions reads `$x` twice. Before gates apply, gencmu makes sure that each capture name occurs at most once per production. A gate does not excuse a repeated capture. An alternative can have any number of captures, but each one has a cost (below). `$` alone is the whole constituent, a capture that every alternative has without writing it.
+A capture cannot stand directly in the item or separator of a chain. An elidable optional accepts only the capture of its sole terminator. Thus `[+KU $x:🆓]`, `[+$k:KU 🆓]` and `$j : [+JI]` are errors. One route cannot bind a name twice, so `[$x:A] $x:B` and `$x:A & $x:B` are errors too.
 
-A capture cannot wrap anything but one symbol. So `$x:(a | b)`, `$x:(a b)` and `$x:[a]` are errors. A capture names one constituent, with one span and one set of tags, and a group or an optional is no constituent. To capture a choice or sequence, define a rule for it. Then capture the reference.
+A bound node is true in a truth position even when it spans no input. A list of bindings tests nonemptiness. For these types, `.present` makes the same test. A shared condition or statement term can test a capture declared only on another alternative. Both spellings give false there.
 
-To capture a part that can be absent, write the capture inside the optional, as in `[$x:a]`. A presence test then says whether the part is there.
+An alternative's own term must use names declared on that alternative. A name unknown to the statement is an error.
 
-A capture cannot wrap braces. A list is not a constituent, so no capture can name its span. To capture a list or a chain, define a rule for it. Capture its reference, as in `$t:tag`. A chain cannot directly hold a capture in its item or separator either. Each level of a chain is a constituent of its rule, so a condition on `$` serves it.
-
-An elidable optional can capture only its sole terminator, as in `[$j:+JI]`. The written route binds `$j`, and the omitted route lacks it. The presence test `$j` therefore says that the terminator is written.
-
-Tests and a default follow the terminator, as in `[$j:+JI="jie"]` or `[$j:+JI ≝ "jie"]`. The equality test supplies the restoration default without a separate `≝`.
-
-Every other capture inside an elidable optional is an error. Examples are `[+KU $x:🆓]`, `[+$k:KU 🆓]`, and a capture inside a nested group or optional. `$j:[+JI]` is also an error, because a capture wraps one symbol.
-
-The elidable optional retains its helper and one logical symbol. Its enclosing expansions pair with the helper's omitted and written routes. In reconstruction, only an original written token binds `$j`. A restored omission never binds it. Inside flat braces, `$j` is an item capture.
-
-```jbogenbau
-%rule number
-  [TI JU] number-body [$j:+JI]
-%conditions
-  $j ∨ ¬$.following-tokens.parse(number-start …)
-```
-
-Here a written `JI` bypasses the following-token condition. An omitted `JI` requires that condition to hold.
-
-gencmu expands each alternative into productions, as engine §3 says. A production is one way to read the alternative. It reads one branch of each choice and one subsequence of each `&`, and reads each optional or not. gencmu expands a plain optional that holds a capture in place, as if it were `(ε | x)`. The production without it comes first, then those with it. So `A [$b:B] [$c:C]` gives four productions, in this order: `A`, `A C`, `A B` and `A B C`.
-
-A plain optional without a capture stays one optional. gencmu does not expand it into two productions. A production has a capture where it reads the captured symbol, and lacks it elsewhere.
-
-Either way, a rule node holds the parts that its production reads, and an optional adds no node. A helper is an unnamed rule for an expression.
-
-A logical symbol is one symbol of a production as written, before captures expand optionals. Each optional, flat braces, ranked group, and splice counts as one logical symbol. The engine interprets a plain optional through one helper, with or without captures. `A [$b:B]` therefore counts as two symbols and inherits no default tags, including with B absent. Expansion still binds captures.
-
-A query gives a written terminator priority over an omission. For a preceding plain optional, it checks both absence and presence when looking for the written terminator. `a [$b:b] [+KU]` therefore follows the same query rule as `a [b] [+KU]`. An omission names no separate constituent that it ends. Diagnostic production numbers and recorded parse actions can follow expansion. [Engine §4](engine.md#4-recognition) defines the complete query rule.
-
-A plain optional that holds a capture, whose content has k expansions, contributes 1 + k: the empty one and those k. A sequence multiplies these counts. So `[$b:B]` doubles the productions of its alternative, `[($a:A | B | C)]` contributes four, and `[A [$b:B]]` three, not four.
-
-Each capture can also multiply the work of the parser. The parser keeps a captured part's span with each partial reading. The parser does not merge readings that differ only in where a captured part ends. So a capture whose span can end in many places costs much more than one that reads a single token.
-
-The clauses of a rule serve all its productions, and the productions need not capture the same parts. gencmu knows whether a production captured a part when it reads the grammar. A clause can refer to a capture that a production lacks. What happens then depends on the kind of clause.
-
-The engine first decides presence tests for each production. A condition with a missing capture then does not apply. An emission item with an absent carrier drops, and an absent attachment drops alone. A recipe on a retained item needs every capture it reads.
-
-Each selected constituent recipe also needs every capture that it reads. A diagnostic message follows these recipe rules too. Optional recipe cases need separate alternatives.
-
-A tag term that uses a capture that one of its productions lacks is an error, unless `⟹` (below) guards the use. The reason is that a tag term has no value that can mean "nothing to say". An alternative's own tags serve the productions of that alternative. Definition-header tag clauses serve every production of that definition. The tags of an emitted item serve every production that has the item.
-
-A reference to a capture is an error when no alternative of the rule or extension captures that name. It is also an error to write a condition or an item of `%emits` that applies to no production. Each of these is a mistake, such as a misspelled name.
-
-A constant counts in these rules as its value. So where `$E` is empty, `$E ∩ $x.tags` is empty and uses no capture. gencmu makes sure that such a clause meets these rules when it stitches the stage. Only then does the constant have a value.
-
-`$x`, standing as a condition, is a presence test: it says whether the production captured `x`. gencmu also knows this when it reads the grammar. `$` alone is always true. gencmu decides a presence test for each production before anything else, so it is not a use of the capture. So `%conditions $x` applies to every production, and removes those that do not capture `x`.
-
-`A ⟹ B`, where `A` is a condition, is `B` where `A` holds. As a condition, it is `B` where `A` holds, and true elsewhere. As a tag term, it is the tags of `B` where `A` holds, and no tags elsewhere. So a tag term that is only for the alternatives with a certain capture says so:
-
-```jbogenbau
-%rule word :: Word ∪ ($c ⟹ $c.value.classify(lexicon))
-  | $c:cmavo-shape :: Cmavo
-  | brivla-shape :: BRIVLA
-
-```
-
-### Item captures
-
-A capture inside flat braces is an item capture. It names one part of one item of the list, or of one separator. It belongs to the innermost braces around it. No ranked group can stand between the braces and the capture.
-
-Name the ranked choice as a rule and capture that rule. Braces inside a ranked option can still hold item captures. The list repeats, so the name stands for another part at each item. Only a condition can read an item capture.
-
-A tag term, a recipe or an emission item that names one is an error of the document. The constituent has no single part of that name. The name of an item capture stands nowhere else in its alternative.
-
-A condition that reads an item capture is an item condition. It holds of each item of the list that binds the capture. The parser evaluates it as soon as the item reads the last capture that the condition uses. The rule's other captures stand in the condition as the parse holds them before the braces.
-
-So an item condition can read the item captures of its braces and the captures bound before the braces. It cannot read `$`, a capture that stands after its braces, or an item capture of other braces. Each of these is an error of the document. Other braces include braces that hold this pair, so `{$a:A {$b:B}}` with `$b.value = $a.value` is an error.
-
-Name the outer item as a rule, as `outer → $a:A {$b:B}`, and the inner condition then reads `$a` as a capture bound before its braces. The parser checks these rules in each alternative that binds the condition's item captures. An item condition must also apply to some item, as any condition must apply to some production.
-
-```jbogenbau
-%rule foreign-quote
-  CO $open:word "[" [{_<¬Close> | $c:Close}] Close $close:word
-%conditions
-  $open.value = $close.value,
-  $c.following-tokens.first-token.value ≠ $open.value
-```
-
-The example is a one-rule sketch of the foreign quote of the `eberban/refgram` pipeline, which splits the same idea over the rules `foreign-quote` and `delimited-text`. Its quote body ends at the first closing bracket that the delimiter word follows. Each closing bracket inside the body binds `$c`, and the condition holds of each one.
-
-An item condition is simplified for each expansion of the item, as any condition is for each production (engine §3.6). So `{A | $c:B}` has one item expansion with `$c` and one without. A condition that still reads `$c` after simplification applies to the first alone. But `$c ∨ $o.value = "x"` simplifies on `A` to `$o.value = "x"`, so it constrains the `A` items too.
-
-In the same way, a condition that names a separator capture `$s` of `{x / $s:S}` does not apply to the first item. No separator precedes that item. An item condition can also read no other capture, as `$c.value ≠ "x"` does.
-
-An item capture can stand in a comparison with `≅` or `≇`, on either side, as in `$c ≅ #word` or `$v ≅ $e`. The comparison is then an item condition. Where the item reads the last item capture that it uses, the parser evaluates it. It reads the captures bound before the braces as the parse holds them there. Later symbols of the item do not delay it.
-
-An item capture costs what a capture costs. Where an item condition reads a capture bound before the braces, the parser also keeps that capture with each reading of the list. So the list has one set of readings for each way the rule binds that capture.
-
-### The capture rule
-
-A capture changes nothing about how its rule is interpreted. Plain optionals retain one helper for ranking, inheritance, ranked tag safety, and written-terminator query priority. Expansion binds their captures but does not determine those four behaviors.
-
-Diagnostic bookkeeping can follow expansion. Production numbers, witness action lists, reported tied pairs and their order, and elision-only competitors can differ. None of these diagnostic choices changes a verdict, accepted tree, tags, ranking, or query eligibility.
+Inside a ranked option, local conditions can read its ready bindings. A late expression outside the group can read a private binding only where that option wins. A spliced call binds one working occurrence with a bag and span. It cannot serve as an operand of structural equality. Patterns see its anonymous child sequence.
 
 ## Conditions
 
-A `%features` directive also accepts `%conditions` on the stage input, evaluated before parsing (see "Pipelines").
+`%conditions` lists the truth tests that a reading must satisfy. When the required observations become ready, the parser evaluates the clause. Separate clauses let the parser evaluate their tests independently.
 
-`%conditions` lists what must hold of a rule's captured parts, separated by commas. A parse in which a condition fails does not exist. The parser evaluates each condition as soon as it reads the last capture that the condition mentions. It evaluates a condition that mentions `$` when the constituent is complete.
+For each alternative, the loader simplifies known guards and capture presence tests. A shared clause applies where that alternative declares every remaining capture it names. A clause that applies nowhere is an error. An optional or repetition declares its slot even where it binds an empty list.
 
-Each condition of the list applies to the productions that capture everything it mentions, and to no other production. A production is one expanded sequence of an alternative (see "Captures"). So `A [$b:B]` has two productions, and a condition that mentions `$b` applies only to the one that reads `B`. One rule can also state a condition for the productions that have a quote body, and none for those that do not. This example reads a Lojban `zoi` quote. Its opening delimiter is a word that the writer chooses, and the quote closes at the next copy of that word:
-
-```jbogenbau
-%rule zoi-quote
-  | zoi-marker gap $open:word PAUSE $content:body PAUSE $close:word
-  | empty-zoi-quote
+```text
+%rule digit-word
+  [$l:misplaced-hyphen] $d:Digit [$t:misplaced-hyphen] digit-math
 %conditions
-  $open = $close,
-  $open.value ∉ $content.value.split($PAUSE)
+  $l.all(¬.preceding-tokens.parse(… Hyphen))
 ```
 
-Within one condition of the list, `∧` and `∨` join conditions, and `∧` binds tighter. `⟹` binds looser than both, and groups to the right. Parentheses group, and `¬` negates the condition after it.
+A condition can read the bag of a ready node or its input span. Span methods such as `.onward`, `.preceding-tokens` and `.following-tokens` operate within the evaluating window. The engine manual lists [the method signatures](engine.md#method-signatures).
 
-A method chain applies successive methods to one receiver. `¬` applies to the whole chain. `¬$s.without-elision.onward.parse(tag …)` says that no `tag` begins there. It does not test whether `$s` is absent.
+For an input comparison, join the desired strings explicitly. For example, `$open.span.tokens!'value.join() = $close.span.tokens!'value.join()` compares the original token values of two captures.
 
-The parser evaluates a condition joined with `∧` only when it can evaluate all its parts. So two conditions about different parts are better as two items of the list. The parser then evaluates each one as early as it can.
-
-In `=` and `≠`, a capture or span converts to its input value on either or both sides. `$open = $close` therefore compares the two captured values. A capture compared with a tag set or string set remains a document error.
-
-A condition tests whether a reading meets a requirement. A condition term has six types: captures or spans, strings, string sets, tag sets, patterns, and query forests. Captures and ordinary or restored spans retain their distinct receiver types. Method selection precedes conversion of a capture or span to its input value where a string is required. Captures never convert to tags or patterns. A bare capture as a condition tests presence.
-
-The first type includes spans, sequences of tokens. A capture `$x` retains its matched constituent and its input span. `$` spans the whole constituent. `$x.first-token` is its first token, `$x.tokens-after-first` the rest, and `$x.last-token` the last.
-
-`$x.onward` runs from the capture's start to its context end. `$x.following-tokens` runs from its end to that boundary. `$x.preceding-tokens` runs from the context start to its start and returns ordinary input.
-
-These context methods can look outside the constituent. Ordinary nested query bounds end at their input span. Spans can supply query receivers or convert to input strings. They never supply constituent tags after a span method.
-
-The string type includes `$x.value`, the exact concatenation of input token values. `$x.image` concatenates their stored images. Both observations ignore the current stage's chosen emission and include erased input. No observation lowercases values, removes characters such as commas, or changes spacing. The [pipeline guide](pipelines.md#phoneme-values-and-stress) shows how a grammar sets values, with stress as its example.
-
-A condition cannot read `.emitted.value` or `.emitted.image`. Only a recipe reads them (see "Two walks and recipes"). To compare two parts by their words, a condition compares their trees with `≅` (see "Comparing two constituents").
-
-`span.source-text` is the original text that the span covers. A string in double quotes, such as `"la"`, is a string literal. Where a condition compares one word's value with a literal, as in `$l.value = "la"`, a test says it in the body: `LA="la"`.
-
-The third type is the set of strings. `string.split(delimiter)` is the set of the pieces of the string between the occurrences of the delimiter. It reads the string from the left, and two occurrences never overlap. It drops the empty pieces.
-
-So `$content.value.split($PAUSE)` is the set of the runs of `$content`, the stretches between its pauses. Then `$open.value ∉ $content.value.split($PAUSE)` says that the word `$open` is not one of those runs. A run can hold several words. A Lojban text, for example, can write `lemiklama` as one run.
-
-An empty delimiter is an error. A literal `""` or an empty string constant as the delimiter causes a document error. Constant evaluation and feature conditions also reject joined empty delimiters during loading. In a constant value, this document error has kind `grammar` and stands at the definition. In a rule condition, a joined empty delimiter causes a grammar error only when a parse evaluates the split. Engine §2 and §10 define these positions and evaluation times.
-
-A tag literal denotes a singleton tag set. `UI ∪ CAI` contains both tags and `Indicator` denotes that mark. Ranges are terminals only and cannot form condition sets. `_General_Category_Letter ⊆ $c.tags` tests the stored letter property. A scalar-range condition needs a grammar query over the corresponding range terminal.
-
-A whole capture's `.tags` reads its constituent tags. Another span, such as `$x.first-token`, unions its input token tags. The `.tags` of a forest unions the tags of its witnesses. It is empty for an empty forest. `.classes` filters the same tag set for names starting and ending with capitals and never starting with `_`.
-
-`string.classify(classifier)` is the set of the classes that a classifier gives the string (see "Classifiers"). It is empty for a string that the classifier does not know. The method argument is a bare name, which names a classifier of the stage. So `$c.value.classify(lexicon)` is the set of the classes of the word `$c`.
-
-Every tag name is written in grammar text. No method constructs tags from an input string. A value can retain input text when a comparison needs it.
-
-`∪`, `∩` and `∖` are union, intersection and difference. Each applies to two sets of one kind: two sets of strings, or two tag sets. `∩` binds tighter than `∪` and `∖`. Those two bind equally and group from the left, so `A ∖ B ∪ C` is `(A ∖ B) ∪ C`. `∅` is the empty set, and its context gives its kind. An expression whose kind nothing gives, such as `∅ = ∅`, is an error.
-
-A string in a set operation denotes its singleton set, including the empty string. A lone string remains scalar. Set equality also permits this conversion when the other side is a set. Captures and spans never convert directly to sets.
-
-`⊆` and `⊈` also convert scalar strings. `∈` and `∉` accept a scalar string on the right as a singleton.
-
-`string.ngrams(n)` returns the set of runs of `n` adjacent code points. Overlapping runs count, and duplicate runs give one member. A string shorter than `n` gives `∅`. The argument is a positive decimal integer literal without leading zeros. It cannot be a constant because constants have no integer type.
-
-String sets support the same grouping, set operators, guarded terms, empty sets, constants, and closed terms as tag sets. A guarded string set gives `∅` when its condition fails.
-
-Value tests remain scalar because equality-tested omissions save one exact string for restoration. A string set supplies no unique saved value in the current tree format. This restriction applies to both body and pattern value tests.
-
-Tag-specific positions still require tags because tokens and constituents carry named marks. String sets cannot supply tag clauses, tag tests, or implication sides. Membership `∈` tests a scalar string because tag literals already denote singleton sets. Tag membership therefore uses `⊆`. Ranges remain terminals for both kinds because they describe token recognition.
-
-The predicates are:
-
-- `=` and `≠` compare two strings, two sets of strings or two tag sets. Any other pair is an error after the conversions above.
-- `∈` and `∉` test whether a string is in a set of strings.
-- `⊆` and `⊈` test whether one set is in another of the same kind. So `Indicator ⊆ $i.tags` says that `$i` carries the mark `Indicator`, and `Indicator ⊈ $i.tags` says that it does not.
-- `≅` tests a bare capture, including `$`, against a tree pattern or against another capture (see "Tree patterns"). If the right side is a pattern, the constituent must match it. If the right side is a capture or `$`, the two trees must be equal. `≇` negates `≅`. Any other pair is an error.
-- `$x` holds when the production has the capture `x`.
-- `span.parse(C)` holds when its forest is not empty.
-- A tag set, a string set, or a forest holds when it is not empty.
-- `span.starts-input` holds when the span begins where the parser's input begins.
-- `span.ends-input` holds when the span ends where the parser's input ends.
-- `$x.followed-by(S)` holds when the parse has an `S` node that starts at the token right after `$x`. "Neighbors in the parse" below explains it.
-- `$x.preceded-by(S)` holds when the parse has an `S` node that ends at the token right before `$x`.
-
-A comparison `$x ≅ $y` uses both captures, as any condition with two captures does. So it applies only to the productions that capture both. The parser evaluates it at the later of the two. An item capture can stand on either side, and the comparison is then an item condition (see "Item captures"). An item condition cannot read `$`, so an item capture compares with a capture and not with `$`. A condition of `%features` cannot compare constituents, because no constituent exists there.
-
-A comparison of a capture or `$` with itself is an error of the document, as a condition that applies to no production is. The forms are `$x ≅ $x`, `$x ≇ $x`, `$ ≅ $` and `$ ≇ $`. Two different captures of one rule make no such error. Nor does `$ ≅ $x`, which can hold where `$x` stands inside a ranked group of `$`.
-
-Take `r → ("a" ≻ "b") | ($x:r ≻ "c")` with `$ ≅ $x` in the `%conditions` clause of `r`. On the text `a`, both trees are an `r` node over one seal of `a`, because a seal carries no group identity. The condition is a private condition of the option that binds `$x`. The group is final, so `$` is ready at the completion of the group.
+A rule can compare two ready node captures with `≅`. A repeated capture must first bind one item inside a predicate, as in `$xs.all($x ↦ $x ≅ $reference)`.
 
 The methods `.followed-by(S)` and `.preceded-by(S)` take one argument form. `S` is a nonempty choice of ordinary rules, exact instances, and user terminal tags, separated by `|`. For example, `selbri | gek-sentence | KOhA` names three alternatives. `🆓` is a rule name.
 
@@ -1177,17 +982,11 @@ As a condition, a nonempty forest holds. `.error-free` keeps only witnesses with
 
 For example, `¬$i.onward.parse(@Open …).error-free` bars an error-free opening structure in a template whose `@Open` supplies that target. The engine computes the filter over shared chart items without building witness trees.
 
-The `.tags` of a forest is the union of the tags of its witnesses. For an empty forest, it is the empty set. So `Word ⊆ $x.parse(word-shape).tags` asks for a witness with that tag. The filter `.error-free` applies first where it stands. So `$x.parse(C).error-free.tags` unions only error-free witnesses.
+Use `.flags` to union the visible keys on eligible roots. The keys in that union can come from different readings. Use `.any(predicate)` or `.all(predicate)` to test properties together on one root. For example, `$u.parse(brivla-scan).any('nuclei = 2)` asks for a reading with two nuclei.
 
-A set or a forest in a Boolean position holds when it is not empty. A Boolean position is a whole condition or an operand of `¬`, `∧` or `∨`. Each side of an implication is one too, and so is the condition side of a guarded term. The value side of a guarded term is a term position.
+A forest predicate tests every eligible root and can short-circuit within each predicate. An error on an eligible root takes precedence over the aggregate truth. The engine orders those errors independently of ranking. With no eligible root, `.any` is false and `.all` is true. A bare forest or `.any()` tests existence without reading root fields.
 
-A `%features` condition is a Boolean position too. A closed set that is not empty is always true, so as a whole rule condition it applies to no production. A bare `∅` has no kind there, so it is an error. `⟹` at the level of a condition is always an implication.
-
-A guarded term in a Boolean position stands in parentheses as an operand of a set operation, as in `($y ⟹ Word) ∩ $x.tags`. The term keeps its own precedence inside that position. So `$x.tags ∩ UI ∧ $y` first forms the intersection, and then joins it with `∧`. `¬` applies to the whole set term, so `¬$x.tags ∩ UI` is `¬($x.tags ∩ UI)`.
-
-A string set works the same way. So `"a b".split(" ") ∩ $x.value.split(" ")` holds when the two texts share a word. This rule means "not empty" and nothing else. It gives no string, set, or pattern conversion in any other position.
-
-For example, `$x.tags ∩ UI` and `$x.tags ∩ UI ⊈ ∅` give the same condition.
+A forest root can supply only recognition observations, even inside a late expression. It cannot expose a private ranked winner, output properties or verbatim text.
 
 For an ordinary span, a query parses the captured span alone, with the same grammar. So a condition can ask whether a part also reads as something else. The word grammar of `lojban/cll` uses this for the slinku'i test of borrowed words (fu'ivla). A CV cmavo is a particle of one consonant and one vowel. The test says that such a particle before a borrowed word must not make a compound word (lujvo). That is `¬$f.parse(lujvo-after-cv)`, because the rule is the part of a lujvo after its first two letters.
 
@@ -1195,7 +994,7 @@ Inside such a parse, a condition can ask about the very span that is being parse
 
 Every nested query, including `parse`, follows written-terminator priority (engine §4). A nested reading cannot leave out an elidable optional where the same construct can read that whole optional as written. Two Lojban examples show this. In the Zantufa pipeline, `cy to roi toi klama` gives `([cy {to roi toi}] klama)`. A nested `tag` cannot read `cy to roi` as `cy roi` with an empty parenthesis, because the parenthesis can read on to its written `toi`.
 
-In the same way, the `lojban/experimental` pipeline gives `(mi [klama {na (to broda toi)}])` for `mi klama na to broda toi`. There `broda` stays inside the parenthesis. The priority has a cost: a positive query can fail where a parse without it succeeds. Take `r → A c [+T] T` and `c → B`. Then `parse` of `r` over `A B T` fails, because `[+T]` takes the written `T`. Several readings that the priority keeps do not cause an ambiguity error.
+In the same way, the `lojban/experimental` pipeline gives `(mi [klama {na (to broda toi)}])` for `mi klama na to broda toi`. There `broda` stays inside the parenthesis. The priority has a cost: a positive query can fail where a parse without it succeeds. Take `%rule r A c [+T] T` and `%rule c B`. Then `parse` of `r` over `A B T` fails, because `[+T]` takes the written `T`. Several readings that the priority keeps do not cause an ambiguity error.
 
 A lookahead tests a rule without reading the input. A PEG is a grammar that tries alternatives in order. PEG is short for parsing expression grammar. `parse(C …)` with `.onward` or `.following-tokens` is a lookahead, like the lookahead of a PEG.
 
@@ -1238,7 +1037,7 @@ Projection maps restored positions back to original input positions.
 
 `.onward` preserves the restoration view, including through repeated calls. Other span methods first project to original tokens and return ordinary spans. `$x.without-elision.following-tokens` therefore reads the raw suffix. `.first-token`, `.tokens-after-first`, and `.last-token` expose original tokens.
 
-`.source-text`, `.decomposed-source-text`, `.value`, `.starts-input`, and `.tags` also observe original tokens. The restored span carries no constituent tags. A forest `.tags` there unions the tags of its aligned witnesses.
+Span methods observe original input tokens. A restored span's `.flags` reads their visible keys. The forest's `.flags` unions the keys of the eligible roots.
 
 For example, these rules hold an omitted BOI fixed:
 
@@ -1323,300 +1122,158 @@ A condition with such a test holds or fails as any condition does. So `¬$.follo
 The test reads the actual neighbor, which a lookahead cannot do. A Lojban example comes from the experimental grammar. There a bare `na` omits its `ku` only where its place closes, or before a term in the same reading:
 
 ```jbogenbau
-%const $BARE-NA #⁅ NA [🆓] KU="" [🆓] ⁆
+%const $BARE-NA #⁅ NA [🆓] KU<_Elided> [🆓] ⁆
 %rule bare-na
   $n:NA 🆓 [+KU] 🆓
 %conditions
   ¬$n.onward.parse((gek | joik-jek-ek | gihek) …),
-  $ ≇ $BARE-NA ∨ $.ends-input ∨ ($PLACE-CLOSE ∩ $.following-tokens.first-token.tags) ⊈ ∅ ∨ $.followed-by(gihek | term)
+  $ ≇ $BARE-NA ∨ $.ends-input ∨ $.following-tokens.first-token.flags.overlaps($PLACE-CLOSE) ∨ $.followed-by(gihek | term)
 ```
 
 `$BARE-NA` matches the bare form with an omitted KU. Other forms bypass the closing-place test.
 
 `$PLACE-CLOSE` holds the single words that close the place, such as `cu`, `.i` and the written terminators. A gihek and a term can start with many words, so the test names them as nodes of the parse. The receiver `$` ends after the term's own free modifiers, so they never count.
 
-In `mi klama na to broda`, the parenthesis stands in the term's slot, and the text ends after it. In `na da`, the parse has a term node at `da`. A lookahead `$.following-tokens.parse(term …)` can instead find a term in another reading.
+Neighbors can appear in a condition clause, a rule term guard or a chosen output guard. One condition clause admits one boundary atom under Boolean operators. With a captured receiver, that clause reads no other capture and no whole-rule `$`. The loader retains the atom's owning step.
 
-A test cannot see another parse. Where one reading must beat another, write a ranked choice or a ranking step instead (see "Ambiguity").
+The required neighbor trials preserve reached condition errors. A provisional success carries an obligation that the completed reading must meet.
 
-A terminal in a `parse` body makes its tag buildable, including inside another query. A `.followed-by` or `.preceded-by` target alone does not.
+In a rule term, the guard uses one neighbor atom on `$` with optional negation. It can guard a visible bare entry or a splat of a closed visible key set.
 
-Every name in a test must be one that a parse can build, either a parse of `text` or the parse inside a query. A name that nothing reaches is an error. A name that only queries reach is legal, but outside queries the test always gets its default answer. So the audit notes it.
-
-These tests can stand in a `%conditions` list, a guarded header or alternative tag term, and an emission item's tag clause. In an emission item, they read the chosen tree. Its tag clause can hold several atoms and read several captures. The limits below bind `%conditions` only. These neighbor tests cannot stand in a test, recipe, constant, implication, pattern, or query argument. Header and alternative tag terms follow the guarded-part rules below.
-
-One condition of the list holds at most one such test. It can combine that test with other conditions through `¬`, `∧`, `∨` and `⟹`. If the receiver is a capture `$x`, the condition reads no other capture and no `$`. These rules keep each test on one boundary of one step ([engine §4.2](engine.md#42-boundary-obligations)).
-
-A private capture inside a ranked option uses the option's helper step. A backward atom on it meets earlier nodes inside that option. At the option's start, its literal meets the common prefix during qualification.
-
-A nested ranked group can evaluate an enclosing condition. A whole-rule atom keeps its owning group's boundary. The nested group introduces no copy at its own boundary. Capture-presence simplification does not change that ownership.
-
-Header and alternative tag terms accept a guarded literal tag set, such as `($.followed-by(resume-head) ⟹ Passed)`.
-
-Each guard is one `followed-by` or `preceded-by` atom on `$`, optionally negated. Its target can be a choice of names. After constant binding, a literal tag set is a fixed set of user tags. A compound Boolean guard, a captured receiver, or a nonliteral tag result is a document error. Several guarded parts can occur in one term.
-
-```jbogenbau
+```text
 %rule step
-  | [si-free] annotated-verb step-tail :: ($.followed-by(resume-head) ⟹ Passed)
+  | [si-free] annotated-verb step-tail → {$.followed-by(resume-head)? Passed}
   | resumed-step
 ```
 
-The guarded tag belongs to the first alternative alone. A ranking step can count `fewest #·step<Passed>`.
+The loader retains correlated obligations for both possible outcomes. It prunes covered contradictory assignments. More than eight variants of an effective production receive an audit note. More than sixteen fail.
 
-The loader unites header and alternative terms before it lowers these guards into concrete tag variants (engine §3.7). It preserves the operators around each guarded part. Each part becomes its literal set or `∅` under an assignment.
+An output guard reads the chosen neighbors. An aligned query uses projected spans. A neighbor must cover original input, with an original token at each physical end. A synthetic terminal alone gives no offer.
 
-Each distinct atom has one Boolean, identified by its direction and normalized target set. Negation uses that same Boolean with its values reversed. The loader drops assignments whose positive target set is covered by negative sets of the same direction.
+Inside a nested query, the tests read the query's own reading. Its two ends act as the ends of the input. In an aligned query, atoms read projected spans. A rule that a query reaches gets a default answer at the query's edges. The audit lists every such rule as a note.
 
-Each variant retains unguarded tags, other implications, and all definition clauses. Its appended conditions require its assigned atoms or their negations. Variants retain source rule and production identity and add no node. Exactly one variant survives each complete derivation.
+## Bags
 
-After merging and pruning, one effective production has at most 16 variants. More than 16 is a document error. More than 8 receives an audit note. Ranked tag safety examines every possible variant tag set (engine §2.1).
+A bag holds named entries. A key can be absent, present with no value, or present with a value. A key with no value is bare. A stored value is a string, a bounded number, a bag or a list of stored values.
 
-The other tag-term limits still apply. A term cannot read the tags that it defines or name an item capture. It must guard a capture that a production lacks.
+A key set is a bag of bare keys. `.keys` gives all keys of a bag or node. `.flags` gives its capitalized keys and `.classes` gives its class-shaped keys. Each view drops any payload. `.select(mask)` copies the entries named in a key set with their values. `.overlaps(mask)` tests whether two key sets share a key.
 
-The parser decides such a test only later. So it evaluates the rest of the condition both ways, and it evaluates the later conditions and the tag term as if the test held. A grammar error in any of these is an error of the parse, even if the test later fails.
+`∪`, `∩` and `∖` combine two key sets or two patterns. `⊆` and `⊈` test key set inclusion. `=` and `≠` compare like strings, numbers, truths or key sets. `<`, `≤`, `>` and `≥` compare numbers. Use `{}` for an empty bag, `[]` for an empty list and `∅` for an empty pattern.
 
-Inside a nested query, the tests read the query's own reading. Its two ends act as the ends of the input. In an aligned query, atoms read projected spans. A synthetic token has an empty projected span, so it never counts as a neighbor. A rule that a query reaches gets a default answer at the query's edges. The audit lists every such rule as a note.
+### Constructors
 
-## Juxtaposition
+A constructor is a comma-separated list of entries inside braces. Apply the entries in their written order.
 
-Juxtaposition places expressions beside each other without an operator. Its meaning follows position and type.
+| Entry | Effect |
+| --- | --- |
+| `Word` | Write a bare key. |
+| `note: expression` | Write a key with a value. |
+| `image: value: "a"` | Evaluate the expression once and write the same value to both keys. |
+| `$x'note` | Copy the entry as it is. A copy from an absent key writes nothing. |
+| `*expression` | Copy every present entry of a bag or node. |
+| `¬note` | Delete the named key. |
 
-| Position or kind | Meaning | Example |
-| --- | --- | --- |
-| A body | Sequence | `"b" c` |
-| Inside `⁅ ⁆` | Child sequence | `#⁅ A (B ∪ C) ⁆` |
-| A tag test | All requirements | `<Stressed ¬Syllable-Break>` |
-| A tag-set term | One union atom of bare tag names | `:: Word BRIVLA` |
-| A recipe | String set, rejected because a recipe requires a string | `:= "a" "b"` |
-| A classifier entry | Separate keys | `"mi" "do" ∈ KOhA` |
-| Directive operands | A list | `%features cbm su-boundary` |
-| Other tag-set atoms | Error | `:: $m.tags Word` |
-| A string-set term | One union atom of string literals | `%const $X "a" "b"` |
-| String sets | Error | `$S $T` |
-| Patterns outside a literal | Error | `%const $P #(A) #(B)` |
+A later active entry replaces an earlier entry for the same key. A bare write can replace a valued entry. A false guard skips its entry and preserves the earlier result. A gate comes before the guard and can skip both. Several gates can precede one guard. For example, `{cbm? $w.has-value(note)? $w'note, ¬image}` copies a valued note only when both tests hold.
 
-A run of bare tag names or string literals can stand alone or beside `∪`. It requires parentheses when the operator token immediately before or after it is `∩` or `∖`. A leading `∩` counts. Spaces and comments do not affect this adjacency. `(Word BY) ∩ $l.tags` is legal. `Word BY ∩ $l.tags` and `:: ∩ Word BY` are errors at `Word`.
+Two direct writes without a guard or gate to one key in the same constructor are an error. A named copy is a direct write. A chain cannot repeat a key. Splats and deletions can follow direct entries, as in `{Word, ¬Word}`. The engine evaluates only the winning payload of a demanded key. A hidden writer raises no runtime error and makes no verbatim claim.
 
-`A ∪ B C ∖ D` is an error at `B`. Any union operand that is itself a union flattens into its enclosing union in written order. This applies to runs and explicit `∪`, including either form inside grouping parentheses. Parentheses make no DOM node.
+### Rule bags
 
-Difference retains both operands. Pattern-valued term intersections flatten after type resolution. Other intersection types retain their nesting. Other atoms require explicit operators.
+A leaf that reads a written token starts with that token's bag. An omitted leaf gets its terminal key, default value and empty image. The origin flag is separate from this bag. An erased rule has empty strings for both keys and keeps its other effective keys.
 
-For example, `(#a ∩ #b) ∩ #c` flattens to `#a ∩ #b ∩ #c` in its effective form. The cached term retains its unresolved shape. Pattern literals retain their boundaries as operands.
+A rule builds its bag from four sources in order. It uses the stage defaults, the primary or eligible sole symbol, the statement term, then the alternative term. Both terms use `→ {…}`. The statement term applies to every alternative in its definition. An extension owns its own term and clauses.
 
-`A ∪ (B ∪ C)`, `A ∪ (B C)`, `A ∪ B ∪ C`, and `A B C` give one union with three operands in written order. `(A ∪ B) ∩ C` keeps the union as one intersection operand. A leading `∪` inside a parenthesized run does not change its DOM.
+The primary is one mandatory child marked with `^` before the symbol or capture label. A primary supplies its whole bag, including private keys. It also identifies the core for presentation. Each route of an alternative must have exactly one primary, or all routes must have none. A mark inside an optional, repetition, chain or ranked option is an error. A splice cannot carry the mark.
 
-Within a child list, sequence combines items, and a grouped set expression consumes one child. `#(A B ∩ C)` requires the explicit list spelling `#(⁅ A B ⁆ ∩ C)`. Outside child lists, set operators combine two tag sets, two string sets, or two patterns. Mixed or unresolved types are errors.
+If neither term is present, one plain mandatory symbol supplies its whole bag. A terminal, rule, string, range, wildcard, call, splice or substituted symbol parameter can qualify. A label, filter or value test can remain on that symbol. An unranked choice qualifies if each route has one plain symbol. Optionals, repetitions, chains and ranked groups do not qualify.
 
-String operands convert to singleton sets, so `"a" ∪ "b"` and `("a" "b")` give the same string set. String runs obey the same grouping, flattening, and operator adjacency rules as tag runs. Constant references and method calls require explicit operators.
+A sole-symbol copy adds no primary edge. Use `→ {}` to suppress that copy.
 
-## Tags
+`$DEFAULTS` is a function from a node to a bag. It supplies defaults to each unerased rule occurrence, including chain levels and spliced calls. Leaves, braced items and insertions receive no defaults. The Lojban phoneme, forms and words bases define the two joins below. The Eberban letters and forms bases and the notation lexical base also define them. Bundled pass-through and tree-only stages omit this function.
 
-Every token and every constituent carries a set of tags, and a terminal matches a token by tag. So the tags that a grammar gives its constituents are the terminals of the grammar of the next stage. A rule uses tag terms to say what tags its constituents carry. A `::` clause after an alternative supplies that alternative's tags. A `::` clause on the header serves every alternative of that definition. Where both are written, a constituent's tags are the union of the two:
-
-```jbogenbau
-%rule source-word :: Word
-  | $b:brivla-shape  :: BRIVLA ∪ $b.tags
-  | $n:cmevla-shape  :: CMEVLA ∪ $n.tags
-
-%rule cmavo :: Cmavo ∪ $w.value.classify(lexicon)
-  | $w:cmavo-shape
-
+```text
+%const $DEFAULTS $n ↦ {value: $n.children!'value.join(), image: $n.children!'image.join()}
 ```
 
-Sometimes no tags are written at all, neither on the alternative nor on its header. Then a constituent built from one symbol has that symbol's tags, and a constituent built from several symbols has none. So a rule `word` whose body is `cmavo | brivla | cmevla` needs no tags. In the Lojban grammars, the chain of rules that builds a `mi` gives it tags for the next stage in this way.
+A layer uses `%redefine-const` to replace this function. A call of `$DEFAULTS` inside the redefinition invokes the previous version. For example, `$n ↦ {*$DEFAULTS($n), ¬image}` deletes the default image.
 
-Each optional, flat braces, and a ranked group count as one logical symbol here. If an optional or flat braces reads one logical symbol, it has that symbol's tags. Otherwise it has none. Ranked groups follow the restrictions in "Ranked choices". So `%rule terms {terms-1}` over one `terms-1` has its tags, and over two has none. An empty optional has none.
+Inside a rule, bare `$` denotes the occurrence. A term can read its span and children. A read of its unfinished bag through any expression is a dependency cycle. Conditions and messages can read the finished bag. A splice capture reads the call's bag, span and working children. A structural pattern sees its children in the parent's sequence.
 
-A chain's levels follow the same inheritance rule. Plain optionals keep their own helper, including when they hold captures. An absent optional has empty tags. A present optional counts its content's symbols as if no captures were written. Ranking, ranked tag safety, and query priority use that same structure.
+In a shared statement term, a presence test of a capture declared only on another alternative gives false. The engine evaluates the whole guard separately for each alternative. A guard must establish any binding needed by the entry on every path that reaches it.
 
-A tag term that defines a constituent's tags cannot be made of those tags. So `$.tags` and `$.classes` are errors in a rule's or an alternative's tag term. So is a comparison of `$` with a pattern that tests the tags of a rule, emoji, family or call atom (see "Tree patterns"). `$.parse(rule).tags` and `$.value.classify(lexicon)` are not errors there. The first parses the constituent's tokens again, and the second reads their value. The tag term of an emitted item does not define the constituent's tags, so it can use `$.tags` and `$.classes`.
-
-Header and alternative terms can also contain the guarded literal sets of "Neighbors in the parse". Lowering gives recognition concrete tags and keeps their boundary obligations apart until settlement.
+A presence test of a key with no supplier gives false. The audit notes it. A read that needs a value from that key is a load error.
 
 ## Emission
 
-The stage walks a rule with no `%emits`. What it hands to the next stage is what its parts hand on, in order. A token that it reads directly hands on nothing. A rule with `%emits` hands on exactly what the list says, in the order that the list says it. The stage walks nothing else of the constituent.
+A rule with no `%emit` forwards the outputs of its children in order. A leaf or erased rule selects no output. Bare `%emit` selects the node and suppresses the separate publication of its descendants. Bare emission on a spliced call creates a braced item with the call's place and whole bag.
 
-Bare `%emits` means `%emits $`, one covering token for the whole constituent. A clauses-only form, such as `%emits := "x"`, applies those clauses to the implicit `$` item. A rule without `%emits` walks its emitting descendants instead. `%emits ε` inserts an empty-span token rather than covering the constituent.
-
-| Rule on input `a` | Output |
+| Listed item | Effect |
 | --- | --- |
-| `%rule unit "a"` | No token, because the directly read terminal emits nothing |
-| `%rule unit "a" %emits` | One covering token with value and image `a` |
-| `%rule unit "a" %emits := "x"` | One covering token with value and image `x` |
-| `%rule unit "a" %emits ε` | One inserted token with empty value and image |
+| `$x` | Forward the outputs of the part. For a capture list, forward the outputs of each binding in order. |
+| `$x{…}` | Create a projection at one part's span, source and text. A list cannot be the part. |
+| `${…}` | Create a projection over the emitting node. |
+| `ε{…}` | Insert one node at an empty place and record the inserting rule. |
 
-A chosen derivation with counted errors still emits. The stage evaluates messages before emission and then assigns diagnostic carriers (see "Errors and warnings").
+A braced item creates a projection, a synthetic node over the selected part. It starts with its part's two strings, where present. The braces apply entries after those strings. They read the captures and `$` of the emitting rule. An insertion has no part, so its constructor must supply both strings.
 
-A splice retains its called rule's emission and erasure clauses. Tree flattening changes neither emission nor the string walk. Erasure removes its subtree's diagnostic contributions and gives its parent zero measure.
+A braced node receives no defaults and makes no further emission. Bare `$` cannot forward its own output.
 
-An item of the list can be a capture. The stage hands a capture on as one token. The token has the captured part's tags, or the tags of its explicit `::` clause.
+A gate runs before the expression guard of an item. An item that fails either test supplies no token and no anchor. A reached guard can make a verbatim claim before returning false. The braces of a skipped item do not run.
 
-An item can also be `ε`, which inserts an ordinary token with an empty span. Its default tags and strings are empty. Explicit clauses supply its tags, value, and image. `%emits "foo"`, a bare range, or a property as an item is an error. Capture and attachment order must agree with every production.
+An insertion uses the start of the first following surviving cover. A cover is a token selected over a part, even if that part is empty. Skip insertions and items that supply no tokens. If no cover follows, the insertion uses the end of the emitting node and its ordinary source boundary.
 
-`$` is the whole constituent. Its item emits one covering token. `%emits $ :: ∅ := "n", ε :: ∅ := "o"` makes one input token into two tokens, `n` and `o`. Only the first covers input.
+Selected spans must be in input order with no overlap between nonempty spans. Insertions can share a boundary. The loader examines unguarded covers, and the engine examines actual output after choice. A failed publication supplies no tokens.
 
-A Lojban example is the digit `0`, whose name is `no`. The phoneme grammars of `lojban/bpfk`, `lojban/experimental` and `lojban/zantufa` read it in this way. The carrier restrictions below also apply to whole items.
+### Decorated nodes
 
-An inserted item stands in its written order and records `insertedBy`. This emission list inserts an apostrophe before the captured vowel:
+A decorated node has a primary and can show satellites. A satellite is a visible unit from a branch beside the primary. The presentation follows primaries and incoming token faces to the core. A node without a primary shows as one unit through its image. A braced item presents through its part, with its own image.
 
-```jbogenbau
-%emits
-  ε :: ∅ := "'"
-, $v
+For example, the CLL indicators stage selects one node for `ba'e zo broda ui`. Its span covers all four words. Its primary leads to the quote `zo broda` in the preceding stage, and `ba'e` and `ui` are satellites. A full producer tree retains the quote's opener and content as descendants. The formatter shows the quote as one unit. The leading `ui nai` also forms one token with `ui` as its core.
+
+Diagnostic coordinates belong to the raising occurrence. A core link can help a reader display a highlight without changing those coordinates.
+
+### Stage interfaces
+
+```text
+%const $OUTPUTS {*$INPUTS, *$LEXICON.keys, Word, letter, nuclei}
 ```
 
-The comma separates two emission items. An item can have empty tags because string terminals and `_` can read it. Engine §11 defines anchors near absent attachments and carriers.
+`$OUTPUTS` lists the public keys of a stage. It is a key set. The engine keeps the selected node's entries that match those names and always keeps the two strings. An explicitly listed `value` or `image` makes no change. The mask grants permission without supplying a key or a value.
 
-`%erased` hands on nothing and removes the constituent from counted parts. It serves text that later stages must not read, such as a hesitation or a word that removes other words. In Lojban, for example, `si` erases the preceding word, so `broda brode si bu` emits the letter word `broda bu`. The token's source still spans the erased text.
+The engine supplies `$INPUTS`. A grammar cannot define it. It gives the preceding stage's effective permissions, even when that stage publishes an empty list. In the first stage it gives the origin interface described in [Engine §1](engine.md#1-tokens).
 
-Its strings exclude that text. Its errors and warnings also disappear, including carried diagnostics on erased input tokens. Internal derivations with the same observable state collapse to one canonical reading (engine §6). Outer ranking sees the erased root, but not its proper descendants.
+Use `%const $OUTPUTS $INPUTS` for a stage that passes on the input permissions. Use `%redefine-const $OUTPUTS` to change permissions in a layer. A plain splat of a classifier bag copies its values and cannot serve as a mask.
 
-`%erased` also seals the occurrence's structure for callers, as defined under "The structural tree". Its own conditions, tag terms and captures retain their working views. Erasure does not add a ranked choice or change its admission rules.
+The loader infers the input states of the next stage from the possible emitted bags. A key can be absent, bare or valued on different routes. A permission alone adds no supplier. The stitched listing shows the permitted names and inferred types. A producer that supplies class keys outside a lookup supplies each key that later readers require.
 
-Sealing applies to the productions of the definition carrying `%erased`. An extension without that clause remains unerased and unsealed by erasure.
+An empty `$OUTPUTS` publishes tokens with the two strings alone. A valued entry in that mask is a type error. If `$OUTPUTS` is absent, the stage must be last and finishes with its tree. The loader inspects any `%emit` items in that stage and adds an audit note. The engine does not evaluate those items.
 
-Output trees retain the actual chosen derivation. Seals appear only in structural observations, never as output nodes. Conditions and erased collapse can change which derivation the engine chooses.
+A read of a ready key can serve recognition. A read of verbatim text or a binding available only after choice is late. A late dependency in recognition fails before parsing. See [engine recognition](engine.md#4-recognition) for proofs, cycles and error order.
 
-An author who needs an outside pattern to know a fact about the interior must publish it as a tag. Here, `hidden` computes `Has-A` from its interior, and the parent reads that tag:
+### Errors before recognition
 
-```jbogenbau
-%rule text $h:hidden
-%conditions $h ≅ #·hidden<Has-A>
-%rule hidden :: ($ ≅ #⁅ A ⁆ ⟹ Has-A)
-  | A | B
-%erased
-```
+The loader examines all written forms for syntax and scope errors, including skipped entries. It inspects closed types before specialization. It inspects types that depend on features or input in each affected stage.
 
-The tag term reads the real child sequence. The parent sees the sealed root with its completed tags.
+A value read must have a value on every route that reaches it. A key with only a permission cannot supply one. An emitted occurrence needs both string keys after any copies, overrides or deletions.
 
-Grammar rule names starting with `erased-` identify `%erased` constituents only. Stream plumbing that merely omits output uses an unlisted part instead. `%emits ε` inserts a token and never erases.
+Before recognition, the loader rejects invalid primary placement, out-of-scope captures and cycles in constant versions. It also rejects uncertified rule value reads and live unsupported recursive dependencies. Unguarded output overlaps fail during stitching.
 
-A capture item can carry attachments: other tokens that belong to its token, which no later stage reads. Attachments serve words that mark another word but play no part in the grammar of later stages. Each attachment is a capture in parentheses, before the item or after it, and an item can have any number on each side. The item's own capture is its carrier, and it must be a named capture. Neither a `$` item nor an inserted `ε` item can name attachment captures. `($)` is an error.
-
-```jbogenbau
-%rule item :: $w.tags
-  | $w:unit | $b:bahe-run $w:unit | $w:unit $a:indicator-run | $b:bahe-run $w:unit $a:indicator-run
-
-%emits
-  ($b) $w ($a)
-```
-
-The carrier's token covers its own capture only. An attachment is the list of tokens that its captured part hands on, as if the stage walked that part. In Lojban, for example, `ui` expresses happiness about the word before it. In `lojban/cll`, `mi ui klama` hands on `mi` with `ui` attached after it, and the next stage reads `mi klama`. The carrier does not run the emission of its own part. So a structure inside the carrier's part stays only where the item captures it separately.
-
-An attachment capture stands in exactly one item, and never as an item of its own. A production without the carrier emits nothing for the item, and it must also lack the item's attachment captures. The captures of an emission, attachments included, must be written in the order in which each production reads them.
-
-A production reads each name at most once, so each name is one part of it and the order is clear. Two productions can read names in different orders, as in `($a:A $b:B | $b:B $a:A)`. Then no order of `$a` and `$b` fits both, and an emission of both is an error. Where a production lacks an attachment capture, the item has one attachment fewer.
-
-The compact form `[$b:bahe-run] $w:unit [$a:indicator-run]` has the same capture bindings and emission order as the four alternatives. Its expansions supply `$w`, `$w $a`, `$b $w`, and `$b $w $a`, in that order (see "Captures"). This equivalence concerns captures and emission, rather than ranking.
-
-Introducing these optionals changes logical symbol counts. The explicit `$w:unit` alternative has one logical symbol and a transparent close. The compact alternative retains three logical symbols even when both optionals are absent, so its close is visible. A lazy comparison can therefore resolve readings that the explicit alternatives leave tied. A capture inside an optional changes no logical symbol count.
-
-A forwarded token keeps attachments. A covering token over one counted input token inherits its attachments, whatever tags or strings recipes assign. Combining that input token with another counted part is a grammar error. Empty strings do not remove counted parts. Disjoint carriers and attachment captures prevent two emitted tokens from inheriting the same attachment.
-
-No condition, test or method sees attachments, and neither does a terminal. The renderings show them with their token.
-
-A part that an emission list does not name remains a counted part, although it emits nothing. In the Lojban words stage, for example, a pause inside a quote can therefore contribute to a compound through its gap recipe. A rule without `%emits` can emit nothing but still count. Only `%erased` removes its contribution and ownership.
-
-```jbogenbau
-%rule plain-word
-  cmavo | brivla | cmevla
-%emits
-  $
-
-%rule word-quote
-  $m:word-quote-marker $g:word-gap $w:read-word
-    :: $m.tags :- $m.source-text ++ $g.source-text ++ $w.verbatim-text
-%emits
-  $
-
-%rule erasure
-  unit gap si-word
-%erased
-```
-
-### Two walks and recipes
-
-The stage fixes each emitted token's value and image through recipes or plain concatenation. It preserves tags such as `Stressed` and `Syllable-Break` as the grammar specifies. Tags never assign strings. An implication changes tags only, so it cannot change a value or replace an image.
-
-Default string construction concatenates non-erased input parts in order. It enters child constituents without executing their emission items. A child constituent recipe can replace its contribution separately by channel. Gap recipes supply spacing. A quote-body image recipe supplies verbatim text. No engine rule trims spacing or supplies placeholder text.
-
-The default construction above supplies each channel unless a selected recipe replaces it. An elided terminator adds nothing to either channel. Attachment captures use their own emission walks.
-
-Recipe priority follows this table, from strongest to weakest. A capture item's constituent supplies the alternative and rule recipes. An inserted item has no constituent.
-
-| Rank | Value | Image |
-| --- | --- | --- |
-| 1 | Item `:=` | Item `:-` |
-| 2 | Alternative `:=` | Image implied by item `:=` |
-| 3 | Rule `:=` | Alternative `:-` |
-| 4 | Child concatenation | Rule `:-` |
-| 5 | | Image implied by alternative `:=` |
-| 6 | | Image implied by rule `:=` |
-| 7 | | Child concatenation |
-
-At an inner constituent, only the alternative, rule, and concatenation rows apply. An item recipe affects only that item's token. An explicit constituent image recipe beats a constituent value recipe's implied image. Only an item's own `:-` beats that item's implied image.
-
-Recipes form a closed language. They accept string literals, string constants, and these methods on a bare capture, including `$`: `.value`, `.image`, `.source-text`, `.decomposed-source-text`, `.verbatim-text`, `.emitted.value`, and `.emitted.image`. `++` joins these terms without a separator. Every other term is a document error. A bare capture and `.emitted` without a channel are errors.
-
-A recipe contains exactly one recipe term, which can be a `++` chain. The reader rejects a second recipe term at its first token and tells the author to use `++`. Juxtaposed literals form a string set, which a recipe rejects at its first literal with the same instruction. Recipe atoms cannot use parentheses or method arguments.
-
-An input method reads the stage's original input tokens, including erased text. `.emitted.value` and `.emitted.image` read the string walk before the current item's override. They include constituent recipes and exclude erased parts. Only a recipe can read them.
-
-Only selected recipes run. A weaker recipe runs only when another evaluated recipe reads its result. A constituent recipe cannot read its own result through `.emitted`, directly or through other recipes. gencmu rejects this dependency even when an item recipe hides it at runtime. An item's `.emitted` read observes its constituent before that item's override. [Engine §11.3](engine.md#113-recipe-evaluation-and-cycles) defines dependency analysis.
-
-```jbogenbau
-%rule r := $.emitted.image :- "x"
-  | "a"
-%emits
-
-%rule s := "x" :- $.emitted.value
-  | "a"
-%emits
-```
-
-A recipe supplies a string. Both examples produce `x` on both channels. `:= $.emitted.image` without an explicit image recipe cycles through its implied image. `:= $.emitted.value ++ "x"` cycles directly. An item override leaves its constituent recipe unevaluated at runtime. Constituent cycle validation still applies before item overrides.
-
-Engine §11 defines the selected constituent dependencies.
-
-A value or image recipe on an erased rule or alternative is a document error. Diagnostic recipes remain legal there. A parent item over an erased capture emits a token with empty strings unless its item recipe supplies them. Its counted parts remain empty. An empty string recipe on a non-erased part never erases that part.
-
-Emission carriers cover disjoint input-token spans. Source overlap does not decide this rule. Two `$` items over a constituent that can consume input are an error. A `$` item beside a carrier or attachment capture that can consume input is an error. Structurally always-empty carriers can coexist.
-
-Engine §9.3 defines this conservative property across every feature configuration, ignoring conditions, tests, and erasure. `$` can stand beside inserted `ε` items.
-
-An inserted item anchors before the next covering item, skipping inserted items. For a named item, it uses the first present before-attachment or carrier. For `$`, it uses the whole constituent. Thus `%emits ε, $` anchors the insertion at the constituent's start. With no following covering item, it anchors at the constituent's end.
-
-An inserted item whose next covering item has an absent named carrier is a document error. Thus `%emits ε, $, $e` permits an absent, structurally empty `$e` because its insertion anchors at `$`. An absent attachment changes the anchor to the next present part. The inserted token's source is empty at its anchor part's source start. An empty anchor part uses the empty-node source of [engine §12](engine.md#12-the-tree). Engine §11 defines the source at constituent end.
-
-The forwarding rules above define attachment ownership by counted input tokens, independently of recipes.
+After choice, a reached expression can fail. Actual overlaps between selected output spans and incompatible verbatim claims also fail. The [engine failure order](engine.md#failure-order) gives the priority and the records that survive.
 
 ## Verbatim text
 
-A verbatim recipe returns original spelling and adjacent uncovered punctuation. `:- $.verbatim-text` belongs on the constituent that reads the body. It applies when that body emits directly and when a parent covers it. Recognition and conditions still read input values. The value channel remains independent of this image recipe.
+`.verbatim-text` reads original spelling and can include adjacent uncovered punctuation. It extends each side of the source envelope up to the neighboring token or the edge of the text. The returned string does not change the source interval or text of a token.
 
-The recipe serves quoted text, whose image keeps its written spelling. It says nothing about whether that text is grammatical in the language of the grammar. In Lojban, for example, a `zoi` body can contain valid Lojban words but still needs its written image. A non-Lojban character run of the phoneme stage takes its value from the decomposed run. Its `:- $.source-text` recipe preserves the original spelling as its image, including `klama?` in the `lojban/cll` pipeline.
-
-```jbogenbau
-%rule zoi-body :- $.verbatim-text
+```text
+%rule zoi-body → {image: $.verbatim-text}
   | zoi-part | zoi-body zoi-part
 ```
 
-In Lojban, `zoi gy. John is a man .gy.` emits one ZOI token whose image preserves the whole quote. The illustrative body recipe gives the body image `John is a man`. FOREIGN parts take their values from decomposed source text, so `John` retains its capital and spelling. The quote value joins its opener, delimiters, and body through the word grammar's spacing recipes.
-
-`.verbatim-text` extends a nonempty source envelope through adjacent uncovered text, up to neighboring stage-input tokens or text ends. Each neighbor bound limits only the extension on its own side. The method does not change the token's source or text. Different evaluated spans cannot claim the same nonempty gap. An empty span returns empty and claims nothing. Engine §11 defines overlapping and out-of-order source bounds.
-
-At a later stage, an extension can include erased or attached text that ordinary stage-input tokens no longer cover. Bundled grammars call `.verbatim-text` only in the words stage.
-
-Only evaluated selected recipes claim verbatim gaps. Erased descendants contribute nothing. An outer recursive body image recipe stops descendant image evaluation, while the value walk can still concatenate children. An item override suppresses runtime evaluation of weaker recipes. A recipe on an erased definition is a document error.
-
-A later stage that forwards a token preserves its stored value, image, text, and source. It never reapplies a verbatim recipe to later neighbors. A quote image can therefore retain punctuation outside its source interval through the entire pipeline.
+The method is late. Identical input spans share a claim. Two different spans conflict if their extensions claim the same nonempty text. Overlap of base source ranges is legal. Empty spans return an empty string and claim nothing. A hidden image writer makes no claim.
 
 ## Images
 
-Every token has an image that renderings show. The stage builds it through the selected item, alternative, or definition recipe, or concatenates child images. An explicit `:-` can preserve written spelling while `:=` supplies a normalized value. Stage-zero images equal their characters. Tags never determine images.
-
-An inserted `ε` item has an empty default image. `:= "'"` supplies an apostrophe as both value and implied image. In the `lojban/bpfk`, `lojban/experimental` and `lojban/zantufa` pipelines, for example, Cyrillic `уи` reads as `u'i`, and this keeps the inserted apostrophe visible. An explicit item `:-` overrides that implied image. The insertion still has empty source text.
+The image key is independent of the value key. For example, `{value: "a", image: "A"}` keeps a visible stress marker. `ε{image: value: "'"}` inserts a visible apostrophe with empty original text.
 
 ## Directives
 
@@ -1685,26 +1342,14 @@ A conditional declaration reads its stage input once, before that stage parses:
 %stage words
 %features sa-su
 %conditions
-  $.classes ∩ (SA SU) ≠ ∅
+  $.classes.overlaps({SA, SU})
 ```
 
-Here `$` denotes all input tokens as one span, without a constituent or a position query.
-
-Legal methods are `.tags` without an argument, `.classes`, `.value`, `.image`, `.source-text`, `.decomposed-source-text`, `.first-token`, `.tokens-after-first`, `.last-token`, `.split`, and `.ngrams`.
-
-These methods keep their usual operand types and arities. They can form chains within those types. Bare `$` reads the concatenated token values.
-
-Other methods and tree comparisons `≅` and `≇` are loading errors, even in a condition that cannot hold.
-
-The loader reports every feature-condition error at its `%features` directive.
-
-Named captures are loading errors. The presence predicate `$` is always true, including for empty input.
-
-Constants use the selected stage's binding rules. Each condition must have Boolean type, as a rule condition does.
+Here `$` denotes the stage input span. A condition can read the input strings, source, token slices, key sets and bags. It can call pure functions of those and closed constants. It cannot extend the context, restore omissions, query a grammar, test neighbors, claim verbatim text, inspect a pattern, or read a capture.
 
 A global declaration cannot have conditions. A directive other than `%features` cannot have conditions.
 
-A stage-local feature is a loading error if any surviving earlier stage tests it, including through a classifier gate. The loader reports it at the local `%features` declaration, and its message names the earlier stage.
+A stage-local feature is a loading error if any surviving earlier stage tests it, including through a gated constant entry. The loader reports it at the local `%features` declaration, and its message names the earlier stage.
 
 Two different stages cannot declare the same feature locally. The loader reports the second surviving declaration in document order, after include expansion. Repeated declarations in one stage are legal, and each evaluates in order.
 
@@ -1720,9 +1365,9 @@ The engine evaluates the declarations in order. It stops at the first declaratio
 
 An unconditional declaration respects features that the caller disables. If the caller stops before a stage, the engine never evaluates its declarations.
 
-Rules can also stand in the pipeline document itself, between its `%include` blocks. The loader stitches them in their places. A names preamble can precede the first `%stage`. A rule, a constant, a classifier, an implication or a stage-level directive before the first `%stage` is an error. So are two stages of one name and a stage with no rules.
+Rules can also stand in the pipeline document itself, between its `%include` blocks. The loader stitches them in their places. A names preamble can precede the first `%stage`. A rule, a constant or a stage-level directive before the first `%stage` is an error. So are two stages of one name and a stage with no rules.
 
-Stage selection continues across grammar blocks and include boundaries. Returning from an include does not restore the earlier selection. Replacement clears rules, constants, classifiers, implications, local feature declarations, and the ambiguity policy. It does not clear global `%features` or other stages. The loader reads every included document, but it evaluates only the surviving stage definitions. A missing ambiguity policy or an invalid final grammar gives the usual grammar error.
+Stage selection continues across grammar blocks and include boundaries. Returning from an include does not restore the earlier selection. Replacement clears rules, constants, local feature declarations and the ambiguity policy. It does not clear global `%features` or other stages. The loader reads every included document, but it evaluates only the surviving stage definitions. A missing ambiguity policy or an invalid final grammar gives the usual grammar error.
 
 By convention, each document keeps its link in the prose, and its `%include` follows in a block of its own, in the same list item. So the pipeline reads as hyperlinked prose. A block's fence can be indented by up to three spaces, so a block can stand under a list item, indented by two. The reader knows no other Markdown container.
 
@@ -1730,7 +1375,7 @@ The layout is a matter of style, and the notation does not require it. An `%incl
 
 [Stage zero](#values-and-images) supplies the first grammar's tokens, as defined at the start of this guide.
 
-`node lib/js/cli.js stitch --pipeline NAME` prints a pipeline's documents as one jbogenbau text. The command replaces every `%include` with what it stands for, and puts the global features in one `%features` at the top. It omits `%names` declarations because canonical strings need only core abbreviations and numeric escapes. It preserves local declarations and their conditions. Each run of rules from one document follows a comment naming it. A classifier stands as its author wrote it, entry by entry, and not as the table that its entries make.
+`node lib/js/cli.js stitch --pipeline NAME` prints a pipeline's documents as one jbogenbau text. The command replaces every `%include` with what it stands for, and puts the global features in one `%features` at the top. It omits `%names` declarations because canonical strings need only core abbreviations and numeric escapes. It preserves local declarations and their conditions. Each run of rules from one document follows a comment naming it. A constant retains its written entries and references.
 
 ## Ambiguity
 
@@ -1742,7 +1387,7 @@ With sealing fixed, filtering only removes parses and never adds one. Compared w
 
 Ranked choices supply seals as well as filtering. Adding or removing a seal changes the grammar. It can change outside pattern answers and therefore the unique tree.
 
-A unique or resolved verdict reaches message evaluation and emission. Errors before the reporting stage flow onward, while counted errors there give a `reported` result with tree, verdict, and output. A tie has no chosen tree or output, reports its two readings' diagnostics, and stops later stages.
+A unique or resolved verdict reaches message evaluation and any required publication. Counted errors at the reporting stage give `reported` with the chosen tree and verdict. The result retains any completed publication. A tie has no chosen tree or output, reports its two readings' diagnostics, and stops later stages.
 
 If no error counts, including pending stage-level errors, the enabled elision-only check can run. For `resolved`, it then runs even without an elision. For `unique`, it runs only with an elided node. [Elided terminators](#elided-terminators) defines the check.
 
@@ -1766,7 +1411,7 @@ Erasure resets its contribution to zero, and grammar steps see the erased root a
 
 A step's pattern is exact and local. Each node test carries the prefix `·`, so the single-child search never makes a wrapper above the named node count. The pattern holds node tests with their tag and value tests, joined by `∪`, `∩` and `∖`. A step can also name a pattern constant, as a condition does, as in `late $OMITTED` after `%const $OMITTED #·_<_Elided>`. It holds no child list, no path and no bare list, because the count of a node must depend on that node alone. The prefix belongs to one node test, so a union is written `#(·a ∪ ·b)`.
 
-A step takes name, family, call and terminal atoms, each with its tests. So a step can match three kinds of node. A rule node matches by its name, as `#·simple-tense-modal`, and a test can narrow it, as in `#·passed-step<Resumption>`. An omitted terminator is a leaf with the mark `_Elided` (see "Elided terminators").
+A step takes name, family, call and terminal atoms, each with its tests. So a step can match three kinds of node. A rule node matches by its name, as `#·simple-tense-modal`, and a test can narrow it, as in `#·passed-step<Resumption>`. The origin test `_Elided` identifies an omitted leaf (see "Elided terminators").
 
 So `#·_<_Elided>` matches every elided terminator, and `#·JI<_Elided>` matches an elided `JI` only. A written leaf matches by the terminal that read it. So `fewest #·A` prefers a parse that reads a token as `B` over one that reads it as `A`. A written leaf's tags and value are the same in every parse, so a test on `#·_` never decides between written leaves.
 
@@ -1810,7 +1455,9 @@ The engine's canonical order (engine §6) orders the ambiguity diagnostics. Amon
 - If one reads and the other closes, the step decides. `greedy` takes the one that reads, so a constituent ends as late as the grammar allows. `lazy` takes the one that closes, so a constituent ends as early as the grammar allows.
 - If both close different constituents, they are tied.
 
-Some closes are transparent to action comparison. A named production with one logical symbol has a transparent close. A spliced call's close is transparent regardless of its body. The notation also creates a transparent helper for every optional, every flat `{ }` and every ranked group, including captured optionals. So two parses that differ only in such a relabeling do not differ yet.
+A logical symbol is one symbol of an alternative as written. Each optional, each pair of flat braces, each ranked group and each splice counts as one. A capture changes no count. So `A [$b:B]` has two logical symbols, even with B absent. The count serves ranking and query priority. [Rule bags](#rule-bags) gives the separate test for a sole-symbol copy.
+
+A named production with one logical symbol has a transparent close. A spliced call's close is transparent regardless of its body. The notation also creates a transparent helper for every optional, every flat `{ }` and every ranked group, including captured optionals. So two parses that differ only in such a relabeling do not differ yet.
 
 The levels of a chain are constituents of its rule, so a level with more than one symbol is not transparent. Where `greedy` or `lazy` must see where each step of a list ends, the grammar writes a chain or explicit recursion, not flat braces.
 
@@ -1848,7 +1495,8 @@ A grammar marks each terminator that can be elided where it writes it. An elidab
 - `T` is a user tag or parameter written directly after `+`. `[+KU]` marks KU. A parameter must become exactly one bare user tag after argument conversion. A string, range, engine tag, wildcard, or rule, such as `🆓`, cannot mark an omission.
 - `T` can carry any existing symbol test. A test on a later item remains an ordinary test.
 - `T` can carry a default value, `≝` and a string after it, as in `[+JI ≝ "jie"]`. It stands after the tag and value tests of `T`. It is the value that restoration gives the terminator where the terminator is elided. It changes nothing about a written `T`. `≝` stands only on the head of an elidable optional, at most once.
-- The rest is a sequence of any primaries, or nothing. A choice or `&` in the rest stands in parentheses, as in `[+KU (A | B)]`. A `|` or `&` that joins `T` to something else is an error, because some reading of the optional then does not begin with `T`. So `[+KU | VAU]` is an error.
+- The rest is a sequence of factors, or nothing. A choice or `&` in the rest stands in parentheses, as in `[+KU (A | B)]`. A `|` or `&` cannot join the head `T` to another operand. Such a reading can begin with a different symbol. So `[+KU | VAU]` is an error.
+
 - The sole terminator can have a capture, as `[$j:+JI="jie"]`. Every other capture inside an elidable optional is an error (see "Captures").
 
 An elidable optional is an optional in every other way. It can stand anywhere that an optional can, inside braces and other optionals too. Spaces can stand between its parts, but the grammars write `[+KU 🆓]` without them. The token `++` is invalid here, so `[++T]` fails at its first plus. A separate second `+` is invalid too, as in `[+ + T]`.
@@ -1862,7 +1510,7 @@ A template can choose its terminator through a parameter:
 %rule description = terminated(sumti-tail, KU)
 ```
 
-The argument for `@End` must be one bare user tag after argument conversion. A rule name, sequence, tested argument, constant, or tag-set expression fails loading. A parenthesized single tag, such as `(KU)`, reads as that tag. Tests written on `@End` apply to the resulting terminal. The rest of the optional keeps its ordinary restrictions.
+The argument for `@End` must be one bare user tag after argument conversion. A rule name, sequence, tested argument, constant or key-set expression fails loading. A parenthesized single tag, such as `(KU)`, reads as that tag. Tests written on `@End` apply to the resulting terminal. The rest of the optional keeps its ordinary restrictions.
 
 A plain optional is never elidable, whatever it holds. So `[KU]`, `[KU | VAU]` and `[{KU}]` are ordinary optionals. Where one is absent, it counts for nothing and leaves no node, as an absent optional separator does. A grammar can read a terminator both ways: `[+KU]` in one rule and `[KU]` in another. Only the first one is elided.
 
@@ -1876,21 +1524,17 @@ A marked optional at the start of a right-chain separator follows the item's fin
 
 A marked optional immediately after its production's initial self-reference uses the prefix directly when looking for a written terminator. This covers author-written left recursion and generated list recursion. Helpers never add a named-rule cycle by themselves. [Engine §4](engine.md#4-recognition) defines these searches.
 
-A captured plain optional expands to bind captures, but retains one helper for query priority and inheritance. In `a [$b:b] [+KU]`, the optional remains the preceding symbol even when absent. The query checks both its absent and present forms for a written terminator. Adding the capture changes no ranking or query answer.
+A plain optional with captures retains one helper for query priority. In `a [$b:b] [+KU]`, the optional remains the preceding symbol even when absent. The query checks both its absent and present forms for a written terminator. Adding the capture changes no ranking or query answer.
 
 The constituent of an elided terminator can end wherever a parse of the whole text needs it to end. The ranking above chooses among the parses. In Lojban, for example, `le lojbo se farvi le loglo gi'enai mintu ja dunli le logla` parses. The `sumti-tail` of `le lojbo` ends before `se farvi`, which becomes the selbri (the main predicate). A parse with the longer `sumti-tail` `lojbo se farvi` leaves the sentence without a selbri.
 
 A language's own rule can be narrower: a terminator can be elided only if no ambiguity results. The `elision-only` check is one reading of such a rule. The directive `%elision-only` turns it on for a stage. It examines only the parse that the ranking chose.
 
-Any counted error skips the check, including carried errors and pending stage-level errors. Otherwise the enabled check runs after emission for `resolved`. For `unique`, it also runs with an elided node in the chosen parse. It skips a unique parse with no elided node. Verdicts count only best-measure readings, so worse-measure readings never start the check. Uniqueness on the original input cannot exclude another reading of the restored input.
+Any counted error skips the check, including carried errors and pending stage-level errors. Otherwise the enabled check runs after any emission for `resolved`. For `unique`, it also runs with an elided node in the chosen parse. It skips a unique parse with no elided node. Verdicts count only best-measure readings, so worse-measure readings never start the check. Uniqueness on the original input cannot exclude another reading of the restored input.
 
-With the check on, the stage restores the chosen parse's omitted terminators. In the recognition view, a restored terminator has its optional's default value (below) and the singleton tags `{T}`. Synthetic images are empty. Omitted pattern leaves still observe empty strings, whatever the default value.
+A restored terminator has its terminal key, default value and empty image. The engine resolves the default from `≝`, the equality operand or the empty string, in that order.
 
-The default value of an elided terminator is the string after `≝`. Without `≝`, it is the string of an equality test `T=s`, or else the empty string. The default serves restoration only. The string walk and emission give an elided terminator the empty string on both channels.
-
-An equality test on the head still narrows the written forms of `T`. `≝` names a restored spelling without that narrowing. A tree pattern observes an empty value and the mark `_Elided` at the omitted leaf. So a pattern can tell a written terminator from an elided one.
-
-`#JI<¬_Elided>` says written, and `#JI<_Elided>` says elided. The spelling `JI≠""` also says written, but only while no written `JI` can have an empty value.
+An equality test narrows written and omitted routes. `≝` supplies a default without narrowing written tokens. A value pattern can observe the default. `#JI<¬_Elided>` tests written origin and `#JI<_Elided>` tests omitted origin.
 
 An omission exists only when its test passes on this default value. Synthetic tokens are readable only by their terminator tag. Strings, ranges, and `_` never read them. A failed omission creates no marker or restoration record. Written tokens still use their own value and tags. All well-typed tests are legal, even when either route cannot succeed.
 
@@ -1908,13 +1552,11 @@ An inert route, one that cannot succeed, causes no special error or warning.
 | `T<>` | Always | Empty |
 | `T<T>` | Always | Empty |
 
-Here C is a resolved tag constant, and s and d are exact strings. The same omission tests apply at each marked optional. A default value that fails the terminator's own test is a document error at `≝`, because the terminator then cannot be elided. So `[+JI="jie" ≝ "jie"]` is legal, and `[+JI="jie" ≝ "jei"]` is an error. `[+T≠""]` cannot omit T, but reads a written nonempty T. `[+T<U>]` cannot omit T when U differs from T, although a written token carrying both tags can pass.
+Here C is a resolved key-set constant, and s and d are exact strings. The same omission tests apply at each marked optional. A default value that fails the terminator's own test is a document error at `≝`, because the terminator then cannot be elided. So `[+JI="jie" ≝ "jie"]` is legal, and `[+JI="jie" ≝ "jei"]` is an error. `[+T≠""]` cannot omit T, but reads a written nonempty T. `[+T<U>]` cannot omit T when U differs from T, although a written token carrying both tags can pass.
 
 Then the stage parses that input again. Each elidable optional is either restored or written. In the chosen parse's own reading, an optional that it left out is restored: it reads only its restored terminator. Another reading can start an optional from a restored terminator and read more after it, where the rest of the optional reads something.
 
-The grammar reads the text with its terminators written back. Every rule condition, tag and test sees the original input. A restored terminator has no text, no value and no tags there. So a condition answers as it did for the chosen parse, and the chosen parse remains a reading before ranked-choice filtering. A test on a terminal is the one exception: `KU="ku"` reads a written-back `KU` by its value. A test on a rule, such as `t="ku"`, sees the original input like a condition.
-
-A reconstruction is a second parse with terminators restored. These are the omitted terminators of the chosen parse. A projected span contains a constituent's original input tokens. Each restored terminator adds no token (engine §7.3).
+A reconstruction parses the chosen input with its omitted terminators restored. Its spans project to original input. A synthetic read adds no original token. A bare terminal reading one binds an omitted leaf, while a restored optional keeps its written-only capture empty.
 
 Ranked choices compare spans in the reconstructed input, including restored terminators.
 
@@ -1934,13 +1576,13 @@ The `lojban/experimental` and `lojban/zantufa` pipelines do not declare `%elisio
 
 ## Layout of the bundled grammars
 
-The bundled grammars keep a layout convention. Its purpose is that a reader sees at once where each top-level alternative of a rule ends. The notation does not require it. `tools/sync.js --check` makes sure that the bundled grammars keep the rules for alternatives and comments. The rule for tags needs judgment, so reviews check it.
+The bundled grammars keep a layout convention. Its purpose is that a reader sees at once where each top-level alternative of a rule ends. The notation does not require it. `tools/sync.js --check` makes sure that the bundled grammars keep the rules for alternatives and comments. Reviews examine the order of entries in each constructor.
 
-A plain alternative is one or more plain items in a row, with no gate and no clause. A plain item is a rule reference without arguments, a splice, a string, a tag terminal, an engine tag, `ε` or a parameter. `_<T>` with one tag `T` is also a plain item. Any other alternative is a marked alternative.
+A plain alternative is one or more plain items in a row, with no gate and no term. A plain item is a rule reference without arguments, a splice, a string, a tag terminal, an engine tag, `ε` or a parameter. `_<T>` with one tag `T` is also a plain item. Any other alternative is a marked alternative.
 
-So brackets, a call, another test, a range, a capture, a constant, `&`, `≻`, a gate or a clause makes an alternative marked. Brackets are parentheses, square brackets and braces. A bare `_` and a `_` with a test of several tags are not plain items.
+So brackets, a call, another test, a range, a capture, a constant, `&`, `≻`, a gate or a term makes an alternative marked. Brackets are parentheses, square brackets and braces. A bare `_` and a `_` with a test of several tags are not plain items.
 
-A range or a test is marked even when it is short, as in `"a".."p"` or `Letter="n"`. Each one adds visual weight, so a line of several of them reads as one dense run. `_<T>` reads as one word, so it is plain.
+A range or a test makes the alternative marked, as in `"a".."p"` or `Letter="n"`. Each one adds visual weight, so a line of several of them reads as one dense run. `_<T>` reads as one word, so it is plain.
 
 Each marked alternative stands on lines of its own, and no other top-level alternative shares them. Plain alternatives can share lines, and they can also stand one on each line. The author chooses the form that reads better. For example, a list of letters reads well on one line. Two sequences of the same shape read better one above the other, because the reader compares them item by item:
 
@@ -1950,104 +1592,48 @@ Each marked alternative stands on lines of its own, and no other top-level alter
   | initial-pair vowel consonant vowel
 ```
 
-No line of a grammar block holds more than 100 characters, counted as Unicode code points. This covers rule bodies, headers, conditions, emission items and classifier entries. An alternative can run over several lines, and each of these lines counts. A comment line does not count, because a comment stays on one line.
+No line of a grammar block holds more than 100 characters, counted as Unicode code points. This covers rule bodies, headers, conditions, emission items and constant entries. An alternative can run over several lines, and each of these lines counts. A comment line does not count, because a comment stays on one line.
 
-A line that holds only one string does not count either, because a string cannot break. A long line breaks only where it is too long. It breaks first before a clause, then between two top-level items, and only then inside a term or brackets. A value recipe breaks after a `++`.
+A line that holds only one string does not count, because a string cannot break. A string concatenation can break after `++`.
 
-An alternative, a header or an emission item can have several clauses. If they do not all fit on its line, each clause stands on a line of its own. A body or a clause that runs over several lines does not fit either. For an alternative without a `|`, the four columns count from its first item.
+If a long body line includes its term, break before the term first. Break between top-level items before breaking inside a term or bracket. If the term or its body needs several lines, put the term on a separate line. Indent it four columns past its owner. Count from the header, the alternative bar or the unbarred alternative’s first item.
 
-A clause on its own line stands four columns deeper than the start of the line that it belongs to. So the clauses of an alternative stand at column 7, four columns after its `|`. The clauses of a header stand at column 5, deeper than the `|` of the alternatives, so that they do not read as an alternative:
+End a continued condition line with its operator. In a condition list, indent its continuation two columns past the condition start. Align a guard continuation with the guard's condition. Inside brackets, continue one column past the opening bracket. Break first at the loosest operator. Indent a continuation within a tighter operand more deeply.
 
-```jbogenbau
-%rule zehei-compound
-    :: Word ∪
-       $r.classes ∪
-       ($r.tags ∩ (Cmavo ∪ Indicator ∪ Y-Letter)) ∪
-       (Fault ∩ $l.tags)
-  | $l:unit<¬Trailing-Pause> compound-gap<¬Punctuation-Material> zehei-word zei-right-gap
-    $r:nonmagic-zehei-right
+Put a long constant value two columns past its header. If a constant breaks at an operator, end the line with that operator. Use one row per entry in an ordered table. For a long child pattern, break between items and indent the continuation two columns. For an overlong bracketed choice, break before one of its own bars. If it is a bracketed sequence, split between its items. Indent either continuation past the alternative.
 
-%rule su-survivor :: $b.tags := $b.emitted.value :- $b.emitted.image
-  | sa-su? su-boundary? $b:unit<Trailing-Pause> skipped su-suffix
-  | sa-su? su-boundary? $b:unit<¬Trailing-Pause> skipped<Gap-Pause> su-suffix
-      :: Trailing-Pause
-      := $b.emitted.value ++ $PAUSE
-      :- $b.emitted.image ++ $PAUSE
+A grouped choice and a ranked group can each occupy one alternative line. For example, `("a" | "e") → {Vowel}` and `a ≻ b` each describe one alternative.
+
+```text
+%rule su-survivor
+  | ^$b:unit<Trailing-Pause> skipped su-suffix
+  | ^$b:unit<¬Trailing-Pause> skipped<Gap-Pause> su-suffix
+      → {Trailing-Pause, value: $b'value ++ $PAUSE, image: $b'image ++ $PAUSE}
+%emit
+  $b
 ```
 
-The header of `su-survivor` fits on its line, so its clauses stay there.
+Keep the written order of constructor entries. For a long constructor or list, put one entry on each line. Apply the same break rules to output items.
 
-A tag term that runs over several lines ends each line with its `∪`. Its next operand stands in the column of its first operand:
+A statement term can hold entries common to its alternatives. If an alternative needs a child's whole bag, mark that child as its primary. A statement term prevents an implicit sole-symbol copy.
 
-```jbogenbau
-%rule runs
-  | run
-  | $p:runs pause-run $r:run
-      :: $r.tags ∪
-         (RAhOI ⊆ $p.tags ∧ $r.parse(only-hesitation) ⟹ RAhOI)
-      := $r.value
+A comment on a whole definition stands on its own lines before the definition. A comment on one alternative or entry goes on its own lines immediately before that part. Keep comments off header and alternative lines. A comment between a header and the first alternative or entry describes that part.
+
+Before factoring shared bodies, gates or terms, make sure that the result preserves bindings, writes, primary selection and reading order. A shared header term applies before every alternative term. If a moved term suppresses the plain symbol copy, keep a primary. If grouping preserves the result, combine adjacent bodies with matching gates and terms. If an identical first or last item can move without changing bindings, put it outside the group. Put a sole alternative after a bare header without a leading bar.
+
+If grouping alters the meaning or order of table rows, keep them separate. The following fragment groups two spellings on each row and preserves the complete vowel's bag through a primary.
+
+```text
+%rule accented-full-vowel → {Vowel}
+  | ("a" | "A") stress-mark → {value: "a", image: "A"}
+  | ("e" | "E") stress-mark → {value: "e", image: "E"}
+
+%rule stressed-vowel → {Stressed}
+  | ^accented-full-vowel
+  | ("y" | "Y") stress-mark → {value: "y", image: "Y"}
 ```
 
-A long condition breaks in the same way, outside brackets too. This covers the guard of a tag term. Each line ends with its operator. In a list of conditions, the next line stands two columns deeper than the start of the condition. So it does not read as a new condition. In a guard, the next line stands in the column where the condition begins.
-
-Inside brackets, a long condition or term breaks in the same way too. Each line ends with its operator, such as `∧`, `∨`, `⟹` or `∪`. The next line stands one column after the opening bracket, so that the nesting shows.
-
-A long condition breaks first at its loosest operator. Then each part of that operator can stand on a line of its own, as in a table. A part of a tighter operator that must wrap stands deeper than the line that starts it. The break rules cover emission items too.
-
-A long constant puts its value on the lines after its header, two columns deeper than the header. Where the value breaks at an operator, each line ends with that operator. A table of items without operators, such as a list of strings, puts one row on each line. A long pattern breaks between two items of a child list. Its continuation stands two columns deeper than the line where the pattern starts.
-
-The rules for tag terms below cover the top level of the tag term of a clause or an emission item. Inside brackets, in constants and in conditions, tags keep their `∪`. A term with a top-level `∖` keeps its written order, because a difference does not commute.
-
-A tag term lists its parts in a fixed order. Bare tags come first, as one run without `∪`, as in `:: Gismu Onset`. Expressions without a guard come next, such as `$x.tags`. Guarded expressions come last.
-
-If a term has two or more expressions, each expression stands on a line of its own. A run of tags and one expression can share a line, as in `:: Word Cmavo ∪ $c.tags`. Where each part stands on a line of its own, the author can order the expressions by what they mean. For example, the part that carries a state tag can stand beside the part that sets it.
-
-The bare tags still come first.
-
-If a bracketed part alone is too long for one line, it breaks before one of its own `|` separators. A bracketed sequence without `|` breaks between two of its items. The continuation then stands deeper than the alternative, so that it does not read as a new alternative.
-
-The convention covers only the top-level alternatives of a rule. A choice inside a group, and the options of a ranked choice, can stand on one line. So `("a" | "e") :: Vowel` and `a ≻ b` are each one alternative.
-
-```jbogenbau
-%rule plain-vowel :: ∅
-  | ("a" | "e" | "i" | "o" | "u") :: Vowel
-  | "y"
-```
-
-A comment on a whole definition stands on its own lines before the definition. This covers rules, templates, constants and classifiers. A comment on one alternative or one entry stands on its own lines before it. A comment does not follow a rule header or an alternative on the same line.
-
-A comment between a header and the first alternative or entry describes that alternative or entry. So a comment on the whole definition does not stand there. The check sees only where a comment stands, and the author decides what it describes.
-
-```jbogenbau
--- A glide stands before a vowel or a diphthong.
-%rule glide
-  "i" | "u"
-```
-
-Alternatives do not repeat a clause that they share. This covers tag, value and image clauses. Tags that every alternative carries stand on the header, because header tags and alternative tags are unioned. Each alternative then keeps only the tags that not every alternative carries.
-
-A value or an image that most alternatives share can stand on the header as the default. An alternative with its own recipe overrides it. A sole alternative keeps its clauses after its body, except where its body is a ranked choice. Under a bare header, a sole alternative stands without a leading `|`.
-
-If adjacent alternatives share a clause and have the same other clauses, a group holds their bodies, and the clauses follow the group. Bodies that share a first or last part keep that part outside the group. A gate that the alternatives share stands before the group, as in `f? ("a" | "b") :: T`. Alternatives with different gates stay apart.
-
-A repeated tag can show that a rule mixes two kinds of constituent, and that the tag marks one of the kinds. A tag of this kind says what a constituent is. For example, `Vowel` marks `a`, `e`, `i`, `o` and `u` as against `y`. Then a rule of its own holds the kind that carries the tag, and that rule's header carries it. In the Latin letters, each stressed vowel has its own value and image, so a group cannot hold the tag. So the five tagged vowels form a rule of their own:
-
-```jbogenbau
-%rule accented-full-vowel :: Vowel
-  | ("a" | "A") stress-mark := "a" :- "A"
-  | ("e" | "E") stress-mark := "e" :- "E"
-  | ("i" | "I") stress-mark := "i" :- "I"
-  | ("o" | "O") stress-mark := "o" :- "O"
-  | ("u" | "U") stress-mark := "u" :- "U"
-
-%rule stressed-vowel :: Stressed
-  | accented-full-vowel :: Vowel
-  | ("y" | "Y") stress-mark := "y" :- "Y"
-```
-
-The outer alternative writes `:: Vowel` again, because a header tag clause stops a single symbol from passing on its tags (see "Tags"). This is one clause on one alternative, not a repeated clause. A split can change the order of the alternatives. If no input matches two of the moved alternatives, their order changes no reading. It changes only the production numbers that a witness records.
-
-Alternatives repeat a shared tag clause in two cases. The first is a table whose rows have their own value or image clauses. There, a tag that marks a form of each letter stays on its rows. `Stressed`, `Capital`, `Folded` and `Accented` mark such forms, and every letter has the same forms. The Latin diphthong letters and `folded-full-vowel` are examples. The second is where a group changes the order of alternatives that one input can match.
+Each row of `accented-full-vowel` has its own pair of strings. The primary on the first `stressed-vowel` alternative keeps both strings and `Vowel`.
 
 ## Railroad diagrams
 
@@ -2068,7 +1654,7 @@ The diagrams draw the notation in this way:
 - `A & B & C` is the choice of the item where the subsequence begins, with every later item optional. So `A & B` is `A [B]` or `B`.
 - The gates of an alternative stand over the start of its track, such as `¬cbm?` or `cbm?`. `ε` is a bare track.
 
-A diagram shows only what a rule reads. It leaves out the captures, the tag terms and the clauses. A capture only names a part and changes no rule interpretation. Tags, recipes, emission, and erasure describe the parts' contributions, not which tokens the rule reads.
+A diagram shows what a rule reads. It leaves out capture labels, primary marks and clauses. A primary changes bag construction and presentation without adding a recognition step.
 
 A condition can reject a reading that the diagram shows. So a diagram shows what a rule reads before its conditions, and the diagram of a rule with conditions says "conditions apply" beside its name. The diagram of an `%extend-rule` shows only the alternatives that it adds. It says "conditions apply" when the extension adds conditions of its own.
 

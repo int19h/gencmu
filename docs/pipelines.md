@@ -69,13 +69,13 @@ Use example filenames that do not clash with your own files. The commands below 
 
    ```jbogenbau
    %extend-stage forms
-   %classifier lexicon
-     "ki'ei" ∈ KIhEI
+   %redefine-const $LEXICON {*$LEXICON, KIhEI: "ki'ei"}
+
    ```
    EOF
    ````
 
-   `%extend-stage forms` selects the grammar that assigns word classes. The words stage applies the magic words. `%classifier lexicon` adds KIhEI to the normalized value `ki'ei`.
+   `%extend-stage forms` selects the grammar that assigns word classes. The redefinition adds KIhEI to the lexicon. The forms output mask includes `*$LEXICON.keys`, which permits the new class.
 
    CLL already accepts this word form. The later stages carry its class to syntax.
 
@@ -105,7 +105,7 @@ Use example filenames that do not clash with your own files. The commands below 
 
    A tag is a named mark on a token. Make sure that KIhEI appears in the forms output. Read `value` for comparisons and `image` for visible spelling.
 
-   Keep lexicon keys lowercase. Use a straight apostrophe in those keys.
+   Use lowercase Lojban spellings as the values. Write a straight apostrophe in those spellings. Keep the class name `KIhEI` as shown.
 
 3. Add the syntax construct.
 
@@ -406,40 +406,32 @@ Use example filenames that do not clash with your own files. The commands below 
 
 Use string terminals for exact characters and ranges for scalar intervals. Use stored engine tags for Unicode properties. A scalar value is a Unicode code point outside surrogates. `_` reads any ordinary token.
 
-```jbogenbau
-%rule consonant :: ∅
-  | "b"
-  | "B" := "b"
-  | "б" := "b"
-%emits
+```text
+%rule consonant
+  | "b" → {image: value: "b"}
+  | "B" → {image: value: "b"}
+  | "б" → {image: value: "b"}
+%emit
 
 %rule digit-0
   "0"
-%emits
-  $ :: ∅ := "n", ε :: ∅ := "o"
+%emit
+  ${image: value: "n"}, ε{image: value: "o"}
 ```
 
-`:: ∅` stops inheritance of the child's tags, engine tags included. `:=` sets both strings unless a stronger explicit image recipe applies. The second digit phoneme is an inserted token with empty source text. Never emit two covering tokens over the digit's input span.
+The consonant term gives both strings and stops the sole-symbol copy. The second digit phoneme is an insertion with empty source text. Place each nonempty cover once in the output.
 
-Engine tags belong to stage-zero tokens. Grammars forward or filter them but never introduce them. An engine tag can stand in a tag test, a pattern, a condition, and a body terminal. `_General_Category_Uppercase_Letter ⊆ $c.tags` tests membership. `:: $c.tags ∩ _General_Category_Uppercase_Letter` filters inherited membership.
+An engine membership comes from an input token. Copy or select it from an existing source. For example, `*$c.select({_General_Category_Uppercase_Letter})` keeps the key where the captured character has it.
 
-A tag-set constant cannot hold an engine-tag literal, even inside a filter. Neither side of `%implies` can name one. Classifiers and elidable terminators cannot assign them. [Engine §1](engine.md#engine-tag-provenance) defines `lit` for nested filters.
+Stage zero decomposes accented letters into base letters and combining marks. An extension supplies its own term and emission directive.
 
-Stage zero decomposes the text, so an accented letter arrives as its base and a combining mark.
-
-An `%extend-rule` takes its own header clauses, never those of the base definition. This stressed mapping supplies its tag explicitly:
-
-```jbogenbau
+```text
 %extend-rule stressed-vowel
-  | "A" "‹U+0301›" :: Stressed := "a" :- "A"
-%emits
+  | "A" "‹U+0301›" → {Stressed, value: "a", image: "A"}
+%emit
 ```
 
-The value recipe supplies the plain vowel. The image recipe keeps visible stress. The `Stressed` tag alone carries stress information for later recognition.
-
-The extension also supplies its own `%emits`. A two-symbol alternative inherits no tags. Without `:: Stressed`, later stages read the vowel as unstressed. Make sure that phoneme fixtures cover both the tag and the image.
-
-A one-symbol mapping, such as `"B" := "b"`, inherits `_General_Category_Uppercase_Letter` and `_General_Category_Letter` from its input character. Such a consonant extension needs `:: ∅` to stop inherited engine tags.
+The value supplies the plain vowel. The image keeps visible stress. If a later stage reads `Stressed`, include it in the output mask.
 
 ## Phoneme values and stress
 
@@ -449,63 +441,51 @@ A stressed vowel has its plain lowercase value and the `Stressed` tag. Its image
 
 The `syllable-break` rule in [the strict Latin grammar](../grammars/lojban/cll/latin.md) reads `commas`. Its covering emission sets the comparison value:
 
-```jbogenbau
+```text
 %rule syllable-break
-  commas
-%emits
-  $ :: Syllable-Break := "" :- ","
+  commas → {Syllable-Break, value: "", image: ","}
+%emit
 ```
 
 The token retains the comma run as its text and source. Its empty value does not erase it. The forms stage receives phoneme values directly.
 
-## Place recipes for parents
+## Supply properties to parents
 
-A covering parent runs a string walk through its children. That walk uses child constituent recipes but skips child emission lists. An item recipe serves only its directly emitted token.
+A parent reads a child's working bag. If a parent needs a property, put it in the child's rule term. A braced emission item changes only the new node that it selects.
 
-The following child emits `x` alone. Its parent emits `ab` over input `ab`:
+When the child emits, its projection publishes `x`. The parent over `ab` reads the child's ordinary value and publishes `ab`.
 
-```jbogenbau
+```text
+%const $DEFAULTS $n ↦ {value: $n.children!'value.join(), image: $n.children!'image.join()}
+%const $OUTPUTS {}
+%ambiguity-resolution greedy
+
 %rule text
   child | parent
 
 %rule child
   "a"
-%emits
-  $ := "x"
+%emit
+  ${image: value: "x"}
 
 %rule parent
   child "b"
-%emits
+%emit
 ```
 
-When the parent must also receive the recipe, put it on the child definition:
-
-```jbogenbau
-%rule text
-  child | parent
-
-%rule child := "x"
-  | "a"
-%emits
-
-%rule parent
-  child "b"
-%emits
-```
-
-This parent emits `xb`. An alternative recipe serves only that alternative. An item override remains strongest for its own token. Use `.emitted.value` or `.emitted.image` to read a reconstructed child. Name the channel explicitly in every recipe.
+To give the parent the value `x`, place `→ {image: value: "x"}` on the child alternative. The parent then publishes `xb`.
 
 ## Quote images
 
-[The word stream](../grammars/lojban/common/stream.md#quotes) defines quote values, images, and boundaries. Its [raw payload rules](../grammars/lojban/common/stream.md#raw-payloads) explain verbatim images and `.emitted.image`.
+[Raw payload rules](../grammars/lojban/common/stream.md#raw-payloads) use verbatim text for quote images. Read a child's computed image with `'image`.
 
 ## Carry decisions through tags
 
-The gap-tag invariant governs facts that recipes cannot inspect. If a recipe needs a branching decision, compute that fact during recognition and carry it upward as a tag. State the tag's origin, forwarding rules, readers, and end in grammar prose.
+If a parent needs a recognition decision, give it a key. State where the key originates, which rules copy it and which rules read it.
 
 [The spacing rules](../grammars/lojban/common/stream.md#spacing-and-hesitation) define `Gap-Pause` and its surviving pauses. [The compound rules](../grammars/lojban/common/stream.md#compounds) define the origin, forwarding, readers, and end of `Trailing-Pause`.
 
-Do not replace a disjunctive condition with overlapping alternatives. A token can carry both tested classes and then acquire two derivations. Use a condition such as `$b.classes ∩ $SU-STOPS ≠ ∅` for any-of membership.
+Use `$b.classes.overlaps($SU-STOPS)` for any-of membership. Two overlapping alternatives can produce two derivations for one token.
 
 ## Rules of the words stage
 
@@ -523,9 +503,11 @@ If your change differs from the kihei example, use these approaches.
 
 If your word fails before forms, change the phoneme stage first. If forms rejects its shape, change the forms rules.
 
-If you change an existing classification, remove its earlier class with `∉`.
+If you move a spelling between classes, redefine `$LEXICON` with `%redefine-const`. Keep the existing entries by splatting the previous version. If both class entries are lists of strings, remove the spelling from the old list and append it to the new list.
 
-Add its replacement class with `∈`.
+```text
+%redefine-const $LEXICON {*$LEXICON, OLD: $LEXICON'OLD ∖ "ji", NEW: [*$LEXICON'NEW, "ji"]}
+```
 
 ### Add or replace alternatives
 
@@ -533,7 +515,7 @@ An alternative is one possible body of a rule. If you need only another alternat
 
 Put the extension in that rule's stage.
 
-A clause specifies tags, conditions, or output. `%extend-rule` adds alternatives. It does not copy the original clauses onto them.
+A term supplies bag entries. A clause can state conditions or select output. `%extend-rule` adds alternatives. It does not copy the original clauses onto them.
 
 The notation cannot remove one alternative. If you need that change, replace the complete rule with `%redefine-rule`.
 
@@ -553,11 +535,11 @@ Use `--feature name` to enable a feature. Use `--no-feature name` to disable it.
 
 To report an addition, put its body in a `%warning` rule named by its code. Splice that rule where the body belongs, as `*name`. Put conditions that read its captures in that rule too.
 
-Give `%warning` one message recipe after `%conditions`. Put `%suppress-warnings` after the diagnostic and before `%emits` or `%erased`.
+Give `%warning` a string expression after `%conditions`. Put `%suppress-warnings` before `%emit` or `%erased`.
 
-A warning changes no accepted reading or chosen tree. Callers enable or disable its code with the feature controls. `%suppress-warnings code` suppresses it within one subtree, and `_` suppresses all warning codes.
+Switching a warning on changes no ranking. A reached warning message can fail after the engine chooses a reading. Callers enable or disable its code with the feature controls. `%suppress-warnings code` suppresses it within one subtree, and `_` suppresses all warning codes.
 
-For invalid constructs, use `%error` only for messages that add information or state the default rejection more briefly. The engine prefers least source blame, then fewest sourceless errors, then most total errors, before grammar ranking. Earlier stages emit and continue despite chosen errors. A reported result keeps the chosen tree, verdict, and reporting-stage output.
+For invalid constructs, use `%error` only for messages that add information or state the default rejection more briefly. The engine prefers least source blame, then fewest sourceless errors, then most total errors, before grammar ranking. Earlier publishing stages can continue after chosen errors. A reported result keeps the chosen tree, verdict and any completed publication. For a tree-only last stage, the loader inspects `%emit` clauses and the audit notes them. The engine skips those clauses at runtime.
 
 Use `--` for comments inside grammar blocks. A comment ends at LF, CRLF, CR, or the file end. A string retains literal `--`. The notation has no block comment form.
 
