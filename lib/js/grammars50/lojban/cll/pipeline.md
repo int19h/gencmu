@@ -87,7 +87,7 @@ If a run divides into no words, the stage hands the run on as one foreign token.
 
 The stage receives the source words and hands on the words of the text. It rejects a foreign run, except in a foreign quote or after `fa'o`. For the magic words, the stage is lazy: it ends each constituent as early as the grammar allows. So each magic word acts on what exists when the stage reads it.
 
-A cmavo such as `ka'y` uses `y` as a vowel beyond the forms that CLL gives. The warning code `y-cmavo` is off by default. With that code on, the stage reports one warning for each such word that it reads as Lojban.
+A cmavo such as `ka'y` uses `y` as a vowel beyond the forms that CLL gives. The warning code `y-cmavo` is off by default. With that code on, the stage reports one warning for each such word that it reads as Lojban and that survives erasure.
 
 The feature `sa-su` controls `sa` and `su`. The words stage enables it when any input token has class SA or SU.
 
@@ -159,7 +159,8 @@ The pipeline chooses `late #·_<_Elided>` and `%elision-only` to fit CLL's conve
 
 The format 49 copy of this pipeline is `grammars/lojban/cll/pipeline.md`. Its stages and features are the same. The deliberate changes are those that its documents list.
 
-- [Indicators](indicators.md#differences-from-the-format-49-grammar): a leading attitudinal with its `nai` is one token, and a token covers its satellites. The indicators stage is the first stage that differs.
+- [The word stream](../common/stream.md#differences-from-the-format-49-grammar): a y letteral, as in `.y. bu`, carries no `Y-Key` or `Ieho`. The words stage is the first stage that differs for it.
+- [Indicators](indicators.md#differences-from-the-format-49-grammar): a leading attitudinal with its `nai` is one token, and a token covers its satellites. The indicators stage is the first stage that differs for these.
 - [Syntax](syntax.md#differences-from-the-format-49-grammar): the rule `indicator` reads no `NAI`, because the indicators stage hands on the pair as one token.
 
 The other documents hand on the same tokens as their format 49 copies. Their closing sections name the differences inside a stage, which no later stage reads.

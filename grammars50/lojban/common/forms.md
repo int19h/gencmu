@@ -25,7 +25,7 @@ The `lojban/cll` pipeline stitches [../cll/shapes.md](../cll/shapes.md) and [../
 
 The stage joins the strings of each rule's children by default. So a word's value and image are the values and images of its phonemes, in order. A rule that needs another string writes it.
 
-The public keys are the keys of the phoneme stage, every class of the lexicon, and the tags that this stage writes. The words stage reads them. The two splats name the keys of the input and the classes of the stitched lexicon, so a pause tag or a class of another lexicon needs no name of its own. A layer that writes a new tag adds it with `%redefine-const`.
+The public keys are the keys of the phoneme stage, every class of the lexicon, and the tags that this stage writes. The words stage reads them. The two splats name the keys of the input and the classes of the stitched lexicon. A pause tag or a class of another lexicon needs no name of its own. A layer that writes a new tag adds it with `%redefine-const`.
 
 ```jbogenbau
 %const $DEFAULTS $n ↦ {value: $n.children!'value.join(), image: $n.children!'image.join()}

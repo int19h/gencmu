@@ -198,11 +198,11 @@ A `gek-sentence` joins two subsentences in forethought. The gek can contain a te
 The gek-sentence's tail terms follow the whole connection and apply to both sides.
 
 ```jbogenbau
-%const $STAG-TAG #tag ∖ #(⋮ (FIhO ∪ free))
+%const $STAG-TAG #(tag ∖ ⋮ (FIhO ∪ free))
 %const $KE-UNIT #⁅ KE ⋯ KEhE [🆓] ⁆
 %const $KE-SELBRI #⁅ [$STAG-TAG] $KE-UNIT ⁆
 %const $KE-GEK #⁅ [$STAG-TAG] KE [🆓] gek-sentence KEhE [🆓] ⁆
-%const $KE-TAIL #⁅ $KE-SELBRI tail-terms ⁆ ∪ $KE-GEK
+%const $KE-TAIL #(⁅ $KE-SELBRI tail-terms ⁆ ∪ $KE-GEK)
 %const $WRITTEN-KE-UNIT #⁅ KE ⋯ KEhE<¬_Elided> [🆓] ⁆
 %const $WRITTEN-KE-SELBRI #⁅ [$STAG-TAG] $WRITTEN-KE-UNIT ⁆
 %const $WRITTEN-VAU #⁅ [terms] VAU<¬_Elided> [🆓] ⁆
@@ -1039,7 +1039,7 @@ The format 49 copy of this grammar is `grammars/lojban/cll/syntax.md`. This gram
 
 - `indicator` reads `UI | CAI | DAhO | FUhO`. The format 49 rule reads `(UI | CAI) [NAI] | DAhO | FUhO`. The [indicator stage](indicators.md) hands on a leading attitudinal and its `nai` as one token, as it does after a word. So `ui nai mi klama` gives this stage one `UI` token before `mi`, where the format 49 stages give `UI` and `NAI`. The syntax tree has one indicator leaf there instead of an indicator node over two leaves.
 
-The patterns `$WRITTEN-KE-UNIT` and `$WRITTEN-VAU` test the written origin of KEhE and VAU with `<¬_Elided>`. The format 49 patterns test a nonempty value. A written KEhE or VAU always has a nonempty value, and an omitted one has the empty default, so both tests select the same leaves.
+The patterns `$WRITTEN-KE-UNIT` and `$WRITTEN-VAU` test the written origin of KEhE and VAU with `<¬_Elided>`. The format 49 patterns test a nonempty value. A written KEhE or VAU from the indicator stage always has a nonempty value, and an omitted one has the empty default. So both tests select the same leaves on text input.
 
 [^cll-s19-5]: [CLL 1.1, section 19.5](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-questions-and-answers.html).
 

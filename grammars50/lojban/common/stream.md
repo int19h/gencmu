@@ -34,14 +34,14 @@ The rule `empty` reads a prefix that leaves no units. Its alternatives use `text
 
 The stage defaults join the values and the images of the children of each rule. So a rule without its own strings spells what its parts spell, and an erased part adds nothing.
 
-`$OUTPUTS` passes on every key of the forms stage. It adds `Y-Letter`, the mark of a y letteral. The other keys of this stage stay inside it, `Fault` and `letter` among them.
+`$OUTPUTS` passes on every key of the forms stage. It also names each public tag that the rules of this stage write on the units they build. These tags are `Word`, `Cmavo`, `BY`, `BRIVLA` and `Y-Letter`. So the interface does not depend on the keys that the input happens to carry. The other keys of this stage stay inside it, `Fault`, `LEhU` on a fault and `letter` among them. A surviving fault makes `text` reject the stream, so no fault unit is handed on.
 
 The rule `stream` gives each stretch of the stream the keys of all its surviving units. So `text` can reject a stream in which a fault survives.
 
 ```jbogenbau
 %ambiguity-resolution lazy
 %const $DEFAULTS $n ↦ {value: $n.children!'value.join(), image: $n.children!'image.join()}
-%const $OUTPUTS {*$INPUTS, Y-Letter}
+%const $OUTPUTS {*$INPUTS, Word, Cmavo, BY, BRIVLA, Y-Letter}
 
 %rule text
   | empty [faho-group]
@@ -198,7 +198,7 @@ The shared reader reads a cmavo, brivla, cmevla, or the y letteral. A cmavo is a
 
 Every cmavo read in this shared reader uses `cmavo-token`. The replacement-quote closer of `grammars/lojban/common/lohai.md` reads `LEhAI` directly to preserve its specific expectation.
 
-Only the `zei-spelling` test reads `Cmavo` directly, and it matches one spelling. CLL is *The Complete Lojban Language*. The CLL word family adds optional word-form warnings in `cmavo-token`. `brivla-token` and `cmevla-token` likewise let a pipeline warn on a predicate word or name. A word read in the chosen derivation keeps its warning. A later eraser does not remove that warning.
+Only the `zei-spelling` test reads `Cmavo` directly, and it matches one spelling. CLL is *The Complete Lojban Language*. The CLL word family adds optional word-form warnings in `cmavo-token`. `brivla-token` and `cmevla-token` likewise let a pipeline warn on a predicate word or name. A warning travels on the unit that holds the word. An eraser that removes the word or its unit drops the warning.
 
 A failed words stage publishes no warnings from that stage. A successful stage keeps warnings from its chosen derivation. Raw quote bodies and the suffix after active `fa'o` supply no word reads.
 
@@ -721,7 +721,7 @@ The right word of ZEI executes no operation. Thus `.abu zei bu` has a literal BU
 
 The constructors can repeat and combine without exposing their operands. Each result keeps any fault of its base. SI erases the complete result as one unit.
 
-Erased regions and ordinary hesitation can separate an operand from its operator. The compound's value and image omit these regions. Its text retains the original source span, including erased words. Their warnings still belong to the chosen derivation.
+Erased regions and ordinary hesitation can separate an operand from its operator. The compound's value and image omit these regions. Its text retains the original source span, including erased words. Erasure drops any warning from those regions.
 
 `compound-gap` reads erased regions through `skipped`. Complementary `Gap-Pause` tests contribute one space or no string. `zei-right-gap` supplies the gap before ZEI's right word without executing erasure. ZEI rejects `Punctuation-Material` in both gaps. Ignored comma-like characters remain spacing. Each gap keeps the keys of its `skipped` part as its primary, so ZEI can test them.
 
@@ -1005,9 +1005,9 @@ The Zantufa lexicon in `grammars/lojban/zantufa/lexicon.md` gives `zei` class SI
 
 ## Differences from the format 49 grammar
 
-The format 49 copy of this document is `grammars/lojban/common/stream.md`. This document accepts the same texts and hands on the same tokens, with the same values, images and public keys.
+The format 49 copy of this document is `grammars/lojban/common/stream.md`. This document accepts the same texts and hands on the same tokens, with the same values and images. The public keys are the same, except on a y letteral.
 
-The tokens carry the public keys that `$OUTPUTS` names: the keys of the forms stage and `Y-Letter`. The format 49 tokens of a y letteral also carry `Y-Key` for `y` or `Ieho` for `ie'o`. Here these two tags are gone, because no stage reads them. A y letteral keeps its letter in the private key `letter`.
+The tokens carry the public keys that `$OUTPUTS` names: the keys of the forms stage and the five tags that this stage writes. The format 49 tokens of a y letteral also carry `Y-Key` for `y` or `Ieho` for `ie'o`. Here these two tags are gone, because no stage reads them. A y letteral keeps its letter in the private key `letter`.
 
 The closing test of a y letteral delimiter compares `letter` on the two delimiters. The format 49 copy compares their key sets without the word marks. Both tests need a key on the opening delimiter. The forms stage always hands on a lone `y` before `bu`, so `y-key` always gives the key.
 

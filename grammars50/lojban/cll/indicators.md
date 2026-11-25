@@ -107,7 +107,7 @@ An indicator run after a word attaches each of its indicators, `fu'e` included, 
 
 The spliced `indicator-step` shares the optional `fuhe` prefix and adds no named tree node.
 
-The rule `attitudinal-nai` reads the pair. Its primary is the attitudinal word, with the `ba'e` run before it and the `nai` after it as satellites. The `nai` has its own `ba'e` run before it as a satellite. So `mi ba'e ui nai klama` gives `ui` with `ba'e` before it and `nai` after it, and `mi ui ba'e nai klama` gives `nai` with `ba'e` before it. The image of `ui` is `ui` in both.
+The rule `attitudinal-nai` reads the pair. Its primary is the attitudinal word, with the `ba'e` run before it and the `nai` after it as satellites. The `nai` has its own `ba'e` run before it as a satellite. So `mi ba'e ui nai klama` gives `ui` with `ba'e` before it and `nai` after it. And `mi ui ba'e nai klama` gives `nai` with `ba'e` before it. The image of `ui` is `ui` in both.
 
 ```jbogenbau
 %rule indicator-run
@@ -252,7 +252,7 @@ The Magic Words proposal says that `ba'e` "marks the following word but does not
 
 The format 49 copy of this document is `grammars/lojban/cll/indicators.md`. Two changes are deliberate.
 
-A leading `ui nai` is one token here, as it is after a word. The format 49 copy hands on `ui` and `nai` as two tokens, and its syntax reads `UI NAI`. The two words have one meaning, so they form one unit wherever they stand. The first stage that differs is this stage, which hands on one token where the format 49 copy hands on two. The syntax rule `indicator` therefore reads no `NAI` ([the CLL grammar](syntax.md)).
+A leading `ui nai` is one token here, as it is after a word. The format 49 copy hands on `ui` and `nai` as two tokens, and its syntax reads `UI NAI`. The two words have one meaning, so they form one unit wherever they stand. For a leading pair, this stage is the first stage that differs: it hands on one token where the format 49 copy hands on two. The syntax rule `indicator` therefore reads no `NAI` ([the CLL grammar](syntax.md)).
 
 A token covers its word with its satellites. Its place therefore runs from its first `ba'e` to its last indicator. In `mi cusku zo SINdarin ui`, the quote token covers the quote and `ui`, and its core is the quote alone. The format 49 token covers only its word, and lists its attachments beside it.
 

@@ -6,9 +6,9 @@ The rules follow *The Complete Lojban Language* (CLL). A cmavo is a particle, a 
 
 The word forms admit a cmavo with `y` as one more vowel unit. Examples are `ka'y` and `ky'a` ([morphology.md](morphology.md)). The forms stage gives each such word the tag `Cmavo-Warning`. A tag is a capitalized key of a token's bag.
 
-This stage reads the word through the spliced warning rule `y-cmavo`. The splice is the sole symbol of its alternative, so `cmavo-token` takes the whole bag of the word in either case. The stage always reads the word. A caller who enables the warning code `y-cmavo` gets a warning for each such word.
+This stage reads the word through the spliced warning rule `y-cmavo`. The splice is the sole symbol of its alternative, so `cmavo-token` takes the whole bag of the word in either case. The stage always reads the word. A caller who enables the warning code `y-cmavo` gets a warning for each such word that survives erasure.
 
-The stage gives the warning where it reads the word as a Lojban word. That is, the word can be a word of the text, a quoted word, or a word inside `lo'u ... le'u`. It can also be either `zoi` delimiter or an operand of `zei`, erased or not. Each delimiter warns when it is a `y`-cmavo. The warning is absent for the word inside a `zoi` body or after `fa'o`, because the stage does not read that word as Lojban.
+The stage gives the warning where it reads the word as a Lojban word. That is, the word can be a word of the text, a quoted word, or a word inside `lo'u ... le'u`. It can also be either `zoi` delimiter or an operand of `zei`, when its unit survives erasure. An eraser that removes the unit drops the warning. Each delimiter warns when it is a `y`-cmavo. The warning is absent for the word inside a `zoi` body or after `fa'o`, because the stage does not read that word as Lojban.
 
 ```jbogenbau
 %redefine-rule cmavo-token
