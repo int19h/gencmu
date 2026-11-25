@@ -1,4 +1,3 @@
-import { EmptyStageError } from "../errors.js";
 import { resolvePath } from "../markdown.js";
 import { UnicodeTable } from "../unicode.js";
 import { isVisibleKey } from "./bridge.js";
@@ -15,11 +14,15 @@ export declare const BUNDLE_50: Readonly<{
  * Reads the bootstrap: the DOMs of the notation pipeline.
  * @param {string} text
  * @returns {Map<string, any>} each document's entry
+ * @param {any} unicode
  */
 export declare function readBootstrap50(text: string, unicode: any): Map<string, any>;
 /**
  * Validates a DOM that did not come from the reader: a cache entry or a
  * supplied DOM. Every template argument record carries its position.
+ * @param {any} dom
+ * @param {any} path
+ * @param {any} unicode
  */
 export declare function validateStoredDom(dom: any, path: any, unicode: any): void;
 export declare class Loader50 {
@@ -46,6 +49,7 @@ export declare class Loader50 {
      * @param {(path: string) => string | undefined} read
      */
     constructor(read: (path: string) => string | undefined);
+    /** @param {any} path */
     need(path: any): string;
     /** The notation reader, built from the bootstrap alone. */
     notation(): Pipeline50;
@@ -61,9 +65,18 @@ export declare class Loader50 {
         names?: any;
         dom: any;
     };
+    /** @param {any} file */
     namesResource(file: any): string;
-    /** The DOM of a document, read from its source. */
+    /**
+     * The DOM of a document, read from its source.
+     * @param {any} path
+     * @param {any} inherited
+     */
     documentDom(path: any, inherited: any): any;
+    /**
+     * @param {any} path
+     * @param {any} inherited
+     */
     findDom(path: any, inherited: any): any;
     /**
      * Uses the entries of an optional cache whose fingerprints match this
@@ -71,6 +84,7 @@ export declare class Loader50 {
      * @param {any} data
      */
     usePreparsed(data: any): void;
+    /** @param {any} path */
     loadPreparsed(path: any): void;
     /**
      * Supplies the DOM of a document in place of its source.
@@ -83,6 +97,10 @@ export declare class Loader50 {
      * @param {string} path
      */
     pipeline(path: string): Pipeline50;
+    /**
+     * @param {any} path
+     * @param {any} domOf
+     */
     build(path: any, domOf: any): Pipeline50;
 }
 export declare class Pipeline50 {
@@ -90,13 +108,19 @@ export declare class Pipeline50 {
     stages: any;
     loader: any;
     declared: any;
+    /**
+     * @param {any} path
+     * @param {any} stages
+     * @param {any} loader
+     * @param {any} declared
+     */
     constructor(path: any, stages: any, loader: any, declared: any);
     /**
      * Parses a text.
      * @param {string} text
-     * @param {object} [options]
+     * @param {any} [options]
      */
-    parse(text: string, options?: object): {
+    parse(text: string, options?: any): {
         format: number;
         ok: boolean;
         text: string;
@@ -104,16 +128,15 @@ export declare class Pipeline50 {
         stages: any[];
         tree: number | null;
         error: any;
-        warnings: never[];
+        warnings: any[];
         features: any[];
     };
 }
 /**
  * The bootstrap file of a set of read documents, in the form that
  * `data/preparsed50/gencmu.json` uses.
- * @param {Loader50} loader
  * @param {Map<string, any>} entries each document's entry
- * @param {(path: string) => string | undefined} read
+ * @param {(path: string) => string} read
  */
-export declare function bootstrapText(entries: Map<string, any>, read: (path: string) => string | undefined, names?: string[]): string;
-export { isVisibleKey, resolvePath, EmptyStageError };
+export declare function bootstrapText(entries: Map<string, any>, read: (path: string) => string, names?: string[]): string;
+export { isVisibleKey, resolvePath };

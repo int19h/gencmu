@@ -1,8 +1,6 @@
 export declare class StageCheck {
-    constants: Map<string, {
-        record: any;
-        document: string;
-    }[]>;
+    /** @type {Map<string, any[]>} */
+    constants: Map<string, any[]>;
     /**
      * @param {Map<string, {record: any, document: string}[]>} constants
      */
@@ -10,21 +8,39 @@ export declare class StageCheck {
         record: any;
         document: string;
     }[]>);
-    constantValue(name: any, version: any): {
-        record: any;
-        document: string;
-    } | undefined;
-    /** The possible types of an expression, as a set of names. */
+    /**
+     * @param {any} name
+     * @param {any} [version]
+     */
+    constantValue(name: any, version?: any): any;
+    /**
+     * The possible types of an expression, as a set of names.
+     * @param {any} node
+     * @param {any} ctx
+     * @returns {any}
+     */
     typeOf(node: any, ctx: any): any;
+    /**
+     * @param {any} node
+     * @param {any} ctx
+     */
     propertyType(node: any, ctx: any): Set<any>;
     /**
      * Checks an expression in a truth position.
      * @returns {any | null} the expression, where the answer depends on the features
+     * @param {any} node
+     * @param {any} ctx
+     * @param {any} document
      */
     truth(node: any, ctx: any, document: any, what?: string): any | null;
     /**
      * Walks an expression: checks each truth position in it, and each method
      * receiver that the types decide.
+     * @param {any} node
+     * @param {any} ctx
+     * @param {any} document
+     * @param {any} deferred
+     * @returns {any}
      */
     walk(node: any, ctx: any, document: any, deferred: any, truthPosition?: boolean): any;
     /**
@@ -34,25 +50,26 @@ export declare class StageCheck {
     check(rules: {
         rule: any;
         document: string;
-    }[]): {
-        node: any;
-        ctx: {
-            captures: Map<any, any>;
-            document: string;
-        };
-        document: string;
-    }[];
-    instances(rules: any, deferred: any): void;
+    }[]): any[];
+    /**
+     * @param {any} rules
+     * @param {any} deferred
+     * @returns {any}
+     */
+    instances(rules: any, deferred: any): any;
     /**
      * The value certificate (part 2 §4): the rules whose value provably
      * equals the join of their input values. Returns each value test or
      * recognition read of a rule value that has no certificate.
+     * @param {any} rules
+     * @returns {any}
      */
-    certificates(rules: any): any[];
+    certificates(rules: any): any;
     /**
      * A read of a payload needs a payload on each route that reaches it. A
      * route of a rule without the key, or with the key bare, needs a test of
      * .has-value(k) on the same capture before the read (part 3 §3).
+     * @param {any} rules
      */
     payloadRefinement(rules: any): any[];
     /**
@@ -80,9 +97,22 @@ export declare class StageCheck {
         document: string;
     }[], input: Map<string, Set<string>>): any[];
     defaultsJoinChildren(): boolean;
-    scope(term: any, rule: any, statementKinds: any, document: any, sharedTerm: any, own: any): void;
+    /**
+     * @param {any} term
+     * @param {any} rule
+     * @param {any} statementKinds
+     * @param {any} document
+     * @param {any} sharedTerm
+     * @param {any} [own]
+     */
+    scope(term: any, rule: any, statementKinds: any, document: any, sharedTerm: any, own?: any): void;
+    /**
+     * @param {any} term
+     * @param {any} document
+     */
     nodeBag(term: any, document: any): void;
     constantGraph(): void;
+    /** @param {any} rules */
     classifiers(rules: any): void;
     outputs(): void;
 }

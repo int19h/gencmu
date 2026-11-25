@@ -5,60 +5,151 @@ export declare class DomBuilder {
     unicode: any;
     strings: any;
     domFault: (node: any, description: any) => never;
-    declarationSite: {
-        at: any;
-    } | undefined;
+    /** @type {WeakMap<object, any> | undefined} the default of each elided head */
+    defaults: WeakMap<object, any> | undefined;
+    bodyOwner: any;
+    /**
+     * @param {any} tokens
+     * @param {any} position
+     * @param {any} document
+     * @param {any} unicode
+     * @param {any} strings
+     */
     constructor(tokens: any, position: any, document: any, unicode: any, strings: any);
+    /** @param {any} node */
     token(node: any): any;
+    /** @param {any} node */
     at(node: any): any;
+    /** @param {any} node */
     value(node: any): any;
-    fail(node: any, description: any): void;
-    build(tree: any): {
-        format: number;
-        rules: never[];
-        directives: never[];
-        constants: never[];
-    };
+    /**
+     * @param {any} node
+     * @param {any} description
+     * @returns {never}
+     */
+    fail(node: any, description: any): never;
+    /** @param {any} tree */
+    build(tree: any): any;
+    /** @param {any} node */
     directive(node: any): any;
+    /** @param {any} node */
     ranking(node: any): {
         name: string;
         steps: any;
         at: any;
     };
+    /** @param {any} node */
     rule(node: any): any;
+    /** @param {any} node */
     conditions(node: any): any;
+    /**
+     * @param {any} node
+     * @param {any} kind
+     * @param {any} owner
+     */
     alternative(node: any, kind: any, owner: any): any;
+    /** @param {any} node */
     name(node: any): any;
+    /** @param {any} node */
     binder(node: any): any;
+    /** @param {any} node */
     gate(node: any): {
         feature: any;
         kind: string;
         negated: boolean;
     };
-    body(node: any, whole?: boolean, elidable?: boolean, chain?: boolean, blockedPrimary?: boolean): any;
-    optional(node: any, route: any, chain: any): any;
+    /**
+     * @param {any} node
+     * @param {any} owner
+     * @returns {any}
+     */
+    ownedBody(node: any, owner: any, whole?: boolean): any;
+    /**
+     * @param {any} node
+     * @returns {any}
+     */
+    body(node: any, whole?: boolean, elidable?: boolean): any;
+    /**
+     * @param {any} node
+     * @param {any} route
+     * @returns {any}
+     */
+    optional(node: any, route: any): any;
+    /** @param {any} testNodes */
     testOrder(testNodes: any, elidable?: boolean): any;
+    /**
+     * @param {any} base
+     * @param {any} tests
+     * @param {any} pattern
+     */
     tests(base: any, tests: any, pattern: any): any;
+    /** @param {any} node */
     requirements(node: any): any;
+    /**
+     * @param {any} node
+     * @returns {any}
+     */
     stringOperand(node: any, test?: boolean, message?: string): any;
+    /** @param {any} node */
     parameter(node: any): {
         param: any;
         at: any;
     };
+    /** @param {any} node */
     call(node: any): {
         call: any;
         args: any;
         at: any;
     };
+    /**
+     * @param {any} node
+     * @returns {any}
+     */
     target(node: any): any;
+    /** @param {any} node */
     argument(node: any): any;
+    /**
+     * @param {any} node
+     * @returns {any}
+     */
     expression(node: any): any;
+    /**
+     * @param {any} node
+     * @param {any} convert
+     * @param {any} pattern
+     */
     binary(node: any, convert: any, pattern: any): any;
-    method(node: any, receiver: any): any;
+    /**
+     * @param {any} node
+     * @param {any} [receiver]
+     * @returns {any}
+     */
+    method(node: any, receiver?: any): any;
+    /**
+     * @param {any} node
+     * @returns {any}
+     */
     predicate(node: any): any;
+    /** @param {any} node */
     entry(node: any): any;
+    /**
+     * @param {any} node
+     * @returns {any}
+     */
     pattern(node: any): any;
+    /**
+     * @param {any} node
+     * @param {any} pattern
+     */
     patternPath(node: any, pattern: any): any;
+    /**
+     * @param {any} node
+     * @returns {any}
+     */
     singlePattern(node: any): any;
+    /**
+     * @param {any} node
+     * @returns {any}
+     */
     items(node: any): any;
 }

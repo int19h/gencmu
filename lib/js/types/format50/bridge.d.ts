@@ -4,20 +4,30 @@ import { GencmuError } from "../errors.js";
  * bridge adds underscores until no capture of the rule has the name.
  */
 export declare const PRIMARY_CAPTURE = "primary_";
-/** A visible key: a capitalized key or an engine key. */
+/**
+ * A visible key: a capitalized key or an engine key.
+ * @param {any} key
+ */
 export declare function isVisibleKey(key: any): boolean;
 /**
  * The format 49 records of one DOM 50 document, for recognition.
  * @param {any} dom a valid DOM 50
  * @param {string} path the document
  * @returns {any} a DOM 49 with the extra members `format50` and `origins`
+ * @param {any} origins
  */
 export declare function bridgeDocument(dom: any, path: string, origins: any): any;
 export declare class Bridge {
     dom: any;
     path: any;
     origins: any;
+    /** @type {any[]} */
     classifiers: any[];
+    /** @type {{demanded: Set<string>, domains: Map<string, any[]>}} the hidden keys that recognizer tests read */
+    hidden: {
+        demanded: Set<string>;
+        domains: Map<string, any[]>;
+    };
     /** @type {Map<string, GencmuError>} the rules whose keys have no tag term */
     untranslated: Map<string, GencmuError>;
     /** @type {GencmuError[]} the conditions that the recognizer cannot test */
@@ -26,17 +36,27 @@ export declare class Bridge {
     keyReaders: Set<string>;
     /** @type {Map<string, string>} the symbol of each capture of the rule in hand */
     captureSymbols: Map<string, string>;
-    hidden: {
-        demanded: Set<any>;
-        domains: Map<any, never[]>;
-    } | undefined;
     currentRule: any;
     atMostOne: Set<any> | undefined;
+    repeated: Set<any> | undefined;
     hasClosed: boolean | undefined;
     forestRoot: any;
+    /**
+     * @param {any} dom
+     * @param {any} path
+     * @param {any} origins
+     */
     constructor(dom: any, path: any, origins: any);
+    /** @param {any} call */
+    registerCall(call: any): void;
+    /** @param {any} record */
     origin(record: any): string;
-    fail(description: any, at: any): void;
+    /**
+     * @param {any} description
+     * @param {any} at
+     * @returns {never}
+     */
+    fail(description: any, at: any): never;
     document(): {
         format: number;
         rules: any;
@@ -74,12 +94,15 @@ export declare class Bridge {
         deferred: GencmuError[];
         keyReaders: Set<string>;
     };
+    /** @param {any} value */
     isClassifier(value: any): any;
+    /** @param {any} constant */
     classifier(constant: any): {
         name: string;
         entries: any[];
         at: any;
     };
+    /** @param {any} value */
     data(value: any): {
         string: any;
         union?: undefined;
@@ -101,49 +124,108 @@ export declare class Bridge {
         pattern?: undefined;
         tag: any;
     };
+    /** @param {any} directive */
     directive(directive: any): any;
+    /** @param {any} rule */
     rule(rule: any): any;
-    alternative(alternative: any, rule: any): {
-        gates: any;
-        expr: any;
-    };
+    /**
+     * @param {any} alternative
+     * @param {any} rule
+     */
+    alternative(alternative: any, rule: any): any;
+    /**
+     * @param {any} alternative
+     * @param {any} rule
+     * @param {any} primary
+     */
     alternativeTags(alternative: any, rule: any, primary: any): any;
+    /**
+     * @param {any} alternative
+     * @param {any} rule
+     * @param {any} primary
+     */
     writtenTags(alternative: any, rule: any, primary: any): any;
+    /**
+     * @param {any} term
+     * @param {any} tags
+     */
     bagTags(term: any, tags: any): any;
     /**
      * The recognizer lowers only the queries that its conditions and terms
      * name. A query that only a bag term or an emission term reads after the
      * choice of a parse gets a condition that always holds, `q ∨ ¬q`, so that
      * the recognizer lowers it.
+     * @param {any} rule
      */
-    queryCarriers(rule: any): {
-        any: any[];
-    }[];
+    queryCarriers(rule: any): any[];
+    /**
+     * @param {any} entries
+     * @returns {any}
+     */
     inlined(entries: any): any;
+    /** @param {any} key */
     hiddenAll(key: any): {
         union: {
             tag: string;
         }[];
     };
+    /**
+     * @param {any} key
+     * @param {any} value
+     * @param {any} guard
+     */
     hiddenWrite(key: any, value: any, guard: any): {
-        union: {
-            tag: string;
-        }[];
+        union: any[];
     };
     /**
      * A recognizer condition that holds where an expression has one value:
      * true, false, or a condition record.
+     * @param {any} node
+     * @param {any} value
+     * @param {any} [guard]
+     * @returns {any}
      */
-    valueTest(node: any, value: any, guard: any): any;
-    tagsOf(node: any, at: any): any;
+    valueTest(node: any, value: any, guard?: any): any;
+    /**
+     * @param {any} node
+     * @param {any} [at]
+     * @returns {any}
+     */
+    tagsOf(node: any, at?: any): any;
+    /** @param {any} node */
     message(node: any): any;
+    /** @param {any} arg */
     argument(arg: any): any;
+    /**
+     * @param {any} node
+     * @param {any} primary
+     * @returns {any}
+     */
     body(node: any, primary: any): any;
+    /** @param {any} value */
     requirement(value: any): any;
+    /** @param {any} node */
     stringOperand(node: any): any;
+    /** @param {any} node */
     pattern(node: any): any;
+    /**
+     * The recognizer clauses of one written clause. A conjunction becomes
+     * one clause for each operand. A universal predicate on a capture inside
+     * a repetition becomes the predicate on the capture: the recognizer
+     * checks a clause that names such a capture on each of its items, and an
+     * empty list has none, as `.all` requires (part 1 §9).
+     * @param {any} node
+     */
+    clauses(node: any): any;
+    /** @param {any} node */
+    inline(node: any): any;
+    /**
+     * @param {any} node
+     * @returns {any}
+     */
     truth(node: any): any;
-    receiverTags(receiver: any): void | {
+    /** @param {any} receiver */
+    receiverTags(receiver: any): {
         forestRoot: boolean;
         method?: undefined;
         receiver?: undefined;
@@ -156,7 +238,8 @@ export declare class Bridge {
         };
         args: never[];
     };
-    payloadComparison(node: any): void | Readonly<{
+    /** @param {any} node */
+    payloadComparison(node: any): Readonly<{
         not: {
             op: string;
             left: {
@@ -171,7 +254,7 @@ export declare class Bridge {
         left: {
             tag: string;
         };
-        right: void | {
+        right: {
             forestRoot: boolean;
             method?: undefined;
             receiver?: undefined;
@@ -190,7 +273,7 @@ export declare class Bridge {
             left: {
                 tag: string;
             };
-            right: void | {
+            right: {
                 forestRoot: boolean;
                 method?: undefined;
                 receiver?: undefined;
@@ -210,7 +293,7 @@ export declare class Bridge {
             left: {
                 tag: string;
             };
-            right: void | {
+            right: {
                 forestRoot: boolean;
                 method?: undefined;
                 receiver?: undefined;
@@ -229,7 +312,7 @@ export declare class Bridge {
                 left: {
                     tag: string;
                 };
-                right: void | {
+                right: {
                     forestRoot: boolean;
                     method?: undefined;
                     receiver?: undefined;
@@ -245,13 +328,19 @@ export declare class Bridge {
             }[];
         }[];
     } | null;
+    /**
+     * @param {any} node
+     * @returns {any}
+     */
     forestPredicate(node: any): any;
-    comparison(node: any): void | {
+    /** @param {any} node */
+    comparison(node: any): {
         op: any;
         left: any;
         right: any;
     };
-    strings(node: any): void | {
+    /** @param {any} node */
+    strings(node: any): {
         method?: undefined;
         receiver?: undefined;
         args?: undefined;
@@ -273,24 +362,58 @@ export declare class Bridge {
         const: any;
         at: any;
     };
+    /** @param {any} node */
     keySet(node: any): any;
+    /**
+     * @param {any} node
+     * @returns {any}
+     */
     string(node: any): any;
+    /**
+     * @param {any} node
+     * @returns {any}
+     */
     expression(node: any): any;
 }
-/** The hidden recognizer key for a payload of a key, or for one value. */
-export declare function payloadTag(key: any, value: any): string;
-/** The hidden recognizer key for the presence of a key, bare or valued. */
+/**
+ * Whether a recognizer key is one that the bridge adds.
+ * @param {any} key
+ */
+export declare function isHiddenKey(key: any): any;
+/** The hidden recognizer key of every written token. */
+export declare const WRITTEN = "Written_token";
+/**
+ * The hidden recognizer key for a payload of a key, or for one value.
+ * @param {any} key
+ * @param {any} [value]
+ */
+export declare function payloadTag(key: any, value?: any): string;
+/**
+ * The hidden recognizer key for the presence of a key, bare or valued.
+ * @param {any} key
+ */
 export declare function presentTag(key: any): string;
-/** The name of a classifier for the recognizer, which needs a lowercase name. */
+/**
+ * The name of a classifier for the recognizer, which needs a lowercase name.
+ * @param {any} name
+ */
 export declare function classifierName(name: any): string;
 /**
  * The key of an alternative in the origin table: its document, the
  * position of its definition and its index there.
+ * @param {any} document
+ * @param {any} at
+ * @param {any} index
  */
 export declare function alternativeKey(document: any, at: any, index: any): string;
 /**
  * The format 50 expression of an argument as the recognizer stores it in
  * an instance: the inverse of argumentTerm. Other arguments stay as they are.
+ * @param {any} arg
  */
 export declare function argumentExpression(arg: any): any;
+/**
+ * @param {any} node
+ * @returns {any}
+ */
 export declare function isClosed(node: any, bound?: Set<any>): any;

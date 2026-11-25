@@ -15,7 +15,10 @@ export declare function decoration(node: any): {
     before: any;
     after: any;
 } | null;
-/** The image and classes that a unit shows. */
+/**
+ * The image and classes that a unit shows.
+ * @param {any} node
+ */
 export declare function unitFace(node: any): {
     image: any;
     classes: any;

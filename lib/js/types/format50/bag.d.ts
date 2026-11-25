@@ -9,10 +9,14 @@ export declare const BARE: Readonly<{
 export declare class Deferred {
     compute: () => any;
     done: boolean;
+    computing: boolean;
+    /** @type {any} */
     payload: any;
     /** @param {() => any} compute */
     constructor(compute: () => any);
     force(): any;
+    /** @private */
+    private run;
 }
 export type Entry = typeof BARE | {
     deferred: Deferred;
