@@ -42,6 +42,20 @@ export declare class StageCheck {
         };
         document: string;
     }[];
+    instances(rules: any, deferred: any): void;
+    /**
+     * The value certificate (part 2 §4): the rules whose value provably
+     * equals the join of their input values. Returns each value test or
+     * recognition read of a rule value that has no certificate.
+     */
+    certificates(rules: any): any[];
+    /**
+     * A read of a payload needs a payload on each route that reaches it. A
+     * route of a rule without the key, or with the key bare, needs a test of
+     * .has-value(k) on the same capture before the read (part 3 §3).
+     */
+    payloadRefinement(rules: any): any[];
+    defaultsJoinChildren(): boolean;
     scope(term: any, rule: any, statementKinds: any, document: any, sharedTerm: any, own: any): void;
     nodeBag(term: any, document: any): void;
     constantGraph(): void;

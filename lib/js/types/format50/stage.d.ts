@@ -84,6 +84,11 @@ export declare class Stage50 {
         errors: never[];
         warnings: never[];
     };
+    /**
+     * The check of elision-only (engine §7), run by the format 49 checker on
+     * the chosen derivation. Its readings become occurrence trees.
+     */
+    elisionOnly(report: any, derivation: any, root: any, context: any, lowered: any, options: any): void;
     stageData(tokens: any, sourceText: any, options: any): {
         tokens: any;
         sourceText: any;
@@ -98,6 +103,13 @@ export declare class Stage50 {
      * @param {any} root
      */
     tree(root: any, data: any, context: any): any;
+    /** The records of a written alternative, by its definition and index. */
+    writtenOrigin(production: any, source: any, data: any): any;
+    /**
+     * The records of an alternative of a template instance: the template's
+     * records with each parameter replaced by its argument.
+     */
+    instanceOrigin(production: any, source: any, data: any): any;
     leaf(derivation: any, data: any): Occurrence;
     ruleOccurrence(derivation: any, parts: any, made: any, data: any): Occurrence;
     ruleBag(occurrence: any, data: any): Bag;

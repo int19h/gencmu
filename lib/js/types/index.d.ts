@@ -6,20 +6,6 @@ export { Token } from "./tokens.js";
 export { resultJson, toJson, compactJson, toBrackets, toTree, displayValue, prettyJson, nodeBrackets, nodeTree } from "./output.js";
 export { explainError, explainTies, explainWarnings, tokenTable, audit, formatAudit, trace, formatTrace } from "./diagnostics.js";
 import { Loader, Pipeline } from "./pipeline.js";
-/**
- * The loaders of one notation version over documents held in memory:
- * `loaderFromSources`, `loadPipelineSources`, `resultJson` and
- * `decodeResult`. Only notation 50 is selectable. Other versions are a
- * usage error.
- * @param {number} version
- */
-export declare function loaderForNotation(version: number): {
-    notation: number;
-    loaderFromSources: (sources: any) => import("./format50/loader.js").Loader50;
-    loadPipelineSources: (sources: any, pipelinePath: any) => import("./format50/loader.js").Pipeline50;
-    resultJson: typeof import("./format50/result.js").resultJson50;
-    decodeResult: typeof import("./format50/result.js").decodeResult50;
-};
 export type TagSet = import("./types.js").TagSet;
 export type Span = import("./types.js").Span;
 export type Resources = import("./types.js").Resources;

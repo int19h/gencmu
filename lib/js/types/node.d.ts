@@ -8,10 +8,12 @@ import { Loader50 } from "./format50/loader.js";
  */
 export declare function loaderForNotation(version: number): {
     notation: number;
-    loaderFromSources: (sources: any) => Loader50;
+    loaderFromSources: (sources: Map<string, string> | Record<string, string>) => Loader50;
     resultJson: typeof import("./format50/result.js").resultJson50;
     decodeResult: typeof import("./format50/result.js").decodeResult50;
-    bundledPipelines: () => any;
+    nodeBrackets: typeof import("./format50/render.js").nodeBrackets50;
+    nodeTree: typeof import("./format50/render.js").nodeTree50;
+    bundledPipelines: () => string[];
     /** @param {string} name */
     loadPipeline(name: string): import("./format50/loader.js").Pipeline50;
     /** @param {string} file */

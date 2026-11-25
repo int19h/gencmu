@@ -66,7 +66,7 @@ export declare class Evaluator {
     constant(name: string, index: number, node: any, scope: any): any;
     constantReference(name: any, node: any, scope: any): any;
     /** Applies a function value to one argument. */
-    apply(fn: any, argument: any, node: any): any;
+    applyFunction(fn: any, argument: any, node: any): any;
     predicate(node: any, scope: any): any;
     truth(node: any, scope: any): any;
     toTruth(value: any, node: any, scope: any): void | boolean;
