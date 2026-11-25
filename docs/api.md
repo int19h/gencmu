@@ -72,13 +72,17 @@ A diagnostic copies its location fields, including independent copies of `group`
 
 Ranked-choice loading errors also carry `code`, `group`, `option`, `expression`, and `inheritance` where available. `docs/output.md` defines their schema and canonical member order. These members remain outside parse-result warnings and document caches.
 
-[Output formats](output.md) defines the grammar DOM, cache, and parse-result schemas. The compatibility boundary is the schema version and the notation contract. Callers supply DOMs of that version or grammar text in the specified notation.
+[Output formats](output.md) defines the format-50 grammar DOM and format-18 result. All bundled, disk and source-map entry points select notation 50. Includes inherit that selection.
+
+Use `loaderForNotation(50)` in JavaScript, `LoaderForNotation(50)` in Go or `loader_for_notation(50)` in Python and Rust to select it explicitly. The factory selects the loader for bundled, disk and source-map inputs. A request for an unsupported notation version returns a `usage` error.
+
+The loader reads each source with the selected reader. A mismatched supplied DOM or mandatory bootstrap fails. An obsolete optional cache misses and the loader reads the source again. Locations agree across source, cache and supplied DOMs.
 
 ### The pipeline's features
 
 A feature is a named switch for a gate or warning code (engine §13).
 
-A loaded pipeline lists its features (engine §13), in code point order of the names. The list includes classifier gates and every surviving warning rule, named by its code. Error codes are not selectable features. One name cannot serve different roles across stages. Each feature in the list has its name, its kind (`gate` or `warning`), and whether the pipeline turns it on by default. The CLI and the playground use the list to offer the features by name.
+A loaded pipeline lists its features (engine §13), in code point order of the names. The list includes gates in constant entries and every surviving warning rule, named by its code. Error codes are not selectable features. One name cannot serve different roles across stages. Each feature in the list has its name, its kind (`gate` or `warning`), and whether the pipeline turns it on by default. The CLI and the playground use the list to offer the features by name.
 
 Unconditional declarations, global or stage-local, set `default:true`. The inventory does not depend on the caller's last stage. Conditional declarations contribute feature names without defaults. Warning codes use the same enable and disable arguments as gates. Disabling a warning changes reports only, including message evaluation. Suppression follows the grammar and cannot enable a disabled code.
 
@@ -92,6 +96,7 @@ A loaded pipeline parses a text with these configuration arguments. Each argumen
 | without features | none | feature names to turn off for every stage, including defaults. If a conditional declaration holds for a disabled feature, the result is `feature-conflict` with its feature and stage. Unknown names are legal and do not change grammar behavior. A name in both lists is a usage error. |
 | until | the last stage | the reporting stage and last stage to run. Carried diagnostics report there. An unknown name is an error, and so is an empty name. Go is the exception, as its section says. |
 | elision-only | the grammar's own | On or off for every stage that runs. This overrides the stage's `%elision-only` directive. |
+| stage trees | compact | Retain the full records of earlier stages with `stageTrees:"all"`. |
 
 Usage errors follow this order: the original text, each caller token in input order, the feature lists, then `until`. The first invalid category ends the call. Within one token, the order of field errors is not defined. When several features occur in both lists, the first one in the caller's enabled list names the error.
 
@@ -117,7 +122,7 @@ Parsing is synchronous, and you can use a loaded pipeline for any number of pars
 
 ### The result
 
-The result has the fields of `docs/output.md`, in the data types of the language. These fields are `ok`, the stages, the `tree` of the last stage, the `error`, and the `warnings`. With no warnings, `warnings` is an empty list, and the canonical JSON omits it.
+The result exposes its origin input, stages, chosen tree reference, error and warnings. With no warnings, the native warning collection is empty and canonical JSON omits it.
 
 A `reported` error contains the ordered `errors` that count at the reporting stage. Each diagnostic has `stage`, `code`, `rule`, `span`, `source`, and `message`. Errors can also have a competitor `rejection` member (engine §12.1). Warnings use the six-member shape and have no `feature` member.
 
@@ -125,7 +130,7 @@ A `reported` result keeps the chosen tree, its `unique` or `resolved` verdict, a
 
 `until` selects the reporting stage. For example, inspection through forms reports surviving forms errors while preserving the emitted forms tokens. A tie lists errors and warnings from its two shown readings. Rejection, feature-conflict, and grammar envelopes also retain diagnostics under engine §12.1.
 
-Every other error result has a null `tree`. The recipe language has no message that can fail. Engine §12.1 defines the guard for a failure.
+Other error results have a null top-level tree. A stage can retain its chosen structural root after a post-choice failure.
 
 The result also has `features`, the enabled feature names in code point order, without duplicates. This field stays outside canonical JSON. Go calls it `Features`.
 
@@ -139,13 +144,11 @@ Verdicts count only [admitted derivations](notation.md#ranked-choices) with the 
 
 The [pipeline guide](pipelines.md#phoneme-values-and-stress) describes the bundled stages and comparison values. The `until` argument must name a stage in the selected pipeline.
 
-A stage exposes its name, input and output tokens, verdict, any tie witness, and stage-level `errors` and `warnings`. For a completed emission without tokens, those lists retain diagnostics without a carrier. JavaScript and Python expose a stage tree. If ranking chose that tree, those APIs retain it after an emission or elision-check error.
+A stage exposes its name, input index, verdict and occurrence records. It can also give its root, displayed readings, tie witness, output and diagnostics. An empty publication has an empty output array. A tree-only stage leaves that member absent.
 
-That stage tree is separate from the result's `tree`, which is null on those failures. Find stages by name because their order differs by pipeline. A tied stage emits nothing and places both readings in the result error.
+A published token stores its original text, source range, stage span, public `props` and producer ID. Its properties include `value` and `image` as strings. An insertion records its inserting rule and has empty source text. A display face can show satellites or an image that extends outside the token's source.
 
-A token stores text, value, image, tags, span, source, and carried `errors` and `warnings`. Its value and image always exist. Without carried diagnostics, its diagnostic lists are empty.
-
-An `ε` item records its inserting rule and has empty source text. A token can carry before- and after-attachments, which remain token lists. Attached tokens have no stage span. An image can include neighboring text outside its source without changing its text field.
+The first grammar stage reads the origin table. An output token's `node` is local to its own stage. Resolve a qualified reference `[stage,reading,id]` against the indicated occurrence table. A stage of minus one selects the origin table. [Output formats](output.md#a-parse-result) defines the table layout.
 
 The native fields use these spellings. Diagnostic collections contain the objects specified by `docs/output.md`, with private identities retained only by the engine. Empty collections are available natively and omitted from canonical JSON.
 
@@ -158,11 +161,11 @@ The native fields use these spellings. Diagnostic collections contain the object
 
 A named instance uses its public name everywhere, including `insertedBy`, warnings, expected lists, and error witnesses. A binding adds no tree node.
 
-A node has its kind (`rule`, `token` or `elided`) and its rule or terminal. It also has a span, a source range, tags and children. A token node also has the index of the token that it read. An elided node with a default from `≝` or an equality test also has `value`. This saved restoration operand includes an explicit empty string. Other nodes omit `value`.
+A node records its kind, identity, span and source. It can record children, a primary, an emitting occurrence, a part or a display face. A token leaf names the index that it reads in its stage input. An elided leaf uses the `default` member for a saved operand, including an explicit empty string.
 
-Tags are a set of tags, each a string in its canonical spelling (engine §1). Source positions count Unicode code points, whatever the string indexing of the language is. Spans and token indices count tokens of the relevant stage.
+Earlier stages retain compact records by default. Use `stageTrees:"all"` to retain every occurrence and its children. The reporting stage keeps its full chosen table. Every surviving reference resolves after the pipeline and caller data go away.
 
-A result shares no value that can change with the pipeline, or with the tokens of the caller. This holds for every tag set of a token or a node, in the chosen tree and the readings of an error. So a change to a result changes no later parse. A later change to a token of the caller does not change the result.
+The result owns its public bags and records. Mutating a supplied buffer or a returned result cannot change a later parse. Source positions count Unicode scalars. Spans and token indices count tokens of their stage.
 
 ### Output
 
@@ -190,21 +193,15 @@ The `.verbatim-text` method searches left and right separately (engine §11.1). 
 
 The `InputToken` of Rust has no source and no span. The library gives each token its span, and a source in a text of the tokens' texts joined with single spaces. The generated source range always lies within that text.
 
-A caller cannot supply nonempty attachments or diagnostic lists (engine §11). JavaScript and Python accept token-shaped input objects. Go accepts `InputToken` records. These inputs expose `before` and `after`, or `Before` and `After` in Go. Nonempty attachment or diagnostic lists cause a usage error. Libraries accept empty lists and drop them, so canonical token JSON with empty diagnostic lists can round-trip.
+A caller token accepts `props` with bare ordinary keys and supported bare engine memberships. It can also supply the two strings `value` and `image`. Each omitted string defaults to the token's text. An explicit empty string stays empty.
 
-The caller supplies tags, `value`, and `image` for pre-built tokens. An omitted string defaults to `text`. An explicit empty string stays empty. The engine adds no memberships and leaves both strings unchanged. Property tag spellings normalize as engine §1 defines.
+If the caller omits `props`, the library accepts bare tag lists and the existing string fields. A record that mixes `props` with the bare tag-list encoding is a usage error. A caller cannot supply other valued properties. A grammar stage can produce those properties.
 
-The caller can supply stored engine tags to represent earlier grammar stages. The engine does not decompose them, so a caller supplies decomposed values where its grammar expects them.
+The library normalizes supported aliases before building the origin interface. It rejects invalid scalar strings, unsupported memberships and a membership with a value. It also rejects forged origin fields and nonempty diagnostic lists. Empty diagnostic lists are allowed.
 
-All supplied string fields must contain scalar values. Invalid strings, tag names, source ranges, spans, attachments, or diagnostics cause a usage error before parsing. Tags follow engine §1, including its reserved engine inventory and available property values. The API normalizes accepted property aliases before set construction. Invalid aliases cause usage errors. The input object is not an output recipe and stores both strings directly.
+The engine adds no memberships from the text, value or image. For example, `{"text":"A","props":{"Stressed":true,"value":"a","image":"A"}}` compares as `a` and displays as `A`. Include the range fields where the port requires them.
 
-Rust `InputToken` stores `value: Option<String>` and `image: Option<String>` alongside its text and tags. `None` uses the text default. JavaScript uses omitted `value` and `image` properties for defaults. Python uses `None` defaults for those fields. Explicit empty strings remain empty.
-
-Go `ParseTokens` accepts `[]InputToken`. Its `Value *string` and `Image *string` use `nil` for defaults. Non-nil pointers can supply empty strings. `InputToken` also carries `Text`, `Tags`, `Span`, `Source`, `Before`, `After`, `Errors`, and `Warnings`. Nonempty attachment or diagnostic slices cause usage errors. Output `Token` stores `Value` and `Image` as strings.
-
-For example, a supplied token with `text:"A"`, `value:"a"`, `image:"A"`, and `tags:["Stressed"]` compares as `a` and displays as `A`. A supplied syllable comma can have `value:""`, `image:","`, and `tags:["Syllable-Break"]`. Neither token receives `_General_Category_Uppercase_Letter` or any other engine tag unless the caller supplies it.
-
-Each library copies the caller's tokens before it parses them, and it leaves the caller's objects unchanged. Insertion provenance belongs to emitted tokens. A parser drops any caller-supplied insertion provenance when it copies input tokens.
+The first stage's `$INPUTS` includes the canonical Unicode inventory and the ordinary bare keys in the supplied table. An empty batch adds no ordinary names. The library can still test for a bare user key. It keeps a snapshot of supplied data and leaves caller objects unchanged.
 
 ### Tests
 
@@ -228,7 +225,7 @@ import { loadPipelineSources, toJson, toBrackets } from "gencmu";
 const pipeline = loadPipeline("lojban/cll");
 const result = pipeline.parse("mi klama", { features: ["y-cmavo"], until: "words" });
 const supplied = pipeline.parse("A", {
-    tokens: [{ text: "A", value: "a", image: "A", tags: ["_General_Category_Uppercase_Letter", "_General_Category_Letter"], span: [0, 1], source: [0, 1] }],
+    tokens: [{ text: "A", props: {value: "a", image: "A", _General_Category_Uppercase_Letter: true, _General_Category_Letter: true}, span: [0, 1], source: [0, 1] }],
     until: "phonemes"
 });
 result.ok; result.tree; result.error; result.warnings;
@@ -242,7 +239,7 @@ toJson(result); toBrackets(result, { showElided: true });
 - `loadPipeline(name)`, `loadPipelineFile(path)`, and `bundledPipelines()` come from `gencmu/node`. `loadPipelineSources(sources, path)` comes from both `gencmu` and `gencmu/node`, and its `sources` is a `Map` or a plain object. The `gencmu/node` version fills missing bundled resources with the custom-core exception above, and it loads names on demand. The portable `gencmu` version requires `data/unicode/unicode.txt` and `data/preparsed/gencmu.json` in the map. It also requires `data/unicode/unicode-names.txt` for source names outside the core abbreviation map. Additional properties require `data/unicode/unicode-properties.txt` in the map.
 - `pipeline.parse(text, { tokens, features, withoutFeatures, until, elisionOnly })` returns a `ParseResult`.
 - `pipeline.features` is an array of `{ name, kind, default }`.
-- `toJson(result)` writes the canonical JSON as text, and `resultJson(result)` returns it as a value. `toBrackets`, `toTree`, `displayValue` and `prettyJson` render it. `toJson` and `prettyJson` do not recurse, because a tree can nest deeper than the call stack allows. `JSON.stringify` fails on such a tree.
+- `toJson(result)` writes the canonical JSON as text, and `resultJson(result)` returns it as a value. `toBrackets`, `toTree`, `displayValue` and `prettyJson` render it. `toJson` and `prettyJson` do not recurse, because a tree can nest deeper than the call stack allows.
 - Errors are `GencmuError`, with `kind` and `where`.
 - The lower-level `Loader`, `loaderFromSources` and `loaderFromDirectory` are available for tools that load several pipelines over one set of documents. `Loader.splice(path)` expands includes into stage document runs. `Loader.pipeline(path)` returns a loaded `Pipeline`.
 
@@ -261,7 +258,7 @@ The JavaScript entry points also export helpers for the CLI and playground:
 - `compactJson(value)` returns JSON text without spacing and supports values deeper than the call stack.
 - `nodeBrackets(root, tokens, { showElided })` renders any result tree over its indexed tokens as brackets. The configuration argument is optional.
 - `nodeTree(root, tokens, text)` renders any result tree over its indexed tokens as a tree listing. The source text is optional.
-- `explainWarnings(result)` formats each warning's evaluated `message` and its source excerpt, in result order. It uses the warning's `code`, rule, stage, and position. It uses the raising-stage coordinates of carried warnings. It does not look up feature descriptions, reevaluate recipes, or duplicate attachment display copies.
+- `explainWarnings(result)` formats each warning's evaluated `message` and its source excerpt, in result order. It uses the warning's `code`, rule, stage, and position. It uses the raising-stage coordinates of carried warnings. It does not look up feature descriptions, reevaluate recipes,.
 - `bundledGrammarsDirectory()` returns the bundled grammar directory and comes only from `gencmu/node`.
 
 The portable `gencmu` entry point and `gencmu/node` both export the first six helpers.
@@ -298,7 +295,7 @@ The Python loaders also take `use_cache=False`. With it, the loader reads every 
 - `Pipeline.parse_tokens(tokens: Sequence[Token], text: str, *, features=(), without_features=(), until=None, elision_only=None) -> ParseResult` parses supplied tokens.
 - `Pipeline.features` is a tuple of `Feature`, a dataclass with `name`, `kind` and `default`.
 - Other pipeline attributes and helpers are private and use names that start with `_`.
-- `ParseResult`, `Stage`, `Node`, `Token`, `ParseWarning`, `ParseError`, `Action`, `Expected` and `Restoration` are dataclasses. Tags are a set of strings. The warning class is not called `Warning`, because `Warning` is a built-in exception.
+- `ParseResult`, `Stage`, `Node`, `Token`, `ParseWarning`, `ParseError`, `Action`, `Expected` and `Restoration` are dataclasses. The warning class is not called `Warning`, because `Warning` is a built-in exception.
 - `ParseResult` exposes `ok`, `stages`, `tree`, `error`, `warnings`, and `features`, as defined above.
 - `Expected` describes an expected terminal with `terminal` and `rules`. `ParseError.expected` holds a list of these records.
 - `Action` describes a derivation step with `kind` and the applicable `token`, `terminal`, `rule`, `production`, `span`, or `at` fields. `ParseError.witness` holds two actions.

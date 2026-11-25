@@ -16,94 +16,69 @@ Single-guillemet escapes belong to notation strings printed in names and diagnos
 
 Libraries write object keys in the order that this document gives. They write no whitespace outside strings, and they write non-ASCII characters as themselves. This makes outputs easy to compare by eye. But conformance is equality of the parsed values.
 
-General-category tags use long names in token tags, node tags, terminals, expected lists, witnesses, and canonical call names. Compact and short inputs never survive as category spellings in these fields.
+Stored Unicode memberships and printed terminals use canonical long names. This also applies to expected lists, witnesses and instance names.
 
 ### A parse result
 
-```
-{"format":17,"ok":true,"stages":[STAGE...],"tree":NODE,"error":ERROR,"warnings":[WARNING...]}
-```
+The result has `format:18`. On success `error` is null. The result's `input` holds the original text and the complete origin token table. Grammar stages follow in execution order.
 
-`format` is the version of the result shape, 17. `tree` is the chosen tree of the last stage, or `null`. In every error result except `reported`, `tree` is null, including failures after choice during message evaluation, emission, or the elision-only check.
+| Record | Fields in canonical order |
+|---|---|
+| Result | `format,ok,input,stages,tree,error,warnings` |
+| Input | `text,tokens` |
+| Stage | `name,verdict,input,root,nodes,readings,witness,output,errors,warnings` |
+| Reading | `root,nodes` |
+| Node | `id,kind,rule,terminal,token,span,source,default,children,primary,producer,part,face` |
+| Face | `image,classes,core,parts,primaryIndex` |
+| Token | `node,text,props,span,source,insertedBy,errors,warnings` |
 
-A `reported` result retains the chosen tree. With `ok:true`, `error` is `null`. With no parse warning, `warnings` is absent (engine §12, §13).
+Stage indices and occurrence IDs start at zero. Indices count grammar stages. A stage’s input index names its predecessor or uses minus one for the origin table. A qualified node reference is `[stage,reading,id]`. Reading zero names the chosen table.
 
-The recipe language has no message that can fail. Engine §12.1 defines the guard for a failure.
+One and two name the displayed witnesses in their canonical order. The error envelope uses those references for its displayed readings. A reference into the origin table has the form `[-1,0,inputIndex]`. Local child references are integers. The chosen top-level tree is a qualified reference on success and on `reported`.
 
-A stage has one of these forms:
+Other errors give a null top-level tree.
 
-```
-{"name":"words","verdict":"resolved","output":[TOKEN...]}
-{"name":"forms","verdict":"unique","output":[],"errors":[ERROR...],"warnings":[WARNING...]}
-{"name":"syntax","verdict":"tie","witness":[ACTION,ACTION]}
-```
+The node kinds are `rule,splice,token,elided,projection,insertion`. The wire kind of a braced item is `projection`. Each record gives its span and source. A rule or splice names its effective rule. A token leaf gives terminal and stage-input index.
 
-`verdict` is `unique`, `resolved`, `tie`, or `null`. A rejection or error before ranking completes gives `null`, including an error during recognition ([engine §6](engine.md#6-choosing-a-parse), [§13](engine.md#13-the-pipeline)). `witness` is present only for a `tie`. It is the pair of actions at the first visible difference between the two readings of the tie (engine §6). The action of the first reading comes first.
+An omitted leaf gives its terminal and any explicit or equality-derived default. Its kind records omitted origin. An absent default field decodes to the empty string.
 
-If there is no visible difference, it is the pair at their first difference. That is the first pair of differing actions of the whole sequences, transparent ones included. A derivation whose visible sequence is a proper prefix of the other's differs from it where the shorter ends.
+Children are ordered local occurrence IDs. Flatten splice children only for structural display and matching. A primary is its marked child’s ID. A synthetic occurrence names its producer. A braced item names its part as `{"node":id}`.
 
-The readings themselves are in the result's error (below), and the stage holds no tree of them. The canonical order *T* of engine §6 orders the ambiguity diagnostics. The canonical tie-break keys never turn a tie into an accepted reading.
+An insertion has no part. Synthetic records stay beside the original tree. In particular, a braced item over the whole node points to its origin without becoming its origin’s child.
 
-`output` is the emitted tokens of a stage whose verdict is `unique` or `resolved`, the last stage included. It is absent for a rejection or any failure before ranking completes, including recognition errors, feature conflicts, and feature-condition runtime errors. It is absent for a tie, since a tied stage emits nothing (engine §6, §11). A `reported` result keeps that output.
+Within a stage output, the token member `node` is a local integer ID. The containing stage and reading zero identify its producing table. Origin records omit that field. A bag uses a JSON object with keys in Unicode scalar order. An absent key has no member.
 
-Emission failure prevents output (engine §11). It is also absent where the check of `elision-only` meets an error of the grammar or loses its witness (engine §7.7, §7.9).
+Bare entries of either case encode as `true`. A token's `props` object always includes both strings. A valued entry encodes its string, bounded number, list or nested bag. Reject `false` and `null` as entries. The bare sentinel occurs only as an object member.
 
-Stage members stand in the order `name`, `verdict`, `witness`, `output`, `errors`, `warnings`. Empty stage-level diagnostic lists are absent. They retain diagnostics that have no carrier because a completed emission yields an empty output array. Lists on emitted tokens instead carry diagnostics forward. An earlier stage with errors and nonempty output does not stop the pipeline. Engine §12.1 defines the reporting stage and every ending's collection.
+A list element needs a legal payload type. Decode a bare `true` separately from integer one. Zero and the empty string remain values. Enforce these rules at every nesting level. Do not expose working bags or engine-only source evidence.
 
-A token has this form. This one is the token of `mi` that the forms stage of the `lojban/cll` pipeline emits:
+Each face requires `image:string`, `classes:[string]` in scalar order and `core:[stage,reading,id]`. On a decorated face, `parts` is a nonempty ordered array of qualified references to display units. Its `primaryIndex` is an integer from zero through the number of parts minus one. Resolve stage minus one against the origin token table. Resolve every other part against the referenced stage and reading.
 
-```
-{"text":"mi","value":"mi","image":"mi","tags":["Cmavo","Continued","KOhA","Onset","Run-Final","Run-Initial","Word"],"span":[0,2],"source":[0,2]}
-```
+Apply the containing face’s replacement image once along the primary part’s core path. Render the sibling faces on their respective sides. An opaque face omits both `parts` and `primaryIndex` and renders its image as one unit. A face can name itself as its core. Never expand a core reference as another parts edge.
 
-`tags` lists each stored identifier tag once in code-point order. For stored engine tags, output uses their canonical names. Even without explicit grammar references, stage-zero profiles include every available property. Examples include `_Alphabetic`, `_Script_Latin`, `_Emoji_Presentation`, `_Emoji_Component`, and multiple Script_Extensions tags. ASCII digits, `#`, and `*` can carry `_Emoji_Component`. Later filtering removes memberships without regenerating them.
+Brackets group the parts. The tree formatter labels and indents satellites. Display JSON uses ordered parts and their primary index. The playground shows the token’s place and links its core. Keep empty lexical images and the controls for showing elisions.
 
-`value` is always present and can be empty. Tags never determine either string.
+Number body occurrences in left-to-right preorder before splice flattening. Append synthetic occurrences by producer preorder, written item index and binding iteration order. The implicit braced item for a bare spliced emission uses item index zero. Reuse the same synthetic occurrence across publication and display. Sort records by ID.
 
-Output uses the long canonical names of engine §1, including every atomic and major general category. Caller tags accept aliases and normalize before set construction. Supplied DOMs require canonical names. Both inputs require support for each named property and value.
+Sparse IDs are legal. Allocation order never enters the wire.
 
-Binary No supplies no tag. An enumerated default supplies its value tag. Script_Extensions supplies one tag per member.
+Retain the reporting stage’s complete chosen table and both tables of a displayed ambiguity. Keep the complete structural table of a failed stage with a chosen reading. Earlier chosen stages default to compact records. Keep their roots, token origins and the transitive targets of primary, part, producer and face links. Omit their child arrays.
 
-`image` always exists and can be empty or contain line breaks. It can include adjacent text outside the token's source interval. `text` remains the original source interval and never expands through an image recipe.
+With `stageTrees:"all"`, keep all occurrences and child arrays. Retention cannot add an evaluation demand. Use iterative traversals for deep results.
 
-For a precomposed character, each stage-zero token keeps the original source and text. Its value is one decomposed scalar.
+Keep a stage root after a post-choice failure. Without a chosen table, omit nodes. A tie has a witness and no chosen root or output. A successful empty publication contains `output:[]`. A tree-only stage omits output.
 
-`insertedBy` follows `source` for an `ε` emission item. It names its inserting rule. The token has empty span, source, and text. Its strings come from its item recipes. A covering item over an empty constituent does not acquire `insertedBy`.
+Omit empty diagnostic lists. Apply the [publication failure rules](engine.md#failure-order). Every surviving reference resolves after the pipeline and caller buffers disappear.
 
-`before` and `after` follow `insertedBy` for a token with attachments (engine §11). Each is an array of tokens in this form, and each is present only when it is not empty. An attached token has no `span`, so its object leaves it out. This is the token of `mi ui` that the indicators stage of the `lojban/cll` pipeline emits:
+A verdict is `unique`, `resolved`, `tie` or null. If a stage fails before ranking completes, its verdict is null. For a tie, the stage's witness names the first visible difference between the displayed readings. If there is no visible difference, it uses the first difference in the complete sequence, including transparent actions. The first reading's action comes first.
 
-```
-{"text":"mi","value":"mi","image":"mi","tags":["Cmavo","Continued","KOhA","Onset","Run-Final","Run-Initial","Word"],
- "span":[0,1],"source":[0,2],
- "after":[{"text":"ui","value":"ui","image":"ui","tags":["Cmavo","Continued","Indicator","Run-Final","Run-Initial","UI","Word"],"source":[3,5]}]}
-```
+For example, two publishing stages can each emit a token with `"node":0`. In their respective output lists those links resolve to `[0,0,0]` and `[1,0,0]`. The caller token in the origin table omits `node`.
 
-A token's nonempty `errors` and `warnings` arrays follow its attachment members, in that order. Their entries use the named diagnostic form below. Empty arrays are omitted. The full order is `text, value, image, tags, span, source, insertedBy, before, after, errors, warnings`.
+The `span` counts stage-input tokens and `source` counts original Unicode scalars. A token's `text` is the original source slice. Its image can include text outside that range. Stage zero keeps the original source and one decomposed scalar as each string.
 
-An attached token can display diagnostics, but its ordinary carrier also holds them for counting and flow. The display copy contributes no additional diagnostic or charge. Carrier diagnostics precede attachment diagnostics, with each group in raising-stage and source-occurrence order (engine §11.5). Private identities and measure charges are not serialized. Caller tokens accept empty diagnostic lists and reject nonempty lists as usage errors.
+An insertion records its rule as `insertedBy`. Its span, source and text are empty. A projection over an empty part has no `insertedBy`.
 
-A node has one of these forms:
-
-```
-{"kind":"rule","rule":"sumti","span":[0,3],"source":[0,9],"tags":[TAG...],"children":[NODE...]}
-{"kind":"token","terminal":"KOhA","token":0,"span":[0,1],"source":[0,2]}
-{"kind":"elided","terminal":"KU","span":[3,3],"source":[9,9]}
-{"kind":"elided","terminal":"KU","span":[3,3],"source":[9,9],"value":""}
-```
-
-A rule name is an output string, rather than an ASCII identifier. It can contain an emoji or a canonical call with punctuation, quotes, and spaces. Named instances use their public name without an extra node. Nodes, `insertedBy`, warnings, expected rules, and witness actions all use that same effective name. Engine §2.3 defines instance identity and canonical names.
-
-A list that flat braces read has no node of its own. Each level of a chain is a `rule` node of the chain's rule (engine §12). So braces add no kind of node. A spliced call also adds no node and keeps its children in order. A collapsed erased occurrence shows only its kept canonical derivation (engine §6).
-
-The [JavaScript API](api.md#javascript) defines formatter ownership.
-
-A token node's `token` indexes the stage-input token it reads. `terminal` records canonical terminal identity, such as `KOhA`, `"a"`, `"a".."z"`, or `_`. Tests do not change that identity. Constants expand to their string identity. Read witnesses and expected lists use the same spelling.
-
-An elided node with a default value (engine §3.8) records it as `value`, after `source`. A default from `≝` or from an equality test counts, and an explicit empty operand gives `value:""`. All other nodes omit this member. A canonical comparison of two result trees includes `value`. A comparison of two constituents in a condition (engine §10) does not read it. This metadata does not change the empty value that an omitted pattern leaf observes.
-
-```json
-{"kind":"elided","terminal":"T","span":[1,1],"source":[1,1],"value":"saved"}
-```
+An elided leaf stores its resolved default in the `default` field when the grammar supplies a default operand. A written token with an empty value still uses the written leaf kind. Effective names for rules, instances, terminals and tests follow the engine's canonical spelling.
 
 A named diagnostic has this form, for either an error or a warning:
 
@@ -113,7 +88,7 @@ A named diagnostic has this form, for either an error or a warning:
 
 The six shown members are required. An error can add `rejection` after `message`, as below. `code` is the diagnostic rule's effective name, and `rule` identifies that same rule. `message` is its evaluated recipe. A warning has no `feature` member.
 
-`span` counts the stage's input tokens, and `source` counts original code points. A warning can have an empty span. An error reads at least one token, but its source can be empty. Spliced occurrences keep these fields even though their output node is absent. Coordinates belong to the raising stage and never change during flow. Report order follows engine §12.1, including carried diagnostics and erasure.
+`span` counts the stage's input tokens, and `source` counts original code points. A warning can have an empty span. An error reads at least one token, but its source can be empty. Spliced occurrences keep these fields at the call occurrence. Coordinates belong to the raising stage and never change during flow. Report order follows engine §12.1, including carried diagnostics and erasure.
 
 The example warns for `ka'y` in `mi ka'y` in `lojban/cll`, with warning code `y-cmavo` enabled.
 
@@ -135,7 +110,7 @@ A reporting stage with counted errors gives this envelope:
 
 `errors` is nonempty and uses the collection order of engine §12.1. The envelope's `message` is a summary whose wording is free. It has no `token`, `source`, `line`, `column`, `expected`, or `readings`. Those coordinates can occur inside a diagnostic's `rejection` member.
 
-The result has `ok:false` and keeps the chosen tree. The reporting stage retains `unique` or `resolved` and its emitted output, including an empty output array. Its errors can originate in earlier stages. The result's `warnings` holds the surviving warnings under the same collection rules.
+The result has `ok:false` and keeps the chosen tree. The reporting stage retains `unique` or `resolved` and any completed publication, including an empty output array. Its errors can originate in earlier stages. The result's `warnings` holds the surviving warnings under the same collection rules.
 
 An action in a witness is `{"read":{"token":4,"terminal":"KOhA"}}` or `{"close":{"rule":"sumti","production":57,"span":[2,5]}}`. The witness of an error of `elision-only` can also hold `{"elided":{"at":3,"terminal":"KU"}}`, a read of a terminator written back at that position (engine §7.10). The production is numbered from 0, as in engine §3. For a production of a helper, `rule` is the rule whose alternative introduced the helper.
 
@@ -144,8 +119,8 @@ An error has one of these forms:
 ```
 {"kind":"rejected","stage":"syntax","token":4,"source":[12,15],"line":1,"column":13,
  "expected":[{"terminal":"KU","rules":["sumti"]},...],"errors":[ERROR...],"warnings":[WARNING...],"message":"..."}
-{"kind":"ambiguous","stage":"syntax","reason":"tie","readings":[NODE,NODE],"errors":[ERROR...],"message":"..."}
-{"kind":"ambiguous","stage":"syntax","reason":"elision-only","readings":[NODE,NODE],"witness":[ACTION,ACTION],"message":"..."}
+{"kind":"ambiguous","stage":"syntax","reason":"tie","readings":[REF,REF],"errors":[ERROR...],"message":"..."}
+{"kind":"ambiguous","stage":"syntax","reason":"elision-only","readings":[REF,REF],"witness":[ACTION,ACTION],"message":"..."}
 ```
 
 If a conditional declaration holds for a feature that the caller disables, the result contains this error:
@@ -158,7 +133,7 @@ The stage has a null verdict and no output. Earlier stages retain their output. 
 
 A rejection can also name a failed boundary condition:
 
-```json
+```text
 {"kind":"rejected","stage":"syntax","token":4,"source":[12,15],"line":1,"column":13,
  "expected":[...],"boundary":{"rule":"bare-na","condition":1,"at":3},"errors":[ERROR...],"warnings":[WARNING...],"message":"..."}
 ```
@@ -171,7 +146,7 @@ For these three envelopes, `warnings` equals the result's complete warning colle
 
 `boundary` appears only when a failed boundary obligation dropped an item at the reported position or later (engine §4.2). `rule` is the rule of the condition. `condition` is the index of the condition item among the rule's condition items, from 0. The count runs through the rule's definitions in source order, so an extension's items follow those of the rule it extends.
 
-Guard atoms in header and alternative tag terms follow their definition's written conditions and count toward indexes in later definitions. Each written guard atom takes its own index, in written order, with the header term first and then the term of each alternative. The atoms of an alternative that a gate drops still count.
+Guard atoms in statement and alternative bag terms follow their definition's written conditions and count toward indexes in later definitions. Each written guard atom takes its own index, in written order, with the header term first and then the term of each alternative. The atoms of an alternative that a gate drops still count.
 
 `at` is the boundary where the obligation failed. Equal literals retain every source condition as an annotation, without changing record identity.
 
@@ -179,8 +154,8 @@ Guard atoms in header and alternative tag terms follow their definition's writte
 
 - `rejected`: Recognition finds no complete derivation of the stage input.
 - `reported`: The reporting stage has at least one counted error. The envelope contains `stage`, ordered `errors`, and a summary `message`, as above.
-- `ambiguous` (engine §6, §7): The error has `stage`, `reason`, `readings` and `message`, and no position. A tie can also have the ordered `errors` above. Every ambiguous error has two readings. `message` is free, and the shared tests do not compare it. `reason` says which of two cases the error is:
-  - `tie`: The ranking of the stage has two or more best derivations (engine §6). The stage's verdict is `tie`, and it has no output. The readings are the first and the second reading of the tie, over the stage's input as the stage read it. They are two derivations, but they can be equal as `NODE` values.
+- `ambiguous` (engine §6, §7): The error has `stage`, `reason`, `readings` and `message`, and no position. A tie can also have the ordered `errors` above. Every ambiguous error has two qualified node references. `message` is free, and the shared tests do not compare it. `reason` says which of two cases the error is:
+  - `tie`: The ranking of the stage has two or more best derivations (engine §6). The stage's verdict is `tie`, and it has no output. The readings are the first and the second reading of the tie, over the stage's input as the stage read it. They are two derivations, but they can be equal after following their references.
 
     The engine counts admitted derivations with the best blame measure. It collapses erased interiors with equal observable states (engine §6). Other transparent closes and equal trees do not merge derivations. The stage's witness then names the actions where they differ.
 
@@ -189,17 +164,17 @@ Guard atoms in header and alternative tag terms follow their definition's writte
 
     The first reading represents W(D), the restored chosen derivation. An admitted reading shows its class's kept interior. An excluded W(D) remains the concrete raw restored reading. The second is its deterministic competitor (engine §7.10). This order also applies without ranked groups or key steps.
 
-    The readings hold the written-back terminators as elided nodes (engine §7.10). One can be a restored optional's terminator. One can also be a terminator that a reading reads on the written route of an optional, or as a bare terminal. So the two readings can be equal as `NODE` values, as a tie's can.
+    The readings hold the written-back terminators as elided nodes (engine §7.10). One can be a restored optional's terminator. One can also be a terminator that a reading reads on the written route of an optional, or as a bare terminal. So the two readings can be equal after following their references, as a tie's can.
 
     The error also has `"witness":[ACTION,ACTION]` after its readings. It holds the actions at the first difference between the two derivations, visible if there is one, mapped to the stage's input (engine §7.10). Over that input, the two actions can be equal too. The stage itself has no witness.
 - `feature-conflict`: A conditional declaration holds for a feature that the caller disables. The error has `stage`, `feature`, and `message`, without a position.
-- `grammar`: The parser found a defect while parsing. The error has `stage` and no position. An example of such a defect is a nested parse asked about its own span as the same rule. An error that lowering finds for the features of the parse is one too (engine §3). An item of braces that can match no tokens is such an error. Its message begins with the document, line and column of the definition at fault, since the error's position members are for the stage's input.
+- `grammar`: The parser found a defect while parsing. The error has `stage` and no position. An example of such a defect is a nested parse asked about its own span as the same rule. An error that lowering finds for the features of the parse is one too (engine §3). A repetition with an item that can read no tokens is such an error. Its message begins with the document, line and column of the definition at fault, since the error's position members are for the stage's input.
 
-  A defect found by the check of `elision-only` can have the member `code` with the value `elision-witness-lost` (engine §7.9). Such an error also has `chosen`, the chosen tree. It has `completion`, the terminators written back.
+  A defect found by the check of `elision-only` can have the member `code` with the value `elision-witness-lost` (engine §7.9). Such an error also has `chosen`, a qualified reference to the chosen tree. It has `completion`, the terminators written back.
 
   Each of them is `{"terminal":T,"at":N,"source":[S,S]}`. Only a terminator with a default value adds `"value":"..."` last, from `≝` or from an equality test, including an explicit empty string. The envelope follows the grammar member order above, including optional diagnostic arrays. Named diagnostics carry their rule codes inside a `reported` envelope. Other parse-result errors have no top-level `code`. Structured loading errors use the separate schema below.
 
-For example, `text → [[X]]` on the empty input ties, and both readings are `{"kind":"rule","rule":"text","span":[0,0],"source":[0,0],"tags":[],"children":[]}`. The stage's witness names two different productions of the helpers. An `&` that can match no tokens, such as `[A] & [B]`, gives such a tie too, with three derivations.
+For example, `%rule text [[X]]` on the empty input ties, and both reading roots have the same empty structure. The stage's witness names two different productions of the helpers. An `&` that can match no tokens, such as `[A] & [B]`, gives such a tie too, with three derivations.
 
 A mistake of the caller is not a result. It is an error of kind `usage` (engine §13).
 
@@ -233,7 +208,7 @@ kind, code, message, group, option, expression, inheritance
 
 `kind` is `grammar`. `code` and `message` are required for the five ranked loading errors. Their codes are `ranked-choice-syntax`, `ranked-choice-continuation`, `ranked-choice-boundary`, `ranked-choice-export`, and `ranked-choice-tags` (engine §2.1). Message wording is not part of conformance.
 
-`group` appears when the reader identifies a ranked group. Its members are `document`, `at`, `rule`, `alternative`, and `path`, in that order. Omit `document` and `at` when unknown. `at` identifies the first `≻` token where source exists.
+`group` appears when the reader identifies a ranked group. Its members are `document`, `at`, `rule`, `alternative`, and `path`, in that order. If the document or position is unknown, omit its member. `at` identifies the first `≻` token where source exists.
 
 `rule`, `alternative`, and `path` identify the final stitched source expression where available. `alternative` and `option` are zero-based indexes. Omit `option` for a failure common to the whole group.
 
@@ -245,348 +220,245 @@ Choose the shortest inheritance witness. Source traversal order breaks equal-len
 
 ### A grammar DOM
 
-The authoritative constructor contract is [engine §9.3](engine.md#93-conversion-and-validation). It defines recognized syntax parts, required lookups, and conversion into these schemas.
+A document stores written declarations and unresolved references. It contains no chart state, constant index, computed interface, gate result or lowered helper. Text conversion, cache reading and supplied-DOM reading use the same constructors and errors. Use the member order below. Brackets in the field notation indicate arrays.
 
-A grammar DOM (document object model) is the parsed form of a grammar document (engine §8, §9). A library makes it when it reads the document. The per-family preparsed files hold this data, including the entries that bootstrap the notation reader.
+A question mark after a field marks an optional field. It is not part of the member name.
 
-Its envelope is `{"format":49,"rules":[RULE...],"directives":[DIRECTIVE...],"constants":[CONST...],"classifiers":[CLASSIFIER...],"implications":[IMPLICATION...]}`. All five declaration arrays are present, including empty arrays. The envelope has no other members. Every declared item has `at:[line,column]`, counted from 1. Both coordinates must be integers from 1 to 9007199254740991 (2^53 − 1). This bound applies to every DOM source position.
+`P` means `[line,column]` in the source document. Each coordinate is an integer from 1 through 9007199254740991. A declaration’s location identifies its first token. Preserve argument and expression locations during substitution. Absent optional members have no JSON key.
 
-`format` is the version of the DOM, 49. A library refuses a bootstrap of another version and treats an optional cached DOM of another version as a cache miss. A format match alone never excuses invalid schema data.
+A present null never stands for absence. The expression records below govern every expression operand, including those of structural comparisons.
 
-An optional member is absent only when its key is absent. A present `null` does not replace an omitted member. Every present member must satisfy its stated form, including exclusive targets and optional clauses.
+### Source positions and nesting
 
-A written literal joins its decomposed text runs with exact decoded escapes. DOM depth follows the compound ancestors and transparent wrappers defined in engine §9.
+Append a required one-based `at:P` to each body or pattern test, property read and method call. This includes a short map selector’s own property or method record. For value tests use the comparator token. For key filters use the opening angle bracket. For properties use the apostrophe. For methods use the dot, including a leading dot in a short selector.
 
-The cache identity follows engine §8.
+Each error-owning expression operator record also ends with `at:P`. This includes Boolean operations, comparisons, bag and pattern operations, arithmetic, concatenation, conditionals, map and flatten. For expression records this rule covers `if,any,all,not,op,union,intersection,difference,concat,map,flatten`. Use the written operator token. Use the question mark for a conditional and the exclamation mark for a map.
 
-A rule has this form, in canonical member order:
+A normalized n-ary record owns one operation: use its first combining operator in source order. Report errors in its operands at their own recorded sites. Keep existing positions on functions, constant references, applications, template parameters, entries and positioned atoms. Add no second position to a record that already carries the required one. [Expression records](#expression-records) gives the expression shapes.
+
+For `$x!'value` at column one of line one, the portable record is:
+
+```json
+{"map":{"capture":"x"},"by":{"property":"value","at":[1,4]},"at":[1,3]}
+```
+
+For `r="a"` at the same starting column, the body record is:
+
+```json
+{"test":"=","value":{"string":"a"},"expr":{"ref":"r"},"at":[1,2]}
+```
+
+Preserve positions and their source documents through substitution. Report a failure caused by a substituted operand at the operand’s written site. Keep the requesting test or read as diagnostic context. Exclude all positions from normalized instance identity. Require identical diagnostics from text, optional caches and supplied DOMs.
+
+In a template argument slot, every argument record ends with `at:P`. Keep an existing position on that record. Otherwise use the first token of the argument. For a marked argument, use the first token of the expression after `=`. This rule also applies to arguments of an instance edit or binding.
+
+During substitution, retain the argument’s document and position. Report an error on the whole argument at that position. An error inside a positioned subexpression uses its own site. Keep the requesting operation as context. Positions add no logical depth and do not affect instance identity.
+
+Depth counts compound ancestors, starting at zero for each root. Reject a node at depth greater than 256. Use the body, pattern and root rules in [Engine §9](engine.md#depth). A primary mark is transparent to depth. For each bag or list constructor, add one level before each guard, source or value expression.
+
+Entry records, gates, key arrays, positions and category wrappers add none. An emission guard or term starts at zero.
+
+A unary or binary operation adds one before each expression operand. So do a conditional, an n-ary operator, a property read, a method call, a function, an application, a map and flatten. A short map selector is transparent. Its argument expressions lie one level below the map. A full lambda under a map adds its own level.
+
+Leaves add none. Count the normalized written DOM and substituted definitions at their existing validation steps. Measure logical nesting independently of the JSON container depth.
+
+`E` in **every** record below denotes an expression from the expression records below. This includes bag terms, function bodies through their expression constructor, predicates, message strings, operands and constructors for braced items. [Expression records](#expression-records) specifies ordered entries with locations, gates, guards and deletion. A bag expression in a source document never serializes as a computed object from result 18.
+
+| Record | Canonical fields |
+|---|---|
+| Document | `format:50,rules:[RULE],directives:[DIRECTIVE],constants:[CONST]` |
+| Ordinary rule | `name,op,term?:E,alternatives:[ALT],emit?:EMIT,conditions:[E],error?:E,warning?:E,suppressWarnings?:[name],erased?:true,at:P` |
+| Template | Ordinary rule fields with `params:[name]` immediately after `name`. |
+| Exact instance edit | Ordinary rule fields with `args:[ARG]` immediately after `name`. |
+| Instance binding | `name,op,instance:CALL,conditions:[],at:P` |
+| Alternative | `gates:[GATE],expr:BODY,term?:E` |
+| Constant definition or edit | `name,op,value:E,at:P` |
+| Gate | `feature,kind:"gate",negated:boolean` |
+| Stage selection | `name,args:[stageName],at:P` |
+| Include or names resource | `name,args:[decodedPath],at:P` |
+| Features | `name:"features",args:[featureName,…],at:P,conditions?:[E,…]` |
+| Elision policy | `name:"elision-only",args:[],at:P` |
+| Resolution policy | `name:"ambiguity-resolution",steps:[STEP,…],at:P` |
+| Resolution step | `step,pattern?:PATTERN_OR_CONST` |
+| Emission | `items:[ITEM]` |
+| Forwarding item | `capture:name,gates:[GATE],guard?:E,at:P` |
+| Braced item | `capture:name,term:E,gates:[GATE],guard?:E,at:P` |
+| Insertion item | `insert:true,term:E,gates:[GATE],guard?:E,at:P` |
+
+All three declaration arrays must exist. Each follows written order. Merge their declarations by source location for stitching. Rule operations are `define,redefine,extend`. Constants and bindings accept only `define,redefine`.
+
+Instance edits accept only `extend,redefine`. The ordinary rule form also covers edits of a public instance name. Stage directive names are `stage,extend-stage,redefine-stage`. The path directives are `include,names`. A nonempty features condition array belongs only to a stage-local features declaration.
+
+Preserve the preamble restriction on names resources.
+
+A rule body requires at least one alternative. Its conditions array is required and can be empty. Statement and alternative terms must be bag constructors under the expression records below. To take all entries from a computed bag, write `→ {*$F($x)}`. Never attach the terms of a preceding definition to an extension.
+
+Error and warning are mutually exclusive. A template cannot declare either. An erased rule cannot declare emission. A suppression list is nonempty. The wildcard code occupies a list by itself.
+
+A template can carry suppression, which its instances inherit. A binding has no term, emission or diagnostic clauses.
+
+A missing `emit` means no selection directive. Bare emission is `{"items":[]}`. A listed emission has a nonempty items array. A guarded list selecting no output at runtime remains a written nonempty array. Within an emission list, only a braced item can have an empty capture name.
+
+It denotes the whole occurrence. Its term must be a bag constructor under the expression records below. Forwarding uses a nonempty capture name and no term. An insertion requires a constructor. No item can carry both origin selectors.
+
+A braced item inherits its part’s strings without an extra DOM field.
+
+For example, the following document distinguishes bare emission from a rule without a directive. Its locations assume one directive or rule per source line.
+
+```json
+{"format":50,"rules":[{"name":"text","op":"define","alternatives":[{"gates":[],"expr":{"primary":{"ref":"Word"}}}],"emit":{"items":[]},"conditions":[],"at":[2,1]}],"directives":[{"name":"ambiguity-resolution","steps":[{"step":"greedy"}],"at":[1,1]}],"constants":[]}
+```
+
+A constant name omits its dollar sign. A template parameter omits its at sign. A call records `{call:name,args:[ARG,…],at:P}`. A parameter records `{param:name,at:P}`. Template parameter and argument arrays are nonempty.
+
+Parameters must be distinct. Each argument takes exactly one form from the following table. Marked expression actuals use the expression records below and must be closed after substitution. The final position belongs to the argument record itself. Store the parsed category and ignore grouping that changes no category.
+
+| Argument | Record or payload |
+|---|---|
+| Marked expression actual | `{"expression":E,"at":P}` under the expression records below. The category wrapper adds no expression depth. |
+| Named rule, call or parameter | `{rule:name,at:P}`, `CALL` or `PARAM` |
+| Untested user terminal | `{tag:name,at:P}` |
+| Untested string literal | `{literal:S,at:P}` |
+| Range, wildcard, splice or tested symbol | The corresponding body record below with a final `at:P`. A tested symbol keeps its test position. |
+| Body, targets or requirements | `{body:BODY,at:P}`, `{targets:[TARGET,TARGET,…],at:P}` or `{requirements:[REQ],at:P}` |
+| Target inside a target choice | `{rule:name}`, `{terminal:name}`, `CALL` or `PARAM` |
+
+For example, unmarked `@P` uses the parameter record. Marked `= @P` wraps it in `{"expression":E,"at":P}`. Both positions point to the at sign. In `split-y(= 0)` at column one, the wrapper points to column 11. Three more spaces before the zero move its position to column 14.
+
+A body record has exactly one of these forms. `S` is a string literal expression, string constant reference or declared parameter, encoded under the expression records below. It must resolve to a string. The body reader calls its single-symbol nonterminal `factor`.
 
 ```text
-{"name":"unit","op":"define","tags":TERM,"value":RECIPE,"image":RECIPE,
- "alternatives":[ALT...],"emit":EMIT,"conditions":[COND...],
- "error":MESSAGE,"warning":MESSAGE,"suppressWarnings":[CODE...],"erased":true,"at":[line,column]}
+{seq:[BODY,BODY,…]}       {choice:[BODY,BODY,…]}
+{ranked:[BODY,BODY,…]}    {and:[BODY,BODY,…]}
+{optional:BODY}           {optional:BODY,elidable:true,default?:S}
+{repeat:BODY,separator?:BODY,chain?:"left"|"right"}
+{ref:name}                {literal:S}              {range:[S,S]}
+{wildcard:true}           {empty:true}             {remainder:true}
+{splice:TARGET_RULE}      {capture:name,expr:SYMBOL}
+{primary:SYMBOL_OR_CAPTURE}                         CALL | PARAM
+{test:"tags",requirements:[REQ],expr:SYMBOL_BASE,at:P}
+{test:"="|"≠",value:S,expr:SYMBOL_OR_TAG_TEST,at:P}
 ```
 
-`op` is `define`, `redefine`, or `extend`. `tags`, `value`, `image`, `emit`, `error`, `warning`, `suppressWarnings`, and `erased` are optional. `conditions` is an array, including an empty array.
+Body records hold no resolved token classes or generated helpers. A `seq` keeps its order and nesting. An ordered subset keeps its written positions and permits at most sixteen operands. The optional's `elidable` member occurs only as `true`. A `splice` holds a rule reference or exact call.
 
-`erased` is present only as `true`. `erased` and `emit` cannot coexist. An erased definition cannot carry a value or image recipe. It can carry a diagnostic recipe or suppression.
+The source mark before a captured symbol wraps the whole capture. `primary` never changes the terminal identity or action count. A capture binds one symbol. Reject a label around a group, optional or repeat. For a terminator binder, put the capture inside the elidable optional.
 
-`error` and `warning` cannot coexist. Each holds a MESSAGE recipe, which excludes `.emitted` (below).
+A sole-symbol copy requires no serialized mark. An elidable head must resolve to a user terminal. Its default belongs to the optional. A chain occupies the entire alternative. A remainder occurs only in a query target.
 
-`suppressWarnings` is a nonempty array of warning codes, or `["_"]` for all warnings. The wildcard cannot share its array with codes. A repeated code in a suppression list is legal and changes nothing.
+A sequence, choice, ranked group and ordered subset each require at least two operands. A filter precedes a value test.
 
-These clauses attach only to this definition's productions. An extension inherits none of them.
+A requirement is `{negated:boolean,value:operand}`. The operand is a terminal name atom, key-set constant or parameter. Use the name atom `{"tag":"T"}` in this slot. Encode other operands as expression records. In this slot alone, `{"tag":"_Elided"}` denotes an origin test.
 
-Rules have no members beyond the forms shown here, including the template and instance forms below.
+It is never a bag expression. The same requirement record applies to a pattern atom. The requirement tests name presence or the specified origin.
 
-`alternatives` is nonempty on body definitions. A rule name is lowercase or one valid emoji scalar (engine §9.1).
+### Expression records
 
-A template body definition adds `"params":["Left","Right"]` immediately after `name`. The names exclude `@` and obey engine §2.3. A template has at least one distinct parameter. Its other fields follow the ordinary rule schema, except that `error` and `warning` are forbidden. A template can carry `suppressWarnings`, which its instances inherit.
+| Production or case in the [expression grammar](engine.md#expression-grammar) | Canonical record |
+|---|---|
+| `expr`, implication | `{"if":E,"then":R,"at":P}`. A single operand uses its own record. |
+| `function` | `{"lambda":N,"body":E,"at":P}`. The name omits its dollar sign. The position points to the binder. |
+| `disj`, `conj` | `{"any":[E,R],"at":P}` or `{"all":[E,R],"at":P}`. A run can have more than two operands. A single operand needs no wrapper. |
+| `neg` | `{"not":E,"at":P}` |
+| `comparison` | `{"op":S,"left":E,"right":R,"at":P}` with the comparator spelling of the expression grammar. For `≅` and `≇`, `left` must be `{"capture":N}` or `{"item":true}`. |
+| `union` | `{"union":[E,R],"at":P}` or `{"difference":[E,R],"at":P}`. Difference always takes two operands. |
+| `inter` | `{"intersection":[E,R],"at":P}`. Preserve the nesting of binary operations before type resolution. |
+| `sum` | `{"concat":[E,R],"at":P}` for strings, `{"op":"+","left":E,"right":R,"at":P}` for numbers. |
+| `post` | Apply successive records from the left. Flatten uses `{"flatten":E,"at":P}`. |
+| `prop` | `{"property":N,"receiver":E,"at":P}`. Store only the final key in this record. |
+| `method`, `selector` | `{"method":N,"receiver":E,"args":[…],"at":P}`. Always include the array. The signature determines the printed parentheses. |
+| `arguments` | An ordered array of the records in the argument table below. |
+| `map` | `{"map":E,"by":F,"at":P}`. F is a short selector, a function record or a reference to a unary function. |
+| Short `prop` or `method` after `!` | In `by` use `{"property":N,"at":P}` or `{"method":N,"args":[…],"at":P}`. The mapped element supplies the receiver. |
+| `predicate` | Use the function record or the ordinary reference record. A reference introduces no lambda. |
+| `implicit` | `{"lambda":"","body":E,"at":P}`. P points to the first argument token, including a leading negation. |
+| `atom`, capture or binder reference | `{"capture":N}`. An empty name denotes bare `$`. Resolve a nonempty name in its lexical scope. |
+| Constant or call | `{"const":N,"at":P}` or `{"apply":N,"arg":E,"at":P}`. P points to the dollar sign. |
+| Template parameter | `{"param":N,"at":P}`. P points to the at sign. |
+| String or natural | `{"string":S}` or `{"integer":S}`. Store canonical ASCII digits as a string. A literal inside a marked wrapper keeps this leaf form. |
+| Pattern or empty pattern | `{"pattern":PATTERN}` or `{"emptySet":true}`. Use the structural pattern records below. |
+| Implicit receiver | `{"item":true}`. It denotes the bound item itself and supplies the receiver of a leading property or method. |
+| Group or conditional | Grouping uses E directly. The conditional is `{"if":E,"then":R,"else":E2,"at":P}`. |
+| `bag` | `{"bag":[ENTRY,…]}`. The array can be empty. |
+| `list` | `{"list":[ITEM,…]}`. The array can be empty. |
 
-An exact instance edit uses `"name":"pair","args":[ARG,ARG...]` instead of `params`. The `args` member also follows `name` immediately. Its `op` is `redefine` or `extend`. A public-name edit uses the ordinary rule shape and resolves to that instance during stitching. Parameters and concrete arguments cannot mix in a head.
+Print a property of the implicit item as `'key`, with one apostrophe. A named copy from that item has the same spelling in its entry.
 
-A binding has exactly this shape:
+In `$r.all(' ≇ #·CAI)`, each item of `$r` must bind one node. The comparison reads `{"item":true}` on the left. The splice and self-comparison restrictions of §[the structural comparison rules](notation.md#comparing-two-constituents) still apply.
 
-```json
-{"name":"named-pair","op":"define","instance":{"call":"pair","args":[{"string":"a"},{"string":"b"}],"at":[1,20]},"conditions":[],"at":[1,1]}
-```
+A normalized operator array represents one operation. Its final `at` locates the first combining operator in source order. A failure inside a positioned operand uses that operand’s own location.
 
-Its `op` can also be `redefine`, under engine §2.3. It has no `alternatives`, clauses, emission, diagnostic, suppression, or `erased`. Its conditions must be empty. The `instance` member follows `op` in canonical order. This object records a binding, without adding a runtime wrapper node.
+Flatten nested unions and concatenations in order, without removing duplicate or empty operands. The reader groups one uninterrupted conjunction or disjunction in one array. Preserve nested Boolean groups. Each operator array has at least two operands.
 
-A `redefine` binding can replace an ordinary rule or rebind a named instance to another call. After rebinding, the old instance keeps its edits and takes its canonical name.
+A leading Boolean operator used for layout adds no operand or position to a run. A typed pattern intersection uses the pattern normalization for instance keys. Retain other binary nesting, including the left operand of a second difference.
 
-A call is `{"call":"pair","args":[ARG,ARG...],"at":[line,column]}`. A parameter is `{"param":"Left","at":[line,column]}`. Both require positive source coordinates. Call names use the rule-name repertoire. A call requires at least one argument. A parameter requires a declaring template and a matching parameter name.
+### Entries and host records
 
-Both forms obey the shape of their position. Parameters can replace operands inside conditions. A parameter can also stand as the set term of the `nonempty` wrapper below. Neither form replaces an emission or pattern-child expression. Calls retain their rule identity in unresolved term positions. Ordinary type requirements apply when the stage resolves those calls.
+Every bag entry and list item has a kind, a gates array, an optional guard and a position. The kind selects its payload fields. The fields of each record appear in the order shown below. T denotes the common suffix `"gates":[G,…],"guard":E,"at":P`. If the entry has no guard, omit that member. The position points to the first token of the whole entry, including its prefix.
 
-ARG has one of these forms:
+| Production or case in the [expression grammar](engine.md#expression-grammar) | Canonical record |
+|---|---|
+| `entry`, bare key | `{"kind":"bare","key":N,T}` |
+| `entry`, one or several valued names | `{"kind":"write","keys":[N,…],"value":E,T}`. Require at least one name. |
+| `copy`, also as an entry | `{"kind":"copy","source":R,"key":N,T}`. R stops before the final selector. Each intermediate read has its own apostrophe position. The final key belongs to the copy entry. Use the entry position for errors of the copy itself. |
+| `entry`, splat or deletion | `{"kind":"splat","value":E,T}` or `{"kind":"delete","key":N,T}`. |
+| `prefix` | The gates and guard of the containing record. No standalone expression wraps the entry. |
+| `gate` | `{"feature":N,"kind":"gate","negated":B}`. B is a JSON Boolean. |
+| `item` | `{"kind":"item","value":E,T}` or `{"kind":"splat","value":E,T}`. |
+| `actual`, marked expression | `{"expression":E,"at":P}`. The wrapper adds no depth. |
+| `actual`, other categories | Use the requirements, targets, body or symbol argument record of the document records above with its final `at:P`. |
+| `emit` | `{"items":[O,…]}`. Bare `%emit` has an empty array. An absent directive has no record. |
+| `output`, forwarding | `{"capture":N,T}` with a nonempty name. |
+| `output`, braced item | `{"capture":N,"term":E,T}`. An empty capture name denotes the rule. E must be a bag constructor. |
+| `output`, insertion | `{"insert":true,"term":E,T}`. E must be a bag constructor. |
+| Method argument kind | Element in `args` |
+|---|---|
+| Ordinary operand, predicate, numeric cap | E. Predicates also accept ordinary function references. A cap uses the integer record. |
+| Literal key in `.has` or `.has-value` | `{"key":N}` |
+| Width in `.ngrams` | `{"integer":S}` with the positive digits of the notation. |
+| Query | One `{"body":BODY}` with its outer remainder nodes. |
+| Close family | One `{"rule":N}`, template call or unresolved rule parameter. |
+| Neighbor targets | The target records directly in the array, in source order. A target choice can contribute several elements. |
+
+In `split-y(= 0)` at the start of line one, the argument is `{"expression":{"integer":"0"},"at":[1,11]}`. Three more spaces before the zero move the wrapper position to `[1,14]`.
+
+The marked argument retains its category even for one parameter. In a template, `= @P` wraps the parameter record in `expression`. An unmarked `@P` passes its category through. Substitution keeps the written wrapper and its scope. The canonical printer adds `= ` only for the expression category. Locations do not enter the instance key.
+
+In this constructor, `cbm` is a feature. The key `note` of node `$w` can be absent, bare or valued. If the key has a payload, copy it. Each character counts as one source column.
 
 ```text
-TERM
-{"rule":"unit"}
-{"call":"pair","args":[ARG,ARG...],"at":[line,column]}
-{"param":"Left","at":[line,column]}
-{"range":[STRINGTERM,STRINGTERM]}
-{"wildcard":true}
-{"splice":SPLICETARGET}
-TESTED-SYMBOL
-{"body":EXPR}
-{"targets":[TARGET,TARGET...]}
-{"requirements":[REQUIREMENT...]}
+{
+  cbm? $w.has-value(note)? $w'note,
+  ¬image
+}
 ```
-
-Common atoms retain their term forms. A parenthesized single symbol becomes its common ARG atom, including a tested symbol or parameter. Other parenthesized bodies, optionals, and repetitions use `body`.
-
-A tested-symbol argument retains its ordinary expression schema. Bare `ε` uses `body:{"empty":true}`. The body wrapper preserves the argument category and adds no runtime node.
-
-A parenthesized single parameter has no `body` wrapper. Other nesting follows the reader's ordinary DOM construction.
-
-Source, cached, and supplied arguments undergo the same conversion. A supplied `body` wrapper with one symbol reduces to that symbol before flow analysis, instance keys, and position validation.
-
-A TARGET is `{"rule":"r"}`, `{"terminal":"T"}`, a call, or, before expansion, a declared `param` node. A parameter must belong to the containing template. A terminal target names a user tag, never an engine tag.
-
-A target-choice argument has at least two TARGET values. Requirement lists retain signed requirement records and can be empty. Neither list is a tag set. Captures and capture methods are invalid anywhere inside ARG.
-
-Calls and parameters can occupy expression, term, pattern, and method-argument positions that engine §2.3 permits. Parameters can also occupy STRINGTERM and a requirement's `value` before expansion. A bare rule argument converts to the constructor that its use requires.
-
-Before the loader computes keys, it inspects every rule-valued argument and target inside a pattern call for read-back validity. It also visits nested calls and body arguments. Each nominal reference must read back as a rule in its actual syntactic position under the loaded Unicode table. A supplied rule argument cannot become a tag argument through canonical spelling. Unused arguments receive the same inspection.
-
-A call remains an instance reference. A body argument supplies its EXPR. The single-symbol conversion runs before position validation.
-
-A target choice supplies a body choice or splices into query targets.
-
-A requirement-list argument splices only into an unnegated requirement placeholder. Its entries replace that placeholder in written order. A list under a negated placeholder is an error. No other argument category splices. Ordinary validation applies to the substituted result.
-
-These forms remain unresolved in document caches. Supplied, cached, and source DOMs undergo the same binder, argument, expansion, and ordinary validation. Calls add one depth level before their arguments. Category wrappers add no depth, and parameters are leaves. Expanded definitions also obey the depth limit.
-
-An alternative is `{"gates":[GATE...],"expr":EXPR,"tags":TERM,"value":RECIPE,"image":RECIPE}`. Its three clause members are optional. `gates` is always present, including an empty array.
-
-A gate is `{"feature":"cbm","kind":"gate","negated":false}`. Its kind is always `gate`, and its feature follows engine §9.1. `negated:true` gives `¬cbm?`. No other members or gate kinds exist.
-
-Alternatives have no members beyond `gates`, `expr`, `tags`, `value`, and `image`.
-
-An expression has exactly one of these forms:
-
-```text
-{"seq":[EXPR,EXPR...]}       {"choice":[EXPR,EXPR...]}
-{"ranked":[EXPR,EXPR...]}    {"and":[EXPR,EXPR...]}
-{"optional":EXPR}           {"optional":EXPR,"elidable":true}
-{"repeat":EXPR,"separator":EXPR,"chain":"left"}
-{"ref":"sumti"}            {"ref":"KOhA"}            {"ref":"_General_Category_Uppercase_Letter"}
-{"literal":STRINGTERM}      {"wildcard":true}
-{"range":[STRINGTERM,STRINGTERM]}
-{"splice":SPLICETARGET}
-{"capture":"x","expr":CAPTURETARGET}
-{"test":"=","value":STRINGTERM,"expr":TESTTARGET}
-{"test":"tags","requirements":[REQUIREMENT...],"expr":BASETARGET}
-{"empty":true}             {"remainder":true}
-{"call":"pair","args":[ARG,ARG...],"at":[line,column]}
-{"param":"Left","at":[line,column]}
-```
-
-An expression has no member but those of its one form, including template forms above.
-
-`seq`, `choice`, `ranked`, and `and` require at least two children. `and` accepts at most 16.
-
-`repeat` is braces (engine §3, §9). Its value is the item, and its `separator` is present only where the braces have `/`. Its `chain` is present only for a chain: `left` for `{... x / s}` and `right` for `{x ... / s}`. So `{x}` is `{"repeat":X}`, `{x / s}` is `{"repeat":X,"separator":S}`, and `[{x}]` is `{"optional":{"repeat":X}}`. A `repeat` with a `chain` is the whole `expr` of its alternative, and never part of another expression. A `repeat` with a `chain` is never the `body` of a query. A list counts one or more items, and an optional list is an `optional`.
-
-SPLICETARGET is one rule `ref` or `call`, including an emoji rule. It cannot be a terminal, parameter, test, group, or nested splice. Outer tests can wrap a splice, and a capture can bind that tested occurrence.
-
-A `ref` stores a rule or tag name, including `🆓` or an engine tag. `literal` stores an unresolved string term. A range stores two string terms that resolve to single scalar endpoints. `wildcard` is exactly `true`.
-
-An `optional` with `"elidable":true` is an elidable optional (engine §3.8). `[+KU 🆓]` is `{"optional":{"seq":[{"ref":"KU"},{"ref":"🆓"}]},"elidable":true}`. A plain optional has no `elidable` member. An elidable optional whose head carries `≝` has a `default` member after `elidable`.
-
-Its value has the form of a value test's operand. So `[+JI ≝ "jie"]` is `{"optional":{"ref":"JI"},"elidable":true,"default":{"string":"jie"}}`. A plain optional has no `default` member.
-
-`BASETARGET` is a `ref`, `call`, `splice`, `literal`, `wildcard`, or `range`. Before expansion, it also accepts a declared `param` node. `TESTTARGET` is a BASETARGET, or its tag-tested form under a value test. `CAPTURETARGET` is a BASETARGET or its legal tested form.
-
-Before expansion, `$x:@X` can have this capture expression:
 
 ```json
-{"capture":"x","expr":{"param":"X","at":[1,16]}}
+{"bag":[
+  {"kind":"copy","source":{"capture":"w"},"key":"note","gates":[{"feature":"cbm","kind":"gate","negated":false}],"guard":{"method":"has-value","receiver":{"capture":"w"},"args":[{"key":"note"}],"at":[2,10]},"at":[2,3]},
+  {"kind":"delete","key":"image","gates":[],"at":[3,3]}
+]}
 ```
 
-A query parameter uses the same unresolved node in its body:
+Apply the same grammar, scope, type and phase rules to each DOM. An implicit-function record is legal only in a predicate slot and must express a body with the permitted initial receiver. For an implicit function, apply the first-token restriction before discarding source parentheses. For a supplied DOM, require an equivalent legal ungrouped source spelling.
 
-```json
-{"method":"parse","receiver":{"capture":"x"},"args":[{"body":{"param":"X","at":[2,23]}}]}
-```
+For `$xs.any($MARKED)`, store the constant reference directly in the method's argument array. For `$xs!($MARKED)`, store that reference directly in `by`. The reference points at its dollar sign. For `$xs!'note` at column one of line one, the map has `at:[1,4]`. Its short property selector has `at:[1,5]`.
 
-After substitution, the body is a constituent like any other (engine §4).
+A short selector is legal only in `by`. Reject a value field on a deletion, missing entry positions and repeated direct keys under [Constructors](notation.md#constructors). The reader preserves gates, guards and skipped entries until evaluation.
 
-Capture names use lowercase letters, digits, `-`, and `_`. Captures cannot occur directly in a chain's item or separator. Flat braces inside a chain can hold item captures. Inside an elidable optional, only the capture of its sole terminator is legal (engine §3.8).
+### Expression depth
 
-A capture inside the braces of a flat list is an item capture, which binds in the productions of the list's helper (engine §3.5). No ranked group can separate it from its innermost flat braces. Its name occurs nowhere else in its alternative. Each expanded production binds a name at most once.
+Start each expression root at depth zero, including an emission guard or term. Reject any node with more than 256 compound ancestors. Count the normalized written DOM and check substituted definitions again. Text, cache and supplied DOM use the same count. Apply the [engine's depth rules](engine.md#depth) to pattern operands and query bodies.
 
-A value test uses `=` or `≠`. A tag test uses `test:"tags"` and an ordered array of requirements. A requirement is `{"negated":false,"value":TERM}`. Its value is a tag literal, tag-set constant, or declared parameter before expansion. A negative requirement has `negated:true`.
+A bag or list adds one level before each guard, source and value. Entries, gates, key arrays, positions, argument wrappers and grouping add no level. Siblings share one depth. Each conditional or operator adds one level before each operand. A property read, method, function, application, map or flatten adds one before each expression operand. Leaves add none.
 
-The requirement array can be empty. An empty constant also resolves to no requirements. A tag test wraps only a BASETARGET. A value test wraps a BASETARGET or its tag test. Both tests must hold. Repeated test kinds and reversed nesting are malformed.
+A short map selector adds no level of its own. Its argument expressions start one level below the map. A full lambda after a map adds another level before its body. A reference in `by` is a leaf. Thus 256 nested singleton lists around a string fit at a root.
 
-For example, `_<Stressed>≠"y"` converts to this nested expression:
-
-```json
-{"test":"≠","value":{"string":"y"},"expr":{"test":"tags","requirements":[{"negated":false,"value":{"tag":"Stressed"}}],"expr":{"wildcard":true}}}
-```
-
-The pattern value `#A<B>=""` converts as follows. Its leaf uses `terminal` and records its source position. Both tests observe that same leaf.
-
-```json
-{"pattern":{"test":"=","value":{"string":""},"expr":{"test":"tags","requirements":[{"negated":false,"value":{"tag":"B"}}],"expr":{"terminal":"A","at":[1,2]}}}}
-```
-
-A capture of `🆓` converts like any rule capture:
-
-```json
-{"capture":"f","expr":{"ref":"🆓"}}
-```
-
-The first symbol of an elidable optional is a user-tag `ref`, optionally tested. Its tests can combine a value test and signed tag requirements. Before expansion, it can instead be a declared `param`, with the written head tests. Its content is that symbol, a sequence starting with it, or a capture wrapping only that symbol.
-
-`[$j:+JI="jie"]` has this DOM:
-
-```json
-{"optional":{"capture":"j","expr":{"test":"=","value":{"string":"jie"},"expr":{"ref":"JI"}}},"elidable":true}
-```
-
-A `default` belongs to the optional, after `elidable`, including for a captured terminator. No capture can wrap the optional itself.
-
-The parameter must become exactly one bare user-tag atom after argument conversion. Rule names, sequences, tested arguments, constants, and tag-set expressions are invalid arguments for that head. Engine tags, strings, ranges, wildcard, and grouped heads are invalid. The sole-terminator capture is the only permitted capture there.
-
-Source syntax also rejects parentheses around the head. The DOM does not record discarded grouping.
-
-Terms have these forms:
-
-```text
-{"string":"s"}               {"concat":[TERM,TERM...]}
-{"tag":"Word"}               {"emptySet":true}
-{"const":"SU-STOPS","at":[line,column]}
-{"union":[TERM,TERM...]}       {"intersection":[TERM,TERM...]}
-{"difference":[TERM,TERM]}     {"if":COND,"then":TERM}
-{"capture":"x"}              {"capture":""}
-{"method":"value","receiver":RECEIVER,"args":[]}
-{"pattern":PATTERN}
-{"call":"pair","args":[ARG,ARG...],"at":[line,column]}
-{"param":"Left","at":[line,column]}
-```
-
-In a term, a run of bare tag names or string literals produces one `union` of its terms in written order. Set operations treat scalar strings as singleton sets. A lone string keeps its scalar type.
-
-Any `union` operand that is itself a `union` flattens into its enclosing union. This applies to runs and explicit `∪`, including either form inside grouping parentheses. Parentheses make no DOM node. Thus `:: $f.tags ∪ Run-Initial Run-Final` has three union operands.
-
-Difference retains both operands. A term intersection retains its written nesting until type resolution. Pattern-valued intersections then flatten nested intersections before evaluation and instance keys. Other intersection types retain their nesting. Thus `(Word BY) ∩ $l.tags` keeps the run's union as its first operand.
-
-For example, `A ∪ (B ∪ C)` gives this term:
-
-```json
-{"union":[{"tag":"A"},{"tag":"B"},{"tag":"C"}]}
-```
-
-`STRINGTERM` is `string`, string-valued `const`, or a declared `param` before expansion. A written string literal uses `string`, with escapes decoded and dollar signs unchanged.
-
-`concat` joins string terms in written order. Outside a recipe root, its array contains at least two operands. The reader flattens nested concatenations, including grouped operands. It preserves empty operands and does not merge literals or resolve constants. Supplied DOMs can retain nested `concat` terms.
-
-`const` is a reference to a constant, by its name without `$`. Its `at` is the line and column of the reference, where the loader reports an error of the constant (engine §2). A term has no member but those of its one form, including template forms above. `difference` has exactly two parts, and `a ∖ b ∖ c` nests the first difference in the second.
-
-A method node always has `method`, `receiver`, and `args`, in that order. Its method name, receiver type, arity, and result type follow engine §10. A receiver can be a capture, span method, string term, query forest, or the recipe-only emitted pair. Before expansion, a permitted term receiver can also be a declared `param` node. Zero-argument methods have an empty argument array.
-
-Rule arguments use `{"rule":"r"}`, including `{"rule":"🆓"}`, or an unresolved call. `.without-elision-except` takes one. Before expansion, it can take a declared `param` node in that rule position.
-
-Classifier arguments use `{"classifier":"lexicon"}`. Rule arguments are also legal compile-time ARG values. Classifier arguments occur only in `.classify` and cannot be ARG values or parameter uses.
-
-String arguments are terms. A classifier name starts with a lowercase letter, so `🆓` cannot name a classifier.
-
-`.parse` takes exactly one `{"body":EXPR}` argument. Its receiver is a capture or span, including a restored span except in suffix or part mode. The body contains no capture at any depth, but referenced rules retain their own captures. The body is never a `repeat` with a `chain`. It can add the leaf `{"remainder":true}` at the first edge, at the last edge, or at both edges of its outer `seq`.
-
-That leaf has no other members and is legal nowhere else. It cannot be the complete body. Without it, the query uses whole mode.
-
-For example, `$i.onward.parse(@Open …).error-free` in a template uses this unresolved term:
-
-```json
-{"method":"error-free","receiver":{"method":"parse","receiver":{"method":"onward","receiver":{"capture":"i"},"args":[]},"args":[{"body":{"seq":[{"param":"Open","at":[2,20]},{"remainder":true}]}}]},"args":[]}
-```
-
-A first remainder selects suffix mode, and a last remainder selects prefix mode. A remainder at both edges selects part mode. Each remainder is unread and excluded from the witness. `.error-free` takes no arguments, accepts a forest receiver, and returns a forest.
-
-A bare `parse` result or its filtered result can stand as a condition. A forest also has `.tags`, which unions the tag sets of its witnesses. A forest supports no other method, operator, or implicit string conversion. Body wrappers add no DOM depth, and the remainder is a leaf.
-
-`.ngrams` takes exactly one `{"integer":"2"}` argument. Its digits match `[1-9][0-9]*`, without a size limit. This argument is not a value term and occurs only in `.ngrams`.
-
-`.without-elision` requires a bare capture receiver, including `{"capture":""}` for `$`. `.onward` can wrap its restored result. The DOM contains no runtime restoration records or seals. Readers reject `$x.onward.without-elision` and direct the author to `$x.without-elision.onward`.
-
-`.without-elision-except` takes the same receiver and exactly one rule argument. `.onward` can wrap its result too. Readers reject `$x.onward.without-elision-except(f)` in the same way.
-
-For example, `$m.without-elision.parse(sumti)` uses this condition DOM:
-
-```json
-{"method":"parse","receiver":{"method":"without-elision","receiver":{"capture":"m"},"args":[]},"args":[{"body":{"ref":"sumti"}}]}
-```
-
-`$s.without-elision-except(math).onward.parse(quantifier …)` uses this condition DOM:
-
-```json
-{"method":"parse","receiver":{"method":"onward","receiver":{"method":"without-elision-except","receiver":{"capture":"s"},"args":[{"rule":"math"}]},"args":[]},"args":[{"body":{"seq":[{"ref":"quantifier"},{"remainder":true}]}}]}
-```
-
-The extended prefix uses `$m.without-elision.onward.parse(sumti …)`. Its receiver nests an `onward` method around the restored span. Query conditions use the same method schema as terms.
-
-A recipe is `{"concat":[ATOM...]}` with a nonempty array. Atoms are `string`, string-valued `const`, declared `param` before expansion, or one of the seven recipe string methods on a bare capture. The methods `.emitted.value` and `.emitted.image` are the two channel forms of `emitted`. An emitted-channel atom nests the channel selector around `{"method":"emitted","receiver":CAPTURE,"args":[]}`. `emitted` alone cannot be a recipe atom.
-
-```json
-{"concat":[{"method":"value","receiver":{"capture":"a"},"args":[]},{"string":" "},{"method":"image","receiver":{"method":"emitted","receiver":{"capture":"b"},"args":[]},"args":[]}]}
-```
-
-MESSAGE uses the same nonempty `concat` shape as RECIPE, but excludes both emitted-channel methods. It accepts the other five captured string methods, string literals, string constants, and `++`. It accepts no query or absent, item, or private ranked capture.
-
-Recipe syntax joins atoms with `++` and accepts no other method chains or expression types. A recipe root always uses `concat`, including for one atom. After substitution, its array contains only recipe atoms. A parameter or call cannot replace the recipe root. Calls cannot be recipe atoms.
-
-Substitution flattens nested concatenations into that array, in operand order. It preserves empty operands and each operand's source attribution. General terms also use `concat` for `++` in conditions and constants.
-
-Conditions have these forms:
-
-```text
-{"op":"=","left":TERM,"right":TERM}
-{"method":"parse","receiver":SPAN,"args":[{"body":EXPR}]}
-{"method":"error-free","receiver":FOREST,"args":[]}
-{"method":"starts-input","receiver":SPAN,"args":[]}
-{"method":"ends-input","receiver":SPAN,"args":[]}
-{"method":"followed-by","receiver":CAPTURE,"args":[TARGET,TARGET...]}
-{"method":"preceded-by","receiver":CAPTURE,"args":[TARGET,TARGET...]}
-{"not":COND}             {"any":[COND,COND...]}       {"all":[COND,COND...]}
-{"captured":"x"}        {"if":COND,"then":COND}
-{"nonempty":TERM}
-```
-
-Comparators are `=`, `≠`, `∈`, `∉`, `⊆`, `⊈`, `≅`, and `≇`. Operand types follow engine §10. Tree comparison requires a bare capture, including `$`, on the left. Its right member is any term, and the loader checks its type (engine §10). A presence predicate uses `captured`, with an empty name for `$`.
-
-TARGET follows the definition after the ARG forms. A CAPTURE is `{"capture":"x"}`, with an empty name for `$`. A boundary atom is a condition, so `not`, `any`, `all` and `if` can hold it (engine §4.2).
-
-A `parse` method or an `error-free` method over it is also a condition, with the forest forms above. A condition has no member but those of its one form.
-
-A set term used as a condition stands as `{"nonempty":TERM}`. It tests that the set is not empty. TERM is a `union`, `intersection`, `difference`, `tag`, `emptySet`, `const`, or `param` term. TERM can also be a set-valued method: `tags`, `classes`, `split`, `ngrams`, or `classify`.
-
-A `.tags` method over a forest is such a term too. TERM can also be a guarded term, `{"if":COND,"then":TERM}`. A forest is no TERM of the wrapper. A bare `parse` or `error-free` method already writes that condition, so a forest under the wrapper is malformed.
-
-An `if` node in a condition position is always the condition form `{"if":COND,"then":COND}`.
-
-An emission is `{"items":[ITEM...]}` with a nonempty array. An item is either `{"capture":"x"}` or `{"insert":true}`, followed by optional `tags`, `value`, `image`, `before`, and `after`. The empty capture name denotes `$`. Only named capture items accept nonempty attachment arrays. Each attachment array contains capture names without `$`, in written order. Empty attachment arrays are omitted.
-
-`%emits` without items creates `{"items":[{"capture":""}]}`. A clauses-only emission adds those clauses to that item. `%emits ε` creates `{"items":[{"insert":true}]}`. Erasure uses the separate rule member `erased:true`.
-
-A constant is `{"name":"SU-STOPS","op":"define","value":TERM,"at":[line,column]}`. Its operation is `define` or `redefine`, and its value is closed. `%const` defines, and `%redefine-const` redefines. The name has no `$`. The value can hold `const` terms but never a value that the loader gives them.
-
-A classifier is `{"name":"lexicon","entries":[ENTRY...],"at":[line,column]}`. Its name begins with `a` to `z`. `entries` can be empty, for a `%classifier` with no entry.
-
-An entry is `{"gates":[GATE...],"keys":[STRINGTERM...],"op":"∈","class":"KOhA","at":[line,column]}`. Entries take gates only. Keys are nonempty in count, but an individual string can be empty. Source classifier keys are string literals or string constants. The operator is `∈` or `∉`. The class starts and ends with uppercase ASCII letters and never starts with `_`.
-
-An entry's `at` is the line and column of its first token, where the loader reports an error of the entry (engine §2).
-
-An implication is `{"if":TERM,"then":TERM,"at":[line,column]}`, for `%implies A ⟹ B`. `if` is `A`, and `then` is `B`. Both terms are closed tag sets and cannot mention engine tags.
-
-A classifier and an implication have no member but those shown.
-
-A directive is `{"name":"features","args":["cbm"],"at":[line,column]}`. A names directive is `{"name":"names","args":["extra-names.txt"],"at":[12,1]}`.
-
-Directive names are `stage`, `extend-stage`, `redefine-stage`, `include`, `names`, `features`, `ambiguity-resolution` and `elision-only`. Stage selectors take one lowercase name. Includes and names declarations take one decoded path each. Names declarations precede all other kinds of statement in their document (engine §1). Features take at least one feature name as engine §9.1 defines it. `elision-only` takes no argument, so its `args` is `[]`.
-
-An ambiguity-resolution directive has `steps` in place of `args`: `{"name":"ambiguity-resolution","steps":[{"step":"fewest","pattern":{"name":"erased-word","exact":true,"at":[1,31]}},{"step":"greedy"}],"at":[line,column]}`. A step is `{"step":S,"pattern":P}` for `leftmost-longest`, `fewest`, `most`, `late` and `early`, and `{"step":S}` for `greedy` and `lazy`. P is a pattern as "Pattern values" below gives it, or a constant reference `{"const":NAME,"at":[line,column]}` that resolves to a pattern, as on the right of `≅`. Engine §9.3 restricts the resolved pattern to an exact local predicate. There is at least one step, and `greedy` or `lazy` can stand only last (engine §6, §9).
-
-A `features` directive can add `"conditions":[COND,COND...]`, with at least one condition. In canonical output, this member follows `at`. Other directives cannot have this member.
-
-An absent `conditions` member denotes an unconditional declaration. A present empty array is malformed.
-
-A directive of any other name is malformed (engine §9). An argument is a name or, for `include` or `names`, the decoded path: `{"name":"include","args":["../common/stream.md"],"at":[4,3]}`.
-
-A library ignores unknown members of a directive. Its known members, `name`, `args`, `steps`, `conditions`, and `at`, keep their rules. An unknown member does not excuse a malformed known member.
-
-`rules`, `directives`, `constants`, `classifiers` and `implications` each keep the order in which the document has them. `at` is the line and column of an item's first token. So the order of all of a document's items is the order of their positions. No two items of a DOM share a position (engine §9).
-
-DOMs store unresolved references and source positions, never stage-resolved constant or classifier values. Source, cached, and supplied DOMs obey the same arity, type, capture, clause, and depth rules.
+The 257th list puts the string beyond the limit. A guard under the innermost list uses the same depth as that list's item value.
 
 ### Pattern values
 
-Pattern tag requirements must resolve to tag sets, as ordinary symbol requirements do.
-
-PATTERN tests one structural tree. An item consumes part of an ordered list of siblings. A pattern term has exactly one member, `pattern`, whose value is a PATTERN. Pattern terms also support `const`, `union`, `intersection`, `difference`, and contextual `emptySet`. Mixed pattern and tag-set operations are malformed.
+A pattern tests one structural tree. An item consumes part of an ordered sibling list. The expression wrapper is `{"pattern":PATTERN}`.
 
 Node decorations are exact prefixes, tests, or child lists. Observable nodes are rule nodes and terminal leaves. Terminal leaves can be written or omitted. Seals are not observable nodes.
 
@@ -601,17 +473,17 @@ An undecorated node test has one of these forms:
 {"range":[STRINGTERM,STRINGTERM],"at":[line,column]}
 {"wildcard":true,"at":[line,column]}
 {"constant":"LETTER","at":[line,column]}
-{"test":"tags","requirements":[REQUIREMENT...],"expr":TERMINALATOM}
-{"test":"tags","requirements":[REQUIREMENT...],"expr":RULEATOM}
-{"test":"=","value":STRINGTERM,"expr":TESTTARGET}
-{"test":"≠","value":STRINGTERM,"expr":TESTTARGET}
+{"test":"tags","requirements":[REQUIREMENT...],"expr":TERMINALATOM,"at":P}
+{"test":"tags","requirements":[REQUIREMENT...],"expr":RULEATOM,"at":P}
+{"test":"=","value":STRINGTERM,"expr":TESTTARGET,"at":P}
+{"test":"≠","value":STRINGTERM,"expr":TESTTARGET,"at":P}
 ```
 
 TERMINALATOM is an undecorated `terminal`, `literal`, `range`, `wildcard`, or string-valued `constant`. Before substitution, it can also be a declared `param` that must become a terminal atom. RULEATOM is an undecorated `name`, `call`, or a `param` that must become one. TESTTARGET is TERMINALATOM or RULEATOM, or exactly one tag test on either. The source order is tag then value. These inner objects carry no `exact` or `children` fields.
 
-A tag test on a rule atom reads the constituent's tags (engine §4.1). A value test on a rule atom, as in `{"test":"=","value":{"string":"mi"},"expr":{"name":"sumti"}}`, reads the input value of the constituent's span. A tested rule atom carries no `children`.
+A rule test reads the rule's working keys. A rule value test reads its certified value. A tested rule atom cannot carry `children`.
 
-Every test takes an atom, so no test object stands alone. The mark `_Elided` is a REQUIREMENT only in a pattern tag test, and never without negation on a rule atom (engine §9.3).
+Every test takes an atom, so no test object stands alone. In a pattern, the `_Elided` requirement tests leaf origin. A positive test cannot stand on a rule atom.
 
 A node test can add `"exact":true`, then `"children":[ITEM...]` where permitted below. If the object has an `at` member, that member follows both additions. This order also applies to calls and parameters before expansion. Both additions are optional.
 
@@ -631,15 +503,15 @@ A bare child list has exactly this form, with optional `exact` before `children`
 PATTERN is a node test, a bare child list, or one of these compound forms:
 
 ```text
-{"union":[PATTERN,PATTERN...]}
-{"intersection":[PATTERN,PATTERN...]}
-{"difference":[PATTERN,PATTERN]}
+{"union":[PATTERN,PATTERN...],"at":P}
+{"intersection":[PATTERN,PATTERN...],"at":P}
+{"difference":[PATTERN,PATTERN],"at":P}
 {"path":"descendant","pattern":PATTERN}
 {"path":"first","pattern":PATTERN}
 {"path":"last","pattern":PATTERN}
 ```
 
-An undecorated `constant` can instead denote a whole pattern. An undecorated `param` can substitute one whole pattern. A compound form cannot carry `exact`, `children`, tests, or `at`. A pattern-valued constant cannot carry node decorations or terminal tests. A parameter with `children` must become a rule test or call without existing children.
+An undecorated `constant` can instead denote a whole pattern. An undecorated `param` can substitute one whole pattern. A compound form cannot carry `exact`, `children` or tests. Set operations require `at`. A pattern-valued constant cannot carry node decorations or terminal tests. A parameter with `children` must become a rule test or call without existing children.
 
 ITEM has exactly one of these shapes:
 
@@ -699,31 +571,11 @@ The following examples omit source positions to show the boundaries:
 ```text
 #a              {"pattern":{"name":"a"}}
 #⁅ a ⁆          {"pattern":{"any":true,"children":[{"child":{"name":"a"}}]}}
-#·⁅⁆            {"pattern":{"any":true,"exact":true,"children":[]}}
-#⁅ A ⁅ B C ⁆ ⁆  {"pattern":{"any":true,"children":[{"child":{"terminal":"A"}},{"child":{"any":true,"children":[{"child":{"terminal":"B"}},{"child":{"terminal":"C"}}]}}]}}
-```
+Union and intersection require at least two operands. They flatten direct operands of their own kind in written order. Difference keeps two operands. Each of these operations ends with `at` at its first combining operator.
 
-Union and intersection each require at least two operands. Neither permits a direct operand of its own kind. The reader flattens those operands in written order, including across parentheses. Supplied nested forms are malformed rather than additional pattern shapes. Difference retains exactly two operands. These rules preserve order and duplicates.
+After substitution the loader flattens a pattern intersection that substitution nests inside another intersection. This step precedes expanded-pattern validation. Supplied or cached records cannot contain a nested pattern intersection.
 
-After substitution, the loader flattens any pattern intersection that substitution nests inside another intersection. This step precedes expanded-pattern validation, including in conditions and call arguments. Initial inspection still rejects nested PATTERN intersections in supplied and cached DOMs.
-
-The DOM accepts exactly the reader's output, apart from source coordinates. Unknown members and overlapping constructors are malformed at every level. No `boundary`, `written`, or `omitted` pattern form exists. Ordinary reading of canonical pattern spelling follows engine §2.3 and preserves the key of every valid shape.
-
-A tree comparison uses the `op`, `left` and `right` members:
-
-```json
-{"op":"≅","left":{"capture":"x"},"right":{"pattern":{"name":"sumti","at":[1,9]}}}
-{"op":"≇","left":{"capture":""},"right":{"const":"KE-UNIT","at":[1,7]}}
-{"op":"≅","left":{"capture":"v"},"right":{"capture":"e"}}
-```
-
-These operators require a bare capture, including `$`, on the left. The right member is any term, and the loader checks its type after constants and template arguments resolve (engine §10). A right term of constituent type is a `capture` term, with an empty name for `$`. A right term of another type than pattern or constituent is a type error.
-
-Pattern equality and implicit string conversion are malformed. Text, cached DOMs and supplied DOMs use the same grouping, field, arity and type restrictions. Resolution covers patterns in replaced definitions too.
-
-Structural states and omission predicates remain internal derived state. Omitted pattern tags are the terminator tag and the mark `_Elided`, which no output field shows. Internal omission records retain `value` only for a default value, from `≝` or from equality, including an explicit empty string.
-
-Elided tree nodes with a default value expose it as `value`, including an explicit empty string. Omitted pattern leaves still observe empty value and image. Completion diagnostics expose `value` when present.
+Unknown fields and overlapping constructors are malformed. Structural comparison uses the expression records above. The left operand can be a capture or the current function item. The right operand must resolve to a pattern or one bound node.
 
 ### Ranked expressions
 
@@ -735,7 +587,7 @@ For example, `mex MOI 🆓 ≻ SE 🆓 tanru-unit-1` produces this expression:
 {"ranked":[{"seq":[{"ref":"mex"},{"ref":"MOI"},{"ref":"🆓"}]},{"seq":[{"ref":"SE"},{"ref":"🆓"},{"ref":"tanru-unit-1"}]}]}
 ```
 
-Neighbor-guarded tag terms use the ordinary `if` term and boundary-method condition shapes. Their guard is one optionally negated atom on `$`, with a literal tag-set consequent. The DOM stores the written term, never the concrete variants of engine §3.7.
+Neighbor guards use the `guard` field of a bag entry. The DOM keeps the written guard and never stores lowered variants.
 
 The DOM holds no lowered helper, admission key, [seal](notation.md#the-structural-tree), or selected option. References retain their written form before terminal resolution. Expression traversal includes `ranked` alongside other expression forms.
 
@@ -743,7 +595,7 @@ The DOM holds no lowered helper, admission key, [seal](notation.md#the-structura
 
 The names dependency of a cached document is a resource map. If source conversion loads no names data, the entry omits `names`.
 
-`data/preparsed/FAMILY.json` holds the DOMs of all grammar documents under `grammars/FAMILY/`. `tools/sync.js` generates each file and copies it into every package. Its shape is `{"format":49,"bootstrap":HASH,"unicode":HASH,"properties":HASH_OR_NULL,"bundledNames":{RESOURCE:HASH},"documents":{PATH:{"hash":HASH,"names":{RESOURCE:HASH},"dom":DOM}}}`. `PATH` is relative to the package root, including the `grammars/` prefix. Each `HASH` is the FNV-1a hash of engine §8. `unicode` hashes the text of `data/unicode/unicode.txt`.
+`data/preparsed/FAMILY.json` holds the DOMs of all grammar documents under `grammars/FAMILY/`. `tools/sync.js` generates each file and copies it into every package. Its shape is `{"format":50,"bootstrap":HASH,"unicode":HASH,"properties":HASH_OR_NULL,"bundledNames":{RESOURCE:HASH},"documents":{PATH:{"hash":HASH,"names":{RESOURCE:HASH},"dom":DOM}}}`. `PATH` is relative to the package root, including the `grammars/` prefix. Each `HASH` is the FNV-1a hash of engine §8. `unicode` hashes the text of `data/unicode/unicode.txt`.
 
 The required `gencmu.json` omits the `bootstrap` header member. The hash of its complete text supplies that fingerprint for every other family. The notation reader uses its required entries without checking their source text hashes. Ordinary cache lookups still compare all other applicable identity members. Each document key selects its own family's preparsed file (engine §8), besides the required `gencmu.json`. Missing or malformed optional files give cache misses.
 
@@ -761,29 +613,24 @@ On a hash-matched, valid entry, the loader trusts this member without scanning s
 
 If the member is absent, the loader skips names-path and names-hash comparisons and loads no names data for that entry. The otherwise valid entry remains a hit, even when declared or inherited extras change. Those declarations still apply to nested includes. Engine §8 defines loading errors and cache misses.
 
-A preparsed DOM holds the document's constants, classifiers and implications as the document writes them. The loader gives the constants their values when it stitches a stage, and a stage resolves a classifier for the features of a parse. A preparsed DOM serves every stage, pipeline, and feature set with matching resource dependencies (engine §2, §8).
+A preparsed DOM stores written declarations. Stitching and invocation-specific specialization compute constants, masks, types and classifier indexes.
 
 ## Renderings
 
 The renderings are for people. The CLI and the playground implement all three renderings. Every library implements brackets, and the corpus tests compare brackets. Every rendering shows a token by its image.
 
-A token node reads an input token of the last stage, and that token can have attachments (engine §11). Every rendering shows them with the token node. All readings of an `ambiguous` error read the same tokens, so they show the same attachments.
+A token node displays the stored face of the stage-input token. An opaque face shows one image. A decorated face shows its ordered parts and primary index. The containing face replaces the core image along its primary path once.
 
-Tree renderings use the kept derivation, including the canonical interior of each erased occurrence. Diagnostic arrays do not alter grouping or token images. Named-error and warning explanations use their raising-stage names, messages, and original source excerpts. They follow the collected order and retain any competitor rejection evidence. A tie shows its two readings and their collected diagnostics.
-
-Tree, brackets, and display JSON retain the node forms below. Separate diagnostic explanations identify attachment display owners, while carrier copies remain for flow and create no second explanation.
+Renderers use the kept derivation, including the chosen interior of each erased occurrence. Named diagnostics use their raising-stage names, messages, and source excerpts. They retain their collection order and competitor evidence.
 
 A hollow rule node, such as an empty slot for a free modifier, has no token and no elided node below it. No rendering shows a hollow rule node. Brackets drop it as an empty node, and the tree and the display JSON leave it out. But the tree and the display JSON always show the root. So the tree renders a hollow tree, such as that of the empty text, as the rule name of the root alone. The display JSON renders it as `{"text": []}`, and brackets render it as nothing.
 
 ### Brackets
 
 Brackets write the final stage's tree as nested groups. Tree patterns do not change that grouping. The renderer first decides whether to show elided terminators, then applies these rules:
-
-1. The image of a token node is the image of its token (engine §5). Grammar image recipes supply pause spaces and verbatim quote spelling. An image can itself be empty, and the renderer keeps it.
-
-   A token index outside the stage input renders an empty leaf. The image of an elided node is empty, unless elided terminators are shown. In that case, the image is the terminal in ASCII lower case between `⟨` and `⟩`.
-2. A token node whose token has attachments renders as a group. Its members are the token's before-attachments, the token's image, and its after-attachments, in that order. Each attachment renders in the same way: as its image, or as a group if it has attachments of its own.
-3. The renderer renders the children of a rule node and drops the empty ones. An empty child is an elided node that is not shown, or a rule node that renders nothing. A token node is never empty.
+1. Render each token through its face. An opaque face renders as one image, even when the image is empty. A decorated face groups the rendered parts in order.
+2. Render an elided node as its lowercased terminal between `⟨` and `⟩` when elisions are visible. Otherwise drop that node.
+3. Render the children of each rule. Drop children that produce no group or leaf. Render a single remaining child directly. Render several children as a group.
 
    If no child is left, the node is empty. If one child is left, the node is that child. Otherwise, the node is a group.
 4. The depth *d* of a group counts groups only: a child group of a group at depth *d* is at *d*+1. A group is written between `(` `)` when *d* mod 3 is 0, `[` `]` when 1, and `{` `}` when 2. One space separates its members.
@@ -796,26 +643,18 @@ The originating core table is the Unicode table used for that parse (engine §1)
 
 The tree has one node per line, and children are indented two spaces under their parent. Each kind of node is written as follows:
 
-- A rule node is its name. If the node has only token descendants on one line of source, ` · ` and its text follow the name. They do not if any of those tokens has attachments. They also do not if the image of any of those tokens, or of their attachments, holds a line break.
-- A token node is its terminal, then its image from above in quotes. The quoted image uses the canonical string escapes of engine §9.1. For example, a line feed is `‹LF›`.
-- The attachments of a token node follow it, each on a line of its own, indented two spaces more than the node. The before-attachments come first, each after `◂ `, and then the after-attachments, each after `▸ `. These marks differ from the ` › ` that joins a chain of rule nodes.
+- A rule node gives its name. A single-line source excerpt can follow ` · ` where its leaves have no satellites or line breaks.
+- A token node gives its terminal and quoted image. The renderer uses the canonical string escapes of engine §9.1. For example, a line feed is `‹LF›`.
+- Satellites indent below their primary. The prefix `◂ ` marks a satellite before the primary, and `▸ ` marks one after it. Each line lists its classes and quoted image.
+- An elided node gives its terminal in angle brackets.
 
-  An attachment is its classes, then its image in quotes with the same escapes. A class tag starts and ends with an uppercase ASCII letter and never starts with `_`. Class tags appear in code point order, joined by ` ∪ `. An attachment with no class is its quoted image alone. Its own attachments follow it in the same way, indented two spaces more.
-- An elided node is its terminal in angle brackets.
-
-The tree renderer writes chains of rule nodes with one child on one line. It joins them with ` › `. So in the `lojban/cll` pipeline, the token node of `mi` in `mi ui nai klama` has these lines, at the indentation of the node:
-
-```
-KOhA "mi"
-  ▸ UI "ui"
-    ▸ NAI "nai"
-```
+The tree renderer joins a chain of rule nodes with one child on one line, using ` › `.
 
 ### Display JSON
 
 The display JSON is the tree projected for reading, and it is not the canonical form. A rule node is an object with one member, its rule name. If the node has one child, the value of this member is the projection of that child. Otherwise, the value is the array of the projections of its children. A token node is `{"TERMINAL":"image"}`, and an elided node is `{"TERMINAL":null}`.
 
-A token node whose token has attachments is `{"terminal":"T","image":"L","before":[...],"after":[...]}` instead. An attachment in those arrays is `{"classes":["C",...],"image":"L","before":[...],"after":[...]}`, with its classes in code point order. Each of these objects leaves out an empty array. The terminal is a value there and not a key, so no terminal can collide with a member of the object.
+A decorated token uses an ordered `parts` array and its `primaryIndex`. The parts display their stored classes and images. The display projection follows faces, while canonical JSON preserves their qualified references.
 
 The display JSON is pretty-printed so that nesting costs no indentation where nothing is gained:
 
