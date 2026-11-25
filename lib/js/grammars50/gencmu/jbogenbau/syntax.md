@@ -616,14 +616,14 @@ Recognition admits repeated or reversed tests on node atoms. Each node atom acce
 %rule pattern-node
   [$exact:"·"] $atom:pattern-atom [$list:child-list]
 %conditions
-  $exact ⟹ $exact.onward.parse(pattern-exact-start …),
+  $exact.all(.onward.parse(pattern-exact-start …)),
   $list ⟹ $atom.onward.parse(pattern-attached-start …),
   ¬$list ⟹ ¬$atom.onward.parse(pattern-attached-start …)
 
 %rule bare-child-list
   [$exact:"·"] child-list
 %conditions
-  $exact ⟹ $exact.onward.parse(pattern-exact-start …)
+  $exact.all(.onward.parse(pattern-exact-start …))
 
 %rule pattern-atom
   (pattern-rule | tag | string | range | wildcard | constant-reference) [{symbol-test}]

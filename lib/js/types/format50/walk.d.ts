@@ -4,14 +4,21 @@ export declare class DomBuilder {
     document: any;
     unicode: any;
     strings: any;
-    origins: WeakMap<object, any>;
+    domFault: (node: any, description: any) => never;
+    declarationSite: {
+        at: any;
+    } | undefined;
     constructor(tokens: any, position: any, document: any, unicode: any, strings: any);
     token(node: any): any;
     at(node: any): any;
     value(node: any): any;
     fail(node: any, description: any): void;
-    remember(record: any, node: any): any;
-    build(tree: any): any;
+    build(tree: any): {
+        format: number;
+        rules: never[];
+        directives: never[];
+        constants: never[];
+    };
     directive(node: any): any;
     ranking(node: any): {
         name: string;
@@ -20,8 +27,8 @@ export declare class DomBuilder {
     };
     rule(node: any): any;
     conditions(node: any): any;
-    alternative(node: any, kind: any): any;
-    name(node: any, origin?: boolean): any;
+    alternative(node: any, kind: any, owner: any): any;
+    name(node: any): any;
     binder(node: any): any;
     gate(node: any): {
         feature: any;
@@ -31,7 +38,7 @@ export declare class DomBuilder {
     body(node: any, whole?: boolean, elidable?: boolean, chain?: boolean, blockedPrimary?: boolean): any;
     optional(node: any, route: any, chain: any): any;
     testOrder(testNodes: any, elidable?: boolean): any;
-    tests(base: any, tests: any, pattern: any, targetIsRule: any): any;
+    tests(base: any, tests: any, pattern: any): any;
     requirements(node: any): any;
     stringOperand(node: any, test?: boolean, message?: string): any;
     parameter(node: any): {

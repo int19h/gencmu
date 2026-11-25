@@ -28,6 +28,24 @@ test("layout inspects long constructors and condition continuation in format 50"
   ]);
 });
 
+test("only plain strings can share a line in a long list", () => {
+  const compiler = createTransitionCompiler();
+  const table = entry => fenced(`%const $LEXICON
+  {BAI: ["ba'i", ${entry},
+         "bau", "be'i"],
+   CAI: ["cai"]}`);
+  const problems = entry => {
+    const source = table(entry);
+    return layoutProblems(source, compiler.compileDocument(source), "table.md");
+  };
+  assert.deepEqual(problems('"bai"'), []);
+  for (const entry of ['(1 = 1)? "bai"', 'f? "bai"', '*["bai"]', '("bai")']) {
+    assert.deepEqual(problems(entry), [
+      "table.md:3: put one entry on each line of a long constructor",
+    ], entry);
+  }
+});
+
 test("a continued term belongs on a separate line past its owner", () => {
   const compiler = createTransitionCompiler();
   const bad = fenced("%rule text A → {One,\n                 Two}");
@@ -87,12 +105,17 @@ test("resource generation keeps scoped documents and separates the bootstrap fam
     write(base + "other/" + name, "unicode-names 15.1.0\n");
   }
   write(base + "other/a.md", fenced('%names "a.txt"\n%names "\u{10000}.txt"\n%names "‹U+E000›.txt"\n%include "middle.md"'));
+  const orphan = base + "other/orphan.md";
+  write(orphan, fenced('%rule text "‹LOCAL NAME›"'));
   const resources = notation50Resources(temporary);
   const file = base + "other/shared.md";
   assert.equal(resources.sourceDocuments[file].dom.rules[0].alternatives[0].expr.literal.string, "\uE000");
   const caches = resources.cacheFiles();
   const optional = JSON.parse(caches.get("data/preparsed50/gencmu-optional.json"));
   assert.ok(Object.hasOwn(optional.documents, base + "other/pipeline.md"));
+  assert.ok(resources.sources.includes(orphan));
+  assert.equal(Object.hasOwn(resources.sourceDocuments, orphan), false);
+  assert.equal(Object.hasOwn(optional.documents, orphan), false);
   assert.equal(Object.hasOwn(optional.documents, file), false);
   const names = Object.keys(optional.bundledNames);
   assert.ok(names.includes(base + "other/a.txt"));

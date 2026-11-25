@@ -31,6 +31,7 @@ export declare class Bridge {
         domains: Map<any, never[]>;
     } | undefined;
     currentRule: any;
+    atMostOne: Set<any> | undefined;
     hasClosed: boolean | undefined;
     forestRoot: any;
     constructor(dom: any, path: any, origins: any);

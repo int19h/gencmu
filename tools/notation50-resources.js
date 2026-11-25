@@ -25,9 +25,6 @@ export function notation50Resources(root, { readSource } = {}) {
   for (const file of sources.filter(file => file.endsWith("/pipeline.md") && file !== bundle.notation)) {
     for (const [document, entries] of compiler.pipelineReadings(file)) add(document, entries);
   }
-  for (const file of sources.filter(file => file.endsWith(".md"))) {
-    if (!readings.has(file)) add(file, [{ entry: compiler.documentEntry(source(file), file) }]);
-  }
   const documents = {};
   for (const [file, entries] of required) {
     const first = entries[0].entry;
@@ -57,9 +54,9 @@ export function notation50Resources(root, { readSource } = {}) {
     .map(([file, entries]) => [file, entries[0]]));
   return { bundle, sources, documents, sourceDocuments, bootstrap, cacheFiles() {
     const families = new Map();
-    for (const file of sources.filter(file => file.endsWith(".md"))) {
+    for (const [file, entries] of readings) {
       if (Object.hasOwn(documents, file)) continue;
-      const [entry, ...otherReadings] = readings.get(file);
+      const [entry, ...otherReadings] = entries;
       if (otherReadings.some(other => JSON.stringify(other) !== JSON.stringify(entry))) continue;
       const family = file.split("/")[1];
       if (!families.has(family)) families.set(family, {});
