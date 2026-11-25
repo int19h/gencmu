@@ -169,7 +169,15 @@ class Printer {
     if (node.emptySet) return [];
     if (node.tag !== undefined) return [node.tag];
     if (node.union) return node.union.flatMap(child => this.tagEntries(child));
-    if (node.if) return this.tagEntries(node.then).map(text => `(${this.term(node.if)})? ${text}`);
+    if (node.if) {
+      const guard = `(${this.term(node.if)})?`;
+      const entries = this.tagEntries(node.then);
+      if (entries.some(entry => entry.startsWith("("))) {
+        this.changes.push("Keep nested tag guards in a guarded splat so each entry has one guard.");
+        return [`${guard} *${bag(entries)}`];
+      }
+      return entries.map(entry => `${guard} ${entry}`);
+    }
     return [`*${this.term(node)}`];
   }
 

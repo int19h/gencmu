@@ -3,6 +3,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { Loader } from "../lib/js/src/node.js";
+import { Pipeline } from "../lib/js/src/pipeline.js";
+import { UnicodeTable } from "../lib/js/src/unicode.js";
 import { extractGrammarText, resolvePath } from "../lib/js/src/markdown.js";
 import { GencmuError } from "../lib/js/src/errors.js";
 import { NamesScope } from "../lib/js/src/unicode-names.js";
@@ -23,9 +25,23 @@ export function readFile(file) {
 }
 
 export function createTransitionCompiler(read = file => readFile(path.join(root, file))) {
-  const loader = new Loader(file => readFile(path.join(root, file)));
-  const pipeline = loader.pipeline("tools/transition/pipeline.md");
-  const unicode = loader.unicode;
+  const bundled = file => readFile(path.join(root, file));
+  const loader = new Loader(bundled);
+  const transition = loader.pipeline("tools/transition/pipeline.md");
+  const unicodePath = "data/unicode/unicode.txt";
+  const propertiesPath = "data/unicode/unicode-properties.txt";
+  const bundledUnicode = bundled(unicodePath);
+  const bundledProperties = bundled(propertiesPath);
+  const sourceUnicode = read(unicodePath) ?? bundledUnicode;
+  const sourceProperties = read(propertiesPath) ?? bundledProperties;
+  const customCore = sourceUnicode !== bundledUnicode;
+  // The old reader needs the bundled table to load the compiler's own source.
+  // The source being compiled can use a table supplied with that source.
+  const unicode = customCore || sourceProperties !== bundledProperties
+    ? new UnicodeTable(sourceUnicode, customCore && sourceProperties === bundledProperties ? undefined : sourceProperties)
+    : loader.unicode;
+  const pipeline = unicode === loader.unicode ? transition
+    : new Pipeline(transition.path, transition.stages, { unicode });
   const need = file => {
     const text = read(file);
     if (text === undefined) throw new GencmuError("grammar", "the resource was not found", { document: file });

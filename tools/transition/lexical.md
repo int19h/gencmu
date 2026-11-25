@@ -15,7 +15,7 @@ Reads the tokens of the tree emission notation.
   | integer | punctuation | layout
 
 %rule emoji-name
-  _Emoji_Presentation<¬_Emoji_Component>
+  _Emoji_Presentation<¬_Emoji_Component>≠"#"
 %conditions
   ¬$.following-tokens.parse(call-open …)
 %emits
@@ -93,7 +93,7 @@ Reads the tokens of the tree emission notation.
 
 %rule call-name
   lower-initial-name
-  | _Emoji_Presentation<¬_Emoji_Component>
+  | _Emoji_Presentation<¬_Emoji_Component>≠"#"
 %conditions
   $.following-tokens.parse(call-open …)
 %emits
@@ -217,6 +217,8 @@ Reads the tokens of the tree emission notation.
   | "+" "+" | "." "." "." | "." "."
   | "→" | "^" | "?" | "¬" | "↦" | "!" | "↓" | "'"
   | ("=" | "∈" | "⊆" | "≅") "‹U+0338›"
+%conditions
+  ¬$.parse(_Emoji_Presentation<¬_Emoji_Component>≠"#")
 %emits
   $
 ```

@@ -77,7 +77,7 @@ An engine key starts with an underscore. A dot between digits belongs to the key
 
 ```jbogenbau
 %rule emoji-name
-  _Emoji_Presentation<¬_Emoji_Component>
+  _Emoji_Presentation<¬_Emoji_Component>≠"#"
 %conditions
   ¬$.following-tokens.parse(call-open …)
 %emit
@@ -178,7 +178,7 @@ A call name touches its opening parenthesis. The next token holds the parenthesi
 ```jbogenbau
 %rule call-name
   lower-initial-name
-  | _Emoji_Presentation<¬_Emoji_Component>
+  | _Emoji_Presentation<¬_Emoji_Component>≠"#"
 %conditions
   $.following-tokens.parse(call-open …)
 %emit
@@ -369,6 +369,8 @@ The keyword table assigns a distinct key to each known keyword. An unknown keywo
 
 Compound punctuation takes priority over shorter pieces. The lexical stage leaves negation and question marks separate. The syntax stage joins them into gates where allowed.
 
+A single punctuation token can also carry the emoji name key. The number sign keeps its role as a pattern marker.
+
 ```jbogenbau
 %rule punctuation
   | "⁅" | "⁆" | "·" | "…" | "*" | "|" | "&" | "(" | ")" | "[" | "]" | "{" | "}"
@@ -377,6 +379,8 @@ Compound punctuation takes priority over shorter pieces. The lexical stage leave
   | "+" "+" | "." "." "." | "." "."
   | "→" | "^" | "?" | "¬" | "↦" | "!" | "↓" | "'"
   | ("=" | "∈" | "⊆" | "≅") "‹U+0338›"
+%conditions
+  ¬$.parse(_Emoji_Presentation<¬_Emoji_Component>≠"#")
 %emit
 ```
 

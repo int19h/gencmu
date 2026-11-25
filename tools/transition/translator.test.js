@@ -36,6 +36,28 @@ test("the translator follows an old span receiver and keeps its literal operands
   assert.deepEqual(right.list.map(item => item.value.string), ["b", "c"]);
 });
 
+test("the translator keeps each nested tag guard on its own entry", () => {
+  const name = "i276-guard-simplified-origin.json";
+  const { fixture } = translateSharedCase("engine", name, legacyFixture("engine", name));
+  const rule = compiler.compileDocument(fixture.documents["main.md"]).rules.find(rule => rule.name === "r2");
+  const [nested, direct] = rule.alternatives[0].term.bag;
+  assert.equal(nested.guard.capture, "j");
+  assert.equal(nested.value.bag[0].key, "T0");
+  assert.equal(nested.value.bag[0].guard.method, "followed-by");
+  assert.equal(direct.key, "T1");
+  assert.equal(direct.guard.method, "followed-by");
+});
+
+test("a custom table can make punctuation an emoji rule name", () => {
+  const name = "emoji-table-ascii-pattern.json";
+  const { fixture } = translateSharedCase("engine", name, legacyFixture("engine", name));
+  const compiled = createTransitionCompiler(file => fixture.documents[file]).compilePipeline(fixture.pipelineDocument);
+  const [text, emoji] = compiled["g.md"].dom.rules;
+  assert.equal(emoji.name, "!");
+  assert.equal(text.alternatives[0].expr.expr.ref, "!");
+  assert.equal(text.conditions[0].right.pattern.name, "!");
+});
+
 test("an obsolete malformed case stays on the format 49 path", () => {
   const name = "267-default-off-head.json";
   const original = legacyFixture("notation", name);
