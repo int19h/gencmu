@@ -246,12 +246,15 @@ if (badExamples.length) {
   console.error(badExamples.join("\n"));
   process.exit(1);
 }
-// Keep the descriptive recognition productions aligned with the bundled grammar.
+// Regenerate the recognition listing only when the manual contains its marker.
 const enginePath = "docs/engine.md";
 const engineText = fs.readFileSync(path.join(root, enginePath), "utf8");
-const syntaxDom = JSON.parse(bootstrapText).documents["grammars/gencmu/jbogenbau/syntax.md"].dom;
-write(enginePath, engineText.replace(/(Recognition productions:\n\n```text\n)[\s\S]*?(\n```)/,
-  (_whole, before, after) => before + syntaxEbnf(syntaxDom) + after));
+const recognitionBlock = /(Recognition productions:\n\n```text\n)[\s\S]*?(\n```)/;
+if (recognitionBlock.test(engineText)) {
+  const syntaxDom = JSON.parse(bootstrapText).documents["grammars/gencmu/jbogenbau/syntax.md"].dom;
+  write(enginePath, engineText.replace(recognitionBlock,
+    (_whole, before, after) => before + syntaxEbnf(syntaxDom) + after));
+}
 
 // The checks of the documents' Markdown read it through the parser of
 // tools/markdown.js:
