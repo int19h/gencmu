@@ -1,0 +1,60 @@
+import assert from "node:assert/strict";
+import fs from "node:fs";
+import { test } from "node:test";
+import { createTransitionCompiler } from "../transition-compiler.js";
+
+const fixture = new URL("../../tests/tree-emission/pairs.json", import.meta.url);
+const pairs = JSON.parse(fs.readFileSync(fixture, "utf8"));
+const compiler = createTransitionCompiler();
+
+function cases(pair) {
+  return [
+    ["valid", pair.valid], ["malformed", pair.malformed],
+    ...(pair.controls ?? []).map((entry, index) => [`control/${index}`, entry]),
+  ];
+}
+
+function selected(record, pointer) {
+  return pointer.split("/").slice(1)
+    .map(key => key.replaceAll("~1", "/").replaceAll("~0", "~"))
+    .reduce((value, key) => value?.[key], record);
+}
+
+// These cases fail during source reading. The remaining grammar errors need
+// the format 50 loader to validate the DOM, stitch the stage or run the parse.
+const sourceErrors = new Map([
+  ["ordered-deletion/malformed", /stage syntax/],
+  ["synthetic-bare-read/malformed", /_Elided/],
+  ["guarded-defaults/malformed", /explicit binder/],
+  ["empty-term/malformed", /stage syntax/],
+  ["eberban-omitted-cai/malformed", /_Elided/],
+  ["expression-depth/malformed", /nested more than 256 deep/],
+  ["expression-depth/control/1", /nested more than 256 deep/],
+  ...["malformed", "control/0", "control/1", "control/2", "control/3", "control/4", "control/8"]
+    .map(name => [`origin-filter-on-rule/${name}`, /_Elided origin test/]),
+]);
+
+for (const pair of pairs) {
+  for (const [name, entry] of cases(pair)) {
+    const lines = entry.source ?? entry.overlay;
+    if (!entry.document && !lines) continue;
+    const markdown = entry.document ?? ["```jbogenbau", ...lines, "```"].join("\n");
+    const id = `${pair.id}/${name}`;
+    test(id, () => {
+      const pattern = sourceErrors.get(id);
+      if (pattern) {
+        assert.throws(() => compiler.compileDocument(markdown, `${id}.md`), error =>
+          error.kind === "grammar" && pattern.test(error.message));
+        return;
+      }
+      const dom = compiler.compileDocument(markdown, `${id}.md`);
+      assert.equal(dom.format, 50);
+      if (entry.expect.outcome === "dom") {
+        for (const assertion of entry.expect.assertions ?? []) {
+          assert.ok(Object.hasOwn(assertion, "equals"));
+          assert.deepEqual(selected(dom, assertion.path), assertion.equals);
+        }
+      }
+    });
+  }
+}
