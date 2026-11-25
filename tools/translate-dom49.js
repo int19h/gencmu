@@ -328,7 +328,7 @@ class Printer {
     if (canSkip && node.all) {
       const firstItem = node.all.findIndex(part => capturesMentioned(part).includes(name));
       if (firstItem > 0) {
-        outer.push(...node.all.slice(0, firstItem));
+        for (const part of node.all.slice(0, firstItem)) outer.push(part);
         const itemParts = node.all.slice(firstItem);
         node = itemParts.length === 1 ? itemParts[0] : { all: itemParts };
       }

@@ -384,6 +384,7 @@ test("stored query and template body arguments receive the same shape checks", (
   const rule = dom.rules[0];
   const argument = rule.alternatives[0].expr.args[0];
   const query = rule.conditions[0].args[0];
+  const [line, column] = rule.conditions[0].at;
   const atom = { literal: { string: "a" } };
   const primary = { primary: atom };
   for (const [body, message] of [
@@ -398,15 +399,15 @@ test("stored query and template body arguments receive the same shape checks", (
     assertFault(() => validateDocument50(dom), message, 2, 11);
     argument.body = valid;
     query.body = { seq: [{ remainder: true }, body, { remainder: true }] };
-    assertFault(() => validateDocument50(dom), message, ...rule.conditions[0].at);
+    assertFault(() => validateDocument50(dom), message, line, column);
   }
   const chain = { repeat: atom, separator: { literal: { string: "," } }, chain: "left" };
   for (const body of [chain, { seq: [{ remainder: true }, chain] }, { seq: [chain, { remainder: true }] }]) {
     query.body = body;
-    assertFault(() => validateDocument50(dom), /chain cannot be the query target/, ...rule.conditions[0].at);
+    assertFault(() => validateDocument50(dom), /chain cannot be the query target/, line, column);
   }
   query.body = { seq: [{ remainder: true }, atom, { remainder: true }, { remainder: true }] };
-  assertFault(() => validateDocument50(dom), /remainder only at each outer edge/, ...rule.conditions[0].at);
+  assertFault(() => validateDocument50(dom), /remainder only at each outer edge/, line, column);
 });
 
 test("an exact edit charges one depth level for its arguments", () => {
