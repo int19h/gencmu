@@ -154,11 +154,21 @@ export declare class Bridge {
     /**
      * The recognizer lowers only the queries that its conditions and terms
      * name. A query that only a bag term or an emission term reads after the
-     * choice of a parse gets a condition that always holds, `q ∨ ¬q`, so that
-     * the recognizer lowers it.
+     * choice of a parse rides to lowering on an emission item too.
      * @param {any} rule
      */
     queryCarriers(rule: any): any[];
+    /**
+     * The late structural comparisons of a rule with a pattern on the right.
+     * The recognizer compiles only the patterns that its records name, so
+     * each such comparison rides to lowering on an emission item that the
+     * format 50 stage never runs (engine §4).
+     * @param {any} rule
+     */
+    comparisonCarriers(rule: any): {
+        condition: any;
+        captures: any[];
+    }[];
     /**
      * @param {any} entries
      * @returns {any}
@@ -335,7 +345,11 @@ export declare class Bridge {
      */
     forestPredicate(node: any): any;
     /** @param {any} node */
-    comparison(node: any): {
+    comparison(node: any): Readonly<{
+        constant: true;
+    }> | Readonly<{
+        constant: false;
+    }> | {
         op: any;
         left: any;
         right: any;
@@ -383,6 +397,13 @@ export declare class Bridge {
 export declare function isHiddenKey(key: any): any;
 /** The hidden recognizer key of every written token. */
 export declare const WRITTEN = "Written_token";
+/**
+ * The place of each late structural comparison among the carriers of its
+ * rule. The stage reads the lowered condition at that place, so that the
+ * comparison uses the pattern that the recognizer compiled.
+ * @type {WeakMap<object, number>}
+ */
+export declare const CARRIED: WeakMap<object, number>;
 /**
  * The hidden recognizer key for a payload of a key, or for one value.
  * @param {any} key

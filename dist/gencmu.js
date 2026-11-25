@@ -25526,6 +25526,18 @@
     return text;
   }
 
+  /**
+   * Whether an expression is a set of patterns with at least one operator,
+   * such as `#A ∖ ∅` (part 1 §9).
+   * @param {any} node
+   */
+  function isPatternSet(node) {
+    const operands = node.union ?? node.intersection ?? node.difference;
+    if (!operands) return false;
+    const operand = (/** @type {any} */ item) => item.pattern !== undefined || item.emptySet || isPatternSet(item);
+    return operands.every(operand);
+  }
+
   class Evaluator {
     /** @param {StageData} stage */
     constructor(stage) {
@@ -25832,7 +25844,10 @@
       // A structural comparison of two captured nodes runs on the chosen
       // derivation, through the recognizer, which compares their trees.
       if (node.op === "≅" || node.op === "≇") {
-        if (this.stage.lateQuery && node.left.capture !== undefined && node.right.capture !== undefined) {
+        // No node is like the empty set of patterns.
+        if (node.right.emptySet) return node.op === "≇";
+        if (this.stage.lateQuery && node.left.capture !== undefined &&
+          (node.right.capture !== undefined || node.right.pattern !== undefined || node.right.const !== undefined || isPatternSet(node.right))) {
           return this.stage.lateQuery("compare", node, scope);
         }
         this.fail(`the format 50 engine cannot yet compare with ${node.op} and a pattern after the choice of a parse`, node, scope);
@@ -26213,6 +26228,7 @@
 
 
 
+
   // A condition that never holds, in a form that the recognizer reads in a
   // written document.
   const NEVER = Object.freeze({ not: { op: "=", left: { string: "" }, right: { string: "" } } });
@@ -26378,6 +26394,10 @@
       if (value.list?.length && value.list.every((/** @type {any} */ item) => item.value.string !== undefined)) return { union: value.list.map((/** @type {any} */ item) => this.data(item.value)) };
       // A pattern constant holds its pattern.
       if (value.pattern !== undefined) return { pattern: this.pattern(value.pattern) };
+      if (isPatternSet(value)) {
+        const pattern = patternSet(value);
+        if (pattern !== EMPTY_PATTERN) return { pattern };
+      }
       // A key set of visible keys holds its tags.
       const keys = keySetKeys(value, this.dom.constants);
       if (keys?.length) return keys.length === 1 ? { tag: keys[0] } : { union: keys.map((/** @type {any} */ key) => ({ tag: key })) };
@@ -26426,10 +26446,22 @@
         copy.conditions = rule.conditions.flatMap((/** @type {any} */ node) => this.clauses(node));
         // The recognizer evaluates the tags of an emission item only when it
         // emits, which the format 50 stage does itself. So one item carries
-        // the late queries to lowering, and recognition never runs them.
-        const carriers = rule.erased ? [] : this.queryCarriers(rule);
-        if (carriers.length) {
-          const tags = carriers.map(query => ({ if: query, then: { emptySet: true } }));
+        // the late comparisons to lowering, and recognition never runs them.
+        const queries = rule.erased ? [] : this.queryCarriers(rule);
+        const carriers = rule.erased ? [] : this.comparisonCarriers(rule);
+        if (carriers.length || queries.length) {
+          // One item carries everything, since items of one node cannot
+          // overlap. A comparison carrier ends in a hidden tag, so that
+          // lowering does not fold it away. It reads its captures only where
+          // they are present, since a route can lack one.
+          const tags = carriers.map(({ condition, captures }) => {
+            /** @type {any} */
+            let tag = { if: condition, then: { tag: WRITTEN } };
+            for (const name of captures) if (name !== undefined && name !== "") tag = { if: { captured: name }, then: tag };
+            return tag;
+          });
+          // A query is a term, which lowering keeps even with an empty value.
+          for (const query of queries) tags.push({ if: query, then: { emptySet: true } });
           copy.emit = { items: [{ capture: "", tags: tags.length === 1 ? tags[0] : { union: tags } }] };
         }
       } catch (error) {
@@ -26590,8 +26622,7 @@
     /**
      * The recognizer lowers only the queries that its conditions and terms
      * name. A query that only a bag term or an emission term reads after the
-     * choice of a parse gets a condition that always holds, `q ∨ ¬q`, so that
-     * the recognizer lowers it.
+     * choice of a parse rides to lowering on an emission item too.
      * @param {any} rule
      */
     queryCarriers(rule) {
@@ -26615,6 +26646,44 @@
         if (base.capture === undefined) continue;
         try {
           carriers.push(this.expression(query));
+        } catch (error) {
+          if (!(error instanceof GencmuError)) throw error;
+        }
+      }
+      return carriers;
+    }
+
+    /**
+     * The late structural comparisons of a rule with a pattern on the right.
+     * The recognizer compiles only the patterns that its records name, so
+     * each such comparison rides to lowering on an emission item that the
+     * format 50 stage never runs (engine §4).
+     * @param {any} rule
+     */
+    comparisonCarriers(rule) {
+      /** @type {any[]} */
+      const comparisons = [];
+      /** @param {any} node */
+      const visit = node => {
+        if (!node || typeof node !== "object") return;
+        if (Array.isArray(node)) return node.forEach(visit);
+        if ((node.op === "≅" || node.op === "≇") && node.left?.capture !== undefined &&
+          (node.right?.pattern !== undefined || node.right?.const !== undefined || isPatternSet(node.right))) {
+          comparisons.push(node);
+          return;
+        }
+        for (const value of Object.values(node)) if (value && typeof value === "object") visit(value);
+      };
+      visit([rule.term, rule.alternatives.map((/** @type {any} */ alternative) => alternative.term),
+        rule.emit?.items.map((/** @type {any} */ item) => [item.term, item.guard])]);
+      const carriers = [];
+      for (const comparison of comparisons) {
+        try {
+          const condition = this.truth(comparison);
+          // A comparison that is constant needs no pattern.
+          if (condition === DOM_TRUE || condition === DOM_FALSE) continue;
+          CARRIED.set(comparison, carriers.length);
+          carriers.push({ condition, captures: [comparison.left.capture] });
         } catch (error) {
           if (!(error instanceof GencmuError)) throw error;
         }
@@ -27126,6 +27195,13 @@
     comparison(node) {
       const op = node.op;
       // Structural comparisons keep the pattern records of the recognizer.
+      if ((op === "≅" || op === "≇") && node.left.capture !== undefined && (isPatternSet(node.right) || node.right.emptySet)) {
+        // A set of patterns becomes one pattern of the recognizer. A set
+        // that can match nothing makes the comparison a constant.
+        const pattern = patternSet(node.right);
+        if (pattern === EMPTY_PATTERN) return op === "≅" ? DOM_FALSE : DOM_TRUE;
+        return { op, left: { capture: node.left.capture }, right: { pattern } };
+      }
       if ((op === "≅" || op === "≇") && (node.left.capture !== undefined || node.left.item)) {
         const right = node.right.pattern !== undefined ? { pattern: this.pattern(node.right.pattern) } :
           node.right.capture !== undefined ? { capture: node.right.capture } :
@@ -27242,6 +27318,14 @@
 
   /** The hidden recognizer key of every written token. */
   const WRITTEN = "Written_token";
+
+  /**
+   * The place of each late structural comparison among the carriers of its
+   * rule. The stage reads the lowered condition at that place, so that the
+   * comparison uses the pattern that the recognizer compiled.
+   * @type {WeakMap<object, number>}
+   */
+  const CARRIED = new WeakMap();
 
   /**
    * The hidden recognizer key for a payload of a key, or for one value.
@@ -27731,6 +27815,37 @@
     if (node.capture !== undefined) return isSingleSymbol(node.expr);
     if (node.choice) return node.choice.every(isSingleSymbol);
     return SYMBOL_KEYS.some(key => Object.hasOwn(node, key)) && !node.optional && !node.repeat;
+  }
+
+  /** The pattern set that matches nothing. */
+  const EMPTY_PATTERN = Object.freeze({ empty: true });
+
+  /**
+   * One pattern of the recognizer for a set of patterns, or EMPTY_PATTERN.
+   * A union and an intersection are flat in the recognizer, so a nested one
+   * of the same kind joins its parent.
+   * @param {any} node
+   * @returns {any}
+   */
+  function patternSet(node) {
+    if (node.pattern !== undefined) return node.pattern;
+    if (node.emptySet) return EMPTY_PATTERN;
+    if (node.difference) {
+      const [left, right] = node.difference.map(patternSet);
+      if (left === EMPTY_PATTERN || right === EMPTY_PATTERN) return left;
+      return { difference: [left, right] };
+    }
+    const kind = node.union ? "union" : "intersection";
+    const parts = [];
+    for (const item of node[kind].map(patternSet)) {
+      if (item === EMPTY_PATTERN) {
+        if (kind === "intersection") return EMPTY_PATTERN;
+        continue;
+      }
+      for (const part of item[kind] ?? [item]) parts.push(part);
+    }
+    if (!parts.length) return EMPTY_PATTERN;
+    return parts.length === 1 ? parts[0] : { [kind]: parts };
   }
 
   // ---- format50/signatures.js
@@ -28323,10 +28438,37 @@
         if (!holder?.derivation || !data.context) {
           throw evaluationError("the format 50 engine cannot yet compare this node after the choice of a parse", node.at, scope.document);
         }
-        const bridge = new Bridge({ rules: [], directives: [], constants: [] }, scope.document ?? "", new Map());
-        bridge.hidden = { demanded: new Set(), domains: new Map() };
-        const condition = bridge.truth(node);
-        return settled(() => holds(data.context, condition, /** @type {any} */ (new LateScope(holder.derivation, data.context, holder.reading))));
+        // A comparison with a pattern reads the lowered condition that its
+        // carrier took to the recognizer. A comparison of two captures
+        // needs no pattern, so the stage bridges it again.
+        /** @type {any} */
+        let condition;
+        const index = CARRIED.get(node);
+        if (index !== undefined) {
+          // The comparisons come first among the carriers, in order. The
+          // stage checks the operator and the node before it trusts the place.
+          const tags = holder.derivation.production.emit?.items?.[0]?.tags;
+          // A guard of a capture wraps the carrier, and the comparison is the
+          // innermost condition.
+          let entry = (tags?.union ?? (tags ? [tags] : []))[index];
+          while (entry?.then?.if !== undefined) entry = entry.then;
+          const lowered = entry?.if;
+          if (lowered?.op === node.op && lowered.left?.capture === node.left.capture) condition = lowered;
+        }
+        if (condition === undefined) {
+          const bridge = new Bridge({ rules: [], directives: [], constants: [] }, scope.document ?? "", new Map());
+          bridge.hidden = { demanded: new Set(), domains: new Map() };
+          condition = bridge.truth(node);
+        }
+        if (condition.constant !== undefined) return condition.constant;
+        try {
+          return settled(() => holds(data.context, condition, /** @type {any} */ (new LateScope(holder.derivation, data.context, holder.reading))));
+        } catch (error) {
+          // The recognizer lowers each pattern that a late comparison names.
+          // A pattern that it could not lower has no state to compare.
+          if (error instanceof GencmuError || !(error instanceof Error) || !/undemanded structural pattern/.test(error.message)) throw error;
+          throw evaluationError(`the format 50 engine cannot yet compare with ${node.op} and this pattern after the choice of a parse`, node.at, scope.document);
+        }
       }
       let base = node;
       while (base.receiver) base = base.receiver;

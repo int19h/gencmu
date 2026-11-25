@@ -79,6 +79,12 @@ export type StageData = {
  * @param {any} document
  */
 export declare function evaluationError(description: any, at: any, document: any): GencmuError;
+/**
+ * Whether an expression is a set of patterns with at least one operator,
+ * such as `#A ∖ ∅` (part 1 §9).
+ * @param {any} node
+ */
+export declare function isPatternSet(node: any): any;
 export declare class Evaluator {
     stage: StageData;
     /** @type {Map<any, any>} */
