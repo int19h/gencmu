@@ -152,6 +152,16 @@ test("the translator keeps a constant receiver in a native method counterpart", 
   assert.equal(condition.any[0].method, "parse");
   assert.equal(condition.any[0].receiver.const, "S");
 });
+
+test("a predicate receiver fails before the migrated list test", () => {
+  const id = "notation-r2-ngrams-predicate.json";
+  const { fixture, status, expected } = translateSharedCase("engine", id, legacyFixture("engine", id));
+  assert.equal(status, "retained-negative");
+  assert.equal(expected.description, "a method has the wrong receiver or arguments");
+  const source = fixture.documents["main.md"];
+  const line = source.split("\n")[expected.line - 1];
+  assert.equal(line.slice(expected.column - 1), ".ngrams(1))");
+});
 test("the hand-written implication writes the extra key only at publication", () => {
   const name = "implies-emitted-only.json";
   const migrated = translateSharedCase("engine", name, legacyFixture("engine", name));

@@ -160,7 +160,7 @@ function validateRuleNames(rule, fail) {
       const part = parts.pop();
       if (!part || typeof part !== "object") continue;
       if (part.capture !== undefined && part.expr) names.add(part.capture);
-      parts.push(...Object.values(part));
+      for (const child of Object.values(part)) parts.push(child);
     }
     return names;
   };
@@ -202,6 +202,8 @@ const methodTypes = new Map([
   ["first-token", ["span", ...spanTypes]],
   ["last-token", ["span", ...spanTypes]],
   ["onward", ["span", ...spanTypes]],
+  ["starts-input", ["truth", ...spanTypes]],
+  ["ends-input", ["truth", ...spanTypes]],
   ["without-elision", ["span", "node"]],
   ["without-elision-except", ["span", "node"]],
   ["flags", ["keys", "keys", "bag", "span", "node", "forest"]],

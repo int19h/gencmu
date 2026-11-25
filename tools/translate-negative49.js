@@ -29,6 +29,10 @@ function typeMatrix(legacy) {
     .replaceAll("($x)", "($x.span)")
     .replaceAll("($)", "($.span)")
     .replace(/\$x\.(value|image)\b/g, (_, channel) => `$x.span.tokens!'${channel}.join()`);
+  if (/\.ngrams\(\d+\) = \{\}$/.test(expression)) {
+    // Equality with the old empty string set tests the list's length in format 50.
+    expression = `¬(${expression.slice(0, -" = {}".length)})`;
+  }
   const method = /\.(?:parse|ngrams)\(/.exec(expression);
   const operator = / [=≠⊆⊈∈∉∪∩∖] /.exec(expression);
   if (!method && !operator) return;

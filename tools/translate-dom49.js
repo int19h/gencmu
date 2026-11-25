@@ -33,11 +33,13 @@ function attachmentOrder(node, order, carrier) {
   const parts = children.map(child => attachmentOrder(child, order, carrier));
   if (parts.some(part => !part)) return;
   if (node.seq && parts.some((part, i) => i > 0 && parts[i - 1].last >= part.first)) return;
-  return {
-    first: Math.min(...parts.map(part => part.first)),
-    last: Math.max(...parts.map(part => part.last)),
-    mandatory: node.seq ? parts.some(part => part.mandatory) : parts.every(part => part.mandatory),
-  };
+  let first = Infinity, last = -Infinity;
+  for (const part of parts) {
+    first = Math.min(first, part.first);
+    last = Math.max(last, part.last);
+  }
+  const mandatory = node.seq ? parts.some(part => part.mandatory) : parts.every(part => part.mandatory);
+  return { first, last, mandatory };
 }
 
 export class MigrationRequired extends Error {
