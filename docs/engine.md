@@ -2759,6 +2759,169 @@ An output list takes its commas directly from the directive. Bare `%emit` select
 
 A braced item requires one occurrence as its part. A braced item produces a `projection` node. The insertion `ε` requires a bag. See [Emission](notation.md#emission) for the strings and placement of selected items.
 
+Recognition productions:
+
+```text
+text = [statement {statement}]
+statement = rule | ranking-directive | directive | constant-definition
+rule = rule-keyword rule-name "=" call | rule-keyword (rule-name | call) [$header:statement-term] body [conditions-clause] [diagnostic-clause] [suppress-warnings-clause] [output-clause]
+  assert ($header ⟹ ($header.following-tokens.first-token.tokens!'value.join() = "|"))
+rule-keyword = KW-RULE | KW-EXTEND-RULE | KW-REDEFINE-RULE
+rule-name = Identifier | Emoji-Name
+statement-term = "→" bag
+body = ["|"] ordinary-body | ["|"] ranked-body
+ordinary-body = alternative {"|" alternative}
+ranked-body = [feature-gate {feature-gate}] ranked-choice [alternative-term]
+ranked-choice = some-of "≻" some-of {"≻" some-of}
+alternative = [feature-gate {feature-gate}] some-of [alternative-term]
+alternative-term = "→" bag
+choice = ["|"] some-of {"|" some-of} | ranked-choice
+some-of = ["&"] sequence {"&" sequence}
+sequence = factor {factor}
+factor = marked-factor | capture | tested-factor | untested-factor
+marked-factor = "^" (capture | tested-factor | untested-factor)
+capture = binding-token ":" factor
+binding-token = Capture | Constant
+untested-factor = rule-reference | call | splice | parameter | tag | string-terminal | range | wildcard | group | optional | repetition | empty
+rule-reference = Lowercase-Name | Emoji-Name
+tag = Uppercase-Name | Engine-Tag
+string-terminal = string | constant-reference
+string-operand = string | constant-reference | parameter
+range = string-operand ".." string-operand
+wildcard = "_"
+group = "(" choice ")"
+optional = "[" ["+"] choice "]" | "[" captured-terminator "]"
+captured-terminator = binding-token ":" "+" factor
+repetition = "{" ["..."] choice ["/" choice] "}" | "{" choice "..." ["/" choice] "}"
+empty = "ε"
+splice = $mark:"*" $target:splice-target
+  assert ($.source-text = ($mark.source-text ++ $target.source-text))
+splice-target = rule-reference | call
+feature-gate = ["¬"] Identifier "?"
+  assert ($.source-text = $.span.tokens!'value.join())
+tested-factor = untested-factor symbol-test {symbol-test}
+symbol-test = tag-test | value-test | default-value
+tag-test = "<" [tag-requirement {tag-requirement}] ">"
+tag-requirement = ["¬"] test-operand
+value-test = ("=" | "≠") test-operand
+default-value = "≝" test-operand
+test-operand = range | rule-reference | call | tag | post
+call = Call-Name "(" call-argument {"," call-argument} ")"
+call-argument = "=" expr | requirement-argument | target-argument | body-argument | symbol-argument
+requirement-argument = "<" [tag-requirement {tag-requirement}] ">"
+target-argument = target-option "|" target-option {"|" target-option}
+target-option = rule-reference | tag | call | parameter
+body-argument = group | optional | repetition | empty
+symbol-argument = tested-factor | range | wildcard | splice | rule-reference | call | parameter | tag | string-terminal
+parameter = Parameter
+constant-reference = Constant
+string = String
+conditions-clause = KW-CONDITIONS [","] expr {"," expr}
+diagnostic-clause = error-clause | warning-clause
+error-clause = KW-ERROR expr
+warning-clause = KW-WARNING expr
+suppress-warnings-clause = KW-SUPPRESS-WARNINGS ("_" | suppression-code {"," suppression-code})
+suppression-code = Identifier
+output-clause = erased-clause | emit-clause
+erased-clause = KW-ERASED
+emit-clause = KW-EMIT [output {"," output}]
+output = prefix ((Capture [bag]) | ("ε" bag))
+directive = directive-keyword [directive-argument {directive-argument}] [conditions-clause]
+directive-keyword = KW-STAGE | KW-EXTEND-STAGE | KW-REDEFINE-STAGE | KW-INCLUDE | KW-NAMES | KW-FEATURES | KW-ELISION-ONLY
+directive-argument = directive-identifier | directive-string | directive-terminal | directive-expression
+directive-identifier = Identifier
+directive-string = String | Resource-Path
+directive-terminal = Engine-Tag | range
+directive-expression = expr | Emoji-Name | "_"
+  assert ¬(($.onward.parse(String …) ∧ ($.first-token.tokens!'value.join() = $.span.tokens!'value.join())))
+ranking-directive = KW-AMBIGUITY-RESOLUTION ranking-step {"," ranking-step}
+ranking-step = Identifier [pattern-literal | constant-reference]
+constant-definition = constant-keyword constant-name expr
+constant-keyword = KW-CONST | KW-REDEFINE-CONST
+constant-name = Constant
+expr = function | disj ["⟹" expr]
+function = Capture "↦" expr
+disj = ["∨"] conj {"∨" conj}
+conj = ["∧"] neg {"∧" neg}
+neg = "¬" neg | comparison
+comparison = union [comparator union]
+comparator = "=" | "≤" | "≥" | "<" | ">" | "∈" | "⊆" | "≅" | "≠" | "∉" | "⊈" | "≇"
+union = inter {("∪" | "∖") inter}
+inter = sum {"∩" sum}
+sum = post {("++" | "+") post}
+post = atom [(prop | method | map | flatten) {(prop | method | map | flatten)}]
+prop = "'" key
+method = "." selector
+selector = named-selector | parse-selector | neighbor-selector | family-selector | key-selector | width-selector | predicate-selector
+named-selector = method-name ["(" [expr {"," expr}] ")"]
+  assert ($.first-token.tokens!'value.join() ∉ ["parse", "followed-by", "preceded-by", "without-elision-except", "has", "has-value", "ngrams", "at-most", "any", "all"])
+method-name = Identifier | Call-Name
+parse-selector = "parse" "(" query-body ")"
+query-body = ["…"] choice ["…"]
+neighbor-selector = ("followed-by" | "preceded-by") "(" neighbor-target {"|" neighbor-target} ")"
+neighbor-target = target-option | "(" target-option ")"
+family-selector = "without-elision-except" "(" (rule-reference | call | parameter) ")"
+key-selector = ("has" | "has-value") "(" key ")"
+width-selector = ("ngrams" | "at-most") "(" integer ")"
+predicate-selector = ("all" | "any") ["(" [predicate] ")"]
+predicate = expr
+map = "!" (prop | method | ("(" predicate ")"))
+flatten = "↓"
+atom = Capture | constant-reference | application | parameter | string | integer | pattern-literal | "∅" | bag | list | item-reference | method | grouped-expr
+grouped-expr = "(" expr ["?" expr "|" expr] ")"
+application = Constant-Call "(" expr ")"
+item-reference = "'" [$name:key]
+  assert ($name ∨ ¬($.following-tokens.parse((key | "'") …)))
+integer = Integer
+key = Identifier | Engine-Tag
+bag = "{" [entry {"," entry}] "}"
+entry = prefix (write-entry | delete-entry | splat-entry | copy-entry | bare-entry)
+bare-entry = key
+write-entry = (key ":") {(key ":")} expr
+delete-entry = "¬" key
+splat-entry = "*" expr
+copy-entry = post
+  assert ($.last-token.tokens!'value.join() ≠ "'")
+prefix = [feature-gate {feature-gate}] [guard]
+guard = expr "?"
+list = "[" [item {"," item}] "]"
+item = prefix ["*"] expr
+pattern-literal = "#" pattern-primary
+pattern-union = pattern-intersection {("∪" | "∖") pattern-intersection}
+pattern-intersection = pattern-path {"∩" pattern-path}
+pattern-path = ("⋮" | "⋱") pattern-primary | pattern-primary ["⋰"]
+pattern-primary = pattern-node | bare-child-list | "(" pattern-union ")"
+pattern-node = [$exact:"·"] $atom:pattern-atom [$list:child-list]
+  assert ($exact ⟹ $exact.onward.parse(pattern-exact-start …))
+  assert ($list ⟹ $atom.onward.parse(pattern-attached-start …))
+  assert (¬($list) ⟹ ¬($atom.onward.parse(pattern-attached-start …)))
+bare-child-list = [$exact:"·"] child-list
+  assert ($exact ⟹ $exact.onward.parse(pattern-exact-start …))
+pattern-atom = (pattern-rule | tag | string | range | wildcard | constant-reference) [symbol-test {symbol-test}]
+pattern-rule = Lowercase-Name | Emoji-Name | call | parameter
+child-list = "⁅" [child-choice] "⁆"
+child-choice = child-alternative {"|" child-alternative}
+child-alternative = child-sequence | child-set-operation
+child-sequence = child-item {child-item}
+child-set-operation = child-intersection ("∪" | "∖") child-intersection {("∪" | "∖") child-intersection} | child-path "∩" child-path {"∩" child-path}
+child-intersection = child-path {"∩" child-path}
+child-item = child-path | child-optional | child-repetition | "⋯"
+  assert ¬($.last-token.onward.parse(adjacent-item-opening …))
+child-path = ("⋮" | "⋱") child-primary | child-primary ["⋰"]
+child-primary = pattern-node | bare-child-list | "(" child-choice ")"
+child-optional = "[" child-choice "]"
+child-repetition = "{" child-choice ["/" child-choice] "}"
+pattern-exact-start = $mark:"·" $next:ANY-TOKEN
+  assert ($.source-text = ($mark.source-text ++ $next.source-text))
+pattern-attached-start = $atom:pattern-atom $open:"⁅"
+  assert ($.source-text = ($atom.source-text ++ $open.source-text))
+pattern-item-opening = "⁅" | "·"
+adjacent-item-opening = $left:ANY-TOKEN $right:pattern-item-opening
+  assert ($left.value ≠ "⋯")
+  assert ($left.value ≠ "⋰")
+  assert ($.source-text = ($left.source-text ++ $right.source-text))
+```
+
 ### 9.3 Conversion and validation
 
 Inspect syntax, names, scope, arity and closed types before recognition. Inspect inactive conditional branches and disabled entries for invalid shapes. Specialization resolves types that depend on the stage's features or input. The same constructors and validation apply to text, cached documents and caller-supplied DOMs.

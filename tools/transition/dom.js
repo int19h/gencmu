@@ -390,7 +390,7 @@ export class DomBuilder {
       const value = stack.pop();
       if (!value || typeof value !== "object") continue;
       if (value.capture !== undefined) this.fail(this.origins.get(value) ?? first, "an argument cannot read or declare captures");
-      stack.push(...Object.values(value));
+      for (const child of Object.values(value)) stack.push(child);
     }
     return this.remember(result, first);
   }
@@ -519,7 +519,7 @@ export class DomBuilder {
     const args = [];
     switch (selector.rule) {
       case "named-selector":
-        args.push(...parts(selector, "expr").map(arg => this.expression(arg)));
+        for (const arg of parts(selector, "expr")) args.push(this.expression(arg));
         break;
       case "key-selector":
         args.push({ key: this.name(part(selector, "key")) });
@@ -537,7 +537,7 @@ export class DomBuilder {
         break;
       }
       case "neighbor-selector":
-        args.push(...parts(selector, "neighbor-target").map(arg => this.target(arg)));
+        for (const arg of parts(selector, "neighbor-target")) args.push(this.target(arg));
         break;
       case "family-selector":
         args.push(this.target(rules(selector)[0]));
@@ -551,11 +551,11 @@ export class DomBuilder {
           const child = stack.pop();
           if (!child || typeof child !== "object") continue;
           if (child.capture !== undefined) this.fail(this.origins.get(child) ?? choice, "a query cannot declare captures");
-          stack.push(...Object.values(child));
+          for (const value of Object.values(child)) stack.push(value);
         }
         const sequence = [];
         if (this.value(query) === "…") sequence.push({ remainder: true });
-        sequence.push(...(body.seq ?? [body]));
+        for (const operand of body.seq ?? [body]) sequence.push(operand);
         if (leaves(query).some(leaf => leaf.span[0] >= choice.span[1])) sequence.push({ remainder: true });
         args.push({ body: collapse("seq", sequence) });
         break;

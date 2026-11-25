@@ -35,7 +35,7 @@ export function createTransitionCompiler(read = file => readFile(path.join(root,
     return documentEntry(markdown, document, inherited).dom;
   };
 
-  function documentEntry(markdown, document, inherited) {
+  function documentEntry(markdown, document, inherited = []) {
     const { text, positions } = extractGrammarText(markdown, document, unicode);
     const position = offset => positions[offset] ?? positions.at(-1) ?? [1, 1];
     const names = new NamesScope(need, unicode, inherited);
@@ -77,7 +77,7 @@ export function createTransitionCompiler(read = file => readFile(path.join(root,
     visit(entry, []);
     return Object.fromEntries([...documents].sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0));
   }
-  return { compileDocument, compilePipeline, unicode };
+  return { compileDocument, compilePipeline, documentEntry, unicode };
 }
 
 function main() {
