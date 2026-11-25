@@ -223,10 +223,10 @@ export class DomBuilder {
     return { gates, expr, ...(term && { term: this.expression(part(term, "bag")) }) };
   }
 
-  name(node, origin = false) {
+  name(node) {
     const name = this.value(node);
     if (!name.startsWith("_")) return name;
-    if (origin && name === "_Elided") return name;
+    if (name === "_Elided") return name;
     const canonical = this.unicode.canonicalTag(name);
     if (!canonical || canonical === "_Elided") this.fail(node, `unknown or forbidden engine key ${name}`);
     return canonical;
@@ -390,7 +390,7 @@ export class DomBuilder {
     return parts(node, "tag-requirement").map(requirement => {
       const operand = rules(rules(requirement)[0])[0];
       const negated = this.value(requirement) === "¬";
-      if (operand.rule === "tag") return { negated, value: { tag: this.name(operand, true) } };
+      if (operand.rule === "tag") return { negated, value: { tag: this.name(operand) } };
       const value = this.stringOperand(operand, true, "a key requirement needs a tag, key-set constant or parameter");
       if (value.string !== undefined) this.fail(operand, "a key requirement needs a tag, key-set constant or parameter");
       return { negated, value };

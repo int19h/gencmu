@@ -95,6 +95,22 @@ test("a DOM fault in a capture read uses its selector in both readers", () => {
   assert.throws(() => validateDocument50(dom, { document: "probe.md", unicode: compiler.unicode }), matches);
 });
 
+test("a reserved key argument uses the method position in both readers", () => {
+  for (const method of ["has", "has-value"]) {
+    const source = `%rule r A\n%conditions $.${method}(key)`;
+    const dom = read(source);
+    const [condition] = dom.rules[0].conditions;
+    condition.args[0].key = "_Elided";
+    const matches = error => {
+      assert.match(error.description, /unknown or forbidden engine key _Elided/);
+      assert.deepEqual(error.where, { document: "probe.md", line: condition.at[0], column: condition.at[1] });
+      return true;
+    };
+    assert.throws(() => read(source.replace("key", "_Elided")), matches);
+    assert.throws(() => validateDocument50(dom, { document: "probe.md", unicode: compiler.unicode }), matches);
+  }
+});
+
 test("stored declarations receive the same shape checks as source declarations", () => {
   const dom = read("%rule r $x:A");
   const directive = (name, args) => ({ name, args, at: [2, 1] });
