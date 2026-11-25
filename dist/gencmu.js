@@ -30660,7 +30660,9 @@
           for (const key of stringFields) {
             const edit = run(stringFieldEdit50(entry, key));
             if (edit !== noFieldEdit && !laterStrings.has(key)) {
-              if (invalid(type(edit), ["string"])) effectiveStrings.add(entry);
+              // A winning bare value or image gives the node no string, as a
+              // payload of another type does. A deletion leaves no effective key.
+              if (edit === bareField || invalid(type(edit), ["string"])) effectiveStrings.add(entry);
               laterStrings.add(key);
             }
           }
