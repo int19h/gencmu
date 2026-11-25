@@ -282,7 +282,7 @@ export function translateSharedCase(family, file, testCase) {
       deferredArguments.add(name);
       return true;
     };
-    const omittedValues = omittedTerminals49([...doms.values()].map(dom => dom.rules));
+    const omittedValues = omittedTerminals49([...doms.values()]);
     const writers = isNotation || !omittedValues.size ? undefined : omittedValueSuppliers49(entry, doms, stageNames);
     for (const [file, dom] of doms) {
       const declarations = translateDom49(dom, loader.unicode, uniqueConstants, omittedValues, isUndefined, writers);

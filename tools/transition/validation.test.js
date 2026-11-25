@@ -507,3 +507,100 @@ test("independent guards use separate presence witnesses", () => {
   const source = `%rule r → {${entries}}\n  | ${optionals}\n  | $c:C`;
   assert.equal(read(source).format, 50);
 });
+
+for (const present of ["$b", "$b.present"]) {
+  for (const [body, missing] of [
+    ["[$b:+B]", true],
+    ["[$b:B]", true],
+    ["$b:B", false],
+    ["[$b:+B<¬_Elided>]", false],
+    ["[$b:+B≠\"\"]", false],
+    ["[$b:+B=\"b\"]", true],
+    ["A [D [$b:B]]", true],
+    ["(D | $b:B)", true],
+    ["(D ≻ $b:B)", true],
+    ["D & $b:B", true],
+    ["[{$b:B}]", true],
+    ["{($b:B | D)}", true],
+    ["{D / $b:B}", true],
+    ["{$b:B}", false],
+  ]) {
+    test(`scope follows the structural routes of ${body} with ${present}`, () => {
+      const head = `%rule r → {(¬${present})? *$c.flags}`;
+      const source = head + "\n | " + body + "\n | $c:C";
+      if (missing) assertFault(() => read(source), /\$c is absent/, 2, head.indexOf(".flags") + 1);
+      else assert.equal(read(source).format, 50);
+    });
+  }
+}
+
+for (const [head, first, after, capture, line, anchor] of [
+  ["%rule r → {k: ($b ? $c'k | $d'k)}", "[$b:B]", "", "d", 2, "$d'"],
+  ["%rule r → {k: (¬$b ? $d'k | $c'k)}", "[$b:B]", "", "d", 2, "$d'"],
+  ["%rule r → {k: ($b ? $c'k | $d'k)}", "B\n | $b:B", "", "d", 2, "$d'"],
+  ["%rule r → {$b? *$c.flags, (¬$b)? *$d.flags}", "[$b:B]", "", "d", 2, "$d."],
+  ["%rule r → {$b? *$c.flags}", "[$b:B] → {(¬$b)? *$d.flags}", "", "d", 3, "$d."],
+  ["%rule r → {$b? *$c.flags}", "A [$b:B]", "\n%error ($b ? \"ok\" | $d'k)", "d", 5, "$d'"],
+  ["%rule r", "A [$b:B]", "\n%emit $b? ${*$c.flags}, (¬$b)? ${*$d.flags}", "d", 5, "$d."],
+  ["%rule r → {$first? *$c.flags, $second? *$d.flags}", "[$first:F] [$second:S] B", "", "d", 2, "$d."],
+  ["%rule r → {$q? *$c.flags, $b? *$d.flags}", "$b:B & $q:Q", "", "d", 2, "$d."],
+  ["%rule r → {$b? *$c.flags, (¬$b)? *$d.flags}", "($b:B | A)", "", "c", 2, "$c."],
+  ["%rule r → {($a ∧ $b)? *$c.flags, $b? *$d.flags}", "{($a:A | $b:B)}", "", "d", 2, "$d."],
+  ["%rule r → {($a ∧ $b)? *$c.flags}", "{($a:A | $b:B)}", "", "c", 2, "$c."],
+  ["%rule r → {$b? *$c.flags, (¬$b)? *$d.flags}", "{A / $b:B}", "", "d", 2, "$d."],
+  ["%rule r → {(¬$b)? *$c.flags, (¬$b)? *$d.flags}", "[$b:B]", "", "c", 2, "$c."],
+]) {
+  const source = `${head}\n | ${first}\n | $c:C $d:D${after}`;
+  test(`the first failing expansion of ${source} reads $${capture}`, () => {
+    const row = source.split("\n")[line - 2];
+    assertFault(() => read(source), new RegExp(`\\$${capture} is absent`), line, row.indexOf(anchor) + 3);
+  });
+}
+
+test("the first site wins when scope and type faults share an expansion", () => {
+  const head = '%rule r → {k: "x" + 1, (¬$b)? *$c.flags}';
+  const source = head + "\n | [$b:B]\n | $c:C";
+  assertFault(() => read(source), /requires number operands/, 2, head.indexOf("+") + 1);
+  const guarded = '%rule r → {($d\'k)? *("x" + 1)}';
+  assertFault(() => read(guarded + "\n | A\n | $d:D"), /\$d is absent/, 2, guarded.indexOf("'") + 1);
+});
+
+test("a capture of an empty rule still binds a node", () => {
+  const source = '%rule r → {(¬$b.present)? *$c.flags}\n | $b:empty\n | $c:C\n%rule empty ε';
+  assert.equal(read(source).format, 50);
+});
+
+for (const expr of [
+  '[].all($x ↦ $x = "a")',
+  '["a"].all($x ↦ $x = "a")',
+  '[]!($x ↦ $x ≠ 1)',
+  '[1]!($x ↦ $x ≠ 1)',
+  '[].any($x ↦ $x < 1)',
+  '[].any($x ↦ 1 ≥ $x)',
+  '[].all($x ↦ $x ⊆ {A})',
+  '[].all($x ↦ {A} ⊈ $x)',
+  '[].all($x ↦ $x ∈ [[1]])',
+  '[].all($x ↦ 1 ∉ $x)',
+  '[].all($x ↦ ¬($x ∖ {A}))',
+  '[].all($x ↦ ¬([1] ∖ $x))',
+  '[].all($x ↦ ($x ∪ {A}) = {A})',
+  '[].all($x ↦ ($x ∩ {A}) = {A})',
+  '[].all($x ↦ $x ≅ #a)',
+]) {
+  test(`an empty list element takes its type from ${expr}`, () => {
+    assert.equal(read("%const $V " + expr).format, 50);
+  });
+}
+
+for (const [expr, anchor] of [
+  ['[1].all($x ↦ $x = "a")', " = "],
+  ['[].all($x ↦ $x = [1])', " = "],
+  ['[] = [1]', " = "],
+  ['[].all($x ↦ $x ∈ [{a: 1}])', " ∈ "],
+]) {
+  test(`a comparable operand is still required in ${expr}`, () => {
+    const source = "%const $V " + expr;
+    assertFault(() => read(source), /requires comparable operands|requires compatible operands/,
+      2, source.indexOf(anchor) + 2);
+  });
+}

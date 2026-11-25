@@ -3,6 +3,8 @@ import fs from "node:fs";
 import { test } from "node:test";
 import { translateSharedCase } from "../translate-shared-cases.js";
 import { createTransitionCompiler } from "../transition-compiler.js";
+import { Token } from "../../lib/js/src/node.js";
+import { loaderWith } from "../../lib/js/test/shared.js";
 
 const compiler = createTransitionCompiler();
 let activeDocuments = {};
@@ -538,4 +540,48 @@ test("the translator records changes to output, display and working reads", () =
   assert.equal(rule.alternatives[0].expr.choice.length, 2);
   assert.deepEqual(rule.alternatives[0].expr.choice.map(node => node.primary.ref), ["A", "B"]);
   assert.equal(rule.alternatives[0].term.bag[0].value.string, "a");
+});
+
+for (const [body, actual] of [
+  ["A @X", '[+T ≝ "end"]'],
+  ["@X", '(A [+T ≝ "end"])'],
+]) {
+  test(`the translator requires a supplier for the bound actual ${actual}`, () => {
+    const grammar = `%rule wrap(@X) ${body}\n%emits\n%rule text = wrap(${actual})`;
+    const old = "\x60\x60\x60jbogenbau\n%stage main\n%ambiguity-resolution greedy\n" + grammar + "\n\x60\x60\x60";
+    const result = loaderWith({ "main.md": old }).pipeline("case/main.md")
+      .parse("a", { tokens: [new Token(["A"], [0, 1], [0, 1], "a")] });
+    assert.equal(result.ok, true);
+    const [token] = result.stages.at(-1).output;
+    assert.deepEqual([token.value, token.image], ["a", "a"]);
+
+    const moved = translateSharedCase("engine", "bound-omission", { grammar });
+    assert.equal(moved.status, "needs-hand");
+    assert.match(moved.reason, /instance value.*body argument/);
+  });
+}
+
+test("the translator checks direct and nested calls for unproved body arguments", () => {
+  for (const call of ['wrap([+T ≝ "end"])', 'wrap((leaf([+T ≝ "end"])))']) {
+    const grammar = `%rule text ${call}\n%rule wrap(@X) A @X\n%rule leaf(@X) @X`;
+    const moved = translateSharedCase("engine", "called-omission", { grammar });
+    assert.equal(moved.status, "needs-hand");
+    assert.match(moved.reason, /body argument/);
+  }
+});
+
+test("the translator keeps the supplier on a named child and skips a proven unused argument", () => {
+  const grammar = '%rule wrap(@X) A @X\n%emits\n%rule text = wrap(child)\n%rule child A [+T ≝ "end"]';
+  const moved = translateSharedCase("engine", "named-omission", { grammar });
+  assert.equal(moved.status, "translated");
+  const dom = compiler.compileDocument(moved.fixture.documents["main.md"]);
+  const child = dom.rules.find(rule => rule.name === "child");
+  const value = child.alternatives[0].term.bag.find(item => item.keys?.includes("value")).value;
+  assert.equal(value.receiver.map.receiver.method, "span");
+  assert.equal(dom.rules.find(rule => rule.name === "text").instance.args[0].rule, "child");
+
+  const ignores = '%rule wrap(@X) A\n%emits\n%rule text = wrap([+T ≝ "end"])';
+  const unused = translateSharedCase("engine", "unused-omission", { grammar: ignores });
+  assert.equal(unused.status, "translated");
+  assert.match(unused.fixture.documents["main.md"], /%rule text = wrap/);
 });
