@@ -17,9 +17,9 @@ export declare function loaderForNotation(version: number): {
     /** @param {string} name */
     loadPipeline(name: string): import("./format50/loader.js").Pipeline50;
     /**
-     * A loader over another package root, such as a checkout: its
-     * grammars50 sources and data, with the bundled data where the root
-     * has none.
+     * A loader over the grammar sources of another root, such as a
+     * checkout: the documents under its grammars50 directory, with the
+     * bootstrap, the caches and the Unicode data of this package.
      * @param {string} directory
      */
     loaderFromDirectory(directory: string): Loader50;

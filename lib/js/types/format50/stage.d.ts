@@ -126,6 +126,31 @@ export declare class Stage50 {
      * query reads. The query's receiver starts at a capture or at `$`.
      */
     lateQuery(data: any, kind: any, node: any, scope: any): boolean | Bag;
+    /**
+     * The messages of the chosen tree (engine §6): each %error, and each
+     * %warning whose code is on and not suppressed, in preorder. Erased
+     * subtrees evaluate no message.
+     */
+    diagnostics(root: any, data: any): {
+        kind: string;
+        node: any;
+        diagnostic: {
+            stage: string;
+            code: any;
+            rule: any;
+            span: any[];
+            source: any[];
+            message: any;
+        };
+    }[];
+    /**
+     * Gives each report an owner among the output tokens (engine §6): the
+     * first token whose input meets the report's input, else the first token
+     * that starts at or after it, else the last token. An input token's
+     * carried reports pass to the output token that covers it. A report with
+     * no output token stays on the stage.
+     */
+    assignDiagnostics(report: any, root: any, data: any): void;
     stageData(tokens: any, sourceText: any, options: any): {
         tokens: any;
         sourceText: any;
