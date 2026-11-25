@@ -611,7 +611,7 @@ function reverseMembers(value) {
   return Object.fromEntries(Object.entries(value).reverse().map(([key, child]) => [key, reverseMembers(child)]));
 }
 
-function compareDiagnostics(source, dom, message, line, column) {
+function compareDiagnostics(source, dom, message, [line, column]) {
   let expected;
   assert.throws(() => read(source), error => {
     assert.match(error.description, message);
@@ -655,7 +655,7 @@ for (const [name, term] of [
     const head = "%rule r → " + term;
     const dom = read(head + "\n | $c:C $d:D\n | $c:C $d:D");
     dom.rules[0].alternatives[0].expr = { ref: "A" };
-    compareDiagnostics(head + "\n | A\n | $c:C $d:D", dom, /\$c is absent/, 2, head.indexOf("$c'k") + 3);
+    compareDiagnostics(head + "\n | A\n | $c:C $d:D", dom, /\$c is absent/, [2, head.indexOf("$c'k") + 3]);
   });
 }
 
@@ -663,7 +663,7 @@ test("a supplied output guard precedes the output term", () => {
   const emit = "%emit ($c'k)? ${k: $d'k}";
   const dom = read("%rule r\n | $c:C $d:D\n | $c:C $d:D\n" + emit);
   dom.rules[0].alternatives[0].expr = { ref: "A" };
-  compareDiagnostics("%rule r\n | A\n | $c:C $d:D\n" + emit, dom, /\$c is absent/, 5, emit.indexOf("$c'k") + 3);
+  compareDiagnostics("%rule r\n | A\n | $c:C $d:D\n" + emit, dom, /\$c is absent/, [5, emit.indexOf("$c'k") + 3]);
 });
 
 test("a supplied method visits the receiver before it infers a predicate binder", () => {
@@ -671,7 +671,7 @@ test("a supplied method visits the receiver before it infers a predicate binder"
   const dom = read(leaf);
   const comparison = dom.constants[0].value.args[0].body;
   dom.constants[0].value.receiver.list[0].value = { integer: "123" };
-  compareDiagnostics(leaf.replace('"x"', "123"), dom, /operands of one type/, ...comparison.at);
+  compareDiagnostics(leaf.replace('"x"', "123"), dom, /operands of one type/, comparison.at);
 });
 
 for (const [name, source, getOperands] of [
@@ -697,7 +697,7 @@ for (const [name, source, getOperands] of [
     const [first, second] = getOperands(dom).map(call => call.args[0]);
     first.expression.integer = "256";
     second.expression.integer = "257";
-    compareDiagnostics(source.replace("255", "256").replace("254", "257"), dom, /count literal/, ...first.at);
+    compareDiagnostics(source.replace("255", "256").replace("254", "257"), dom, /count literal/, first.at);
   });
 }
 
@@ -709,7 +709,7 @@ test("a supplied exact edit visits its head before its statement term and body",
   rule.term.bag[0].value.integer = "257";
   rule.alternatives[0].expr.args[0].expression.integer = "258";
   compareDiagnostics(source.replace("255", "256").replace("254", "257").replace("253", "258"),
-    dom, /count literal/, ...rule.args[0].at);
+    dom, /count literal/, rule.args[0].at);
 });
 
 test("supplied names use the first unknown read in semantic order", () => {
@@ -721,7 +721,7 @@ test("supplied names use the first unknown read in semantic order", () => {
   value.then.receiver.capture = "y";
   value.else.receiver.capture = "z";
   compareDiagnostics(head.replace("$c", "$x").replace("$d", "$y").replace("$e", "$z") + body,
-    dom, /\$x is captured by no alternative/, ...value.if.at);
+    dom, /\$x is captured by no alternative/, value.if.at);
 });
 
 test("supplied type faults use the written operand order", () => {
@@ -731,7 +731,7 @@ test("supplied type faults use the written operand order", () => {
   left.left = { string: "x" };
   right.right = { string: "y" };
   compareDiagnostics(source.replace("123", '"x"').replace("123", '"y"'),
-    dom, /requires number operands/, ...left.at);
+    dom, /requires number operands/, left.at);
 });
 
 for (const [name, source, getSymbol] of [
@@ -743,7 +743,7 @@ for (const [name, source, getSymbol] of [
     const filter = getSymbol(dom).expr;
     const [actual] = filter.expr.args;
     actual.expression.integer = "256";
-    compareDiagnostics(source.replace("255", "256"), dom, /count literal/, ...actual.at);
+    compareDiagnostics(source.replace("255", "256"), dom, /count literal/, actual.at);
   });
 }
 
@@ -752,5 +752,5 @@ test("a supplied elidable optional visits its body with the written default pres
   const dom = read(source);
   const [actual] = dom.rules[0].alternatives[0].expr.optional.seq[1].args;
   actual.expression.integer = "256";
-  compareDiagnostics(source.replace("255", "256"), dom, /count literal/, ...actual.at);
+  compareDiagnostics(source.replace("255", "256"), dom, /count literal/, actual.at);
 });
