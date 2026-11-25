@@ -1,9 +1,8 @@
 import { GencmuError } from "../../lib/js/src/errors.js";
 import { KEY_STEPS, validSteps } from "../../lib/js/src/dom.js";
 import { methods50 } from "../../lib/js/src/format50/signatures.js";
-import { documentFault50, elidableForm50, validateArgument50, validateBag50, validateBody50, validateDeclarationShape50,
-  validateDocumentDefinitions50, validateDocumentDepth50, validateOrigin50, validatePatternChildren50, validateQuery50,
-  validateSubsetSize50, withOwner50 } from "../../lib/js/src/format50/validate.js";
+import { documentFault50, elidableForm50, validateDeclarationShape50,
+  validateDocumentDefinitions50, validateDocumentDepth50, validateSubsetSize50 } from "../../lib/js/src/format50/validate.js";
 
 const EXPRESSION_WRAPPERS = new Set([
   "expr", "disj", "conj", "comparison", "union", "inter", "sum", "post", "atom", "grouped-expr",
@@ -39,6 +38,31 @@ function containsCapture(node) {
 const isSymbol = body => ["ref", "call", "param", "literal", "range", "wildcard", "splice", "test"]
   .some(key => Object.hasOwn(body, key));
 
+// Conversion yields one record at a time in written order. A failed shape
+// check exposes the prefix through that declaration to the test observer.
+export function inspectConverted50(declarations, configuration, storeDom) {
+  const dom = { format: 50, rules: [], directives: [], constants: [] };
+  const fail = documentFault50(configuration.document);
+  const emptyDelimiters = [];
+  let preamble = true;
+  for (const [category, record] of declarations) {
+    dom[category].push(record);
+    try {
+      if (record.name === "names" && record.args && !preamble) fail(record, "%names must precede all other declarations");
+      validateDeclarationShape50(record, fail, configuration.unicode, emptyDelimiters);
+    } catch (error) {
+      storeDom?.(dom, "prefix");
+      throw error;
+    }
+    preamble &&= record.name === "names" && !!record.args;
+  }
+  storeDom?.(dom, "complete");
+  if (emptyDelimiters.length) fail(emptyDelimiters[0], "a split delimiter cannot be empty");
+  validateDocumentDefinitions50(dom, configuration);
+  validateDocumentDepth50(dom, configuration);
+  return dom;
+}
+
 export class DomBuilder {
   constructor(tokens, position, document, unicode, strings) {
     this.tokens = tokens;
@@ -67,10 +91,11 @@ export class DomBuilder {
     throw new GencmuError("grammar", description, { document: this.document, line, column });
   }
 
-  build(tree) {
-    const dom = { format: 50, rules: [], directives: [], constants: [] };
-    const emptyDelimiters = [];
-    let preamble = true;
+  build(tree, storeDom) {
+    return inspectConverted50(this.declarations(tree), { document: this.document, unicode: this.unicode }, storeDom);
+  }
+
+  *declarations(tree) {
     for (const statement of parts(tree, "statement")) {
       const node = rules(statement)[0];
       let category, record;
@@ -88,7 +113,6 @@ export class DomBuilder {
           }
           break;
         case "directive":
-          if (this.value(node) === "%names" && !preamble) this.fail(node, "%names must precede all other declarations");
           category = "directives";
           record = this.directive(node);
           break;
@@ -99,14 +123,8 @@ export class DomBuilder {
         default:
           this.fail(node, "expected a declaration");
       }
-      validateDeclarationShape50(record, this.domFault, this.unicode, emptyDelimiters);
-      dom[category].push(record);
-      preamble &&= this.value(node) === "%names";
+      yield [category, record];
     }
-    if (emptyDelimiters.length) this.domFault(emptyDelimiters[0], "a split delimiter cannot be empty");
-    validateDocumentDefinitions50(dom, { document: this.document });
-    validateDocumentDepth50(dom, { document: this.document });
-    return dom;
   }
 
   directive(node) {
@@ -217,7 +235,6 @@ export class DomBuilder {
     const gates = parts(node, "feature-gate").map(gate => this.gate(gate));
     const source = part(node, kind);
     const expr = this.ownedBody(source, owner, true);
-    validateBody50(expr, withOwner50(expr, this.domFault, owner));
     const term = part(node, "alternative-term");
     return { gates, expr, ...(term && { term: this.expression(part(term, "bag")) }) };
   }
@@ -311,7 +328,7 @@ export class DomBuilder {
         const tests = this.testOrder(children.slice(1), elidable);
         const base = expr();
         if (!isSymbol(base)) this.fail(children[1], "a test applies to one symbol");
-        return this.tests(base, tests, false);
+        return this.tests(base, tests);
       }
       case "ref":
       case "rule-reference":
@@ -371,14 +388,13 @@ export class DomBuilder {
     return tests;
   }
 
-  tests(base, tests, pattern) {
+  tests(base, tests) {
     let result = base;
     for (const test of tests) {
       const at = this.at(test);
       if (test.rule === "tag-test") {
         const requirements = this.requirements(test);
         result = { test: "tags", requirements, expr: result, at };
-        validateOrigin50(result, this.domFault, pattern);
       } else {
         const value = this.stringOperand(rules(test)[0], true);
         if (test.rule === "value-test") result = { test: this.value(test), value, expr: result, at };
@@ -441,7 +457,6 @@ export class DomBuilder {
       } else if (isSymbol(body)) result = { ...body, at: body.at ?? at };
       else result = { body, at };
     }
-    validateArgument50(result, withOwner50(result, this.domFault, result));
     return result;
   }
 
@@ -539,7 +554,6 @@ export class DomBuilder {
         return { pattern: this.pattern(node) };
       case "bag": {
         const entries = children.map(child => this.entry(child));
-        validateBag50(entries, this.domFault);
         return { bag: entries };
       }
       case "list":
@@ -571,9 +585,8 @@ export class DomBuilder {
     const [selector] = rules(part(node, "selector"));
     const method = this.value(selector);
     const signature = methods50.get(method);
-    if (!signature) this.fail(node, `unknown method .${method}`);
     const parentheses = leaves(selector).some(token => this.value(token) === "(");
-    if (parentheses !== (signature.max !== 0)) {
+    if (signature && parentheses !== (signature.max !== 0)) {
       this.fail(node, `method .${method} ${signature.max ? "requires" : "omits"} parentheses`);
     }
     const args = [];
@@ -614,7 +627,6 @@ export class DomBuilder {
       }
     }
     const result = { method, ...(receiver !== undefined && { receiver }), args, at: this.at(node) };
-    if (method === "parse") validateQuery50(result, withOwner50(result, this.domFault, result));
     return result;
   }
 
@@ -694,7 +706,6 @@ export class DomBuilder {
         return { any: true, ...(operators.length && { exact: true }), children: this.items(first) };
       case "pattern-node": {
         const { at, ...atom } = this.pattern(first);
-        if (children[1]) validatePatternChildren50({ ...atom, at: at ?? this.at(first) }, this.domFault);
         return { ...atom, ...(operators.length && { exact: true }),
           ...(children[1] && { children: this.items(children[1]) }), at };
       }
@@ -728,7 +739,7 @@ export class DomBuilder {
             atom = { constant: this.value(first).slice(1), at };
             break;
         }
-        return this.tests(atom, tests, true);
+        return this.tests(atom, tests);
       }
       case "parameter":
         return this.parameter(node);

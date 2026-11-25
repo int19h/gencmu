@@ -1,10 +1,14 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import { test } from "node:test";
+import { after, test } from "node:test";
+import { createDifferential } from "./differential.js";
 import { createTransitionCompiler } from "../transition-compiler.js";
 import { validateDefinitionNullability50, validateDocument50 } from "../../lib/js/src/format50/validate.js";
 
-const compiler = createTransitionCompiler();
+const createObserved = observeDocument => createTransitionCompiler(undefined, { observeDocument });
+const differential = createDifferential();
+after(() => differential.finish("validation inputs"));
+const compiler = differential.compiler();
 const fenced = source => "\x60\x60\x60jbogenbau\n" + source + "\n\x60\x60\x60";
 const read = source => compiler.compileDocument(fenced(source), "probe.md");
 
@@ -239,7 +243,7 @@ test("an n-gram width has no count bound", () =>
 
 test("terminal classification in origin tests survives a custom emoji table", () => {
   const core = "unicode 15.1.0\nwhite-space 0009 000D\nwhite-space 0020 0020\nemoji-presentation 0041 0041\n";
-  const custom = createTransitionCompiler(file => file === "data/unicode/unicode.txt" ? core : undefined);
+  const custom = differential.compiler(file => file === "data/unicode/unicode.txt" ? core : undefined);
   for (const [text, negated] of [["A<_Elided>", false], ["A<¬_Elided>", true]]) {
     const { expr } = custom.compileDocument(fenced("%rule text " + text)).rules[0].alternatives[0];
     assert.deepEqual(expr.requirements, [{ negated, value: { tag: "_Elided" } }]);
@@ -253,11 +257,11 @@ test("explicit Unicode resources depend on presence, including identical bytes",
   const resource = file => fs.readFileSync(new URL("../../" + file, import.meta.url), "utf8");
   const bundledCore = resource(core);
   const bundledProperties = resource(properties);
-  const supplied = createTransitionCompiler(file => file === core ? bundledCore + "\n" :
+  const supplied = differential.compiler(file => file === core ? bundledCore + "\n" :
     file === properties ? bundledProperties : undefined);
   assert.deepEqual(supplied.compileDocument(fenced("%rule text _Alphabetic")).rules[0].alternatives[0].expr,
     { ref: "_Alphabetic" });
-  const coreOnly = createTransitionCompiler(file => file === core ? bundledCore : undefined);
+  const coreOnly = differential.compiler(file => file === core ? bundledCore : undefined);
   assert.throws(() => coreOnly.compileDocument(fenced("%rule text _Alphabetic")), /unknown or forbidden engine key/);
 });
 
@@ -754,3 +758,32 @@ test("a supplied elidable optional visits its body with the written default pres
   actual.expression.integer = "256";
   compareDiagnostics(source.replace("255", "256"), dom, /count literal/, actual.at);
 });
+
+test("the elidable head's default precedes the tail in both DOM orders", () => {
+  const dom = read("%rule r [+T=$H ≝ $D f(= $S)]");
+  const optional = dom.rules[0].alternatives[0].expr;
+  optional.default.const = "badDefault";
+  optional.optional.seq[1].args[0].expression.const = "badTail";
+  for (const record of [dom, reverseMembers(dom)]) {
+    assertFault(() => validateDocument50(record), /invalid constant name/, 2, 18);
+  }
+});
+
+for (const [source, message, line, column] of [
+  ["%rule r f(= {A, A}, = $x)", /duplicate direct write for A/, 2, 17],
+  ["%rule r A\n%conditions $.span.parse($x:A).parse($y:B)", /a query cannot declare captures/, 3, 19],
+  ['%const $V "x".xxxxx().yyyyy()', /unknown method \.xxxxx/, 2, 14],
+]) {
+  test(`source and DOM validate the earlier operand in ${source}`, () => {
+    let dom;
+    const reader = createObserved(reading => {
+      differential.observe(reading);
+      dom = reading.dom;
+    });
+    assertFault(() => reader.compileDocument(fenced(source), "probe.md"), message, line, column);
+    assert.ok(dom);
+    for (const record of [dom, reverseMembers(dom)]) {
+      assertFault(() => validateDocument50(record), message, line, column);
+    }
+  });
+}

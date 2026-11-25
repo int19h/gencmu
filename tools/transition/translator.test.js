@@ -1,14 +1,22 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import { test } from "node:test";
-import { translateSharedCase } from "../translate-shared-cases.js";
-import { createTransitionCompiler } from "../transition-compiler.js";
+import { after, test } from "node:test";
+import { translateSharedCase as translate } from "../translate-shared-cases.js";
+import { createDifferential, fixtureDifferential } from "./differential.js";
 import { Token } from "../../lib/js/src/node.js";
 import { loaderWith } from "../../lib/js/test/shared.js";
 
-const compiler = createTransitionCompiler();
+const differential = createDifferential();
+after(() => differential.finish("translator inputs"));
+const compiler = differential.compiler();
+const inspectTranslation = fixtureDifferential(differential);
+const translateSharedCase = (family, file, fixture) => {
+  const result = translate(family, file, fixture);
+  inspectTranslation(result);
+  return result;
+};
 let activeDocuments = {};
-const scopedCompiler = createTransitionCompiler(file => activeDocuments[file]);
+const scopedCompiler = differential.compiler(file => activeDocuments[file]);
 const legacyFixture = (family, name) =>
   JSON.parse(fs.readFileSync(new URL(`../../tests/${family}/${name}`, import.meta.url), "utf8"));
 
@@ -88,7 +96,7 @@ test("the translator keeps each nested tag guard on its own entry", () => {
 test("a custom table can make punctuation an emoji rule name", () => {
   const name = "emoji-table-ascii-pattern.json";
   const { fixture } = translateSharedCase("engine", name, legacyFixture("engine", name));
-  const compiled = createTransitionCompiler(file => fixture.documents[file]).compilePipeline(fixture.pipelineDocument);
+  const compiled = differential.compiler(file => fixture.documents[file]).compilePipeline(fixture.pipelineDocument);
   const [text, emoji] = compiled["g.md"].dom.rules;
   assert.equal(emoji.name, "!");
   assert.equal(text.alternatives[0].expr.expr.ref, "!");
@@ -154,7 +162,7 @@ for (const [id, record] of Object.entries(negatives)) {
       activeDocuments = documents;
       const hasTables = Object.hasOwn(documents, "data/unicode/unicode.txt") ||
         Object.hasOwn(documents, "data/unicode/unicode-properties.txt");
-      const reader = hasTables ? createTransitionCompiler(file => documents[file]) : scopedCompiler;
+      const reader = hasTables ? differential.compiler(file => documents[file]) : scopedCompiler;
       return reader.compilePipeline(pipelineDocument);
     };
     if (record.native) {
@@ -259,7 +267,7 @@ test("each written migration has format 50 source or an expected source error", 
     const [family, name] = id.split("/");
     const { document, fixture, diagnostics } = translateSharedCase(family, name, legacyFixture(family, name));
     if (fixture?.documents) {
-      const scoped = createTransitionCompiler(file => fixture.documents[file] ??
+      const scoped = differential.compiler(file => fixture.documents[file] ??
         (file.startsWith("data/unicode/") ? fs.readFileSync(new URL(file, root), "utf8") : undefined));
       for (const [file, text] of Object.entries(fixture.documents)) {
         if (!file.endsWith(".md")) continue;
@@ -382,7 +390,7 @@ for (const name of ["names-core-version-missing.json", "names-core-version-repea
     const record = translateSharedCase("engine", name, legacyFixture("engine", name));
     assert.equal(record.status, "portable-negative");
     const { documents, pipelineDocument } = record.fixture;
-    assert.throws(() => createTransitionCompiler(file => documents[file]).compilePipeline(pipelineDocument), error => {
+    assert.throws(() => differential.compiler(file => documents[file]).compilePipeline(pipelineDocument), error => {
       assert.deepEqual({ description: error.description, ...error.where }, record.expected);
       return true;
     });
@@ -591,4 +599,18 @@ test("the translator reports the first of two unproved body arguments", () => {
   const moved = translateSharedCase("engine", "two-unproved-arguments", { grammar });
   assert.equal(moved.status, "needs-hand");
   assert.deepEqual(moved.at, [4, 12]);
+});
+
+test("the translator finishes a nested body argument before its sibling", () => {
+  for (const [inner, sibling, at] of [
+    ['[+T ≝ "one"]', '[+U ≝ "two"]', [5, 18]],
+    ['[+T ≝ "one"]', "U", [5, 18]],
+    ["T", '[+U ≝ "two"]', [5, 12]],
+    ["T", "U", undefined],
+  ]) {
+    const grammar = `%rule leaf(@V) A @V\n%rule outer(@X, @Y) @X @Y\n%rule text outer(leaf(${inner}), ${sibling})`;
+    const moved = translateSharedCase("engine", "nested-and-sibling-arguments", { grammar });
+    assert.equal(moved.status, at ? "needs-hand" : "translated");
+    if (at) assert.deepEqual(moved.at, at);
+  }
 });

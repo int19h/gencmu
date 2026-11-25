@@ -48,3 +48,11 @@ The optional start and count select a slice of the sorted case filenames. Each o
 - `deferred` names the bundled pipeline that still needs its format 50 migration.
 - `needs-negative` records a format 49 error that still needs an assessed counterpart or retirement.
 - `needs-hand` names a source decision that needs a written translation.
+
+## Diagnostic parity
+
+From `lib/js`, run `npm test -- test/transition-differential.test.js` to test diagnostic order. Use `--test-name-pattern` to select bounded batches, for example `^transition differential shared engine 0$`. The number at the end of the test name is the first case index. Each shared batch covers up to 120 fixtures.
+
+The harness compares the first source diagnostic with two JSON readings. One reverses record members. One uses a fixed random seed. Both preserve all array order.
+
+For a valid source, the harness also replaces operands in the converted records with invalid names. It tests each replacement alone and pairs it with a separate operand when possible. The source reader's declaration checks provide the diagnostic for these replacements because an invalid DOM name can have no legal source spelling. The harness counts source failures that produce no DOM by phase.

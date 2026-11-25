@@ -16,21 +16,20 @@ const operandKeys49 = [
   "optional", "default", "repeat", "separator", "splice", "literal", "range",
 ];
 
+function children49(item, localBody = false) {
+  if (Array.isArray(item)) return item;
+  return operandKeys49.filter(key => !(localBody && item.call && key === "args")).map(key => item[key])
+    .filter(child => child && typeof child === "object");
+}
+
 function* records(root, localBody = false) {
   const pending = [root];
   while (pending.length) {
     const item = pending.pop();
     if (!item || typeof item !== "object") continue;
     yield item;
-    if (Array.isArray(item)) {
-      for (let index = item.length - 1; index >= 0; index--) pending.push(item[index]);
-      continue;
-    }
-    for (let index = operandKeys49.length - 1; index >= 0; index--) {
-      const key = operandKeys49[index];
-      const child = item[key];
-      if (child && typeof child === "object" && !(localBody && item.call && key === "args")) pending.push(child);
-    }
+    const children = children49(item, localBody);
+    for (let index = children.length - 1; index >= 0; index--) pending.push(children[index]);
   }
 }
 
@@ -123,19 +122,29 @@ function checkBodyArguments(declarations) {
     definitions.get(rule.name).push(rule);
   }
   for (const declaration of declarations) {
-    const roots = [declaration.args && declaration.alternatives &&
-      { call: declaration.name, args: declaration.args, at: declaration.at }, declaration];
-    for (const call of records(roots)) {
-      if (!call.call || !call.args) continue;
-      const targets = definitions.get(call.call) ?? [];
-      for (const [index, argument] of call.args.entries()) {
-        if (!argument.body || !omittedTerminals49(argument.body).size) continue;
+    const pending = [[declaration]];
+    while (pending.length) {
+      const [node, owner, slot] = pending.pop();
+      if (!node || typeof node !== "object") continue;
+      if (owner) {
+        if (!node.body || !omittedTerminals49(node.body).size) continue;
+        const targets = definitions.get(owner.call) ?? [];
         const target = targets[0];
-        const parameter = target?.params?.[index];
+        const parameter = target?.params?.[slot];
         if (targets.length === 1 && target.op === "define" && parameter &&
             !Array.from(records(target)).some(part => part.param === parameter)) continue;
         throw new MigrationRequired("Prove the instance value when its body argument can supply a nonempty omitted default.",
-          argument.at ?? call.at ?? declaration.at);
+          node.at ?? owner.at ?? declaration.at);
+      }
+      const call = node.call ? node : node === declaration && declaration.args && declaration.alternatives ?
+        { call: declaration.name, args: declaration.args, at: declaration.at } : undefined;
+      const children = children49(node, !!call);
+      for (let i = children.length - 1; i >= 0; i--) {
+        if (children[i] !== call?.args) pending.push([children[i]]);
+      }
+      if (call) for (let i = call.args.length - 1; i >= 0; i--) {
+        const argument = call.args[i];
+        pending.push([argument, call, i], [argument]);
       }
     }
   }

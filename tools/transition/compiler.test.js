@@ -1,11 +1,13 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import { test } from "node:test";
-import { createTransitionCompiler } from "../transition-compiler.js";
+import { after, test } from "node:test";
+import { createDifferential } from "./differential.js";
 
 const fixture = new URL("../../tests/tree-emission/pairs.json", import.meta.url);
 const pairs = JSON.parse(fs.readFileSync(fixture, "utf8"));
-const compiler = createTransitionCompiler();
+const differential = createDifferential();
+after(() => differential.finish("compiler inputs"));
+const compiler = differential.compiler();
 
 test("a custom emoji rule name can also be an ASCII tag spelling", () => {
   const unicode = [
@@ -15,7 +17,7 @@ test("a custom emoji rule name can also be an ASCII tag spelling", () => {
     "emoji-presentation 0041 0041",
     "emoji-presentation 0061 0061",
   ].join("\n") + "\n";
-  const custom = createTransitionCompiler(file => file === "data/unicode/unicode.txt" ? unicode : undefined);
+  const custom = differential.compiler(file => file === "data/unicode/unicode.txt" ? unicode : undefined);
   const { rules } = custom.compileDocument(`\`\`\`jbogenbau
 %rule A "a"
 %rule a(@p) @p
