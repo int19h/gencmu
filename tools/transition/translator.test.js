@@ -585,3 +585,10 @@ test("the translator keeps the supplier on a named child and skips a proven unus
   assert.equal(unused.status, "translated");
   assert.match(unused.fixture.documents["main.md"], /%rule text = wrap/);
 });
+
+test("the translator reports the first of two unproved body arguments", () => {
+  const grammar = '%rule wrap(@X) A @X\n%rule text wrap([+T ≝ "end"]) wrap([+U ≝ "end"])';
+  const moved = translateSharedCase("engine", "two-unproved-arguments", { grammar });
+  assert.equal(moved.status, "needs-hand");
+  assert.deepEqual(moved.at, [4, 12]);
+});

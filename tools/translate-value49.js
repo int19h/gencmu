@@ -5,14 +5,31 @@ export const childValue49 = "$node.children!'value.join()";
 export const inputValue49 = "$.span.tokens!'value.join()";
 export const writtenChildValue49 = "$.children!($child ↦ ($child ≅ #·_<_Elided> ? \"\" | $child'value)).join()";
 
+// Include the old declaration and recipe fields as well as body operands.
+const operandKeys49 = [
+  "rules", "directives", "constants", "classifiers", "implications",
+  "receiver", "args", "instance", "steps", "expr", "tags", "value", "image", "alternatives",
+  "conditions", "error", "warning", "emit", "items",
+  "if", "then", "left", "right", "nonempty", "not", "any", "all", "concat",
+  "union", "intersection", "difference", "pattern", "children", "child", "entries", "keys",
+  "requirements", "targets", "body", "seq", "choice", "ranked", "and",
+  "optional", "default", "repeat", "separator", "splice", "literal", "range",
+];
+
 function* records(root, localBody = false) {
   const pending = [root];
   while (pending.length) {
     const item = pending.pop();
     if (!item || typeof item !== "object") continue;
     yield item;
-    for (const [key, child] of Object.entries(item)) {
-      if (!(localBody && item.call && key === "args")) pending.push(child);
+    if (Array.isArray(item)) {
+      for (let index = item.length - 1; index >= 0; index--) pending.push(item[index]);
+      continue;
+    }
+    for (let index = operandKeys49.length - 1; index >= 0; index--) {
+      const key = operandKeys49[index];
+      const child = item[key];
+      if (child && typeof child === "object" && !(localBody && item.call && key === "args")) pending.push(child);
     }
   }
 }
@@ -106,8 +123,8 @@ function checkBodyArguments(declarations) {
     definitions.get(rule.name).push(rule);
   }
   for (const declaration of declarations) {
-    const roots = [declaration, declaration.args && declaration.alternatives &&
-      { call: declaration.name, args: declaration.args, at: declaration.at }];
+    const roots = [declaration.args && declaration.alternatives &&
+      { call: declaration.name, args: declaration.args, at: declaration.at }, declaration];
     for (const call of records(roots)) {
       if (!call.call || !call.args) continue;
       const targets = definitions.get(call.call) ?? [];

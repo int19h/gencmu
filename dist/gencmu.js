@@ -18424,6 +18424,32 @@
 
 
   const argumentsError = "an argument cannot read or declare captures";
+
+  // DOM member order is for serialization. Walk every record's children in
+  // semantic order, including a guard before its payload and a test's symbol
+  // before its requirements or value. Arrays keep their written order.
+  const operandKeys50 = [
+    "rules", "directives", "constants",
+    "gates", "guard", "receiver", "args", "instance", "steps",
+    "expr", "term", "alternatives", "conditions", "error", "warning", "emit", "items",
+    "if", "then", "else", "left", "right", "map", "by",
+    "all", "any", "not", "union", "intersection", "difference", "concat", "flatten", "arg",
+    "bag", "list", "source", "value", "requirements", "targets", "body", "expression",
+    "primary", "splice", "seq", "choice", "ranked", "and", "optional", "default", "repeat", "separator",
+    "literal", "range", "pattern", "children", "child",
+  ];
+
+  /** @internal */
+  function operandFields50(node) {
+    if (Array.isArray(node)) return Array.from(node.entries(), ([index, child]) => [String(index), child]);
+    const fields = [];
+    for (const key of operandKeys50) {
+      const child = node[key];
+      if (child && typeof child === "object" && Object.hasOwn(node, key)) fields.push([key, child]);
+    }
+    return fields;
+  }
+
   const baseSymbol = node => ["ref", "call", "param", "literal", "range", "wildcard", "splice", "test"]
     .some(key => Object.hasOwn(node, key));
   const ruleName50 = /^(?!.*--)[a-z][A-Za-z0-9_-]*$/;
@@ -18472,9 +18498,7 @@
       if (!node || typeof node !== "object") continue;
       const site = Array.isArray(node.at) ? node : parent;
       sites.set(node, site);
-      for (const [key, child] of Object.entries(node)) {
-        if (key !== "at") pending.push([child, site]);
-      }
+      for (const [, child] of operandFields50(node)) pending.push([child, site]);
     }
     return (node, message) => fail(Array.isArray(node?.at) ? node : sites.get(node) ?? owner, message);
   }
@@ -18499,8 +18523,8 @@
         if (closed && !scope.has(node.capture)) fail(node, argumentsError);
       }
       if (node.item && !implicit) fail(node, "an implicit receiver needs a function binding");
-      const children = Object.values(node);
-      for (let i = children.length - 1; i >= 0; i--) pending.push([children[i], scope, implicit]);
+      const children = operandFields50(node);
+      for (let i = children.length - 1; i >= 0; i--) pending.push([children[i][1], scope, implicit]);
     }
   }
 
@@ -18729,8 +18753,8 @@
       if (part.capture !== undefined && !part.expr && !scope.has(part.capture) && !bindings.has(part.capture)) {
         fail(part, `$${part.capture} is captured by no alternative of ${rule.name}`);
       }
-      const children = Object.values(part);
-      for (let i = children.length - 1; i >= 0; i--) pending.push([children[i], scope, implicit]);
+      const children = operandFields50(part);
+      for (let i = children.length - 1; i >= 0; i--) pending.push([children[i][1], scope, implicit]);
     }
   }
 
@@ -18944,7 +18968,7 @@
       if (!part || typeof part !== "object") return false;
       if (containsMissing.has(part)) return containsMissing.get(part);
       let missing = Boolean(part.capture && !slots.has(part.capture));
-      for (const child of Object.values(part)) {
+      for (const [, child] of operandFields50(part)) {
         if (missing) break;
         missing = yield readsMissing(child);
       }
@@ -19036,8 +19060,8 @@
       }
       return unknown ? undefined : !result;
     }
-    for (const [key, child] of Object.entries(root)) {
-      if (key !== "at" && key !== "guard") yield walk(child);
+    for (const [key, child] of operandFields50(root)) {
+      if (key !== "guard") yield walk(child);
     }
     if (!truth) return;
     const literal = yield closedTruth50(root);
@@ -19049,7 +19073,7 @@
       if (!item || typeof item !== "object") continue;
       if (item.const || item.param || item.apply) return deferredTruth;
       inputDependent ||= item.capture !== undefined || item.item === true;
-      for (const child of Object.values(item)) pending.push(child);
+      for (const [, child] of operandFields50(item)) pending.push(child);
     }
     return inputDependent ? undefined : deferredTruth;
   }
@@ -19111,13 +19135,6 @@
 
   function laterStringFields50(entries = []) {
     return new Set(stringFields.filter(key => entries.some(entry => run(stringFieldEdit50(entry, key)) !== noFieldEdit)));
-  }
-
-  function operandFields50(node) {
-    const fields = Object.entries(node);
-    const guard = fields.findIndex(([key]) => key === "guard");
-    if (guard > 0) fields.unshift(fields.splice(guard, 1)[0]);
-    return fields;
   }
 
   function validateDefinitionExpansion50(rule, alternative, slots, fail, check = validateClosedTypes, afterTerms) {
@@ -19204,8 +19221,8 @@
         }
         first ??= node;
       }
-      const children = Object.values(node);
-      for (let i = children.length - 1; i >= 0; i--) pending.push([children[i], locals]);
+      const children = operandFields50(node);
+      for (let i = children.length - 1; i >= 0; i--) pending.push([children[i][1], locals]);
     }
     const receiver = first?.receiver?.capture;
     if (!fault && receiver && [...captures].some(name => name !== receiver)) {
@@ -19682,11 +19699,7 @@
       if (node.children) validatePatternChildren50(node, locate);
       if (node.bag) validateBag50(node.bag, locate);
       if (inRepeat && node.siblings) locate(node, "a repeated child list cannot contain a sibling gap");
-      const parts = node === declaration && declaration.alternatives ?
-        [["args", node.args], ["term", node.term], ["alternatives", node.alternatives], ["conditions", node.conditions],
-          ["error", node.error], ["warning", node.warning], ["emit", node.emit]] : Object.entries(node);
-      for (const [key, value] of parts.reverse()) {
-        if (key === "at") continue;
+      for (const [key, value] of operandFields50(node).reverse()) {
         const repeated = inRepeat && key !== "child" || Array.isArray(node.repeat) && (key === "repeat" || key === "separator");
         pending.push([value, node.method === "ngrams" && key === "args" || width && Array.isArray(node),
           repeated, key === "pattern" || inPattern && key !== "body", key === "value" && Object.hasOwn(node, "negated")]);
@@ -19821,8 +19834,7 @@
         else if (!node.by.property) push(node.by, depth + 1);
         continue;
       }
-      for (const [key, child] of Object.entries(node)) {
-        if (key === "at") continue;
+      for (const [key, child] of operandFields50(node)) {
         push(child, key === "literal" || key === "range" || key === "requirements" ? depth : depth + 1);
       }
     }

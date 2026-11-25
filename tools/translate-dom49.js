@@ -1,5 +1,7 @@
 // Print format 50 source from the written format 49 records. A decision that
 // depends on the intended grammar raises MigrationRequired at the old site.
+import { isDeepStrictEqual } from "node:util";
+import { expressionChildren } from "../lib/js/src/clause-walk.js";
 import { capturesMentioned, capturesUsed, DOM_TRUE, simplify, termType } from "../lib/js/src/dom.js";
 import { SPAN_METHODS } from "../lib/js/src/methods.js";
 import { layeredPatternText } from "../lib/js/src/pattern-shapes.js";
@@ -162,7 +164,7 @@ class Printer {
     for (const row of item.entries) {
       if (row.op !== "∈") this.hand("Choose an explicit classifier for a complement row.");
       const earlier = classes.get(row.class);
-      if (earlier && JSON.stringify(earlier.gates) !== JSON.stringify(row.gates)) {
+      if (earlier && !isDeepStrictEqual(earlier.gates, row.gates)) {
         this.hand("Combine class rows with different gates without changing their order.");
       }
       if (!earlier) classes.set(row.class, { gates: row.gates, values: [] });
@@ -199,8 +201,8 @@ class Printer {
           this.repeated.add(node.capture);
         } else scalar.add(node.capture);
       }
-      for (const [part, child] of Object.entries(node)) {
-        if ((part === "repeat" || part === "separator") && !node.chain) {
+      for (const child of expressionChildren(node)) {
+        if (node.repeat && !node.chain) {
           const captures = new Set();
           findRepeated(child, captures, true);
           for (const name of captures) {

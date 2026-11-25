@@ -1,7 +1,7 @@
 import { methods50 } from "../lib/js/src/format50/signatures.js";
 
 function only(node, ...keys) {
-  for (const key of Object.keys(node)) {
+  for (const key of Object.getOwnPropertyNames(node).sort()) {
     if (key !== "at" && !keys.includes(key)) throw new Error(`unrepresented field ${key} at ${node.at ?? "unknown position"}`);
   }
 }
@@ -35,7 +35,7 @@ function expression(node, nested = false) {
       return nested ? `(${text})` : text;
     }
   }
-  throw new Error(`Unrepresented syntax expression: ${JSON.stringify(node)}`);
+  throw new Error(`Unrepresented syntax expression at ${node.at ?? "unknown position"}`);
 }
 
 function term(node) {
@@ -59,9 +59,10 @@ function term(node) {
     only(node, "method", "receiver", "args");
     const sig = methods50.get(node.method);
     if (!sig) throw new Error(`unrepresented method ${node.method}`);
+    const receiver = !node.receiver || node.receiver.item ? "" : term(node.receiver);
     const targets = ["preceded-by", "followed-by"].includes(node.method);
     const args = node.args.map(arg => targets && (arg.rule || arg.terminal) ? arg.rule ?? arg.terminal : term(arg)).join(targets ? " | " : ", ");
-    return `${!node.receiver || node.receiver.item ? "" : term(node.receiver)}.${node.method}${sig.max ? `(${args})` : ""}`;
+    return `${receiver}.${node.method}${sig.max ? `(${args})` : ""}`;
   }
   if (node.list) {
     only(node, "list");
@@ -73,8 +74,9 @@ function term(node) {
   }
   if (node.map) {
     only(node, "map", "by");
+    const receiver = term(node.map);
     const by = term(node.by);
-    return `${term(node.map)}!${node.by.method || node.by.property ? by : `(${by})`}`;
+    return `${receiver}!${node.by.method || node.by.property ? by : `(${by})`}`;
   }
   if (node.flatten) { only(node, "flatten"); return `${term(node.flatten)}↓`; }
   if (node.op) { only(node, "op", "left", "right"); return `(${term(node.left)} ${node.op} ${term(node.right)})`; }
@@ -90,7 +92,7 @@ function term(node) {
       return `(${node[key].map(term).join(` ${sign} `)})`;
     }
   }
-  throw new Error(`Unrepresented recognition condition: ${JSON.stringify(node)}`);
+  throw new Error(`Unrepresented recognition condition at ${node.at ?? "unknown position"}`);
 }
 
 export function syntaxEbnf(dom) {

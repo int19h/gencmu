@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import fs from "node:fs";
+import { isDeepStrictEqual } from "node:util";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { Loader } from "../lib/js/src/node.js";
@@ -118,7 +119,7 @@ export function createTransitionCompiler(read) {
   function compilePipeline(entry) {
     return Object.fromEntries([...pipelineReadings(entry)].map(([file, readings]) => {
       const first = readings[0].entry;
-      return [file, readings.every(reading => JSON.stringify(reading.entry) === JSON.stringify(first)) ?
+      return [file, readings.every(reading => isDeepStrictEqual(reading.entry, first)) ?
         first : { readings }];
     }));
   }

@@ -2,10 +2,11 @@
 import fs from "node:fs";
 import { createHash } from "node:crypto";
 import { fnv1a64 } from "../lib/js/src/hash.js";
+import { compareCodePoints } from "../lib/js/src/tags.js";
 import { resolvePath } from "../lib/js/src/markdown.js";
 import { UnicodeTable } from "../lib/js/src/unicode.js";
 import { methods50, validProperty50 } from "../lib/js/src/format50/signatures.js";
-import { captureSlots50, validateDocument50 } from "../lib/js/src/format50/validate.js";
+import { captureSlots50, operandFields50, validateDocument50 } from "../lib/js/src/format50/validate.js";
 
 const root = new URL("../", import.meta.url);
 const read = file => fs.readFileSync(file.startsWith("/") ? file : new URL(file, root), "utf8");
@@ -31,8 +32,8 @@ if (!documents || Array.isArray(documents) || typeof documents !== "object") {
 }
 if (!bundledNames || Array.isArray(bundledNames) ||
     !Object.hasOwn(bundledNames, "data/unicode/unicode-names.txt")) throw new Error("invalid bundled names");
-for (const [path, hash] of Object.entries(bundledNames)) {
-  if (fnv1a64(read(path)) !== hash) throw new Error(`invalid bundled names fingerprint for ${path}`);
+for (const path of Object.keys(bundledNames).sort(compareCodePoints)) {
+  if (fnv1a64(read(path)) !== bundledNames[path]) throw new Error(`invalid bundled names fingerprint for ${path}`);
 }
 const required = new Set();
 const active = [];
@@ -61,7 +62,8 @@ function visit(path, from) {
   required.add(path);
 }
 visit(manifest["50"].notation);
-for (const path of Object.keys(documents)) {
+const paths = Object.keys(documents).sort(compareCodePoints);
+for (const path of paths) {
   if (!required.has(path)) throw new Error(`unexpected bootstrap document ${path}`);
 }
 
@@ -79,8 +81,7 @@ function auditCaptureUses(document, value, pointer, slots, owner, key, truth = f
     slots = new Map(slots);
     slots.delete(value.lambda);
   }
-  for (const [childKey, child] of Object.entries(value)) {
-    if (childKey === "at") continue;
+  for (const [childKey, child] of operandFields50(value)) {
     const childTruth = childKey === "conditions" || childKey === "guard" || childKey === "if" ||
       childKey === "not" || Array.isArray(value.all) && childKey === "all" ||
       Array.isArray(value.any) && childKey === "any" ||
@@ -90,7 +91,8 @@ function auditCaptureUses(document, value, pointer, slots, owner, key, truth = f
   }
 }
 
-for (const [document, { dom }] of Object.entries(documents)) {
+for (const document of paths) {
+  const { dom } = documents[document];
   if (dom.format !== 50) throw new Error(`${document}: expected format 50`);
   try {
     validateDocument50(dom, { document, unicode });
@@ -126,6 +128,6 @@ for (const [document, { dom }] of Object.entries(documents)) {
       if (!ok) process.exitCode = 1;
       console.log(JSON.stringify({ document, pointer, at: value.at, property: value.property, ok }));
     }
-    for (const [key, child] of Object.entries(value).reverse()) pending.push([child, `${pointer}/${key}`]);
+    for (const [key, child] of operandFields50(value).reverse()) pending.push([child, `${pointer}/${key}`]);
   }
 }

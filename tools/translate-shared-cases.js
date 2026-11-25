@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { isDeepStrictEqual } from "node:util";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -250,7 +251,7 @@ export function translateSharedCase(family, file, testCase) {
     const document = `case/${file}`;
     const dom = loader.documentDom(document, inherited, sources[file]);
     const previous = doms.get(file);
-    if (previous && JSON.stringify(previous) !== JSON.stringify(dom)) {
+    if (previous && !isDeepStrictEqual(previous, dom)) {
       throw new MigrationRequired("An include has two distinct names scopes.");
     }
     if (previous) return;
