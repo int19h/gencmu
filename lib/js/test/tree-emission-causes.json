@@ -12,5 +12,20 @@
   "origin-filter-on-rule/control/2": "origin test applies only to a terminal",
   "origin-filter-on-rule/control/3": "origin test applies only to a terminal",
   "origin-filter-on-rule/control/4": "origin test applies only to a terminal",
-  "origin-filter-on-rule/control/8": "origin test applies only to a terminal"
+  "origin-filter-on-rule/control/8": "origin test applies only to a terminal",
+  "false-guard-after-splat/malformed": "a number cannot serve as a guard",
+  "previous-function/malformed": "\\$F calls itself, a cycle of constants",
+  "unsupplied-engine-key/malformed": "a permission set such as \\$INPUTS cannot supply stored engine memberships",
+  "disabled-referenced-class/malformed": "UNKNOWN has no supplier in any version of the classifier",
+  "seeded-reference-cycle/malformed": "a classifier list of \\$LEX requires string elements",
+  "unseeded-reference-cycle/malformed": "an effective classifier entry cannot be bare",
+  "truth-conversions/malformed": "a string does not convert to truth",
+  "truth-conversions/control/2": "a pattern cannot serve as a guard",
+  "truth-conversions/control/3": "a function cannot serve as a guard",
+  "truth-conversions/control/4": "a span has no .present method",
+  "shared-capture-guard/malformed": "the shared statement entry reads \\$x, which an alternative does not declare",
+  "shared-capture-guard/control/3": "the alternative term reads \\$x, which only another alternative declares",
+  "shared-capture-guard/control/4": "the statement does not declare the capture \\$y",
+  "explicit-classification/malformed": "a splat of \\$LEX gives valued entries to the output mask",
+  "ordinary-value-key/malformed": "the splat gives the node's string key value a value that is not a string"
 }

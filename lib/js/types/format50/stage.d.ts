@@ -42,17 +42,28 @@ export declare function captureKinds(body: any): Map<string, "one" | "list">;
 export declare function isPlainSymbol(node: any): any;
 export declare class Stage50 {
     name: string;
-    grammar: import("../grammar.js").Grammar;
+    runs: any;
     origins: Map<string, any>;
     constants: Map<string, any[]>;
+    makeGrammar: any;
     publishes: boolean;
+    /** @type {Map<string, any>} the recognizer grammar for each outcome of the closed conditions */
+    grammars: Map<string, any>;
+    closed: any[];
     /**
      * @param {string} name
      * @param {import("../grammar.js").Grammar} grammar the recognizer's grammar
      * @param {Map<string, any>} origins the format 50 records of each bridged alternative
      * @param {Map<string, any[]>} constants the versions of each constant of the stage
      */
-    constructor(name: string, grammar: import("../grammar.js").Grammar, origins: Map<string, any>, constants: Map<string, any[]>);
+    constructor(name: string, runs: any, origins: Map<string, any>, constants: Map<string, any[]>, makeGrammar: any);
+    /** The runs with each closed condition replaced by its truth. */
+    folded(truth: any): any;
+    /**
+     * The recognizer grammar, with each closed condition replaced by its
+     * truth for these features and this input interface.
+     */
+    grammarFor(data: any): any;
     /**
      * Runs the stage over its input tokens.
      * @param {Token50[]} tokens

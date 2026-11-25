@@ -9,3 +9,4 @@ export declare function isVisibleKey(key: any): boolean;
  * @returns {any} a DOM 49 with the extra members `format50` and `origins`
  */
 export declare function bridgeDocument(dom: any, path: string, origins: any): any;
+export declare function isClosed(node: any, bound?: Set<any>): any;
