@@ -69,9 +69,10 @@ for (const [id, record] of Object.entries(negatives)) {
     if (record.retired) {
       assert.equal(migrated.status, "retired");
       assert.equal(migrated.reason, record.retired);
+      assert.equal(migrated.section, record.section);
+      assert.match(migrated.section, /^Engine §/);
       return;
     }
-    assert.equal(migrated.status, "retained-negative");
     const { expected } = migrated;
     const compile = () => {
       if (!migrated.fixture) return compiler.compileDocument(migrated.document, "notation.md");
@@ -82,6 +83,17 @@ for (const [id, record] of Object.entries(negatives)) {
       const reader = hasTables ? createTransitionCompiler(file => documents[file]) : scopedCompiler;
       return reader.compilePipeline(pipelineDocument);
     };
+    if (record.native) {
+      assert.equal(migrated.status, "native-pending");
+      assert.match(migrated.section, /^Engine §/);
+      assert.equal(expected.kind, "grammar");
+      const source = migrated.fixture.documents[expected.document];
+      const line = source.split("\n")[expected.line - 1];
+      assert.match([...line][expected.column - 1], /\S/u);
+      compile();
+      return;
+    }
+    assert.equal(migrated.status, "retained-negative");
     assert.throws(compile, error => {
       assert.equal(error.kind, "grammar");
       for (const key of ["document", "line", "column", "stage"]) {
@@ -106,6 +118,40 @@ test("the hand-written origin counterpart keeps its recorded diagnostic position
   });
 });
 
+test("the translator retains the list frame for its item comparison", () => {
+  const id = "item-condition-outer-capture.json";
+  const { fixture, status } = translateSharedCase("engine", id, legacyFixture("engine", id));
+  assert.equal(status, "translated");
+  const [condition] = compiler.compileDocument(fixture.documents["main.md"]).rules[0].conditions;
+  assert.equal(condition.receiver.capture, "c");
+  assert.equal(condition.method, "all");
+  const [predicate] = condition.args;
+  assert.equal(predicate.lambda, "item");
+  assert.equal(predicate.body.op, "≠");
+  assert.equal(predicate.body.left.receiver.map.receiver.receiver.capture, "item");
+  assert.equal(predicate.body.right.receiver.map.receiver.receiver.capture, "o");
+});
+
+test("the translator places the carrier on the mandatory primary", () => {
+  const id = "attach-branch-names.json";
+  const { fixture, status } = translateSharedCase("engine", id, legacyFixture("engine", id));
+  assert.equal(status, "translated");
+  const [rule] = compiler.compileDocument(fixture.documents["main.md"]).rules;
+  assert.deepEqual(rule.emit.items, []);
+  assert.equal(rule.alternatives[0].expr.seq[1].primary.capture, "w");
+  assert.equal(rule.alternatives[1].expr.seq[0].primary.capture, "w");
+});
+
+test("the translator keeps a constant receiver in a native method counterpart", () => {
+  const id = "notation-r2-begins-constant.json";
+  const { fixture, status, expected } = translateSharedCase("engine", id, legacyFixture("engine", id));
+  assert.equal(status, "native-pending");
+  const source = fixture.documents["main.md"];
+  const [condition] = compiler.compileDocument(source).rules[0].conditions;
+  assert.equal(source.split("\n")[expected.line - 1][expected.column - 1], ".");
+  assert.equal(condition.any[0].method, "parse");
+  assert.equal(condition.any[0].receiver.const, "S");
+});
 test("the hand-written implication writes the extra key only at publication", () => {
   const name = "implies-emitted-only.json";
   const migrated = translateSharedCase("engine", name, legacyFixture("engine", name));
@@ -121,7 +167,7 @@ test("each written migration has format 50 source or an expected source error", 
   const migrations = JSON.parse(fs.readFileSync(new URL("../shared-case-migrations.json", import.meta.url), "utf8"));
   const root = new URL("../../", import.meta.url);
   for (const [id, record] of Object.entries(migrations)) {
-    if (record.expectedSourceError) continue;
+    if (record.expectedSourceError || record.retired) continue;
     const [family, name] = id.split("/");
     const { document, fixture, diagnostics } = translateSharedCase(family, name, legacyFixture(family, name));
     if (fixture?.documents) {
@@ -183,7 +229,7 @@ test("stage feature reads address the input span and a guarded literal gives a l
   }
 });
 
-test("stage-dependent argument categories and repeated string reads require a decision", () => {
+test("stage-dependent arguments and co-bound repeated captures require a decision", () => {
   const fenced = text => "\x60\x60\x60jbogenbau\n" + text + "\n\x60\x60\x60";
   const aliases = translateSharedCase("engine", "constant-scope-probe", { pipelineDocument: "p.md", documents: {
     "p.md": fenced('%stage main\n%include "a.md"\n%include "b.md"'),
@@ -193,10 +239,10 @@ test("stage-dependent argument categories and repeated string reads require a de
   assert.equal(aliases.status, "needs-hand");
   assert.match(aliases.reason, /argument's stage and version/);
   const repeated = translateSharedCase("engine", "repeat-read-probe", {
-    grammar: '%rule text {$x:A} %conditions $x.value = "a"',
+    grammar: "%rule text {$x:A $y:B} %conditions $x.value = $y.value",
   });
   assert.equal(repeated.status, "needs-hand");
-  assert.match(repeated.reason, /repeated capture/);
+  assert.match(repeated.reason, /co-bound operands/);
 });
 
 test("an insertion gets both explicit strings and an unproved singleton inheritance goes to hand", () => {

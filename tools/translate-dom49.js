@@ -18,6 +18,28 @@ const classifierName = name => `CLASSIFIER-${name}`;
 const bareSymbol = node => ["ref", "call", "param", "literal", "range", "wildcard", "splice", "test", "capture"]
   .some(key => Object.hasOwn(node, key));
 
+// Bound the position of every direct capture on all routes. The carrier must
+// remain mandatory and siblings must occur in the written attachment order.
+function attachmentOrder(node, order, carrier) {
+  const optional = !node.elidable && node.optional?.capture;
+  const capture = node.capture ?? (optional || undefined);
+  if (capture !== undefined) {
+    const index = order.indexOf(capture);
+    if (capture === carrier && node.expr?.splice) return;
+    if (index >= 0) return { first: index, last: index, mandatory: node.capture === carrier };
+  }
+  const children = node.seq ?? node.choice;
+  if (!children) return;
+  const parts = children.map(child => attachmentOrder(child, order, carrier));
+  if (parts.some(part => !part)) return;
+  if (node.seq && parts.some((part, i) => i > 0 && parts[i - 1].last >= part.first)) return;
+  return {
+    first: Math.min(...parts.map(part => part.first)),
+    last: Math.max(...parts.map(part => part.last)),
+    mandatory: node.seq ? parts.some(part => part.mandatory) : parts.every(part => part.mandatory),
+  };
+}
+
 export class MigrationRequired extends Error {
   constructor(message, at) {
     super(message);
@@ -25,14 +47,14 @@ export class MigrationRequired extends Error {
   }
 }
 
-export function translateDom49(dom, unicode, uniqueConstants, omittedValues = new Set()) {
+export function translateDom49(dom, unicode, uniqueConstants, omittedValues = new Set(), isUndefined = () => false) {
   if (dom.format !== 49) throw new Error("The translator requires a format 49 DOM.");
-  const printer = new Printer(dom, unicode, uniqueConstants, omittedValues);
+  const printer = new Printer(dom, unicode, uniqueConstants, omittedValues, isUndefined);
   return printer.document(dom);
 }
 
 class Printer {
-  constructor(dom, unicode, uniqueConstants, omittedValues) {
+  constructor(dom, unicode, uniqueConstants, omittedValues, isUndefined) {
     this.unicode = unicode;
     this.constants = new Map(dom.constants
       .filter(item => item.op === "define" &&
@@ -42,7 +64,9 @@ class Printer {
     this.classifiers = new Set();
     this.spanReceiver = false;
     this.repeated = new Set();
+    this.item = undefined;
     this.omittedValues = omittedValues;
+    this.isUndefined = isUndefined;
   }
 
   hand(reason) {
@@ -129,29 +153,61 @@ class Printer {
 
   rule(item) {
     this.repeated = new Set();
-    const findRepeated = (node, inList = false) => {
+    this.bindings = new Set();
+    const scalar = new Set();
+    const alternativesWithItem = [];
+    const findRepeated = (node, local, inList = false) => {
       if (!node || typeof node !== "object") return;
-      if (node.capture !== undefined && inList) this.repeated.add(node.capture);
+      if (node.capture !== undefined) {
+        this.bindings.add(node.capture);
+        if (inList) {
+          local.add(node.capture);
+          this.repeated.add(node.capture);
+        } else scalar.add(node.capture);
+      }
       for (const [part, child] of Object.entries(node)) {
-        findRepeated(child, inList || (part === "repeat" || part === "separator") && !node.chain);
+        findRepeated(child, local, inList || (part === "repeat" || part === "separator") && !node.chain);
       }
     };
-    for (const alt of item.alternatives ?? []) findRepeated(alt.expr);
+    for (const alt of item.alternatives ?? []) {
+      const local = new Set();
+      findRepeated(alt.expr, local);
+      alternativesWithItem.push(local);
+    }
+    this.sharedItems = [...this.repeated].filter(name => !scalar.has(name) && alternativesWithItem.every(local => local.has(name)));
     const head = [keyword(item.op, "rule"), item.name].join(" ") +
       (item.params ? `(${item.params.map(param => "@" + param).join(", ")})` :
         item.args ? `(${item.args.map(arg => this.argument(arg)).join(", ")})` : "");
     if (item.instance) return `${head} = ${this.call(item.instance)}`;
     const headerTerm = this.ownerTerm(item);
     const attachment = item.emit?.items.length === 1 && item.emit.items[0];
-    if (attachment && (attachment.before?.length || attachment.after?.length)) {
-      this.hand("Inspect the attachment cover and preserve its selected carrier, children and output strings.");
-    }
-    const alternatives = item.alternatives.map(alt => {
+    const primary = attachment && (attachment.before?.length || attachment.after?.length) ?
+      this.attachmentPrimary(attachment, item) : undefined;
+    let rebuiltSingleton = false;
+    const alternatives = item.alternatives.flatMap(alt => {
       const term = this.ownerTerm(alt, item.image !== undefined);
       const needPrimary = bareSymbol(alt.expr) &&
-        (headerTerm !== undefined || term !== undefined) && item.tags === undefined && alt.tags === undefined;
+        primary === undefined && (headerTerm !== undefined || term !== undefined) &&
+        item.tags === undefined && alt.tags === undefined;
       const parent = item.alternatives.length > 1 && alt.expr.ranked ? "choice" : undefined;
-      const body = (needPrimary ? "^" : "") + this.body(alt.expr, parent);
+      const body = (needPrimary ? "^" : "") + this.body(alt.expr, parent, primary);
+      const selectsWhole = item.emit && (!item.emit.items.length ||
+        item.emit.items.length === 1 && item.emit.items[0].capture === "");
+      if (selectsWhole && item.alternatives.length === 1 && !item.conditions.length &&
+          headerTerm === undefined && term === undefined && !alt.gates.length) {
+        if (alt.expr.optional?.ref && !alt.expr.elidable) {
+          rebuiltSingleton = true;
+          this.changes.push("Write the optional as two routes. The one-symbol route keeps its input bag.");
+          return ["ε", alt.expr.optional.ref];
+        }
+        const repeated = alt.expr.optional?.repeat ?? alt.expr.repeat;
+        const repeat = alt.expr.optional ?? alt.expr;
+        if (repeated?.wildcard && !repeat.chain && !repeat.separator && !alt.expr.elidable) {
+          rebuiltSingleton = true;
+          this.changes.push("Distinguish zero, one and at least two symbols. Only the one-symbol route copies an input bag.");
+          return [...(alt.expr.optional ? ["ε"] : []), "_", "_ _ [{_}]"];
+        }
+      }
       return [...alt.gates.map(gate), body, ...(term === undefined ? [] : ["→", term])].join(" ");
     });
     const lines = [head + (headerTerm === undefined ? "" : ` → ${headerTerm}`)];
@@ -160,15 +216,17 @@ class Printer {
     } else {
       lines[0] += ` ${alternatives[0]}`;
     }
-    if (item.conditions.length) lines.push(`%conditions ${item.conditions.map(node => this.term(node, "truth")).join(", ")}`);
+    if (item.conditions.length) lines.push(`%conditions ${item.conditions.map(node => this.condition(node)).join(", ")}`);
     if (item.error) lines.push(`%error ${this.term(item.error)}`);
     if (item.warning) lines.push(`%warning ${this.term(item.warning)}`);
     if (item.suppressWarnings) lines.push(`%suppress-warnings ${item.suppressWarnings.join(", ")}`);
     if (item.erased) lines.push("%erased");
-    if (item.emit) {
+    if (primary !== undefined) {
+      lines.push("%emit");
+    } else if (item.emit) {
       const whole = !item.emit.items.length ||
         item.emit.items.some(output => output.capture === "" && output.tags === undefined);
-      if (whole && item.tags === undefined && item.alternatives.some(alt => alt.tags === undefined &&
+      if (whole && !rebuiltSingleton && item.tags === undefined && item.alternatives.some(alt => alt.tags === undefined &&
           (alt.expr.repeat || alt.expr.optional || alt.expr.ranked || alt.expr.and))) {
         this.hand("A singleton route can inherit keys in the old publication. Establish its format 50 bag and cover.");
       }
@@ -176,6 +234,54 @@ class Printer {
     }
     return lines.join("\n");
   }
+
+  attachmentPrimary(output, rule) {
+    const order = [...output.before ?? [], output.capture, ...output.after ?? []];
+    if (output.tags !== undefined || output.value || output.image ||
+        rule.tags !== undefined || rule.value || rule.image || rule.erased) {
+      this.hand("Inspect the attachment cover and preserve its selected carrier, children and output strings.");
+    }
+    for (const alt of rule.alternatives) {
+      if (alt.tags !== undefined || alt.value || alt.image ||
+          !attachmentOrder(alt.expr, order, output.capture)?.mandatory) {
+        this.hand("Inspect the attachment cover and preserve its selected carrier, children and output strings.");
+      }
+    }
+    this.changes.push("The old carrier supplies the primary. The parent covers the whole route, and the selected siblings supply display parts.");
+    return output.capture;
+  }
+
+  condition(node) {
+    const names = new Set();
+    const pending = [node];
+    let local = "item";
+    const used = new Set();
+    while (pending.length) {
+      const part = pending.pop();
+      if (!part || typeof part !== "object") continue;
+      const name = part.capture ?? part.captured;
+      if (name !== undefined) {
+        used.add(name);
+        if (this.repeated.has(name)) names.add(name);
+      }
+      for (const child of Object.values(part)) pending.push(child);
+    }
+    if (!names.size) return this.term(node, "truth");
+    if (names.size !== 1 || used.has("") || !this.sharedItems.includes(names.values().next().value)) {
+      this.hand("Preserve the item frame and its co-bound operands.");
+    }
+    const [name] = names;
+    while (used.has(local) || this.repeated.has(local) || this.bindings.has(local)) local += "-item";
+    this.item = { name, local };
+    try {
+      const term = this.term(node, "truth");
+      this.changes.push("Use an ordered universal predicate over the item capture. It tests each reached item with its outer bindings.");
+      return `$${name}.all($${local} ↦ ${term})`;
+    } finally {
+      this.item = undefined;
+    }
+  }
+
 
   ownerTerm(owner, inheritedImage = false, insertion = false) {
     const entries = [];
@@ -293,6 +399,10 @@ class Printer {
     if (node.test || node.range || node.wildcard || node.splice || node.call || node.param) return this.body(node);
     if (node.string !== undefined || node.const && this.type(node) === "string") return this.operand(node);
     if (node.const && this.type(node) === "any") {
+      if (this.isUndefined(node.const)) {
+        this.changes.push("Keep the undeclared constant as an expression argument. Constant lookup fails before the argument is substituted.");
+        return `= $${node.const}`;
+      }
       this.hand(`Resolve $${node.const} at the argument's stage and version before choosing its category.`);
     }
     return `= ${this.term(node)}`;
@@ -329,7 +439,8 @@ class Printer {
 
   term(node, context = "") {
     if (node.capture !== undefined || node.captured !== undefined) {
-      const capture = `$${node.capture ?? node.captured}`;
+      const name = node.capture ?? node.captured;
+      const capture = `$${name === this.item?.name ? this.item.local : name}`;
       return context === "string" ? this.stringRead(capture, node, "value") : capture;
     }
     if (node.tag) return bag([node.tag]);
@@ -412,7 +523,7 @@ class Printer {
     if (method === "value" || method === "image") {
       const observed = receiver.method === "emitted" ? receiver.receiver : receiver;
       const capture = observed.capture ?? observed.captured;
-      if (this.repeated.has(capture)) this.hand(`Resolve the ordered string read on repeated capture $${capture}.`);
+      if (this.repeated.has(capture) && capture !== this.item?.name) this.hand(`Resolve the ordered string read on repeated capture $${capture}.`);
       if (receiver.method === "emitted") return `${this.term(receiver.receiver)}'${method}`;
       return this.stringRead(this.term(receiver), receiver, method);
     }
@@ -430,7 +541,7 @@ class Printer {
 
   stringRead(base, receiver, channel) {
     const capture = receiver.capture ?? receiver.captured;
-    if (this.repeated.has(capture)) {
+    if (this.repeated.has(capture) && capture !== this.item?.name) {
       this.hand(`Resolve the ordered string read on repeated capture $${capture}.`);
     }
     const span = SPAN_METHODS.has(receiver.method) || this.spanReceiver && capture === "" ? base : `${base}.span`;

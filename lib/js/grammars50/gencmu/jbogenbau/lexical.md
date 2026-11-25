@@ -94,6 +94,7 @@ An engine key starts with an underscore. A dot between digits belongs to the key
   _Emoji_Presentation<¬_Emoji_Component>≠"#"
 %conditions
   ¬$.parse(letter),
+  ¬$.parse("@"),
   ¬$.following-tokens.parse(call-open …)
 %emit
   ${Emoji-Name}
@@ -197,6 +198,7 @@ A call name touches its opening parenthesis. The next token holds the parenthesi
   | $emoji:_Emoji_Presentation<¬_Emoji_Component>≠"#"
 %conditions
   $emoji ⟹ ¬$emoji.parse("a".."z"),
+  $emoji ⟹ ¬$emoji.parse("@"),
   $.following-tokens.parse(call-open …)
 %emit
   ${Call-Name}

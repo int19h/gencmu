@@ -48,6 +48,8 @@ const sourceErrors = new Map([
   ["ordered-deletion/malformed", /stage syntax/],
   ["synthetic-bare-read/malformed", /_Elided/],
   ["guarded-defaults/malformed", /explicit binder/],
+  ["shared-capture-guard/control/3", /\$x is captured by no alternative/],
+  ["shared-capture-guard/control/4", /\$y is captured by no alternative/],
   ["empty-term/malformed", /stage syntax/],
   ["eberban-omitted-cai/malformed", /_Elided/],
   ["expression-depth/malformed", /nested more than 256 deep/],

@@ -6,6 +6,13 @@ import { validateBag50, validateBindings50, validateBody50, validateDocument50 }
 const EXPRESSION_WRAPPERS = new Set([
   "expr", "disj", "conj", "comparison", "union", "inter", "sum", "post", "atom", "grouped-expr",
 ]);
+const BODY_WRAPPERS = new Set([
+  "factor", "untested-factor", "splice-target", "chain-separator", "body-argument",
+  "symbol-argument", "group", "choice", "some-of", "sequence",
+]);
+const PATTERN_WRAPPERS = new Set([
+  "pattern-literal", "pattern-primary", "pattern-union", "pattern-intersection", "pattern-path",
+]);
 const RULE_NAME = /^[a-z][A-Za-z0-9_-]*$/;
 const FEATURE_NAME = /^[a-zA-Z][a-zA-Z0-9-]*$/;
 const OPS = new Map([
@@ -231,30 +238,33 @@ export class DomBuilder {
   }
 
   body(node, whole = false, elidable = false, chain = false, blockedPrimary = false) {
-    const children = rules(node);
+    let children = rules(node);
+    let optionals = 0;
+    while (children.length === 1 && (BODY_WRAPPERS.has(node.rule) || node.rule === "optional" &&
+        children[0].rule !== "captured-terminator" && leaves(node).every(leaf => this.value(leaf) !== "+"))) {
+      if (node.rule === "group") whole = false;
+      if (node.rule === "optional") optionals++;
+      node = children[0];
+      children = rules(node);
+    }
+    if (optionals) {
+      let result = this.body(node, false, false, chain, true);
+      for (let i = 0; i < optionals; i++) result = { optional: result };
+      return result;
+    }
     const first = children[0];
     const expr = (child = first, top = whole, isElidable = elidable, insideChain = chain, blocked = blockedPrimary) =>
       this.body(child, top, isElidable, insideChain, blocked);
     switch (node.rule) {
-      case "factor":
-      case "untested-factor":
-      case "splice-target":
-      case "chain-separator":
-      case "body-argument":
-      case "symbol-argument":
-      case "group":
-        return expr();
       case "choice":
-        return first.rule === "ranked-choice" ? expr() :
-          collapse("choice", children.map(child => expr(child, whole && children.length === 1, elidable)));
+        return { choice: children.map(child => expr(child, false, elidable)) };
       case "ranked-choice":
         return { ranked: children.map(child => expr(child, false, false, chain, true)) };
       case "some-of":
         if (children.length > 16) this.fail(first, "an ordered subset takes at most sixteen operands");
-        return collapse("and", children.map(child => expr(child, whole && children.length === 1, elidable)));
+        return { and: children.map(child => expr(child, false, elidable)) };
       case "sequence":
-        return collapse("seq", children.map((child, index) =>
-          expr(child, whole && children.length === 1, elidable && index === 0)));
+        return { seq: children.map((child, index) => expr(child, false, elidable && index === 0)) };
       case "optional":
         return this.optional(node, first, chain);
       case "repetition": {
@@ -298,7 +308,7 @@ export class DomBuilder {
       case "tag":
         return { ref: this.name(node) };
       case "range":
-        return { range: children.map(child => this.stringOperand(rules(child)[0])) };
+        return this.remember({ range: children.map(child => this.stringOperand(rules(child)[0])) }, node);
       case "string-terminal":
         return { literal: this.stringOperand(first) };
       case "wildcard":
@@ -451,8 +461,15 @@ export class DomBuilder {
         return values.length === 1 ? values[0] : { [key]: values,
           at: this.at(operators.find(operator => operator.span[0] >= first.span[1])) };
       }
-      case "neg":
-        return operators.length ? { not: expr(first), at: this.at(operators[0]) } : expr(first);
+      case "neg": {
+        const positions = [];
+        while (node.rule === "neg") {
+          const operator = leaves(node)[0];
+          if (operator) positions.push(this.at(operator));
+          node = rules(node)[0];
+        }
+        return positions.reduceRight((not, at) => ({ not, at }), expr(node));
+      }
       case "comparison": {
         if (children.length === 1) return expr(first);
         const op = this.value(children[1]);
@@ -657,18 +674,22 @@ export class DomBuilder {
   }
 
   pattern(node) {
-    const children = rules(node);
+    let children = rules(node);
+    const paths = [];
+    while (children.length === 1 && PATTERN_WRAPPERS.has(node.rule)) {
+      if (node.rule === "pattern-path") paths.push(node);
+      node = children[0];
+      children = rules(node);
+    }
+    if (paths.length) {
+      return paths.reduceRight((pattern, path) => this.patternPath(path, pattern), this.pattern(node));
+    }
     const first = children[0];
     const operators = leaves(node);
     switch (node.rule) {
-      case "pattern-literal":
-      case "pattern-primary":
-        return this.pattern(first);
       case "pattern-union":
       case "pattern-intersection":
         return this.binary(node, child => this.pattern(child), true);
-      case "pattern-path":
-        return this.patternPath(node, this.pattern(first));
       case "bare-child-list":
         return { any: true, ...(operators.length && { exact: true }), children: this.items(first) };
       case "pattern-node": {
@@ -748,7 +769,7 @@ export class DomBuilder {
       }
       case "child-alternative":
       case "child-item":
-        return first ? this.items(first) : [{ siblings: true }];
+        return first ? this.items(first) : [this.remember({ siblings: true }, node)];
       case "child-primary":
         return first.rule === "child-choice" ? this.items(first) : [{ child: this.pattern(first) }];
       case "child-sequence":
