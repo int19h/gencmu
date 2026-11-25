@@ -7,6 +7,19 @@ export declare class Fn {
     scope: any;
     constructor(param: any, body: any, scope: any);
 }
+/**
+ * The forest of a query after the choice of a parse. The stage answers its
+ * tests on the chosen derivation through the recognizer's evaluator.
+ */
+export declare class Forest {
+    node: any;
+    scope: any;
+    /**
+     * @param {any} node the query record
+     * @param {any} scope the scope of its evaluation
+     */
+    constructor(node: any, scope: any);
+}
 /** A half-open window on the input of a stage. */
 export declare class Span {
     stage: StageData;
@@ -69,7 +82,7 @@ export declare class Evaluator {
     applyFunction(fn: any, argument: any, node: any): any;
     predicate(node: any, scope: any): any;
     truth(node: any, scope: any): any;
-    toTruth(value: any, node: any, scope: any): void | boolean;
+    toTruth(value: any, node: any, scope: any): any;
     /**
      * Evaluates an expression record.
      * @param {any} node

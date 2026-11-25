@@ -16,6 +16,13 @@ export declare function loaderForNotation(version: number): {
     bundledPipelines: () => string[];
     /** @param {string} name */
     loadPipeline(name: string): import("./format50/loader.js").Pipeline50;
+    /**
+     * A loader over another package root, such as a checkout: its
+     * grammars50 sources and data, with the bundled data where the root
+     * has none.
+     * @param {string} directory
+     */
+    loaderFromDirectory(directory: string): Loader50;
     /** @param {string} file */
     loadPipelineFile(file: string): import("./format50/loader.js").Pipeline50;
     /**

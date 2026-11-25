@@ -120,6 +120,12 @@ export declare class Stage50 {
      * the chosen derivation. Its readings become occurrence trees.
      */
     elisionOnly(report: any, derivation: any, root: any, context: any, lowered: any, options: any): void;
+    /**
+     * A query after the choice of a parse: its truth or its keys, by the
+     * recognizer's evaluator on the derivation of the occurrence that the
+     * query reads. The query's receiver starts at a capture or at `$`.
+     */
+    lateQuery(data: any, kind: any, node: any, scope: any): boolean | Bag;
     stageData(tokens: any, sourceText: any, options: any): {
         tokens: any;
         sourceText: any;
