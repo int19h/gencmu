@@ -43,7 +43,9 @@ export function createTransitionCompiler(read = file => readFile(path.join(root,
   const pipeline = unicode === loader.unicode ? transition
     : new Pipeline(transition.path, transition.stages, { unicode });
   const need = file => {
-    const text = read(file);
+    const bundledNames = "data/unicode/unicode-names.txt";
+    const text = read(file) ?? (file === bundledNames || file === "data/unicode/unicode-names-reference.txt"
+      ? bundled(bundledNames) : undefined);
     if (text === undefined) throw new GencmuError("grammar", "the resource was not found", { document: file });
     return text;
   };
