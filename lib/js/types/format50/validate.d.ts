@@ -5,12 +5,13 @@ export type DocumentValidation = {
 export declare function validateOrigin50(node: any, fail: any, pattern: any): void;
 export declare function validatePatternChildren50(node: any, fail: any): void;
 export declare function documentFault50(document: any): (node: any, description: any) => never;
-export declare function withOwner50(root: any, fail: any, owner: any): (node: any, message: any) => any;
-/** @param {{ closed?: boolean, query?: boolean, bindings?: Iterable<string> }} [configuration] */
+export declare function withOwner50(root: any, fail: any, owner: any, category: any, checkMembers?: boolean): (node: any, message: any) => any;
+/** @param {{ closed?: boolean, query?: boolean, bindings?: Iterable<string>, slot?: string }} [configuration] */
 export declare function validateBindings50(root: any, fail: any, configuration?: {
     closed?: boolean;
     query?: boolean;
     bindings?: Iterable<string>;
+    slot?: string;
 }): void;
 export declare function validateArgument50(argument: any, fail: any): void;
 export declare function validateQuery50(method: any, fail: any): any;
@@ -27,17 +28,19 @@ export declare function validateDefinitionExpansion50(rule: any, alternative: an
 export declare function validateDefinitionBoundaries50(rule: any, fail: any): void;
 export declare function validateDefinitionConditions50(rule: any, slots: any, fail: any, check?: typeof validateClosedTypes): void;
 export declare function validateDefinitionNullability50(productions: any, nullable: any, fail: any): void;
-declare function validateClosedTypes(root: any, fail: any, { closed, slots, truth, forwarding, message, nodeTerm, hiddenKeys, boundary, whole }?: {
+declare function validateClosedTypes(root: any, fail: any, { closed, slots, truth, forwarding, message, nodeTerm, hiddenKeys, hiddenStrings, boundary, whole, slot }?: {
     closed?: boolean | undefined;
     forwarding?: boolean | undefined;
     hiddenKeys?: Set<any> | undefined;
+    hiddenStrings?: Set<any> | undefined;
     message?: boolean | undefined;
     nodeTerm?: boolean | undefined;
+    slot?: string | undefined;
     slots?: Map<any, any> | undefined;
     truth?: boolean | undefined;
     whole?: string | undefined;
 }): void;
-export declare function validateDeclarationShape50(declaration: any, fail: any, unicode: any, emptyDelimiters?: any[]): void;
+export declare function validateDeclarationShape50(category: any, declaration: any, fail: any, unicode: any, emptyDelimiters?: any[]): void;
 /** @param {DocumentValidation} [configuration] */
 export declare function validateDocumentShape50(dom: any, configuration?: DocumentValidation): void;
 /** @param {DocumentValidation} [configuration] */

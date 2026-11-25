@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import fs from "node:fs";
+import { isDeepStrictEqual } from "node:util";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { Loader } from "../lib/js/src/node.js";
@@ -25,7 +26,7 @@ export function readFile(file) {
   }
 }
 
-export function createTransitionCompiler(read) {
+export function createTransitionCompiler(read, { observeDocument } = {}) {
   const bundled = file => readFile(path.join(root, file));
   const loader = new Loader(bundled);
   const transition = loader.pipeline("tools/transition/pipeline.md");
@@ -55,6 +56,21 @@ export function createTransitionCompiler(read) {
   };
 
   function documentEntry(markdown, document, inherited = []) {
+    let dom, state = "recognition", fault;
+    try {
+      return convert(markdown, document, inherited, observeDocument && ((record, status) => {
+        dom = record;
+        state = status;
+      }));
+    } catch (error) {
+      fault = error;
+      throw error;
+    } finally {
+      observeDocument?.({ markdown, document, inherited, unicode, dom, state, fault });
+    }
+  }
+
+  function convert(markdown, document, inherited, storeDom) {
     const { text, positions } = extractGrammarText(markdown, document, unicode);
     const position = offset => positions[offset] ?? positions.at(-1) ?? [1, 1];
     const names = new NamesScope(need, unicode, inherited);
@@ -69,7 +85,8 @@ export function createTransitionCompiler(read) {
       throw new GencmuError("grammar", error.message, { document, line, column, stage: error.stage });
     }
     const syntax = result.stages.at(-1);
-    const dom = new DomBuilder(syntax.input, position, document, unicode, strings).build(syntax.tree);
+    storeDom?.(undefined, "conversion");
+    const dom = new DomBuilder(syntax.input, position, document, unicode, strings).build(syntax.tree, storeDom);
     return { hash: fnv1a64(markdown), ...(names.dependencies && { names: names.dependencies }), dom };
   }
 
@@ -118,7 +135,7 @@ export function createTransitionCompiler(read) {
   function compilePipeline(entry) {
     return Object.fromEntries([...pipelineReadings(entry)].map(([file, readings]) => {
       const first = readings[0].entry;
-      return [file, readings.every(reading => JSON.stringify(reading.entry) === JSON.stringify(first)) ?
+      return [file, readings.every(reading => isDeepStrictEqual(reading.entry, first)) ?
         first : { readings }];
     }));
   }

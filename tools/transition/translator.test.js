@@ -1,22 +1,40 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import { test } from "node:test";
-import { translateSharedCase } from "../translate-shared-cases.js";
-import { createTransitionCompiler } from "../transition-compiler.js";
+import { after, test } from "node:test";
+import { translateSharedCase as translate } from "../translate-shared-cases.js";
+import { createDifferential, fixtureDifferential } from "./differential.js";
+import { transitionBatch } from "./sweep.js";
+import { operandFields50 } from "../../lib/js/src/format50/records.js";
+import { Token } from "../../lib/js/src/node.js";
+import { loaderWith } from "../../lib/js/test/shared.js";
 
-const compiler = createTransitionCompiler();
+const batch = transitionBatch();
+assert.ok(!batch || batch.suite === "catalog" || batch.suite === "written", "select a translator suite");
+const differential = createDifferential();
+after(() => {
+  const details = batch?.suite === "catalog" ? { total: catalog.length, cases: selectedNegatives.length } :
+    batch?.suite === "written" ? { total: written.length, cases: selectedWritten.length } : {};
+  differential.finish("translator inputs", details);
+});
+const compiler = differential.compiler();
+const inspectTranslation = fixtureDifferential(differential);
+const translateSharedCase = (family, file, fixture) => {
+  const result = translate(family, file, fixture);
+  inspectTranslation(result);
+  return result;
+};
 let activeDocuments = {};
-const scopedCompiler = createTransitionCompiler(file => activeDocuments[file]);
+const scopedCompiler = differential.compiler(file => activeDocuments[file]);
 const legacyFixture = (family, name) =>
   JSON.parse(fs.readFileSync(new URL(`../../tests/${family}/${name}`, import.meta.url), "utf8"));
 
 function hasSite(root, line, column) {
-  const pending = [root];
+  const pending = [[root, "document"]];
   while (pending.length) {
-    const record = pending.pop();
+    const [record, category] = pending.pop();
     if (!record || typeof record !== "object") continue;
     if (Array.isArray(record.at) && record.at[0] === line && record.at[1] === column) return true;
-    for (const [key, child] of Object.entries(record)) if (key !== "at") pending.push(child);
+    for (const [, child, childCategory] of operandFields50(record, category)) pending.push([child, childCategory]);
   }
   return false;
 }
@@ -52,10 +70,10 @@ test("the input value join excludes nonempty elidable defaults", () => {
     const file = name + ".json";
     const migrated = translateSharedCase("engine", file, legacyFixture("engine", file));
     const { documents, pipelineDocument } = migrated.fixture;
-    const pipeline = documents[pipelineDocument];
-    assert.match(pipeline, /value: \$node\.span\.tokens!'value\.join\(\)/, name);
-    assert.match(pipeline, /image: \$node\.children!'image\.join\(\)/, name);
-    assert.ok(migrated.changes.some(change => change.reason.includes("omitted defaults")), name);
+    assert.match(documents["main.md"], /value: \$\.span\.tokens!'value\.join\(\)/, name);
+    assert.match(documents[pipelineDocument], /image: \$node\.children!'image\.join\(\)/, name);
+    assert.ok(migrated.changes.some(change => change.document === "main.md" &&
+      change.reason.includes("route with an omitted default")), name);
   }
 });
 
@@ -86,7 +104,7 @@ test("the translator keeps each nested tag guard on its own entry", () => {
 test("a custom table can make punctuation an emoji rule name", () => {
   const name = "emoji-table-ascii-pattern.json";
   const { fixture } = translateSharedCase("engine", name, legacyFixture("engine", name));
-  const compiled = createTransitionCompiler(file => fixture.documents[file]).compilePipeline(fixture.pipelineDocument);
+  const compiled = differential.compiler(file => fixture.documents[file]).compilePipeline(fixture.pipelineDocument);
   const [text, emoji] = compiled["g.md"].dom.rules;
   assert.equal(emoji.name, "!");
   assert.equal(text.alternatives[0].expr.expr.ref, "!");
@@ -133,7 +151,12 @@ const definitionOrder = new Set([
   "notation/values-include-method-syntax-first.json",
   "notation/values-include-method-syntax.json",
 ]);
-for (const [id, record] of Object.entries(negatives)) {
+const catalog = Object.entries(negatives);
+const sampleNegatives = [...catalog.slice(0, 12), ["notation/nested-head-parameter-before-body.json",
+  negatives["notation/nested-head-parameter-before-body.json"]]];
+const selectedNegatives = !batch ? sampleNegatives :
+  batch.suite === "catalog" ? catalog.slice(batch.start, batch.start + batch.count) : [];
+for (const [id, record] of selectedNegatives) {
   test(definitionOrder.has(id) ? `§9.3 order ${id}` : id, () => {
     const [family, name] = id.split("/");
     const migrated = translateSharedCase(family, name, legacyFixture(family, name));
@@ -152,7 +175,7 @@ for (const [id, record] of Object.entries(negatives)) {
       activeDocuments = documents;
       const hasTables = Object.hasOwn(documents, "data/unicode/unicode.txt") ||
         Object.hasOwn(documents, "data/unicode/unicode-properties.txt");
-      const reader = hasTables ? createTransitionCompiler(file => documents[file]) : scopedCompiler;
+      const reader = hasTables ? differential.compiler(file => documents[file]) : scopedCompiler;
       return reader.compilePipeline(pipelineDocument);
     };
     if (record.native) {
@@ -249,15 +272,18 @@ test("the hand-written implication writes the extra key only at publication", ()
   assert.equal(rules[1].alternatives[0].term.bag.some(entry => entry.key === "M"), false);
 });
 
+const migrations = JSON.parse(fs.readFileSync(new URL("../shared-case-migrations.json", import.meta.url), "utf8"));
+const written = Object.entries(migrations).filter(([, record]) => !record.expectedSourceError && !record.retired);
+const selectedWritten = batch ? written.slice(batch.start, batch.start + batch.count) : [written[0], written.at(-1)];
+
 test("each written migration has format 50 source or an expected source error", () => {
-  const migrations = JSON.parse(fs.readFileSync(new URL("../shared-case-migrations.json", import.meta.url), "utf8"));
   const root = new URL("../../", import.meta.url);
-  for (const [id, record] of Object.entries(migrations)) {
-    if (record.expectedSourceError || record.retired) continue;
+  for (const [id, record] of selectedWritten) {
+    if (batch) console.log(JSON.stringify({ writtenMigration: id }));
     const [family, name] = id.split("/");
     const { document, fixture, diagnostics } = translateSharedCase(family, name, legacyFixture(family, name));
     if (fixture?.documents) {
-      const scoped = createTransitionCompiler(file => fixture.documents[file] ??
+      const scoped = differential.compiler(file => fixture.documents[file] ??
         (file.startsWith("data/unicode/") ? fs.readFileSync(new URL(file, root), "utf8") : undefined));
       for (const [file, text] of Object.entries(fixture.documents)) {
         if (!file.endsWith(".md")) continue;
@@ -380,7 +406,7 @@ for (const name of ["names-core-version-missing.json", "names-core-version-repea
     const record = translateSharedCase("engine", name, legacyFixture("engine", name));
     assert.equal(record.status, "portable-negative");
     const { documents, pipelineDocument } = record.fixture;
-    assert.throws(() => createTransitionCompiler(file => documents[file]).compilePipeline(pipelineDocument), error => {
+    assert.throws(() => differential.compiler(file => documents[file]).compilePipeline(pipelineDocument), error => {
       assert.deepEqual({ description: error.description, ...error.where }, record.expected);
       return true;
     });
@@ -471,15 +497,52 @@ test("mixed recipes join the written child values and skip synthetic values", ()
   });
   assert.equal(migrated.status, "translated");
   const { documents, pipelineDocument } = migrated.fixture;
+  const { rules } = compiler.compileDocument(documents["main.md"]);
+  const value = rules[0].alternatives[0].term.bag[0];
   const { constants } = compiler.compileDocument(documents[pipelineDocument]);
   const defaults = constants.find(item => item.name === "DEFAULTS").value;
-  const [value, image] = defaults.body.bag;
+  const image = defaults.body.bag[1];
   const map = value.value.receiver;
   assert.equal(map.map.method, "children");
   assert.equal(map.by.body.if.right.pattern.requirements[0].value.tag, "_Elided");
   assert.equal(map.by.body.then.string, "");
   assert.equal(map.by.body.else.property, "value");
   assert.equal(image.value.receiver.map.method, "children");
+});
+
+test("the tested rule keeps its input join when another rule cooks a value", () => {
+  const name = "reparse-original-rule-test.json";
+  const prior = legacyFixture("engine", name);
+  const base = translateSharedCase("engine", name, prior);
+  const unrelated = translateSharedCase("engine", name, {
+    ...prior, grammar: prior.grammar + '\n%rule unused Z := "cooked"',
+  });
+  const testedRule = outcome => compiler.compileDocument(outcome.fixture.documents["main.md"]).rules.find(rule => rule.name === "a");
+  assert.equal(unrelated.status, "translated");
+  assert.deepEqual(testedRule(unrelated), testedRule(base));
+  assert.match(unrelated.fixture.documents["main.md"], /a="a"/);
+  const value = testedRule(unrelated).alternatives[0].term.bag[0].value;
+  assert.equal(value.receiver.map.receiver.method, "span");
+  const uncertain = translateSharedCase("engine", name, {
+    ...prior, grammar: prior.grammar.replace("%rule a (A", "%rule a (cooked") + '\n%rule cooked A := "cooked"',
+  });
+  assert.equal(uncertain.status, "needs-hand");
+  assert.match(uncertain.reason, /input-join proof/);
+  const mixedAlternatives = translateSharedCase("engine", name, {
+    ...prior, grammar: prior.grammar.replace('%rule a (A [+T="ta"])', '%rule a (A [+T="ta"]) | Z := "cooked"'),
+  });
+  assert.equal(mixedAlternatives.status, "needs-hand");
+  assert.match(mixedAlternatives.reason, /input-join proof/);
+});
+
+test("a same-named recipe in a separate stage leaves the tested rule alone", () => {
+  const first = '%stage first\n%ambiguity-resolution greedy\n%rule text a="a"\n%rule a item [+T ≝ "end"]\n%rule item A';
+  const second = '%stage second\n%ambiguity-resolution greedy\n%rule text item\n%rule item A := "cooked"';
+  const moved = translateSharedCase("engine", "omission-in-one-stage", {
+    pipelineDocument: "p.md", documents: { "p.md": "\x60\x60\x60jbogenbau\n" + first + "\n" + second + "\n\x60\x60\x60" },
+  });
+  assert.equal(moved.status, "translated");
+  assert.match(moved.fixture.documents["p.md"], /%rule a item \[\+T ≝ "end"\] → \{value: \$\.span\.tokens!'value\.join\(\)\}/);
 });
 
 test("the translator records changes to output, display and working reads", () => {
@@ -501,4 +564,88 @@ test("the translator records changes to output, display and working reads", () =
   assert.equal(rule.alternatives[0].expr.choice.length, 2);
   assert.deepEqual(rule.alternatives[0].expr.choice.map(node => node.primary.ref), ["A", "B"]);
   assert.equal(rule.alternatives[0].term.bag[0].value.string, "a");
+});
+
+for (const [body, actual] of [
+  ["A @X", '[+T ≝ "end"]'],
+  ["@X", '(A [+T ≝ "end"])'],
+]) {
+  test(`the translator requires a supplier for the bound actual ${actual}`, () => {
+    const grammar = `%rule wrap(@X) ${body}\n%emits\n%rule text = wrap(${actual})`;
+    const old = "\x60\x60\x60jbogenbau\n%stage main\n%ambiguity-resolution greedy\n" + grammar + "\n\x60\x60\x60";
+    const result = loaderWith({ "main.md": old }).pipeline("case/main.md")
+      .parse("a", { tokens: [new Token(["A"], [0, 1], [0, 1], "a")] });
+    assert.equal(result.ok, true);
+    const [token] = result.stages.at(-1).output;
+    assert.deepEqual([token.value, token.image], ["a", "a"]);
+
+    const moved = translateSharedCase("engine", "bound-omission", { grammar });
+    assert.equal(moved.status, "needs-hand");
+    assert.match(moved.reason, /instance value.*body argument/);
+  });
+}
+
+test("the translator checks direct and nested calls for unproved body arguments", () => {
+  for (const call of ['wrap([+T ≝ "end"])', 'wrap((leaf([+T ≝ "end"])))']) {
+    const grammar = `%rule text ${call}\n%rule wrap(@X) A @X\n%rule leaf(@X) @X`;
+    const moved = translateSharedCase("engine", "called-omission", { grammar });
+    assert.equal(moved.status, "needs-hand");
+    assert.match(moved.reason, /body argument/);
+  }
+});
+
+test("the translator keeps the supplier on a named child and skips a proven unused argument", () => {
+  const grammar = '%rule wrap(@X) A @X\n%emits\n%rule text = wrap(child)\n%rule child A [+T ≝ "end"]';
+  const moved = translateSharedCase("engine", "named-omission", { grammar });
+  assert.equal(moved.status, "translated");
+  const dom = compiler.compileDocument(moved.fixture.documents["main.md"]);
+  const child = dom.rules.find(rule => rule.name === "child");
+  const value = child.alternatives[0].term.bag.find(item => item.keys?.includes("value")).value;
+  assert.equal(value.receiver.map.receiver.method, "span");
+  assert.equal(dom.rules.find(rule => rule.name === "text").instance.args[0].rule, "child");
+
+  const ignores = '%rule wrap(@X) A\n%emits\n%rule text = wrap([+T ≝ "end"])';
+  const unused = translateSharedCase("engine", "unused-omission", { grammar: ignores });
+  assert.equal(unused.status, "translated");
+  assert.match(unused.fixture.documents["main.md"], /%rule text = wrap/);
+});
+
+test("the translator reports the first of two unproved body arguments", () => {
+  const grammar = '%rule wrap(@X) A @X\n%rule text wrap([+T ≝ "end"]) wrap([+U ≝ "end"])';
+  const moved = translateSharedCase("engine", "two-unproved-arguments", { grammar });
+  assert.equal(moved.status, "needs-hand");
+  assert.deepEqual(moved.at, [4, 12]);
+});
+
+test("the translator finishes a nested body argument before its sibling", () => {
+  for (const [inner, sibling, at] of [
+    ['[+T ≝ "one"]', '[+U ≝ "two"]', [5, 18]],
+    ['[+T ≝ "one"]', "U", [5, 18]],
+    ["T", '[+U ≝ "two"]', [5, 12]],
+    ["T", "U", undefined],
+  ]) {
+    const grammar = `%rule leaf(@V) A @V\n%rule outer(@X, @Y) @X @Y\n%rule text outer(leaf(${inner}), ${sibling})`;
+    const moved = translateSharedCase("engine", "nested-and-sibling-arguments", { grammar });
+    assert.equal(moved.status, at ? "needs-hand" : "translated");
+    if (at) assert.deepEqual(moved.at, at);
+  }
+});
+
+test("the translator keeps rule edits named like directives in their stage", () => {
+  const names = ["names", "include", "stage", "features", "elision-only",
+    "ambiguity-resolution", "extend-stage", "redefine-stage"];
+  const grammar = names.flatMap(name => [
+    `%rule ${name}(@X) @X`,
+    `%extend-rule ${name}(A) B [+T ≝ "end"]`,
+  ]).concat("%rule text B").join("\n");
+  const result = translateSharedCase("engine", "rule-edits-named-like-directives", { grammar });
+  assert.equal(result.status, "translated");
+  const dom = compiler.compileDocument(result.fixture.documents["main.md"]);
+  const edits = dom.rules.filter(rule => rule.op === "extend");
+  assert.deepEqual(edits.map(rule => rule.name), names);
+  assert.deepEqual(dom.directives.map(directive => directive.name), ["ambiguity-resolution"]);
+  for (const edit of edits) {
+    const value = edit.alternatives[0].term.bag.find(entry => entry.keys?.includes("value")).value;
+    assert.equal(value.receiver.map.receiver.method, "span");
+  }
 });

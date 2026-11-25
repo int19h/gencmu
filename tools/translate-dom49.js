@@ -1,5 +1,7 @@
 // Print format 50 source from the written format 49 records. A decision that
 // depends on the intended grammar raises MigrationRequired at the old site.
+import { isDeepStrictEqual } from "node:util";
+import { expressionChildren } from "../lib/js/src/clause-walk.js";
 import { capturesMentioned, capturesUsed, DOM_TRUE, simplify, termType } from "../lib/js/src/dom.js";
 import { SPAN_METHODS } from "../lib/js/src/methods.js";
 import { layeredPatternText } from "../lib/js/src/pattern-shapes.js";
@@ -79,14 +81,14 @@ export class MigrationRequired extends Error {
   }
 }
 
-export function translateDom49(dom, unicode, uniqueConstants, omittedValues = new Set(), isUndefined = () => false) {
+export function translateDom49(dom, unicode, uniqueConstants, omittedValues = new Set(), isUndefined = () => false, valueWriters = new Map()) {
   if (dom.format !== 49) throw new Error("The translator requires a format 49 DOM.");
-  const printer = new Printer(dom, unicode, uniqueConstants, omittedValues, isUndefined);
+  const printer = new Printer(dom, unicode, uniqueConstants, omittedValues, isUndefined, valueWriters);
   return printer.document(dom);
 }
 
 class Printer {
-  constructor(dom, unicode, uniqueConstants, omittedValues, isUndefined) {
+  constructor(dom, unicode, uniqueConstants, omittedValues, isUndefined, valueWriters) {
     this.unicode = unicode;
     this.constants = new Map(dom.constants
       .filter(item => item.op === "define" &&
@@ -98,6 +100,7 @@ class Printer {
     this.repeated = new Set();
     this.item = undefined;
     this.omittedValues = omittedValues;
+    this.valueWriters = valueWriters;
     this.isUndefined = isUndefined;
   }
 
@@ -161,7 +164,7 @@ class Printer {
     for (const row of item.entries) {
       if (row.op !== "∈") this.hand("Choose an explicit classifier for a complement row.");
       const earlier = classes.get(row.class);
-      if (earlier && JSON.stringify(earlier.gates) !== JSON.stringify(row.gates)) {
+      if (earlier && !isDeepStrictEqual(earlier.gates, row.gates)) {
         this.hand("Combine class rows with different gates without changing their order.");
       }
       if (!earlier) classes.set(row.class, { gates: row.gates, values: [] });
@@ -198,8 +201,8 @@ class Printer {
           this.repeated.add(node.capture);
         } else scalar.add(node.capture);
       }
-      for (const [part, child] of Object.entries(node)) {
-        if ((part === "repeat" || part === "separator") && !node.chain) {
+      for (const child of expressionChildren(node)) {
+        if (node.repeat && !node.chain) {
           const captures = new Set();
           findRepeated(child, captures, true);
           for (const name of captures) {
@@ -230,7 +233,11 @@ class Printer {
       this.attachmentPrimary(attachment, item) : undefined;
     let rebuiltSingleton = false;
     const alternatives = item.alternatives.flatMap(alt => {
-      const term = this.ownerTerm(alt, item.image !== undefined);
+      const value = this.valueWriters.get(alt);
+      const term = this.ownerTerm(alt, item.image !== undefined, false, value);
+      if (value) this.changes.push(value.startsWith("$.span") ?
+        "Join the input token values on the route with an omitted default." :
+        "Join the written child values on the route with an omitted default.");
       const recipeKeepsKeys = primary === undefined && (headerTerm !== undefined || term !== undefined) &&
         item.tags === undefined && alt.tags === undefined;
       const routes = recipeKeepsKeys ? singletonRoutes(alt.expr) : [];
@@ -353,7 +360,7 @@ class Printer {
   }
 
 
-  ownerTerm(owner, inheritedImage = false, insertion = false) {
+  ownerTerm(owner, inheritedImage = false, insertion = false, defaultValue) {
     const entries = [];
     const direct = new Set();
     for (const entry of owner.tags === undefined ? [] : this.tagEntries(owner.tags)) {
@@ -366,6 +373,7 @@ class Printer {
       if (owner.value) entries.push(`value: ${this.term(owner.value)}`);
       if (owner.image) entries.push(`image: ${this.term(owner.image)}`);
     }
+    if (defaultValue) entries.push(`value: ${defaultValue}`);
     if (insertion) {
       if (!owner.value && !owner.image) entries.push('image: value: ""');
       else if (!owner.value) entries.push('value: ""');

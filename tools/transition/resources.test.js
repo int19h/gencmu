@@ -28,6 +28,14 @@ test("layout inspects long constructors and condition continuation in format 50"
   ]);
 });
 
+test("layout ignores a constructor in directive extension data", () => {
+  const compiler = createTransitionCompiler();
+  const source = fenced("%stage s\n%rule text A");
+  const dom = compiler.compileDocument(source);
+  dom.directives[0].bag = [[2, 1], [2, 4], [3, 1]].map(at => ({ kind: "bare", key: "K", gates: [], at }));
+  assert.deepEqual(layoutProblems(source, dom, "layout.md"), []);
+});
+
 test("only plain strings can share a line in a long list", () => {
   const compiler = createTransitionCompiler();
   const table = entry => fenced(`%const $LEXICON
@@ -99,6 +107,8 @@ test("resource generation keeps scoped documents and separates the bootstrap fam
   }
   const base = "grammars50/gencmu/";
   write(base + "jbogenbau/pipeline.md", fenced("%stage main\n%rule text ε"));
+  const collision = "grammars50/gencmu-optional/demo/pipeline.md";
+  write(collision, fenced('%stage main\n%rule text "x"'));
   write(base + "other/pipeline.md", fenced('%stage main\n%include "a.md"\n%include "b.md"'));
   for (const [file, source] of Object.entries(parents)) write(base + "other/" + file, source);
   for (const name of ["\u{10000}.txt", "\uE000.txt"]) {
@@ -111,7 +121,10 @@ test("resource generation keeps scoped documents and separates the bootstrap fam
   const file = base + "other/shared.md";
   assert.equal(resources.sourceDocuments[file].dom.rules[0].alternatives[0].expr.literal.string, "\uE000");
   const caches = resources.cacheFiles();
-  const optional = JSON.parse(caches.get("data/preparsed50/gencmu-optional.json"));
+  const optional = JSON.parse(caches.get("data/preparsed50/bootstrap/gencmu.json"));
+  const ordinary = JSON.parse(caches.get("data/preparsed50/gencmu-optional.json"));
+  assert.deepEqual(Object.keys(ordinary.documents), [collision]);
+  assert.equal(Object.hasOwn(optional.documents, collision), false);
   assert.ok(Object.hasOwn(optional.documents, base + "other/pipeline.md"));
   assert.ok(resources.sources.includes(orphan));
   assert.equal(Object.hasOwn(resources.sourceDocuments, orphan), false);
