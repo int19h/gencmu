@@ -161,6 +161,10 @@ export declare class Stage50 {
     diagnostics(root: any, data: any): {
         kind: string;
         node: any;
+        ancestry: {
+            node: any;
+            up: any;
+        };
         diagnostic: {
             stage: string;
             code: any;
@@ -171,11 +175,18 @@ export declare class Stage50 {
         };
     }[];
     /**
-     * Gives each report an owner among the output tokens (engine §6): the
-     * first token whose input meets the report's input, else the first token
-     * that starts at or after it, else the last token. An input token's
-     * carried reports pass to the output token that covers it. A report with
-     * no output token stays on the stage.
+     * Gives each report an owner among the output tokens (engine §6). The
+     * support of a node is the set of live input leaves under it.
+     *
+     * 1. The first token whose support meets the support of the report.
+     * 2. Else the nearest emission among the raising node and its ancestors
+     *    that yields tokens. Its first token whose support ends at or after
+     *    the start of the report, else its last token.
+     * 3. Else the first token that starts at or after the report, else the
+     *    last token.
+     *
+     * An input token's reports are carried, and the leaf that reads the
+     * token raises them. A report with no output token stays on the stage.
      * @param {any} report
      * @param {any} root
      * @param {any} data
