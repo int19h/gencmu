@@ -51,7 +51,7 @@ The optional start and count select a slice of the sorted case filenames. Each o
 
 ## Diagnostic parity
 
-From `lib/js`, run `npm test -- test/transition-differential.test.js` to test diagnostic order. Use `--test-name-pattern` to select bounded batches, for example `^transition differential shared engine 0$`. The number at the end of the test name is the first case index. Each shared batch covers up to 120 fixtures.
+From `lib/js`, run `npm test -- test/transition-differential.test.js` to test diagnostic order. Use `--test-name-pattern` to select bounded batches, for example `^transition differential shared engine 0$`. The number at the end of the test name is the first case index. Each shared batch covers up to 120 fixtures. Set `GENCMU_DIFFERENTIAL_BATCH_SIZE` to a smaller number to split a long batch.
 
 The harness compares the first source diagnostic with two JSON readings. One reverses record members. One uses a fixed random seed. Both preserve all array order.
 
