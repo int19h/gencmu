@@ -127,14 +127,7 @@ class Printer {
       attachment.capture && this.ownerTerm(attachment) === undefined ? attachment.capture : undefined;
     if (carrier) this.changes.push("Represent the attachment parts as children beside the primary. The selected node covers the whole rule.");
     const alternatives = item.alternatives.map(alt => {
-      let resetKeys = [];
-      if (item.tags !== undefined && alt.tags !== undefined) {
-        resetKeys = this.tagEntries(item.tags);
-        if (resetKeys.some(key => !/^[A-Z][A-Za-z0-9_-]*$/.test(key))) {
-          this.hand("Replace the complete computed statement tag set on the alternative.");
-        }
-      }
-      const term = this.ownerTerm(alt, item.image !== undefined, resetKeys);
+      const term = this.ownerTerm(alt, item.image !== undefined);
       const needPrimary = !carrier && bareSymbol(alt.expr) &&
         (headerTerm !== undefined || term !== undefined) && item.tags === undefined && alt.tags === undefined;
       const body = (needPrimary ? "^" : "") + this.body(alt.expr, undefined, carrier);
@@ -155,8 +148,8 @@ class Printer {
     return lines.join("\n");
   }
 
-  ownerTerm(owner, inheritedImage = false, resetKeys = []) {
-    const entries = resetKeys.map(key => `¬${key}`);
+  ownerTerm(owner, inheritedImage = false) {
+    const entries = [];
     const direct = new Set();
     for (const entry of owner.tags === undefined ? [] : this.tagEntries(owner.tags)) {
       entries.push(direct.has(entry) ? `*{${entry}}` : entry);

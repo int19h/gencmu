@@ -82,10 +82,18 @@ function migrateLocation(where, maps) {
   const source = input.findIndex(item => item.at[0] === at[0] && item.at[1] === at[1]);
   if (source === -1) return { from: where, review: "The expected position is inside or between tokens." };
   const value = input[source].token;
-  const matches = output.flatMap((item, index) => item.token === value ? [index] : []);
-  if (matches.length === 1 && input.filter(item => item.token === value).length === 1) {
-    const [line, column] = output[matches[0]].at;
-    return { from: where, to: { ...where, line, column }, operand: value };
+  const matches = stream => stream.flatMap((item, index) => item.token === value ? [index] : []);
+  const originalMatches = matches(input);
+  const translatedMatches = matches(output);
+  if (originalMatches.length === translatedMatches.length) {
+    const index = translatedMatches[originalMatches.indexOf(source)];
+    const channel = input[source + 4]?.token;
+    const emitted = input[source + 1]?.token === "." && input[source + 2]?.token === "emitted" &&
+      input[source + 3]?.token === "." && ["value", "image"].includes(channel);
+    const selector = emitted && output[index + 1]?.token === "'" && output[index + 2]?.token === channel;
+    const [line, column] = output[index + Number(selector)].at;
+    return { from: where, to: { ...where, line, column }, operand: value,
+      anchor: selector ? "property selector" : "operand order within its declaration" };
   }
   return { from: where, review: "No unique surviving operand anchors this location.", operand: value };
 }
@@ -108,10 +116,26 @@ function overridesFor(caseId) {
   return Object.hasOwn(handMigrations, caseId) ? handMigrations[caseId] : undefined;
 }
 
+function caseInput(testCase) {
+  const { grammar, documents, expect, parses, tokens: supplied, ...input } = testCase;
+  const tokens = supplied?.map(token => {
+    if (!token || !Array.isArray(token.tags) || token.tags.some(tag => typeof tag !== "string")) return token;
+    const { tags, ...fields } = token;
+    return { ...fields, props: Object.fromEntries(tags.map(tag => [tag, true])) };
+  });
+  return { ...input, ...(supplied && { tokens }),
+    ...(parses && { parses: parses.map(({ expect, ...run }) => run) }) };
+}
+
 export function translateSharedCase(family, file, testCase) {
   const id = `${family}/${file}`;
   const versioned = overridesFor(id);
-  if (versioned) return { id, status: "hand-migrated", ...versioned, reference: testCase.expect ?? testCase.parses };
+  if (versioned) {
+    const { fixture, ...record } = versioned;
+    return { id, status: "hand-migrated", ...record,
+      ...(fixture && { fixture: { ...caseInput(testCase), ...fixture } }),
+      reference: testCase.expect ?? testCase.parses };
+  }
   if (testCase.pipeline !== undefined) {
     return { id, status: "old", reason: "The original case selects a bundled format 49 pipeline." };
   }
@@ -176,15 +200,8 @@ export function translateSharedCase(family, file, testCase) {
   const outputs = `%const $OUTPUTS {*$INPUTS${keys.length ? ", " + keys.join(", ") : ""}}`;
   if (stages.size) translated[entry] += "\n" + fence([...stages].map(name =>
     `%extend-stage ${name}\n${defaults}\n${outputs}`).join("\n"));
-  const { grammar, documents, expect, parses, tokens: supplied, ...input } = testCase;
-  const tokens50 = supplied?.map(token => {
-    if (!token || !Array.isArray(token.tags) || token.tags.some(tag => typeof tag !== "string")) return token;
-    const { tags, ...fields } = token;
-    return { ...fields, props: Object.fromEntries(tags.map(tag => [tag, true])) };
-  });
-  const fixture = { ...input, documents: translated, pipelineDocument: entry, ...(supplied && { tokens: tokens50 }),
-    ...(parses && { parses: parses.map(({ expect, ...run }) => run) }) };
-  return { id, status: "translated", fixture, diagnostics, changes, reference: expect ?? parses };
+  const fixture = { ...caseInput(testCase), documents: translated, pipelineDocument: entry };
+  return { id, status: "translated", fixture, diagnostics, changes, reference: testCase.expect ?? testCase.parses };
 }
 
 function main() {

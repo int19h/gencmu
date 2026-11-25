@@ -63,3 +63,30 @@ test("the hand-written implication writes the extra key only at publication", ()
   assert.equal(rules[1].emit.items[0].term.bag[1].key, "M");
   assert.equal(rules[1].alternatives[0].term.bag.some(entry => entry.key === "M"), false);
 });
+
+test("each written migration has format 50 source or an expected source error", () => {
+  const migrations = JSON.parse(fs.readFileSync(new URL("../shared-case-migrations.json", import.meta.url), "utf8"));
+  const root = new URL("../../", import.meta.url);
+  for (const [id, record] of Object.entries(migrations)) {
+    if (record.expectedSourceError) continue;
+    const [family, name] = id.split("/");
+    const { document, fixture, diagnostics } = translateSharedCase(family, name, legacyFixture(family, name));
+    if (fixture?.documents) {
+      const scoped = createTransitionCompiler(file => fixture.documents[file] ??
+        (file.startsWith("data/unicode/") ? fs.readFileSync(new URL(file, root), "utf8") : undefined));
+      for (const [file, text] of Object.entries(fixture.documents)) {
+        if (!file.endsWith(".md")) continue;
+        if (file.endsWith("/shared.md")) {
+          const first = scoped.compileDocument(text, file, ["grammars/demo/a.txt"]);
+          const second = scoped.compileDocument(text, file, ["grammars/demo/b.txt"]);
+          assert.equal(first.rules[0].alternatives[0].expr.literal.string, "\uE000");
+          assert.equal(second.rules[0].alternatives[0].expr.literal.string, "\uE001");
+          assert.deepEqual(first.rules[0].term.bag[0].value.at, [diagnostics[0].to.line, diagnostics[0].to.column]);
+        } else assert.equal(scoped.compileDocument(text, file).format, 50, id);
+      }
+    } else {
+      const source = document ?? ["```jbogenbau", ...fixture.source, "```"].join("\n");
+      assert.equal(compiler.compileDocument(source, id).format, 50, id);
+    }
+  }
+});

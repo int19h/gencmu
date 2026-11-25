@@ -13,14 +13,861 @@
         "%emit ${$'A? A, $'A? M}"
       ],
       "input": "mi",
-      "tokens": [{"text": "mi", "value": "mi", "props": {"W": true}}]
+      "tokens": [
+        {
+          "text": "mi",
+          "value": "mi",
+          "props": {
+            "W": true
+          }
+        }
+      ]
     }
   },
   "notation/pattern-rule-positive-elided.json": {
-    "reason": "The origin requirement remains a load error on a rule atom. The counterpart includes the body rule and locates the filter at its opening angle.",
+    "reason": "The origin requirement remains a load error on a rule atom. The counterpart reports the written origin mark.",
     "oldPath": true,
     "document": "```jbogenbau\n%rule text $x:w\n%conditions $x ≅ #w<_Elided>\n%rule w A\n```\n",
     "expectedSourceError": "the _Elided origin test applies only to a terminal",
-    "diagnostics": [{"from": {"document": "notation.md", "line": 2, "column": 37}, "to": {"document": "notation.md", "line": 3, "column": 20}}]
+    "diagnostics": [
+      {
+        "from": {
+          "document": "notation.md",
+          "line": 2,
+          "column": 37
+        },
+        "to": {
+          "document": "notation.md",
+          "line": 3,
+          "column": 21
+        }
+      }
+    ]
+  },
+  "engine/implies-chain.json": {
+    "reason": "Write the transitive keys on the projection. The working word still holds its original keys.",
+    "fixture": {
+      "tokens": [
+        {
+          "text": "x",
+          "value": "x",
+          "props": {
+            "W": true
+          }
+        }
+      ],
+      "source": [
+        "%stage main",
+        "%ambiguity-resolution greedy",
+        "%const $OUTPUTS {W, A, B, C, D, Y}",
+        "%rule text [{word}]",
+        "%rule word ^$w:W → {A}",
+        "%emit ${*$, $'A? B, ($'B ∨ $'A)? C, ($'B ∨ $'A)? D, $'Z? Y}"
+      ]
+    }
+  },
+  "engine/implies-cycle.json": {
+    "reason": "Write the saturated A, B and C keys on the projection. The working word keeps W and A.",
+    "fixture": {
+      "tokens": [
+        {
+          "text": "x",
+          "value": "x",
+          "props": {
+            "W": true
+          }
+        }
+      ],
+      "source": [
+        "%stage main",
+        "%ambiguity-resolution greedy",
+        "%const $OUTPUTS {W, A, B, C}",
+        "%rule text [{word}]",
+        "%rule word ^$w:W → {A}",
+        "%emit ${*$, B, C}"
+      ]
+    }
+  },
+  "engine/implies-inserted.json": {
+    "reason": "Write both Q and R on the inserted occurrence.",
+    "fixture": {
+      "tokens": [
+        {
+          "text": "x",
+          "value": "x",
+          "props": {
+            "W": true
+          }
+        }
+      ],
+      "source": [
+        "%stage main",
+        "%ambiguity-resolution greedy",
+        "%const $OUTPUTS {W, Q, R}",
+        "%rule text [{word}]",
+        "%rule word $w:W",
+        "%emit $w{*$w}, ε{image: value: \"\", Q, R}"
+      ]
+    }
+  },
+  "engine/implies-inserted-phoneme-conflict.json": {
+    "reason": "Give the inserted occurrence both ordinary Sound keys and one explicit string.",
+    "fixture": {
+      "tokens": [
+        {
+          "text": "x",
+          "value": "x",
+          "props": {
+            "W": true
+          }
+        }
+      ],
+      "source": [
+        "%stage main",
+        "%ambiguity-resolution greedy",
+        "%const $OUTPUTS {W, Sound-0065-s, Sound-006F-s}",
+        "%rule text [{word}]",
+        "%rule word $w:W",
+        "%emit $w{*$w}, ε{image: value: \"e\", Sound-0065-s, Sound-006F-s}"
+      ]
+    }
+  },
+  "engine/implies-phoneme-conflict.json": {
+    "reason": "Publish the second Sound key on a projection. It leaves the working value and image alone.",
+    "fixture": {
+      "tokens": [
+        {
+          "text": "x",
+          "value": "x",
+          "props": {
+            "W": true
+          }
+        }
+      ],
+      "source": [
+        "%stage main",
+        "%ambiguity-resolution greedy",
+        "%const $OUTPUTS {A, Sound-0065-s, Sound-006F-s}",
+        "%rule text [{word}]",
+        "%rule word $w:W → {A, Sound-0065-s, image: value: \"e\"}",
+        "%emit ${*$, Sound-006F-s}"
+      ]
+    }
+  },
+  "engine/implies-phoneme-sound.json": {
+    "reason": "Publish the extra Sound key without changing the strings of the part.",
+    "fixture": {
+      "tokens": [
+        {
+          "text": "x",
+          "value": "x",
+          "props": {
+            "W": true
+          }
+        }
+      ],
+      "source": [
+        "%stage main",
+        "%ambiguity-resolution greedy",
+        "%const $OUTPUTS {W, A, Sound-006F-s}",
+        "%rule text [{word}]",
+        "%rule word ^$w:W → {A}",
+        "%emit ${*$, Sound-006F-s}"
+      ]
+    }
+  },
+  "engine/implies-stage-scope.json": {
+    "reason": "The first stage alone writes M. The second stage deletes it and sets its own output mask.",
+    "fixture": {
+      "tokens": [
+        {
+          "text": "x",
+          "value": "x",
+          "props": {
+            "W": true
+          }
+        }
+      ],
+      "source": [
+        "%stage first",
+        "%ambiguity-resolution greedy",
+        "%const $OUTPUTS {A, M}",
+        "%rule text [{word}]",
+        "%rule word $w:W → {A, image: value: $w'value}",
+        "%emit ${*$, M}",
+        "%stage second",
+        "%ambiguity-resolution greedy",
+        "%const $OUTPUTS {A}",
+        "%rule text [{word}]",
+        "%rule word ^$w:A → {¬M}",
+        "%emit"
+      ]
+    }
+  },
+  "engine/pipeline-extend-stage-all-items.json": {
+    "reason": "The extension supplies the K constant, the classifier and an explicit class reference for X.",
+    "fixture": {
+      "input": "a",
+      "source": [
+        "%stage first",
+        "%ambiguity-resolution greedy",
+        "%const $OUTPUTS {A, X, Z}",
+        "%rule text ^$w:\"a\" → {*$LEX.classify($w.source-text), *$K}",
+        "%emit",
+        "%stage second",
+        "%ambiguity-resolution greedy",
+        "%rule text X",
+        "%extend-stage first",
+        "%const $K {Z}",
+        "%const $LEX {A: \"a\", X: {A}}"
+      ]
+    }
+  },
+  "engine/pipeline-redefine-stage-clears-implications.json": {
+    "reason": "The replacement discards the only rule that supplies Y. The second stage still requires Y.",
+    "fixture": {
+      "input": "a",
+      "source": [
+        "%stage first",
+        "%ambiguity-resolution greedy",
+        "%const $OUTPUTS {X, Y}",
+        "%rule text ^\"a\" → {X, Y}",
+        "%emit",
+        "%redefine-stage first",
+        "%ambiguity-resolution greedy",
+        "%const $OUTPUTS {X, Y}",
+        "%rule text ^\"a\" → {X}",
+        "%emit",
+        "%stage second",
+        "%ambiguity-resolution greedy",
+        "%rule text Y"
+      ]
+    }
+  },
+  "engine/classifier-features.json": {
+    "reason": "Both original gates control list entries of KOhA. The warning keeps its rule and code.",
+    "fixture": {
+      "tokens": [
+        {
+          "text": "mi",
+          "value": "mi",
+          "props": {
+            "W": true
+          }
+        }
+      ],
+      "source": [
+        "%stage main",
+        "%ambiguity-resolution greedy",
+        "%const $OUTPUTS {Tag-w, KOhA}",
+        "%const $LEX {KOhA: [g? \"mi\", ¬h? \"do\"]}",
+        "%rule text [{word}]",
+        "%rule word *v",
+        "%rule v ^$w:W → {¬W, Tag-w, *$LEX.classify($w'value)}",
+        "%warning \"warning v\"",
+        "%emit"
+      ]
+    }
+  },
+  "engine/classifier-gate-parses.json": {
+    "reason": "The final KOhA memberships use distinct f and non-f list entries.",
+    "fixture": {
+      "tokens": [
+        {
+          "text": "mi",
+          "value": "mi",
+          "props": {
+            "W": true
+          }
+        },
+        {
+          "text": "do",
+          "value": "do",
+          "props": {
+            "W": true
+          }
+        }
+      ],
+      "parses": [
+        {
+          "options": {}
+        },
+        {
+          "options": {
+            "features": [
+              "f"
+            ]
+          }
+        },
+        {
+          "options": {}
+        }
+      ],
+      "source": [
+        "%stage main",
+        "%ambiguity-resolution greedy",
+        "%const $OUTPUTS {Tag-w, KOhA, UI}",
+        "%const $LEX {KOhA: [¬f? \"mi\", f? \"do\"], f? UI: \"mi\"}",
+        "%rule text [{word}]",
+        "%rule word ^$w:W → {¬W, Tag-w, *$LEX.classify($w'value)}",
+        "%emit"
+      ]
+    }
+  },
+  "engine/classifier-remove.json": {
+    "reason": "Apply the ordered additions and removals to the literal membership list.",
+    "fixture": {
+      "tokens": [
+        {
+          "text": "ko'a",
+          "value": "ko'a",
+          "props": {
+            "W": true
+          }
+        },
+        {
+          "text": "ko'e",
+          "value": "ko'e",
+          "props": {
+            "W": true
+          }
+        }
+      ],
+      "source": [
+        "%stage main",
+        "%ambiguity-resolution greedy",
+        "%const $OUTPUTS {Tag-w, KOhA}",
+        "%const $LEX {KOhA: [*([*([\"ko'a\"] ∖ \"ko'a\"), \"ko'a\"] ∖ \"ko'a\"), \"ko'e\"]}",
+        "%rule text [{word}]",
+        "%rule word ^$w:W → {¬W, Tag-w, *$LEX.classify($w'value)}",
+        "%emit"
+      ]
+    }
+  },
+  "notation/canonical-name-contexts-ascii.json": {
+    "reason": "Keep the original name spellings in their grammar roles. Record the no-op implication keys in a separate bag.",
+    "document": "```jbogenbau\n%features K fK\n%stage sK\n%extend-stage sK\n%redefine-stage sK\n%const $K \"K\"\n%redefine-const $K $K\n%const $CK {fK? K: [\"K\", \"K\"]}\n%const $SELF-KEYS {K, Q}\n%rule rK K<K> → {K} %warning \"K\"\n%extend-rule rK ¬fK? K\n%redefine-rule rK fK? K\n```\n"
+  },
+  "notation/canonical-name-contexts-kelvin.json": {
+    "reason": "Keep the original name spellings in their grammar roles. Record the no-op implication keys in a separate bag.",
+    "document": "```jbogenbau\n%features K fK\n%stage sK\n%extend-stage sK\n%redefine-stage sK\n%const $K \"K\"\n%redefine-const $K $K\n%const $CK {fK? K: [\"K\", \"K\"]}\n%const $SELF-KEYS {K, Q}\n%rule rK K<K> → {K} %warning \"K\"\n%extend-rule rK ¬fK? K\n%redefine-rule rK fK? K\n```\n"
+  },
+  "notation/canonical-names-ascii.json": {
+    "reason": "Keep the original name spellings in their grammar roles. Record the no-op implication keys in a separate bag.",
+    "document": "```jbogenbau\n%features fK\n%stage sK\n%const $K \"x\"\n%const $CK {K: \"K\"}\n%const $SELF-KEYS {K}\n%rule rK fK? rK K → {K}\n%rule text $x:K → {*$CK.classify($x'value)}\n```\n"
+  },
+  "notation/canonical-names-kelvin.json": {
+    "reason": "Keep the original name spellings in their grammar roles. Record the no-op implication keys in a separate bag.",
+    "document": "```jbogenbau\n%features fK\n%stage sK\n%const $K \"x\"\n%const $CK {K: \"K\"}\n%const $SELF-KEYS {K}\n%rule rK fK? rK K → {K}\n%rule text $x:K → {*$CK.classify($x'value)}\n```\n"
+  },
+  "engine/captures-128.json": {
+    "reason": "Keep all capture slots and the last-slot condition. Forward the former attachment as one adjacent token.",
+    "fixture": {
+      "source": [
+        "%stage main",
+        "%ambiguity-resolution greedy",
+        "%const $OUTPUTS {M, L}",
+        "%rule text → {*$c127.flags}",
+        "  | $c0:A $c1:A $c2:A $c3:A $c4:A $c5:A $c6:A $c7:A $c8:A $c9:A",
+        "  $c10:A $c11:A $c12:A $c13:A $c14:A $c15:A $c16:A $c17:A $c18:A $c19:A",
+        "  $c20:A $c21:A $c22:A $c23:A $c24:A $c25:A $c26:A $c27:A $c28:A $c29:A",
+        "  $c30:A $c31:A $c32:A $c33:A $c34:A $c35:A $c36:A $c37:A $c38:A $c39:A",
+        "  $c40:A $c41:A $c42:A $c43:A $c44:A $c45:A $c46:A $c47:A $c48:A $c49:A",
+        "  $c50:A $c51:A $c52:A $c53:A $c54:A $c55:A $c56:A $c57:A $c58:A $c59:A",
+        "  $c60:A $c61:A $c62:A $c63:A $c64:A $c65:A $c66:A $c67:A $c68:A $c69:A",
+        "  $c70:A $c71:A $c72:A $c73:A $c74:A $c75:A $c76:A $c77:A $c78:A $c79:A",
+        "  $c80:A $c81:A $c82:A $c83:A $c84:A $c85:A $c86:A $c87:A $c88:A $c89:A",
+        "  $c90:A $c91:A $c92:A $c93:A $c94:A $c95:A $c96:A $c97:A $c98:A $c99:A",
+        "  $c100:A $c101:A $c102:A $c103:A $c104:A $c105:A $c106:A $c107:A $c108:A $c109:A",
+        "  $c110:A $c111:A $c112:A $c113:A $c114:A $c115:A $c116:A $c117:A $c118:A $c119:A",
+        "  $c120:A $c121:A $c122:A $c123:A $c124:A $c125:A $c126:e $c127:A",
+        "%conditions $c127.source-text = \"a\"",
+        "%emit $c126, $c127{L}",
+        "%rule e ^A → {M}",
+        "%emit"
+      ]
+    }
+  },
+  "engine/captures-129-last-fails.json": {
+    "reason": "Keep all capture slots and the last-slot condition. Forward the former attachment as one adjacent token.",
+    "fixture": {
+      "source": [
+        "%stage main",
+        "%ambiguity-resolution greedy",
+        "%const $OUTPUTS {M, L}",
+        "%rule text → {*$c128.flags}",
+        "  | $c0:A $c1:A $c2:A $c3:A $c4:A $c5:A $c6:A $c7:A $c8:A $c9:A",
+        "  $c10:A $c11:A $c12:A $c13:A $c14:A $c15:A $c16:A $c17:A $c18:A $c19:A",
+        "  $c20:A $c21:A $c22:A $c23:A $c24:A $c25:A $c26:A $c27:A $c28:A $c29:A",
+        "  $c30:A $c31:A $c32:A $c33:A $c34:A $c35:A $c36:A $c37:A $c38:A $c39:A",
+        "  $c40:A $c41:A $c42:A $c43:A $c44:A $c45:A $c46:A $c47:A $c48:A $c49:A",
+        "  $c50:A $c51:A $c52:A $c53:A $c54:A $c55:A $c56:A $c57:A $c58:A $c59:A",
+        "  $c60:A $c61:A $c62:A $c63:A $c64:A $c65:A $c66:A $c67:A $c68:A $c69:A",
+        "  $c70:A $c71:A $c72:A $c73:A $c74:A $c75:A $c76:A $c77:A $c78:A $c79:A",
+        "  $c80:A $c81:A $c82:A $c83:A $c84:A $c85:A $c86:A $c87:A $c88:A $c89:A",
+        "  $c90:A $c91:A $c92:A $c93:A $c94:A $c95:A $c96:A $c97:A $c98:A $c99:A",
+        "  $c100:A $c101:A $c102:A $c103:A $c104:A $c105:A $c106:A $c107:A $c108:A $c109:A",
+        "  $c110:A $c111:A $c112:A $c113:A $c114:A $c115:A $c116:A $c117:A $c118:A $c119:A",
+        "  $c120:A $c121:A $c122:A $c123:A $c124:A $c125:A $c126:A $c127:e $c128:A",
+        "%conditions $c128.source-text = \"a\"",
+        "%emit $c127, $c128{L}",
+        "%rule e ^A → {M}",
+        "%emit"
+      ]
+    }
+  },
+  "engine/captures-256.json": {
+    "reason": "Keep all capture slots and the last-slot condition. Forward the former attachment as one adjacent token.",
+    "fixture": {
+      "source": [
+        "%stage main",
+        "%ambiguity-resolution greedy",
+        "%const $OUTPUTS {M, L}",
+        "%rule text → {*$c255.flags}",
+        "  | $c0:A $c1:A $c2:A $c3:A $c4:A $c5:A $c6:A $c7:A $c8:A $c9:A",
+        "  $c10:A $c11:A $c12:A $c13:A $c14:A $c15:A $c16:A $c17:A $c18:A $c19:A",
+        "  $c20:A $c21:A $c22:A $c23:A $c24:A $c25:A $c26:A $c27:A $c28:A $c29:A",
+        "  $c30:A $c31:A $c32:A $c33:A $c34:A $c35:A $c36:A $c37:A $c38:A $c39:A",
+        "  $c40:A $c41:A $c42:A $c43:A $c44:A $c45:A $c46:A $c47:A $c48:A $c49:A",
+        "  $c50:A $c51:A $c52:A $c53:A $c54:A $c55:A $c56:A $c57:A $c58:A $c59:A",
+        "  $c60:A $c61:A $c62:A $c63:A $c64:A $c65:A $c66:A $c67:A $c68:A $c69:A",
+        "  $c70:A $c71:A $c72:A $c73:A $c74:A $c75:A $c76:A $c77:A $c78:A $c79:A",
+        "  $c80:A $c81:A $c82:A $c83:A $c84:A $c85:A $c86:A $c87:A $c88:A $c89:A",
+        "  $c90:A $c91:A $c92:A $c93:A $c94:A $c95:A $c96:A $c97:A $c98:A $c99:A",
+        "  $c100:A $c101:A $c102:A $c103:A $c104:A $c105:A $c106:A $c107:A $c108:A $c109:A",
+        "  $c110:A $c111:A $c112:A $c113:A $c114:A $c115:A $c116:A $c117:A $c118:A $c119:A",
+        "  $c120:A $c121:A $c122:A $c123:A $c124:A $c125:A $c126:A $c127:A $c128:A $c129:A",
+        "  $c130:A $c131:A $c132:A $c133:A $c134:A $c135:A $c136:A $c137:A $c138:A $c139:A",
+        "  $c140:A $c141:A $c142:A $c143:A $c144:A $c145:A $c146:A $c147:A $c148:A $c149:A",
+        "  $c150:A $c151:A $c152:A $c153:A $c154:A $c155:A $c156:A $c157:A $c158:A $c159:A",
+        "  $c160:A $c161:A $c162:A $c163:A $c164:A $c165:A $c166:A $c167:A $c168:A $c169:A",
+        "  $c170:A $c171:A $c172:A $c173:A $c174:A $c175:A $c176:A $c177:A $c178:A $c179:A",
+        "  $c180:A $c181:A $c182:A $c183:A $c184:A $c185:A $c186:A $c187:A $c188:A $c189:A",
+        "  $c190:A $c191:A $c192:A $c193:A $c194:A $c195:A $c196:A $c197:A $c198:A $c199:A",
+        "  $c200:A $c201:A $c202:A $c203:A $c204:A $c205:A $c206:A $c207:A $c208:A $c209:A",
+        "  $c210:A $c211:A $c212:A $c213:A $c214:A $c215:A $c216:A $c217:A $c218:A $c219:A",
+        "  $c220:A $c221:A $c222:A $c223:A $c224:A $c225:A $c226:A $c227:A $c228:A $c229:A",
+        "  $c230:A $c231:A $c232:A $c233:A $c234:A $c235:A $c236:A $c237:A $c238:A $c239:A",
+        "  $c240:A $c241:A $c242:A $c243:A $c244:A $c245:A $c246:A $c247:A $c248:A $c249:A",
+        "  $c250:A $c251:A $c252:A $c253:A $c254:e $c255:A",
+        "%conditions $c255.source-text = \"a\"",
+        "%emit $c254, $c255{L}",
+        "%rule e ^A → {M}",
+        "%emit"
+      ]
+    }
+  },
+  "engine/captures-257-last-fails.json": {
+    "reason": "Keep all capture slots and the last-slot condition. Forward the former attachment as one adjacent token.",
+    "fixture": {
+      "source": [
+        "%stage main",
+        "%ambiguity-resolution greedy",
+        "%const $OUTPUTS {M, L}",
+        "%rule text → {*$c256.flags}",
+        "  | $c0:A $c1:A $c2:A $c3:A $c4:A $c5:A $c6:A $c7:A $c8:A $c9:A",
+        "  $c10:A $c11:A $c12:A $c13:A $c14:A $c15:A $c16:A $c17:A $c18:A $c19:A",
+        "  $c20:A $c21:A $c22:A $c23:A $c24:A $c25:A $c26:A $c27:A $c28:A $c29:A",
+        "  $c30:A $c31:A $c32:A $c33:A $c34:A $c35:A $c36:A $c37:A $c38:A $c39:A",
+        "  $c40:A $c41:A $c42:A $c43:A $c44:A $c45:A $c46:A $c47:A $c48:A $c49:A",
+        "  $c50:A $c51:A $c52:A $c53:A $c54:A $c55:A $c56:A $c57:A $c58:A $c59:A",
+        "  $c60:A $c61:A $c62:A $c63:A $c64:A $c65:A $c66:A $c67:A $c68:A $c69:A",
+        "  $c70:A $c71:A $c72:A $c73:A $c74:A $c75:A $c76:A $c77:A $c78:A $c79:A",
+        "  $c80:A $c81:A $c82:A $c83:A $c84:A $c85:A $c86:A $c87:A $c88:A $c89:A",
+        "  $c90:A $c91:A $c92:A $c93:A $c94:A $c95:A $c96:A $c97:A $c98:A $c99:A",
+        "  $c100:A $c101:A $c102:A $c103:A $c104:A $c105:A $c106:A $c107:A $c108:A $c109:A",
+        "  $c110:A $c111:A $c112:A $c113:A $c114:A $c115:A $c116:A $c117:A $c118:A $c119:A",
+        "  $c120:A $c121:A $c122:A $c123:A $c124:A $c125:A $c126:A $c127:A $c128:A $c129:A",
+        "  $c130:A $c131:A $c132:A $c133:A $c134:A $c135:A $c136:A $c137:A $c138:A $c139:A",
+        "  $c140:A $c141:A $c142:A $c143:A $c144:A $c145:A $c146:A $c147:A $c148:A $c149:A",
+        "  $c150:A $c151:A $c152:A $c153:A $c154:A $c155:A $c156:A $c157:A $c158:A $c159:A",
+        "  $c160:A $c161:A $c162:A $c163:A $c164:A $c165:A $c166:A $c167:A $c168:A $c169:A",
+        "  $c170:A $c171:A $c172:A $c173:A $c174:A $c175:A $c176:A $c177:A $c178:A $c179:A",
+        "  $c180:A $c181:A $c182:A $c183:A $c184:A $c185:A $c186:A $c187:A $c188:A $c189:A",
+        "  $c190:A $c191:A $c192:A $c193:A $c194:A $c195:A $c196:A $c197:A $c198:A $c199:A",
+        "  $c200:A $c201:A $c202:A $c203:A $c204:A $c205:A $c206:A $c207:A $c208:A $c209:A",
+        "  $c210:A $c211:A $c212:A $c213:A $c214:A $c215:A $c216:A $c217:A $c218:A $c219:A",
+        "  $c220:A $c221:A $c222:A $c223:A $c224:A $c225:A $c226:A $c227:A $c228:A $c229:A",
+        "  $c230:A $c231:A $c232:A $c233:A $c234:A $c235:A $c236:A $c237:A $c238:A $c239:A",
+        "  $c240:A $c241:A $c242:A $c243:A $c244:A $c245:A $c246:A $c247:A $c248:A $c249:A",
+        "  $c250:A $c251:A $c252:A $c253:A $c254:A $c255:e $c256:A",
+        "%conditions $c256.source-text = \"a\"",
+        "%emit $c255, $c256{L}",
+        "%rule e ^A → {M}",
+        "%emit"
+      ]
+    }
+  },
+  "engine/captures-258-attachment.json": {
+    "reason": "Keep all capture slots and the last-slot condition. Forward the former attachment as one adjacent token.",
+    "fixture": {
+      "source": [
+        "%stage main",
+        "%ambiguity-resolution greedy",
+        "%const $OUTPUTS {M, L}",
+        "%rule text → {*$c257.flags}",
+        "  | $c0:A $c1:A $c2:A $c3:A $c4:A $c5:A $c6:A $c7:A $c8:A $c9:A",
+        "  $c10:A $c11:A $c12:A $c13:A $c14:A $c15:A $c16:A $c17:A $c18:A $c19:A",
+        "  $c20:A $c21:A $c22:A $c23:A $c24:A $c25:A $c26:A $c27:A $c28:A $c29:A",
+        "  $c30:A $c31:A $c32:A $c33:A $c34:A $c35:A $c36:A $c37:A $c38:A $c39:A",
+        "  $c40:A $c41:A $c42:A $c43:A $c44:A $c45:A $c46:A $c47:A $c48:A $c49:A",
+        "  $c50:A $c51:A $c52:A $c53:A $c54:A $c55:A $c56:A $c57:A $c58:A $c59:A",
+        "  $c60:A $c61:A $c62:A $c63:A $c64:A $c65:A $c66:A $c67:A $c68:A $c69:A",
+        "  $c70:A $c71:A $c72:A $c73:A $c74:A $c75:A $c76:A $c77:A $c78:A $c79:A",
+        "  $c80:A $c81:A $c82:A $c83:A $c84:A $c85:A $c86:A $c87:A $c88:A $c89:A",
+        "  $c90:A $c91:A $c92:A $c93:A $c94:A $c95:A $c96:A $c97:A $c98:A $c99:A",
+        "  $c100:A $c101:A $c102:A $c103:A $c104:A $c105:A $c106:A $c107:A $c108:A $c109:A",
+        "  $c110:A $c111:A $c112:A $c113:A $c114:A $c115:A $c116:A $c117:A $c118:A $c119:A",
+        "  $c120:A $c121:A $c122:A $c123:A $c124:A $c125:A $c126:A $c127:A $c128:A $c129:A",
+        "  $c130:A $c131:A $c132:A $c133:A $c134:A $c135:A $c136:A $c137:A $c138:A $c139:A",
+        "  $c140:A $c141:A $c142:A $c143:A $c144:A $c145:A $c146:A $c147:A $c148:A $c149:A",
+        "  $c150:A $c151:A $c152:A $c153:A $c154:A $c155:A $c156:A $c157:A $c158:A $c159:A",
+        "  $c160:A $c161:A $c162:A $c163:A $c164:A $c165:A $c166:A $c167:A $c168:A $c169:A",
+        "  $c170:A $c171:A $c172:A $c173:A $c174:A $c175:A $c176:A $c177:A $c178:A $c179:A",
+        "  $c180:A $c181:A $c182:A $c183:A $c184:A $c185:A $c186:A $c187:A $c188:A $c189:A",
+        "  $c190:A $c191:A $c192:A $c193:A $c194:A $c195:A $c196:A $c197:A $c198:A $c199:A",
+        "  $c200:A $c201:A $c202:A $c203:A $c204:A $c205:A $c206:A $c207:A $c208:A $c209:A",
+        "  $c210:A $c211:A $c212:A $c213:A $c214:A $c215:A $c216:A $c217:A $c218:A $c219:A",
+        "  $c220:A $c221:A $c222:A $c223:A $c224:A $c225:A $c226:A $c227:A $c228:A $c229:A",
+        "  $c230:A $c231:A $c232:A $c233:A $c234:A $c235:A $c236:A $c237:A $c238:A $c239:A",
+        "  $c240:A $c241:A $c242:A $c243:A $c244:A $c245:A $c246:A $c247:A $c248:A $c249:A",
+        "  $c250:A $c251:A $c252:A $c253:A $c254:A $c255:A $c256:e $c257:A",
+        "%conditions $c257.source-text = \"a\"",
+        "%emit $c256, $c257{L}",
+        "%rule e ^A → {M}",
+        "%emit"
+      ]
+    }
+  },
+  "engine/classifier-blocks-order.json": {
+    "reason": "Apply the same additions and removal through three versions in the original include order.",
+    "fixture": {
+      "pipelineDocument": "p.md",
+      "documents": {
+        "p.md": "```jbogenbau\n%stage main\n%include \"a.md\"\n%include \"b.md\"\n%include \"c.md\"\n```\n",
+        "a.md": "```jbogenbau\n%ambiguity-resolution greedy\n%const $OUTPUTS {Tag-w, KOhA, UI}\n%const $LEX {KOhA: [\"mi\", \"do\"]}\n%rule text [{word}]\n%rule word ^$w:W → {¬W, Tag-w, *$LEX.classify($w'value)}\n%emit\n```\n",
+        "b.md": "```jbogenbau\n%redefine-const $LEX {*$LEX, KOhA: $LEX'KOhA ∖ \"mi\", UI: \"mi\"}\n```\n",
+        "c.md": "```jbogenbau\n%redefine-const $LEX {*$LEX, KOhA: [*$LEX'KOhA, \"mi\"]}\n```\n"
+      }
+    }
+  },
+  "engine/classifier-inactive-duplicate.json": {
+    "reason": "The enabled gate adds a repeated spelling. The new classifier returns the class once on every run.",
+    "fixture": {
+      "source": [
+        "%stage main",
+        "%ambiguity-resolution greedy",
+        "%const $OUTPUTS {Tag-w, KOhA}",
+        "%const $LEX {KOhA: [\"mi\", f? \"mi\"]}",
+        "%rule text [{word}]",
+        "%rule word ^$w:W → {¬W, Tag-w, *$LEX.classify($w'value)}",
+        "%emit"
+      ]
+    }
+  },
+  "engine/classifier-inactive-remove.json": {
+    "reason": "The enabled gate removes a spelling that is absent. List difference preserves the existing membership.",
+    "fixture": {
+      "source": [
+        "%stage main",
+        "%ambiguity-resolution greedy",
+        "%const $OUTPUTS {Tag-w, KOhA}",
+        "%const $LEX {KOhA: [* ([\"mi\"] ∖ [f? \"do\"])]}",
+        "%rule text [{word}]",
+        "%rule word ^$w:W → {¬W, Tag-w, *$LEX.classify($w'value)}",
+        "%emit"
+      ]
+    }
+  },
+  "engine/pipeline-redefine-stage-discards-invalid-grammar.json": {
+    "reason": "The replacement retains the accepted text rule. The discarded stage still has duplicate policies, unresolved rules and an unresolved constant.",
+    "fixture": {
+      "source": [
+        "%stage first",
+        "%ambiguity-resolution greedy",
+        "%ambiguity-resolution lazy",
+        "%const $K $ABSENT",
+        "%const $LEX {A: [] ∖ \"a\"}",
+        "%rule text missing",
+        "%rule text unknown",
+        "%redefine-stage first",
+        "%ambiguity-resolution greedy",
+        "%rule text \"a\""
+      ]
+    }
+  },
+  "engine/stitch-implication-before-rule.json": {
+    "reason": "Place the same unresolved operand in a constant term. Keep its order relative to the unresolved rule operand.",
+    "fixture": {
+      "source": [
+        "%stage main",
+        "%ambiguity-resolution greedy",
+        "%const $IMPLICATION {A: $K}",
+        "%rule text $R"
+      ]
+    },
+    "diagnostics": [
+      {
+        "from": {
+          "document": "main.md",
+          "line": 3,
+          "column": 10
+        },
+        "to": {
+          "document": "main.md",
+          "line": 4,
+          "column": 25
+        }
+      }
+    ]
+  },
+  "engine/stitch-rule-before-implication.json": {
+    "reason": "Place the same unresolved operand in a constant term. Keep its order relative to the unresolved rule operand.",
+    "fixture": {
+      "source": [
+        "%stage main",
+        "%ambiguity-resolution greedy",
+        "%rule text $R",
+        "%const $IMPLICATION {A: $K}"
+      ]
+    },
+    "diagnostics": [
+      {
+        "from": {
+          "document": "main.md",
+          "line": 3,
+          "column": 12
+        },
+        "to": {
+          "document": "main.md",
+          "line": 4,
+          "column": 12
+        }
+      }
+    ]
+  },
+  "engine/recipe-cycle-inherited-names-position.json": {
+    "reason": "Retain the two inherited names resources and one shared document. The self-read of the unfinished value replaces the recipe cycle.",
+    "fixture": {
+      "pipelineDocument": "p.md",
+      "documents": {
+        "p.md": "```jbogenbau\n%include \"grammars/demo/one.md\"\n%include \"grammars/demo/two.md\"\n```\n",
+        "grammars/demo/one.md": "```jbogenbau\n%names \"a.txt\"\n%stage one\n%const $OUTPUTS {}\n%include \"shared.md\"\n```\n",
+        "grammars/demo/two.md": "```jbogenbau\n%names \"b.txt\"\n%stage two\n%include \"shared.md\"\n```\n",
+        "grammars/demo/shared.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text → {image: value: $'value}\n  | \"‹LOCAL NAME›\"\n```\n",
+        "grammars/demo/a.txt": "unicode-names 15.1.0\nname E000 LOCAL NAME\n",
+        "grammars/demo/b.txt": "unicode-names 15.1.0\nname E001 LOCAL NAME\n"
+      }
+    },
+    "diagnostics": [
+      {
+        "from": {
+          "document": "grammars/demo/shared.md",
+          "line": 3,
+          "column": 15
+        },
+        "to": {
+          "document": "grammars/demo/shared.md",
+          "line": 3,
+          "column": 30
+        }
+      }
+    ]
+  },
+  "engine/attach-anchor.json": {
+    "reason": "The inserted node anchors before the next decorated cover. The cover starts at b when the before branch is present.",
+    "fixture": {
+      "source": [
+        "%stage a",
+        "%ambiguity-resolution greedy",
+        "%const $OUTPUTS {X, W, B}",
+        "%rule text {item}",
+        "%rule item",
+        "  | $b:bb ^$w:word",
+        "  | ^$w:word",
+        "%emit ε{image: value: \"\", X}, ${*$}",
+        "%rule word ^\"w\" → {W}",
+        "%rule bb ^\"b\" → {B}",
+        "%emit",
+        "%stage b",
+        "%ambiguity-resolution greedy",
+        "%rule text {(X W)}"
+      ]
+    }
+  },
+  "engine/attach-forward-retag.json": {
+    "reason": "Follow the primary through the earlier decorated token. The outer satellite follows the inner satellite.",
+    "fixture": {
+      "source": [
+        "%stage a",
+        "%ambiguity-resolution greedy",
+        "%const $OUTPUTS {B, I, W, Z}",
+        "%rule text {item}",
+        "%rule item",
+        "  | ^$w:word",
+        "  | $b:bb ^$w:word",
+        "  | ^$w:word $a:ii",
+        "  | $b:bb ^$w:word $a:ii",
+        "%emit",
+        "%rule word",
+        "  | ^\"w\" → {W}",
+        "  | ^\"z\" → {Z}",
+        "%rule bb ^\"b\" → {B}",
+        "%emit",
+        "%rule ii ^\"i\" → {I}",
+        "%emit",
+        "%stage b",
+        "%ambiguity-resolution greedy",
+        "%const $OUTPUTS {Y, Z}",
+        "%rule text ^$w:W $z:zz → {Y}",
+        "%emit",
+        "%rule zz ^Z",
+        "%emit",
+        "%stage c",
+        "%ambiguity-resolution greedy",
+        "%rule text Y"
+      ]
+    }
+  },
+  "engine/attach-implications.json": {
+    "reason": "Supply both extra keys on the satellite. The host uses W or Z from its primary.",
+    "fixture": {
+      "source": [
+        "%stage a",
+        "%ambiguity-resolution greedy",
+        "%const $OUTPUTS {B, I, W, Z, Mark, Sound-0069-s}",
+        "%rule text {item}",
+        "%rule item",
+        "  | ^$w:word",
+        "  | $b:bb ^$w:word",
+        "  | ^$w:word $a:ii",
+        "  | $b:bb ^$w:word $a:ii",
+        "%emit",
+        "%rule word",
+        "  | ^\"w\" → {W}",
+        "  | ^\"z\" → {Z}",
+        "%rule bb ^\"b\" → {B}",
+        "%emit",
+        "%rule ii ^\"i\" → {I, Mark, Sound-0069-s}",
+        "%emit",
+        "%stage b",
+        "%ambiguity-resolution greedy",
+        "%rule text [{(W | Z)}]"
+      ]
+    }
+  },
+  "engine/attach-error-order.json": {
+    "reason": "Keep the failing query in the projection and the verbatim claims on visible siblings. Publication expressions precede presentation.",
+    "fixture": {
+      "source": [
+        "%stage main",
+        "%ambiguity-resolution greedy",
+        "%const $OUTPUTS {}",
+        "%rule text $b:bad ^$w:word",
+        "%emit ${*$, *$w.parse(migration-fault).flags}",
+        "%rule word \"1\"",
+        "%rule bad $l:left $r:right",
+        "%emit $l, $r",
+        "%rule left ^\"b\" → {image: $.verbatim-text}",
+        "%emit",
+        "%rule right ^\"b\" → {image: $.verbatim-text}",
+        "%emit",
+        "%rule migration-fault ε | {_}",
+        "%conditions \"x\" ∈ $.span.tokens!'value.join().split($.span.tokens!'value.join())"
+      ]
+    }
+  },
+  "engine/attach-error-insert-order.json": {
+    "reason": "Keep the failing query in the later insertion and the verbatim claims on visible siblings. Publication expressions precede presentation.",
+    "fixture": {
+      "source": [
+        "%stage main",
+        "%ambiguity-resolution greedy",
+        "%const $OUTPUTS {}",
+        "%rule text $b:bad ^$w:word",
+        "%emit ${*$}, ε{image: value: \"a\", *$.parse(migration-fault).flags}",
+        "%rule word \"1\"",
+        "%rule bad $l:left $r:right",
+        "%emit $l, $r",
+        "%rule left ^\"b\" → {image: $.verbatim-text}",
+        "%emit",
+        "%rule right ^\"b\" → {image: $.verbatim-text}",
+        "%emit",
+        "%rule migration-fault ε | {_}",
+        "%conditions \"x\" ∈ $.span.tokens!'value.join().split($.span.tokens!'value.join())"
+      ]
+    }
+  },
+  "engine/deferred-report-emission-failure.json": {
+    "reason": "The first stage retains the warning satellite and the word error. The last stage requests an empty computed delimiter after its warning.",
+    "fixture": {
+      "source": [
+        "%features annotation text",
+        "%stage before",
+        "%ambiguity-resolution greedy",
+        "%const $OUTPUTS {Word, Tail}",
+        "%rule text $w:unit $t:tail",
+        "%emit $w{*$w}, $t{Tail}",
+        "%rule unit $a:annotation ^$w:word → {Word}",
+        "%rule annotation ^A",
+        "%warning \"annotation\"",
+        "%emit",
+        "%rule word ^B",
+        "%error \"word\"",
+        "%rule tail ^C",
+        "%stage last",
+        "%ambiguity-resolution greedy",
+        "%const $OUTPUTS {}",
+        "%const $DEFAULTS $n ↦ {value: $n.children!'value.join(), image: $n.children!'image.join()}",
+        "%rule text Word Tail",
+        "%warning \"later\"",
+        "%emit ${image: \"x\".split($.following-tokens.source-text).join()}"
+      ]
+    }
+  },
+  "engine/overlap-empty-capture-consuming-attachment.json": {
+    "reason": "Test the overlap with a single captured rule that can consume or stay empty.",
+    "fixture": {
+      "source": [
+        "%stage main",
+        "%ambiguity-resolution greedy",
+        "%const $OUTPUTS {}",
+        "%const $DEFAULTS $n ↦ {value: $n.children!'value.join(), image: $n.children!'image.join()}",
+        "%rule text $e:empty $a:a",
+        "%emit ${}, $a{}",
+        "%rule empty ε",
+        "%rule a \"a\" | ε"
+      ]
+    },
+    "diagnostics": [
+      {
+        "from": {
+          "document": "main.md",
+          "line": 3,
+          "column": 1
+        },
+        "to": {
+          "document": "main.md",
+          "line": 6,
+          "column": 1
+        }
+      }
+    ]
+  },
+  "notation/attach-anchor.json": {
+    "reason": "Use the decorated rule as the next cover for the insertion.",
+    "document": "```jbogenbau\n%rule a\n  | $b:B ^$w:W\n  | ^$w:W\n%emit ε{image: value: \"\", X}, ${*$}\n```\n"
+  },
+  "notation/attach-dom.json": {
+    "reason": "Give each alternative one primary. Keep branch-specific output in its own guarded item.",
+    "document": "```jbogenbau\n%rule a\n  | $b:B ^$w:W $x:X $a:A\n  | ^$v:V\n%emit $w? ${*$w}, $v? $v{*$v}\n```\n"
+  },
+  "notation/classifier-dom.json": {
+    "reason": "The classifier uses a list for KOhA and an explicit difference for the gated removal.",
+    "document": "```jbogenbau\n%const $LEXICON {KOhA: [\"mi\", \"do\"], f? ¬g? UI: [] ∖ \"u'i\"}\n%const $EMPTY {}\n%rule text ^$w:W → {*$LEXICON.classify($w'value)}\n```\n"
+  },
+  "notation/concat-classifier-key-dom.json": {
+    "reason": "Keep the three references as separately positioned list items and retain the two joined constants.",
+    "document": "```jbogenbau\n%const $JOIN-1 \"a\" ++ $B\n%const $GROUP (\"x\" ++ \"y\")\n%const $C {AB: [$K, $JOIN-1, $GROUP]}\n```\n"
   }
 }
