@@ -223,7 +223,7 @@ A pair of braces has at most one marker, and the separator has none. So `{... x 
 
 A chain is the whole of its rule. That means two things. First, the chain is the whole expression of its alternative. A chain inside parentheses, brackets, other braces, a capture, a sequence, a choice or `&` is an error of the document.
 
-Second, that alternative is the only alternative of its rule that the gates leave (see "Feature gates"). A warning does not remove an alternative. So a rule with another alternative beside its chain is an error of the grammar for the features that leave both. For those features, gencmu finds the error when it prepares the grammar, as it finds an error of a classifier. A `%extend-rule` of a chain's rule can cause this error.
+Second, that alternative is the only alternative of its rule that the gates leave (see "Feature gates"). A warning does not remove an alternative. So a rule with another alternative beside its chain is an error of the grammar for the features that leave both. For those features, gencmu finds the error when it prepares the grammar, before recognition. An `%extend-rule` of a chain's rule can cause this error.
 
 The chain's alternative can still have gates and tags of its own, and its rule can have clauses. A chain can be optional, or part of a sequence, through a rule. Name the chain as a rule. Then write the rule's name there, as in `[tag]`.
 
@@ -372,9 +372,9 @@ A feature is a name that is on or off at each stage of a parse. The pipeline can
 
 An alternative can begin with gates, which make it depend on features.
 
-A gate, `name?`, keeps the alternative only while the feature is on. `¬name?` keeps it only while the feature is off. All gates of an alternative must hold. A classifier entry can carry gates too.
+A gate, `name?`, keeps its alternative or item only while the feature is on. `¬name?` keeps it only while the feature is off. All gates of an alternative or item must hold. Constructor entries, list items and emission items can begin with gates.
 
-`?` has no other use in the notation. `!` has no notation role.
+In expressions, `?` also marks guards and conditionals such as `(condition ? a | b)`. Use `!` to map a property, method or function over a list.
 
 When its code is enabled, a warning rule reports by that code (see "Errors and warnings"). Warning controls change no recognition or ranking.
 
@@ -492,8 +492,6 @@ A stage reads its input with one grammar. The loader assembles that grammar from
   | "в" → {image: value: "v"}
 %emit
 
-  $
-
 %redefine-rule text
   | ¬cbm? [{NAI}] {CMEVLA} 🆓 [joik-jek] text-1
   | [indicators & {free}] [joik-jek] text-1
@@ -503,7 +501,7 @@ So `%rule` never quietly replaces a rule. A misspelled name in `%redefine-rule` 
 
 The alternatives that an extension adds carry the extension's own clauses, not those of the base rule. The clauses of the base rule do not apply to them. So an extension says everything about what it adds. The loader, the part of gencmu that reads the documents, reports every replacement and extension: which document changed which rule. So a reader can see the effect of a pipeline on its base in one place.
 
-A ranking step that names a rule counts the redefinition and the extensions of that rule too, because the name is the stitched rule's. A step that tests a tag counts an added alternative only where that alternative's own clauses or its inheritance give the tag (see "Ambiguity"). The printed audit report names each redefinition or extension of a rule that a step names or whose tags a step can match.
+A ranking step that names a rule counts the redefinition and the extensions of that rule too, because the name is the stitched rule's. A step that tests a tag counts an added alternative only where that alternative's working bag supplies the key (see "Ambiguity"). The printed audit report names each redefinition or extension of a rule that a step names or whose tags a step can match.
 
 The notation has no way to remove a single alternative. A rule is small enough to restate, and a restated rule reads better than a list of deletions.
 
@@ -523,7 +521,7 @@ The opening parenthesis follows the name directly. `pair ("a", "b")` is not a ca
 
 Parameters start with `@` and an ASCII letter, followed by ASCII letters, digits, hyphens, or underscores. Case counts. A declaration has one or more distinct parameters. Calls supply exactly that many positional arguments. No defaults, variable argument counts, or overloading exist.
 
-Each parameter belongs to its definition's body and clauses. Another template receives it only through an explicit argument. Arguments cannot declare or read captures, including `$` and capture methods. Recipes written in the template can read that template's captures.
+Each parameter belongs to its definition's body and clauses. Another template receives it only through an explicit argument. Arguments cannot declare or read captures, including `$` and capture methods. Expressions written in the template can read that template's captures.
 
 Each argument is one term. A parenthesized body expression or `ε` passes a sequence as one argument. A parenthesized single symbol reads as that symbol:
 
@@ -558,7 +556,7 @@ A boundary-target choice splices into one complete target entry, in written orde
 
 Here the letter's boundary test names `h | b | unvoiced`. The filter on `a` requires `<¬Accent ¬Ogonek ¬Caron>`. A list under `¬@Excluded` is an error. A requirement list is distinct from a tag set, and `<>` is an empty list. A boundary-target choice must remain nonempty.
 
-These are the only list substitutions. A parenthesized body choice does not splice into boundary targets. Other terms retain their usual grouping and type rules. Recipe substitution flattens concatenations in operand order before validation, with empty operands and source attribution preserved. [Engine §2.3](engine.md#23-templates-and-instances) defines argument reading and conversion.
+These are the only list substitutions. A parenthesized body choice does not splice into boundary targets. Other terms retain their usual grouping and type rules. Substitution flattens string concatenations in operand order before validation. It preserves empty operands and their source locations. [Engine §2.3](engine.md#23-templates-and-instances) defines argument reading and conversion.
 
 ### Names and layering
 
@@ -736,7 +734,7 @@ The left operand must be a bare capture or the current function item. In either 
 
 ### The structural tree
 
-Patterns observe named rules, terminal reads, and omitted terminators before bracket output collapses unary nodes. Generated helpers and unerased spliced calls flatten their children in order. Named chain levels retain their nodes unless their occurrence is spliced. An absent plain optional contributes no child. Recipes do not change this structural observation.
+Patterns observe named rules, terminal reads, and omitted terminators before bracket output collapses unary nodes. Generated helpers and unerased spliced calls flatten their children in order. Named chain levels retain their nodes unless their occurrence is spliced. An absent plain optional contributes no child. Bag terms and emission do not change this structural observation.
 
 Observable nodes are rule nodes and terminal leaves. Terminal leaves can be written or omitted. Seals are not observable nodes.
 
@@ -1349,7 +1347,7 @@ Here `$` denotes the stage input span. A condition can read the input strings, s
 
 A global declaration cannot have conditions. A directive other than `%features` cannot have conditions.
 
-A stage-local feature is a loading error if any surviving earlier stage tests it, including through a classifier gate. The loader reports it at the local `%features` declaration, and its message names the earlier stage.
+A stage-local feature is a loading error if any surviving earlier stage tests it, including through a gated constant entry. The loader reports it at the local `%features` declaration, and its message names the earlier stage.
 
 Two different stages cannot declare the same feature locally. The loader reports the second surviving declaration in document order, after include expansion. Repeated declarations in one stage are legal, and each evaluates in order.
 
@@ -1365,7 +1363,7 @@ The engine evaluates the declarations in order. It stops at the first declaratio
 
 An unconditional declaration respects features that the caller disables. If the caller stops before a stage, the engine never evaluates its declarations.
 
-Rules can also stand in the pipeline document itself, between its `%include` blocks. The loader stitches them in their places. A names preamble can precede the first `%stage`. A rule, a constant, a classifier, an implication or a stage-level directive before the first `%stage` is an error. So are two stages of one name and a stage with no rules.
+Rules can also stand in the pipeline document itself, between its `%include` blocks. The loader stitches them in their places. A names preamble can precede the first `%stage`. A rule, a constant or a stage-level directive before the first `%stage` is an error. So are two stages of one name and a stage with no rules.
 
 Stage selection continues across grammar blocks and include boundaries. Returning from an include does not restore the earlier selection. Replacement clears rules, constants, local feature declarations and the ambiguity policy. It does not clear global `%features` or other stages. The loader reads every included document, but it evaluates only the surviving stage definitions. A missing ambiguity policy or an invalid final grammar gives the usual grammar error.
 

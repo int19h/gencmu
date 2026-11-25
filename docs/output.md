@@ -220,9 +220,9 @@ kind, code, message, group, option, expression, inheritance
 
 `path` is a JSON Pointer relative to the alternative's `expr`. Ranked children use `/ranked/0`, `/ranked/1`, and subsequent indexes. Captures and tests continue through `expr`. Other components keep their names.
 
-`expression` is the offending written expression as a DOM value where available. `inheritance` appears only for a tag error with a witness. It lists rule or helper sites from the group toward the tag source. Helper sites use written paths and the same source fields.
+`expression` is the offending written expression as a DOM value where available. `inheritance` appears only for a `ranked-choice-tags` error with a supplier path. It lists rule or helper sites from the group toward the diverging supplier. Helper sites use written paths and the same source fields.
 
-Choose the shortest inheritance witness. Source traversal order breaks equal-length choices. Keep loading diagnostics outside document DOMs, cache envelopes, and parse-result warnings. The API exposes these members, and CLI JSON serialization preserves their order.
+Choose the shortest supplier path. Source traversal order breaks equal-length choices. Keep loading diagnostics outside document DOMs, cache envelopes, and parse-result warnings. The API exposes these members, and CLI JSON serialization preserves their order.
 
 ### A grammar DOM
 
@@ -640,7 +640,7 @@ The renderings are for people. The CLI and the playground implement all three re
 
 A token node displays the stored face of the stage-input token. An opaque face shows one image. A decorated face shows its ordered parts and primary index. The containing face replaces the core image along its primary path once.
 
-Renderers use the kept derivation, including the chosen interior of each erased occurrence. Named diagnostics use their raising-stage names, messages, and source excerpts. They retain their collection order and competitor evidence.
+Renderers use the kept derivation, including the chosen interior of each erased occurrence. A `splice` contributes its children to its parent's child list in order. This applies to brackets, tree listings and display JSON. Named diagnostics use their raising-stage names, messages, and source excerpts. They retain their collection order and competitor evidence.
 
 A hollow rule node, such as an empty slot for a free modifier, has no token and no elided node below it. No rendering shows a hollow rule node. Brackets drop it as an empty node, and the tree and the display JSON leave it out. But the tree and the display JSON always show the root. So the tree renders a hollow tree, such as that of the empty text, as the rule name of the root alone. The display JSON renders it as `{"text": []}`, and brackets render it as nothing.
 
@@ -671,11 +671,11 @@ The tree renderer joins a chain of rule nodes with one child on one line, using 
 
 ### Display JSON
 
-A hollow rule has no token or elided descendant. Brackets omit it. Tree listings and display JSON omit it except at the root. A hollow root named `text` renders as `text` in a tree listing and `{"text":[]}` in display JSON.
-
 The display JSON is the tree projected for reading, and it is not the canonical form. A rule node is an object with one member, its rule name. If the node has one child, the value of this member is the projection of that child. Otherwise, the value is the array of the projections of its children. A token node is `{"TERMINAL":"image"}`, and an elided node is `{"TERMINAL":null}`.
 
-A decorated token uses an ordered `parts` array and its `primaryIndex`. The parts display their stored classes and images. The display projection follows faces, while canonical JSON preserves their qualified references.
+A token with a decorated face uses `{"terminal":"T","image":"L","parts":[PART...],"primaryIndex":N}`, in that order. The terminal name is the value of `terminal`, so it cannot collide with a member name. Each opaque part uses `{"classes":["C",...],"image":"L"}`. If it has no classes, omit `classes`. A decorated part adds `parts` and then `primaryIndex`.
+
+The display projection follows faces and places any replacement image at the primary core. The canonical JSON keeps the qualified face references.
 
 The display JSON is pretty-printed so that nesting costs no indentation where nothing is gained:
 

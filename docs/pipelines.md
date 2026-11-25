@@ -503,9 +503,11 @@ If your change differs from the kihei example, use these approaches.
 
 If your word fails before forms, change the phoneme stage first. If forms rejects its shape, change the forms rules.
 
-If you change an existing classification, remove its earlier class with `∉`.
+If you move a spelling between classes, redefine `$LEXICON` with `%redefine-const`. Keep the existing entries by splatting the previous version. If both class entries are lists of strings, remove the spelling from the old list and append it to the new list.
 
-Add its replacement class with `∈`.
+```text
+%redefine-const $LEXICON {*$LEXICON, OLD: $LEXICON'OLD ∖ "ji", NEW: [*$LEXICON'NEW, "ji"]}
+```
 
 ### Add or replace alternatives
 
@@ -535,9 +537,9 @@ To report an addition, put its body in a `%warning` rule named by its code. Spli
 
 Give `%warning` a string expression after `%conditions`. Put `%suppress-warnings` before `%emit` or `%erased`.
 
-A warning changes no accepted reading or chosen tree. Callers enable or disable its code with the feature controls. `%suppress-warnings code` suppresses it within one subtree, and `_` suppresses all warning codes.
+Switching a warning on changes no ranking. A reached warning message can fail after the engine chooses a reading. Callers enable or disable its code with the feature controls. `%suppress-warnings code` suppresses it within one subtree, and `_` suppresses all warning codes.
 
-For invalid constructs, use `%error` only for messages that add information or state the default rejection more briefly. The engine prefers least source blame, then fewest sourceless errors, then most total errors, before grammar ranking. Earlier publishing stages can continue after chosen errors. A reported result keeps the chosen tree, verdict and any completed publication.
+For invalid constructs, use `%error` only for messages that add information or state the default rejection more briefly. The engine prefers least source blame, then fewest sourceless errors, then most total errors, before grammar ranking. Earlier publishing stages can continue after chosen errors. A reported result keeps the chosen tree, verdict and any completed publication. For a tree-only last stage, the loader inspects `%emit` clauses and the audit notes them. The engine skips those clauses at runtime.
 
 Use `--` for comments inside grammar blocks. A comment ends at LF, CRLF, CR, or the file end. A string retains literal `--`. The notation has no block comment form.
 

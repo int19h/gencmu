@@ -70,7 +70,7 @@ A loading diagnostic recovers source positions from the exact document instance 
 
 A diagnostic copies its location fields, including independent copies of `group`, `expression`, and `inheritance`. Editing a caught diagnostic cannot change cached documents or later diagnostics. For the same input and configuration, repeated parsing preserves the formatted diagnostic.
 
-Ranked-choice loading errors also carry `code`, `group`, `option`, `expression`, and `inheritance` where available. `docs/output.md` defines their schema and canonical member order. These members remain outside parse-result warnings and document caches.
+Ranked-choice loading errors carry `code` and any available `group`, `option` and `expression` fields. A `ranked-choice-tags` error can also carry a supplier path in `inheritance`. `docs/output.md` defines their schema and canonical member order. These members remain outside parse-result warnings and document caches.
 
 [Output formats](output.md) defines the format-50 grammar DOM and format-18 result. All bundled, disk and source-map entry points select notation 50. Includes inherit that selection.
 
@@ -214,13 +214,15 @@ In JavaScript, Python and Go, a caller's token has a source and a span. Its sour
 
 A caller's token span counts tokens of the stage before, not code points, so it has no upper bound. The span must start at 0 or later and end at or after its start. A token that breaks the source or span rules is a usage error.
 
-The `.verbatim-text` method searches left and right separately (engine §11.1). Each neighbor bound limits only its own side. Token order remains the caller's order.
+The `.verbatim-text` method searches left and right separately. See [Verbatim claims](engine.md#112-verbatim-claims). Each neighbor bound limits only its own side. Token order remains the caller's order.
 
 The `InputToken` of Rust has no source and no span. The library gives each token its span, and a source in a text of the tokens' texts joined with single spaces. The generated source range always lies within that text.
 
 A caller token accepts `props` with bare ordinary keys and supported bare engine memberships. It can also supply the two strings `value` and `image`. Each omitted string defaults to the token's text. An explicit empty string stays empty.
 
-If the caller omits `props`, the library accepts bare tag lists and the existing string fields. A record that mixes `props` with the bare tag-list encoding is a usage error. A caller cannot supply other valued properties. A grammar stage can produce those properties.
+If the caller omits `props`, the library accepts bare tag lists and the existing string fields. In JavaScript, leave out `props`. In Python, use `props=None`. In Go, leave `InputToken.Props` nil. In Rust, leave `InputToken.props` at its default of `None`.
+
+An explicit empty bag selects the `props` encoding. Initialize Rust input tokens with `..Default::default()` to leave the fallback fields unset. Mixing the encodings is a usage error. Only a grammar stage can supply other valued properties.
 
 With the bare tag-list encoding, JavaScript omits a field for the text default. Python uses `None`. Rust uses `None` in `Option<String>`. Go uses `nil` in `Value *string` and `Image *string`. Supply an empty string to preserve it, with a non-nil pointer in Go. The two fields default independently.
 
@@ -377,9 +379,14 @@ let result = pipeline.parse("mi klama", &gencmu::ParseOptions {
     ..Default::default()
 })?;
 let supplied = pipeline.parse_tokens(&[gencmu::InputToken {
-    text: "A".into(), value: Some("a".into()), image: Some("A".into()),
-    tags: ["_General_Category_Uppercase_Letter".into(), "_General_Category_Letter".into()].into_iter().collect(),
-    errors: Vec::new(), warnings: Vec::new(),
+    text: "A".into(),
+    props: Some([
+        ("value".into(), Some(gencmu::PropertyValue::String("a".into()))),
+        ("image".into(), Some(gencmu::PropertyValue::String("A".into()))),
+        ("_General_Category_Uppercase_Letter".into(), None),
+        ("_General_Category_Letter".into(), None),
+    ].into_iter().collect()),
+    ..Default::default()
 }], &gencmu::ParseOptions {
     until: Some("phonemes".into()), ..Default::default()
 })?;
