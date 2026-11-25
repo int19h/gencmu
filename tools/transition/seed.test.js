@@ -84,3 +84,26 @@ test("the seed audit accepts forwarding a list capture", t => {
   assert.equal(status, 0);
   assert.match(stdout, /"capture":"list","consumer":"0","ok":true/);
 });
+
+test("the seed audit rejects a self include at the directive", t => {
+  const { status, stderr } = audit(t, bootstrap => {
+    document(bootstrap, "pipeline").directives.push({ name: "include", args: ["pipeline.md"], at: [9999, 1] });
+  });
+  assert.equal(status, 1);
+  assert.match(stderr, /pipeline\.md:9999:1: .*pipeline\.md includes itself/);
+});
+
+test("the seed audit rejects an include back edge at its source", t => {
+  const { status, stderr } = audit(t, bootstrap => {
+    document(bootstrap, "lexical").directives.push({ name: "include", args: ["pipeline.md"], at: [9999, 1] });
+  });
+  assert.equal(status, 1);
+  assert.match(stderr, /lexical\.md:9999:1: .*pipeline\.md includes itself \(.*pipeline\.md → .*lexical\.md → .*pipeline\.md\)/);
+});
+
+test("the seed audit accepts two visits to a completed include", t => {
+  const { status } = audit(t, bootstrap => {
+    document(bootstrap, "pipeline").directives.push({ name: "include", args: ["lexical.md"], at: [9999, 1] });
+  });
+  assert.equal(status, 0);
+});

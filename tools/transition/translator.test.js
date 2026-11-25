@@ -52,10 +52,10 @@ test("the input value join excludes nonempty elidable defaults", () => {
     const file = name + ".json";
     const migrated = translateSharedCase("engine", file, legacyFixture("engine", file));
     const { documents, pipelineDocument } = migrated.fixture;
-    const pipeline = documents[pipelineDocument];
-    assert.match(pipeline, /value: \$node\.span\.tokens!'value\.join\(\)/, name);
-    assert.match(pipeline, /image: \$node\.children!'image\.join\(\)/, name);
-    assert.ok(migrated.changes.some(change => change.reason.includes("omitted defaults")), name);
+    assert.match(documents["main.md"], /value: \$\.span\.tokens!'value\.join\(\)/, name);
+    assert.match(documents[pipelineDocument], /image: \$node\.children!'image\.join\(\)/, name);
+    assert.ok(migrated.changes.some(change => change.document === "main.md" &&
+      change.reason.includes("route with an omitted default")), name);
   }
 });
 
@@ -471,15 +471,52 @@ test("mixed recipes join the written child values and skip synthetic values", ()
   });
   assert.equal(migrated.status, "translated");
   const { documents, pipelineDocument } = migrated.fixture;
+  const { rules } = compiler.compileDocument(documents["main.md"]);
+  const value = rules[0].alternatives[0].term.bag[0];
   const { constants } = compiler.compileDocument(documents[pipelineDocument]);
   const defaults = constants.find(item => item.name === "DEFAULTS").value;
-  const [value, image] = defaults.body.bag;
+  const image = defaults.body.bag[1];
   const map = value.value.receiver;
   assert.equal(map.map.method, "children");
   assert.equal(map.by.body.if.right.pattern.requirements[0].value.tag, "_Elided");
   assert.equal(map.by.body.then.string, "");
   assert.equal(map.by.body.else.property, "value");
   assert.equal(image.value.receiver.map.method, "children");
+});
+
+test("the tested rule keeps its input join when another rule cooks a value", () => {
+  const name = "reparse-original-rule-test.json";
+  const prior = legacyFixture("engine", name);
+  const base = translateSharedCase("engine", name, prior);
+  const unrelated = translateSharedCase("engine", name, {
+    ...prior, grammar: prior.grammar + '\n%rule unused Z := "cooked"',
+  });
+  const testedRule = outcome => compiler.compileDocument(outcome.fixture.documents["main.md"]).rules.find(rule => rule.name === "a");
+  assert.equal(unrelated.status, "translated");
+  assert.deepEqual(testedRule(unrelated), testedRule(base));
+  assert.match(unrelated.fixture.documents["main.md"], /a="a"/);
+  const value = testedRule(unrelated).alternatives[0].term.bag[0].value;
+  assert.equal(value.receiver.map.receiver.method, "span");
+  const uncertain = translateSharedCase("engine", name, {
+    ...prior, grammar: prior.grammar.replace("%rule a (A", "%rule a (cooked") + '\n%rule cooked A := "cooked"',
+  });
+  assert.equal(uncertain.status, "needs-hand");
+  assert.match(uncertain.reason, /input-join proof/);
+  const mixedAlternatives = translateSharedCase("engine", name, {
+    ...prior, grammar: prior.grammar.replace('%rule a (A [+T="ta"])', '%rule a (A [+T="ta"]) | Z := "cooked"'),
+  });
+  assert.equal(mixedAlternatives.status, "needs-hand");
+  assert.match(mixedAlternatives.reason, /input-join proof/);
+});
+
+test("a same-named recipe in a separate stage leaves the tested rule alone", () => {
+  const first = '%stage first\n%ambiguity-resolution greedy\n%rule text a="a"\n%rule a item [+T ≝ "end"]\n%rule item A';
+  const second = '%stage second\n%ambiguity-resolution greedy\n%rule text item\n%rule item A := "cooked"';
+  const moved = translateSharedCase("engine", "omission-in-one-stage", {
+    pipelineDocument: "p.md", documents: { "p.md": "\x60\x60\x60jbogenbau\n" + first + "\n" + second + "\n\x60\x60\x60" },
+  });
+  assert.equal(moved.status, "translated");
+  assert.match(moved.fixture.documents["p.md"], /%rule a item \[\+T ≝ "end"\] → \{value: \$\.span\.tokens!'value\.join\(\)\}/);
 });
 
 test("the translator records changes to output, display and working reads", () => {

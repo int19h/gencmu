@@ -12,6 +12,6 @@
     "notation": "grammars50/gencmu/jbogenbau/pipeline.md",
     "bootstrap": "data/preparsed50/gencmu.json",
     "cacheRoot": "data/preparsed50",
-    "bootstrapFamilyCache": "data/preparsed50/gencmu-optional.json"
+    "bootstrapFamilyCache": "data/preparsed50/bootstrap/gencmu.json"
   }
 }

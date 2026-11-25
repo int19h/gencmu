@@ -35,12 +35,17 @@ for (const [path, hash] of Object.entries(bundledNames)) {
   if (fnv1a64(read(path)) !== hash) throw new Error(`invalid bundled names fingerprint for ${path}`);
 }
 const required = new Set();
-function visit(path) {
+const active = [];
+function visit(path, from) {
+  if (active.includes(path)) {
+    const [line, column] = from.at;
+    throw new Error(`${active.at(-1)}:${line}:${column}: ${path} includes itself (${[...active, path].join(" → ")})`);
+  }
   if (required.has(path)) return;
   if (!path.startsWith(manifest["50"].sourceRoot + "/") || !Object.hasOwn(documents, path)) {
     throw new Error(`missing required bootstrap document ${path}`);
   }
-  required.add(path);
+  active.push(path);
   const { hash, dom } = documents[path];
   if (!/^[0-9a-f]{16}$/.test(hash) || !historical && hash !== fnv1a64(read(path))) {
     throw new Error(`invalid source fingerprint for ${path}`);
@@ -50,8 +55,10 @@ function visit(path) {
       const names = resolvePath(path, directive.args[0]);
       if (!Object.hasOwn(bundledNames, names)) throw new Error(`missing bundled names ${names}`);
     }
-    if (directive.name === "include") visit(resolvePath(path, directive.args[0]));
+    if (directive.name === "include") visit(resolvePath(path, directive.args[0]), directive);
   }
+  active.pop();
+  required.add(path);
 }
 visit(manifest["50"].notation);
 for (const path of Object.keys(documents)) {

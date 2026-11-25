@@ -79,14 +79,14 @@ export class MigrationRequired extends Error {
   }
 }
 
-export function translateDom49(dom, unicode, uniqueConstants, omittedValues = new Set(), isUndefined = () => false) {
+export function translateDom49(dom, unicode, uniqueConstants, omittedValues = new Set(), isUndefined = () => false, valueWriters = new Map()) {
   if (dom.format !== 49) throw new Error("The translator requires a format 49 DOM.");
-  const printer = new Printer(dom, unicode, uniqueConstants, omittedValues, isUndefined);
+  const printer = new Printer(dom, unicode, uniqueConstants, omittedValues, isUndefined, valueWriters);
   return printer.document(dom);
 }
 
 class Printer {
-  constructor(dom, unicode, uniqueConstants, omittedValues, isUndefined) {
+  constructor(dom, unicode, uniqueConstants, omittedValues, isUndefined, valueWriters) {
     this.unicode = unicode;
     this.constants = new Map(dom.constants
       .filter(item => item.op === "define" &&
@@ -98,6 +98,7 @@ class Printer {
     this.repeated = new Set();
     this.item = undefined;
     this.omittedValues = omittedValues;
+    this.valueWriters = valueWriters;
     this.isUndefined = isUndefined;
   }
 
@@ -230,7 +231,11 @@ class Printer {
       this.attachmentPrimary(attachment, item) : undefined;
     let rebuiltSingleton = false;
     const alternatives = item.alternatives.flatMap(alt => {
-      const term = this.ownerTerm(alt, item.image !== undefined);
+      const value = this.valueWriters.get(alt);
+      const term = this.ownerTerm(alt, item.image !== undefined, false, value);
+      if (value) this.changes.push(value.startsWith("$.span") ?
+        "Join the input token values on the route with an omitted default." :
+        "Join the written child values on the route with an omitted default.");
       const recipeKeepsKeys = primary === undefined && (headerTerm !== undefined || term !== undefined) &&
         item.tags === undefined && alt.tags === undefined;
       const routes = recipeKeepsKeys ? singletonRoutes(alt.expr) : [];
@@ -353,7 +358,7 @@ class Printer {
   }
 
 
-  ownerTerm(owner, inheritedImage = false, insertion = false) {
+  ownerTerm(owner, inheritedImage = false, insertion = false, defaultValue) {
     const entries = [];
     const direct = new Set();
     for (const entry of owner.tags === undefined ? [] : this.tagEntries(owner.tags)) {
@@ -366,6 +371,7 @@ class Printer {
       if (owner.value) entries.push(`value: ${this.term(owner.value)}`);
       if (owner.image) entries.push(`image: ${this.term(owner.image)}`);
     }
+    if (defaultValue) entries.push(`value: ${defaultValue}`);
     if (insertion) {
       if (!owner.value && !owner.image) entries.push('image: value: ""');
       else if (!owner.value) entries.push('value: ""');

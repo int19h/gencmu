@@ -431,3 +431,79 @@ test("stored names use the canonical spelling of their name class", () => {
     assert.throws(() => validateDocument50(dom), description);
   }
 });
+
+for (const source of [
+  '%const $V [["a"]]!($row ↦ $row.join())',
+  '%const $V [["a"]]!.join()',
+  '%const $V [["a"]]!.all($item ↦ $item = "a")',
+  '%const $V [[{A}]]!($row ↦ $row.union)',
+  '%const $V ["a"] ∈ [["a"]]',
+  '%const $V [[1]] ∖ [1]',
+  '%const $V [[1]] ∖ [[1]]',
+  '%const $V (1 = 1 ? [["a"]] | [["b"]])↓.join()',
+  '%const $V [[["a"]]]!($row ↦ $row↓.join())',
+  '%const $V [*[], []]!.join()',
+  '%const $V [f? 1, ¬f? "a"]',
+  '%const $V [$UNRESOLVED, "a"].join()',
+  '%const $V {flag: ¬(1 = 2)}',
+  '%rule r → {value: 1}\n  | "a" → {*{value: "ok"}}',
+  '%rule r → {value: 1}\n  | "a" → {({value: "ok"})\'value}',
+  '%rule r → {image: 1}\n  | "a" → {({image: "ok"})\'image}',
+  '%rule r\n  | "a" → {value: 1, *{value: "ok"}}',
+  '%rule r "a" → {image: 1, *{*{image: "ok"}}}',
+  '%rule r "a" → {value: 1, *$SUPPLIER}',
+  '%rule r → {value: 1}\n  | "a" → {*$SUPPLIER}',
+  '%rule r "a" → {f? value: 1}',
+  '%rule r → {($b ∧ ¬$b)? *$c.flags}\n  | [$b:A]\n  | $c:C',
+  '%rule r → {($b ∧ $c)? *$c.flags}\n  | [$b:A]\n  | $c:C',
+  '%rule r → {(1 = 2)? *$c.flags}\n  | [$b:A]\n  | $c:C',
+  '%rule r → {({})? *$c.flags}\n  | [$b:A]\n  | $c:C',
+  '%rule r → {({A}.has(B))? *$c.flags}\n  | [$b:A]\n  | $c:C',
+  '%rule r → {((1 + 2) ≥ 4)? *$c.flags}\n  | [$b:A]\n  | $c:C',
+  '%rule r → {($b ∧ $d)? *$c.flags}\n  | ($b:A | $d:B)\n  | $c:C',
+  '%rule r → {k: ($b ? ($b ? "a" | $c\'value) | "b")}\n  | [$b:A]\n  | $c:C',
+  '%rule r\n  | [$b:A]\n  | $c:C\n%emit ($b ∧ ¬$b)? ${*$c.flags}',
+  '%const $GUARD {}\n%rule r → {($GUARD)? *$c.flags}\n  | [$b:A]\n  | $c:C',
+]) {
+  test(`closed types and applicable captures accept ${source}`, () => {
+    const dom = read(source);
+    assert.equal(validateDocument50(dom), dom);
+  });
+}
+
+for (const [source, message, line, anchor] of [
+  ['%const $V [1,"a"].join()', /common element type/, 2, ".join"],
+  ['%const $V [1] ∈ [["a"]]', /requires compatible operands/, 2, "∈"],
+  ['%const $V [[1]] ∖ ["a"]', /requires compatible operands/, 2, "∖"],
+  ['%rule r $x:A %conditions $x ∈ [$x]', /requires compatible operands/, 2, "∈"],
+  ['%rule r $x:A %conditions [$x] ∖ $x', /requires compatible operands/, 2, "∖"],
+  ['%const $V [{a:1}] ∖ {a:1}', /requires compatible operands/, 2, "∖"],
+  ['%const $V [$UNKNOWN, 1, "a"].join()', /common element type/, 2, ".join"],
+  ['%const $V [["a"]]!.all($item ↦ $item.at-most(3))', /wrong receiver or arguments/, 2, ".at-most"],
+  ['%const $V [[1]]!.join()', /wrong receiver or arguments/, 2, ".join"],
+  ['%const $V [["a"]]↓.union', /wrong receiver or arguments/, 2, ".union"],
+  ['%const $V (¬(1=2)) + 1', /requires number operands/, 2, "+ 1"],
+  ['%const $V (1=1 ∧ 2=2) + 1', /requires number operands/, 2, "+ 1"],
+  ['%const $V (1=1 ∨ 2=2) + 1', /requires number operands/, 2, "+ 1"],
+  ['%const $V (¬(1=2)).split("x")', /wrong receiver or arguments/, 2, ".split"],
+  ['%const $V 1 = (¬(1=2))', /requires comparable operands/, 2, "= ("],
+  ['%rule r A → {value: ¬(1=2)}', /a value or image needs a string/, 2, "¬"],
+  ['%rule r → {value: 1}\n  | "a" → {({})\'value}', /a value or image needs a string/, 2, "value: 1"],
+  ['%rule r "a" → {value: 1, *{value: "ok", ¬value}}', /a value or image needs a string/, 2, "value: 1"],
+  ['%rule r → {value: "ok"}\n  | "a" → {*{value: 1}}', /a value or image needs a string/, 3, "*"],
+  ['%rule r → {value: "ok"}\n  | "a" → {({value: 1})\'value}', /a value or image needs a string/, 3, "("],
+  ['%rule r → {($b ∨ $c)? *$c.flags}\n  | [$b:A]\n  | $c:C', /\$c is absent/, 2, ".flags"],
+  ['%rule r → {($b ∧ ¬$b)? *$never.flags}\n  | [$b:A]\n  | $c:C', /captured by no alternative/, 2, ".flags"],
+]) {
+  test(`closed type or scope fault in ${source}`, () => {
+    assertFault(() => read(source), message, line, source.split("\n")[line - 2].indexOf(anchor) + 1);
+  });
+}
+
+test("independent guards use separate presence witnesses", () => {
+  const names = Array.from({ length: 24 }, (_, index) => "x" + index);
+  const entries = names.map(name => `($${name} ∧ ¬$${name})? *$c.flags`).join(", ");
+  const optionals = names.map(name => `[$${name}:A]`).join(" ");
+  const source = `%rule r → {${entries}}\n  | ${optionals}\n  | $c:C`;
+  assert.equal(read(source).format, 50);
+});
