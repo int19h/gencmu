@@ -2766,7 +2766,7 @@ Recognition productions:
 ```text
 text = [statement {statement}]
 statement = rule | ranking-directive | directive | constant-definition
-rule = rule-keyword rule-name "=" call | rule-keyword (rule-name | call) (body | (statement-term headed-body)) [conditions-clause] [diagnostic-clause] [suppress-warnings-clause] [output-clause]
+rule = rule-keyword (rule-name | call) "=" call | rule-keyword (rule-name | call) (body | (statement-term headed-body)) [conditions-clause] [diagnostic-clause] [suppress-warnings-clause] [output-clause]
 rule-keyword = KW-RULE | KW-EXTEND-RULE | KW-REDEFINE-RULE
 rule-name = Identifier | Emoji-Name
 statement-term = "→" bag
@@ -2794,7 +2794,8 @@ wildcard = "_"
 group = "(" choice ")"
 optional = "[" ["+"] choice "]" | "[" captured-terminator "]"
 captured-terminator = binding-token ":" "+" factor
-repetition = "{" ["..."] choice ["/" choice] "}" | "{" choice "..." ["/" choice] "}"
+repetition = "{" ["..." {"..."}] choice ["..." {"..."}] [chain-separator] "}"
+chain-separator = "/" ["..." {"..."}] choice ["..." {"..."}]
 empty = "ε"
 splice = $mark:"*" $target:splice-target
   assert ($.source-text = ($mark.source-text ++ $target.source-text))
@@ -3488,9 +3489,9 @@ Keep earlier completed stages intact. A tree-only reported error retains the cho
 
 ## 13. The pipeline
 
-Bundled pipeline names are directory paths below `grammars/`, with two or more `/`-separated segments. Each segment matches `[a-z0-9][a-z0-9-]*`. The loader checks this spelling before any document lookup and accepts no short aliases. It reads `grammars/NAME/pipeline.md` for a valid name. Invalid names and absent bundled pipelines cause a `usage` error.
+Bundled pipeline names are directory paths below the source root in the selected bundle manifest. A name has two or more `/`-separated segments. Each segment matches `[a-z0-9][a-z0-9-]*`. The loader checks this spelling before it reads `NAME/pipeline.md` below that root. Invalid names and absent bundled pipelines cause a `usage` error. The format 49 entry point selects `grammars/`.
 
-`bundledPipelines()` takes each bundled key that starts with `grammars/` and ends with `/pipeline.md`. It removes that prefix and that suffix. Its result uses code-point order. The spelling for each language follows `docs/api.md`.
+`bundledPipelines()` takes each bundled key below the selected source root that ends with `/pipeline.md`. It removes the source root prefix and that suffix. Its result uses code-point order. The spelling for each language follows `docs/api.md`.
 
 A directory without `pipeline.md` defines no pipeline. Enumeration includes only valid pipeline names. This discovery uses no separate catalog file.
 

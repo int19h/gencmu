@@ -58,11 +58,32 @@ test("a custom table can make punctuation an emoji rule name", () => {
   assert.equal(text.conditions[0].right.pattern.name, "!");
 });
 
-test("an obsolete malformed case stays on the format 49 path", () => {
-  const name = "267-default-off-head.json";
-  const original = legacyFixture("notation", name);
-  assert.equal(translateSharedCase("notation", name, original).status, "old");
-});
+const negatives = JSON.parse(fs.readFileSync(new URL("../shared-negative-migrations.json", import.meta.url), "utf8"));
+for (const [id, record] of Object.entries(negatives)) {
+  test(id, () => {
+    const [family, name] = id.split("/");
+    const migrated = translateSharedCase(family, name, legacyFixture(family, name));
+    assert.equal(migrated.oldPath, true);
+    if (record.retired) {
+      assert.equal(migrated.status, "retired");
+      assert.equal(migrated.reason, record.retired);
+      return;
+    }
+    assert.equal(migrated.status, "retained-negative");
+    const { expected } = migrated;
+    assert.throws(() => compiler.compileDocument(migrated.document, "notation.md"), error => {
+      assert.equal(error.kind, "grammar");
+      assert.equal(error.where.line, expected.line);
+      assert.equal(error.where.column, expected.column);
+      if (expected.description !== undefined) assert.equal(error.description, expected.description);
+      if (expected.stage !== undefined) {
+        assert.equal(error.where.stage, expected.stage);
+        assert.match(error.description, new RegExp(`at token ${expected.token}(?:;|$)`));
+      }
+      return true;
+    });
+  });
+}
 
 test("the hand-written origin counterpart keeps its recorded diagnostic position", () => {
   const name = "pattern-rule-positive-elided.json";
@@ -82,6 +103,7 @@ test("the hand-written implication writes the extra key only at publication", ()
   const document = ["```jbogenbau", ...migrated.fixture.source, "```"].join("\n");
   const { rules } = compiler.compileDocument(document);
   assert.equal(migrated.status, "hand-migrated");
+  assert.deepEqual(migrated.fixture.tokens[0], { text: "mi", props: { W: true, value: "mi" } });
   assert.equal(rules[1].emit.items[0].term.bag[1].key, "M");
   assert.equal(rules[1].alternatives[0].term.bag.some(entry => entry.key === "M"), false);
 });
@@ -122,4 +144,92 @@ test("a ranked group keeps its boundary when it shares a rule with another alter
   assert.deepEqual(rule.alternatives[0].expr, { ranked: [{ ref: "a" }, { ref: "b" }] });
   assert.deepEqual(rule.alternatives[0].term, { bag: [] });
   assert.deepEqual(rule.alternatives[1].expr, { ref: "C" });
+});
+
+test("empty caller strings use the property bag and invalid caller fields stay written", () => {
+  for (const channel of ["value", "image"]) {
+    const name = `values-caller-empty-${channel}.json`;
+    const migrated = translateSharedCase("engine", name, legacyFixture("engine", name));
+    assert.deepEqual(migrated.fixture.tokens[0], { text: "a", props: { [channel]: "" } });
+  }
+  const token = { text: "a", tags: ["A", "A"], value: "" };
+  const bad = translateSharedCase("engine", "repeat-key-probe", {
+    grammar: "%rule text A", tokens: [token], expect: { error: "usage" },
+  });
+  assert.deepEqual(bad.fixture.tokens[0], token);
+});
+
+test("stage feature reads address the input span and a guarded literal gives a list", () => {
+  for (const name of ["stage-features-token-methods.json", "stage-features-token-guarded-string.json"]) {
+    const migrated = translateSharedCase("engine", name, legacyFixture("engine", name));
+    const dom = compiler.compileDocument(migrated.fixture.documents["p.md"]);
+    const [first] = dom.directives.find(directive => directive.conditions?.length).conditions;
+    if (first.op === "=") assert.equal(first.left.receiver.map.receiver.capture, "");
+    else {
+      assert.equal(first.op, "∈");
+      assert.deepEqual(first.right.list[0].guard, { capture: "" });
+      assert.deepEqual(first.right.list[0].value, { string: "x" });
+    }
+    assert.doesNotMatch(migrated.fixture.documents["p.md"], /\$\.span\.tokens/);
+  }
+});
+
+test("stage-dependent argument categories and repeated string reads require a decision", () => {
+  const fenced = text => "\x60\x60\x60jbogenbau\n" + text + "\n\x60\x60\x60";
+  const aliases = translateSharedCase("engine", "constant-scope-probe", { pipelineDocument: "p.md", documents: {
+    "p.md": fenced('%stage main\n%include "a.md"\n%include "b.md"'),
+    "a.md": fenced('%const $S "a"'),
+    "b.md": fenced('%rule text f($S)'),
+  } });
+  assert.equal(aliases.status, "needs-hand");
+  assert.match(aliases.reason, /argument's stage and version/);
+  const repeated = translateSharedCase("engine", "repeat-read-probe", {
+    grammar: '%rule text {$x:A} %conditions $x.value = "a"',
+  });
+  assert.equal(repeated.status, "needs-hand");
+  assert.match(repeated.reason, /repeated capture/);
+});
+
+test("an insertion gets both explicit strings and an unproved singleton inheritance goes to hand", () => {
+  const inserted = translateSharedCase("engine", "insertion-probe", { grammar: "%rule text ε %emits ε :: T" });
+  const element = compiler.compileDocument(inserted.fixture.documents["main.md"]).rules[0].emit.items[0];
+  assert.deepEqual(element.term.bag.map(({ key, keys, value }) => ({ key, keys, value })), [
+    { key: "T", keys: undefined, value: undefined },
+    { key: undefined, keys: ["image", "value"], value: { string: "" } },
+  ]);
+  const singleton = translateSharedCase("engine", "singleton-probe", { grammar: "%rule text {A} %emits $" });
+  assert.equal(singleton.status, "needs-hand");
+  assert.match(singleton.reason, /singleton route can inherit keys/);
+});
+
+test("a value pattern keeps written empty strings and the omitted control has its own origin test", () => {
+  const control = translateSharedCase("engine", "empty-written", {
+    grammar: '%rule text $x:T %conditions $x ≅ #T=""',
+  });
+  const condition = compiler.compileDocument(control.fixture.documents["main.md"]).rules[0].conditions[0];
+  assert.deepEqual(condition.right.pattern.value, { string: "" });
+  assert.equal(condition.right.pattern.test, "=");
+  const name = "values-pattern-omitted-empty-value.json";
+  const omitted = translateSharedCase("engine", name, legacyFixture("engine", name));
+  assert.equal(omitted.status, "hand-migrated");
+  assert.ok(omitted.fixture.source.some(line => line.includes('T=""') && line.includes("T<_Elided>")));
+});
+
+test("a rule across grammar fences maps its operand from the physical line", () => {
+  const fenced = text => "\x60\x60\x60jbogenbau\n" + text + "\n\x60\x60\x60";
+  const where = { document: "g.md", line: 6, column: 1 };
+  const result = translateSharedCase("engine", "block-position-probe", {
+    documents: { "p.md": fenced('%stage main\n%include "g.md"'), "g.md": fenced("%rule text") + "\nProse.\n" + fenced("absent") },
+    pipelineDocument: "p.md", expect: { error: "grammar", where },
+  });
+  assert.deepEqual(result.diagnostics[0].from, where);
+  assert.deepEqual(result.diagnostics[0].to, { document: "g.md", line: 3, column: 1 });
+});
+
+test("invalid pipeline names are portable and language deferrals name the bundle", () => {
+  for (const name of ["pipeline-name-empty.json", "pipeline-name-parent.json"]) {
+    assert.equal(translateSharedCase("engine", name, legacyFixture("engine", name)).status, "portable-negative");
+  }
+  const deferred = translateSharedCase("engine", "bundle-probe", { pipeline: "lojban/cll", input: "mi" });
+  assert.match(deferred.reason, /lojban\/cll/);
 });

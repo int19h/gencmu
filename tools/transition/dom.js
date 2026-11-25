@@ -1,5 +1,7 @@
 import { GencmuError } from "../../lib/js/src/errors.js";
-import { CAPTURE_NAME, DOM_MAX_DEPTH, KEY_STEPS, validSteps } from "../../lib/js/src/dom.js";
+import { CAPTURE_NAME, KEY_STEPS, validSteps } from "../../lib/js/src/dom.js";
+import { methods50 } from "./signatures.js";
+import { validateBag50, validateBindings50, validateBody50, validateDocument50 } from "./validate-dom50.js";
 
 const EXPRESSION_WRAPPERS = new Set([
   "expr", "disj", "conj", "comparison", "union", "inter", "sum", "post", "atom", "grouped-expr",
@@ -18,8 +20,11 @@ const leaves = node => node.children.filter(child => child.kind === "token");
 const collapse = (kind, items) => items.length === 1 ? items[0] : { [kind]: items };
 const GROUPS = new Set(["group", "optional", "repetition", "empty"]);
 function baseFactor(node) {
-  while (["factor", "tested-factor", "untested-factor"].includes(node.rule)) node = rules(node)[0];
+  while (["factor", "tested-factor", "untested-factor", "symbol-argument"].includes(node.rule)) node = rules(node)[0];
   return node;
+}
+function walks(node, pred) {
+  return pred(node) || rules(node).some(child => walks(child, pred));
 }
 
 const isSymbol = body => ["ref", "call", "param", "literal", "range", "wildcard", "splice", "test"]
@@ -61,7 +66,6 @@ export class DomBuilder {
   build(tree) {
     const dom = { format: 50, rules: [], directives: [], constants: [] };
     let preamble = true;
-    const declarations = [];
     for (const statement of parts(tree, "statement")) {
       const node = rules(statement)[0];
       switch (node.rule) {
@@ -69,8 +73,12 @@ export class DomBuilder {
           dom.rules.push(this.rule(node));
           break;
         case "constant-definition":
-          dom.constants.push({ name: this.value(part(node, "constant-name")).slice(1),
-            op: operation(this.value(node)), value: this.expression(part(node, "expr")), at: this.at(node) });
+          {
+            const name = this.value(part(node, "constant-name")).slice(1);
+            if (name === "INPUTS") this.fail(node, "$INPUTS is supplied by the engine");
+            dom.constants.push({ name, op: operation(this.value(node)),
+              value: this.expression(part(node, "expr")), at: this.at(node) });
+          }
           break;
         case "directive":
           if (this.value(node) === "%names" && !preamble) this.fail(node, "%names must precede all other declarations");
@@ -83,13 +91,9 @@ export class DomBuilder {
           this.fail(node, "expected a declaration");
       }
       preamble &&= this.value(node) === "%names";
-      const items = node.rule === "rule" ? dom.rules : node.rule === "constant-definition" ? dom.constants : dom.directives;
-      declarations.push([node, items.at(-1)]);
     }
-    for (const [statement, declaration] of declarations) {
-      if (tooDeep(declaration)) this.fail(statement, `an expression, term or condition is nested more than ${DOM_MAX_DEPTH} deep`);
-    }
-    return dom;
+    return validateDocument50(dom, { document: this.document, unicode: this.unicode,
+      location: record => this.origins.has(record) ? this.at(this.origins.get(record)) : record.at });
   }
 
   directive(node) {
@@ -127,7 +131,7 @@ export class DomBuilder {
       if (!patternNode) return { step };
       const pattern = patternNode.rule === "constant-reference" ?
         this.expression(patternNode) : this.pattern(patternNode);
-      return { step, pattern };
+      return { step, pattern: this.remember(pattern, patternNode) };
     });
     if (!validSteps(steps)) this.fail(node, "invalid resolution policy");
     return { name: "ambiguity-resolution", steps, at: this.at(node) };
@@ -144,6 +148,7 @@ export class DomBuilder {
     }
     const at = this.at(node);
     if (leaves(node).some(token => this.value(token) === "=")) {
+      if (!plain) this.fail(head, "an instance binding needs a plain rule name");
       if (op === "extend") this.fail(node, "an instance binding cannot extend a rule");
       return { name, op, instance: this.call(call), conditions: [], at };
     }
@@ -177,7 +182,11 @@ export class DomBuilder {
     const message = diagnosticNode && this.expression(part(diagnosticNode, "expr"));
     const suppression = part(node, "suppress-warnings-clause");
     const suppressWarnings = suppression && (parts(suppression, "suppression-code").length ?
-      parts(suppression, "suppression-code").map(code => this.value(code)) : ["_"]);
+      parts(suppression, "suppression-code").map(code => {
+        const name = this.value(code);
+        if (!FEATURE_NAME.test(name)) this.fail(code, "invalid warning code");
+        return name;
+      }) : ["_"]);
     const output = part(node, "output-clause");
     const outputNode = output && rules(output)[0];
     const erased = outputNode?.rule === "erased-clause";
@@ -192,7 +201,9 @@ export class DomBuilder {
 
   alternative(node, kind) {
     const gates = parts(node, "feature-gate").map(gate => this.gate(gate));
-    const expr = this.body(part(node, kind), true);
+    const source = part(node, kind);
+    const expr = this.body(source, true);
+    validateBody50(expr, (record, message) => this.fail(this.origins.get(record) ?? source, message));
     const term = part(node, "alternative-term");
     return { gates, expr, ...(term && { term: this.expression(part(term, "bag")) }) };
   }
@@ -219,14 +230,16 @@ export class DomBuilder {
     return { feature, kind: "gate", negated };
   }
 
-  body(node, whole = false, elidable = false) {
+  body(node, whole = false, elidable = false, chain = false, blockedPrimary = false) {
     const children = rules(node);
     const first = children[0];
-    const expr = (child = first, top = whole, isElidable = elidable) => this.body(child, top, isElidable);
+    const expr = (child = first, top = whole, isElidable = elidable, insideChain = chain, blocked = blockedPrimary) =>
+      this.body(child, top, isElidable, insideChain, blocked);
     switch (node.rule) {
       case "factor":
       case "untested-factor":
       case "splice-target":
+      case "chain-separator":
       case "body-argument":
       case "symbol-argument":
       case "group":
@@ -235,7 +248,7 @@ export class DomBuilder {
         return first.rule === "ranked-choice" ? expr() :
           collapse("choice", children.map(child => expr(child, whole && children.length === 1, elidable)));
       case "ranked-choice":
-        return { ranked: children.map(child => expr(child, false, false)) };
+        return { ranked: children.map(child => expr(child, false, false, chain, true)) };
       case "some-of":
         if (children.length > 16) this.fail(first, "an ordered subset takes at most sixteen operands");
         return collapse("and", children.map(child => expr(child, whole && children.length === 1, elidable)));
@@ -243,16 +256,20 @@ export class DomBuilder {
         return collapse("seq", children.map((child, index) =>
           expr(child, whole && children.length === 1, elidable && index === 0)));
       case "optional":
-        return this.optional(node, first);
+        return this.optional(node, first, chain);
       case "repetition": {
         const marks = leaves(node).filter(leaf => this.value(leaf) === "...");
+        if (marks.length > 1) this.fail(marks[1], "a chain can have only one marker");
         if (marks.length && !whole) this.fail(node, "a chain must occupy a whole alternative");
-        return { repeat: expr(first, false, false),
-          ...(children[1] && { separator: expr(children[1], false, false) }),
+        const separatorMark = children[1] && leaves(children[1]).find(leaf => this.value(leaf) === "...");
+        if (separatorMark) this.fail(separatorMark, "a chain marker cannot label a separator");
+        return { repeat: expr(first, false, false, !!marks.length, true),
+          ...(children[1] && { separator: expr(children[1], false, false, !!marks.length, true) }),
           ...(marks.length && { chain: marks[0].span[0] < first.span[0] ? "left" : "right" }) };
       }
       case "capture":
       case "captured-terminator": {
+        if (chain) this.fail(first, "a chain item or separator cannot bind a capture directly");
         const capture = this.binder(first);
         if (GROUPS.has(baseFactor(children[1]).rule)) this.fail(first, "a capture wraps one symbol");
         const target = expr(children[1], false, elidable);
@@ -260,15 +277,20 @@ export class DomBuilder {
         return this.remember({ capture, expr: target }, first);
       }
       case "marked-factor": {
+        if (blockedPrimary) this.fail(node, "a primary must mark a mandatory child that is not a splice");
+        const atom = baseFactor(first.rule === "capture" ? rules(first)[1] : first);
+        if (GROUPS.has(atom.rule) || atom.rule === "splice") this.fail(node, "a primary marks one ungrouped symbol or capture that is not a splice");
         const target = expr(first, false, elidable);
         if (!isSymbol(target) && !Object.hasOwn(target, "capture")) this.fail(node, "a primary marks one symbol or capture");
-        return { primary: target };
+        return this.remember({ primary: target }, node);
       }
       case "tested-factor": {
         if (GROUPS.has(baseFactor(first).rule)) this.fail(children[1], "a test applies to one symbol");
+        const tests = this.testOrder(children.slice(1), elidable);
+        const targetIsRule = ["rule-reference", "call", "splice"].includes(baseFactor(first).rule);
         const base = expr();
         if (!isSymbol(base)) this.fail(children[1], "a test applies to one symbol");
-        return this.tests(base, children.slice(1), false, elidable);
+        return this.tests(base, tests, false, targetIsRule);
       }
       case "ref":
       case "rule-reference":
@@ -294,22 +316,27 @@ export class DomBuilder {
     }
   }
 
-  optional(node, route) {
-    const elidable = route.rule === "captured-terminator" || leaves(node).some(leaf => this.value(leaf) === "+");
-    let optional = this.body(route, false, elidable);
-    if (!elidable) return { optional };
-    const symbol = optional.capture !== undefined ? optional.expr : optional.seq?.[0] ?? optional;
-    const base = symbol.expr ?? symbol;
-    const target = base.expr ?? base;
-    if (!target.param && !/^[A-Z]/.test(target.ref ?? "")) {
-      this.fail(route, "an elidable optional starts with an ungrouped user terminal or parameter");
+  optional(node, route, chain) {
+    const captured = route.rule === "captured-terminator";
+    const elidable = captured || leaves(node).some(leaf => this.value(leaf) === "+");
+    if (!elidable) return { optional: this.body(route, false, false, chain, true) };
+    const choice = rules(route);
+    const sequence = captured ? choice.slice(1) : rules(rules(choice[0])[0]);
+    const head = sequence[0] && baseFactor(sequence[0]);
+    if (!head || !["tag", "parameter"].includes(head.rule) ||
+        head.rule === "tag" && !/^[A-Z]/.test(this.value(head)) ||
+        !captured && this.value(route) !== this.value(sequence[0]) ||
+        !captured && (choice.length !== 1 || choice[0].rule !== "some-of" ||
+          rules(choice[0]).length !== 1 || sequence.some(factor => walks(factor, item => item.rule === "capture" || item.rule === "captured-terminator")))) {
+      this.fail(route, "an elidable optional starts with an ungrouped user terminal or parameter and can bind only its sole terminator");
     }
+    const optional = this.body(route, false, true, chain, true);
+    const symbol = captured ? optional.expr : optional.seq?.[0] ?? optional;
     const value = this.defaults?.get(symbol);
-    if (value && optional.capture === undefined && optional.seq === undefined) optional = symbol;
     return { optional, elidable: true, ...(value && { default: value }) };
   }
 
-  tests(base, testNodes, pattern, elidable = false) {
+  testOrder(testNodes, elidable = false) {
     const kinds = ["tag-test", "value-test", "default-value"];
     const tests = testNodes.map(wrapper => rules(wrapper)[0]);
     let previous = -1;
@@ -319,25 +346,27 @@ export class DomBuilder {
       if (index === 2 && !elidable) this.fail(test, "only an elidable head takes a default value");
       previous = index;
     }
+    return tests;
+  }
+
+  tests(base, tests, pattern, targetIsRule) {
     let result = base;
     for (const test of tests) {
       const at = this.at(test);
       if (test.rule === "tag-test") {
         const requirements = this.requirements(test);
         const originTest = requirements.findIndex(req => req.value.tag === "_Elided" && (!pattern || !req.negated));
-        const targetIsRule = base.call || base.splice || base.name || /^[a-z]/.test(base.ref ?? "") ||
-          base.ref && this.unicode.isEmojiName(base.ref);
         if (originTest !== -1 && targetIsRule) {
           const site = pattern ? part(parts(test, "tag-requirement")[originTest], "test-operand") : test;
           this.fail(site, "the _Elided origin test applies only to a terminal");
         }
-        result = { test: "tags", requirements, expr: result, at };
+        result = this.remember({ test: "tags", requirements, expr: result, at }, test);
       } else {
         const value = this.stringOperand(rules(test)[0], true);
-        if (test.rule === "value-test") result = { test: this.value(test), value, expr: result, at };
+        if (test.rule === "value-test") result = this.remember({ test: this.value(test), value, expr: result, at }, test);
         else {
           this.defaults ??= new WeakMap();
-          this.defaults.set(result, value);
+          this.defaults.set(result, this.remember(value, test));
         }
       }
     }
@@ -389,18 +418,12 @@ export class DomBuilder {
     else {
       const body = this.body(first);
       if (body.ref !== undefined) {
-        const key = /^[A-Z_]/.test(body.ref) ? "tag" : "rule";
+        const key = baseFactor(first).rule === "tag" ? "tag" : "rule";
         result = { [key]: body.ref, at };
       } else if (isSymbol(body)) result = { ...body, at: body.at ?? at };
       else result = { body, at };
     }
-    const stack = [result];
-    while (stack.length) {
-      const value = stack.pop();
-      if (!value || typeof value !== "object") continue;
-      if (value.capture !== undefined) this.fail(this.origins.get(value) ?? first, "an argument cannot read or declare captures");
-      for (const child of Object.values(value)) stack.push(child);
-    }
+    validateBindings50(result, (record, message) => this.fail(this.origins.get(record) ?? first, message), { closed: true });
     return this.remember(result, first);
   }
 
@@ -485,7 +508,7 @@ export class DomBuilder {
       case "integer": {
         const integer = this.value(node);
         if (!/^(?:0|[1-9][0-9]*)$/.test(integer)) this.fail(node, "an integer cannot start with a leading zero");
-        return { integer };
+        return this.remember({ integer }, node);
       }
       case "constant-reference":
         return { const: this.value(node).slice(1), at: this.at(node) };
@@ -495,8 +518,11 @@ export class DomBuilder {
         return this.parameter(node);
       case "pattern-literal":
         return { pattern: this.pattern(node) };
-      case "bag":
-        return { bag: children.map(child => this.entry(child)) };
+      case "bag": {
+        const entries = children.map(child => this.entry(child));
+        validateBag50(entries, (entry, message) => this.fail(children[entries.indexOf(entry)], message));
+        return { bag: entries };
+      }
       case "list":
         return { list: children.map(child => this.entry(child)) };
       default:
@@ -525,6 +551,12 @@ export class DomBuilder {
   method(node, receiver) {
     const [selector] = rules(part(node, "selector"));
     const method = this.value(selector);
+    const signature = methods50.get(method);
+    if (!signature) this.fail(node, `unknown method .${method}`);
+    const parentheses = leaves(selector).some(token => this.value(token) === "(");
+    if (parentheses !== (signature.max !== 0)) {
+      this.fail(node, `method .${method} ${signature.max ? "requires" : "omits"} parentheses`);
+    }
     const args = [];
     switch (selector.rule) {
       case "named-selector":
@@ -537,7 +569,7 @@ export class DomBuilder {
         const at = part(selector, "integer");
         const integer = this.expression(at).integer;
         if (method === "ngrams" && integer === "0") this.fail(at, "a width must be positive");
-        args.push({ integer });
+        args.push(this.remember({ integer }, at));
         break;
       }
       case "predicate-selector": {
@@ -555,14 +587,9 @@ export class DomBuilder {
       case "parse-selector": {
         const query = part(selector, "query-body");
         const choice = part(query, "choice");
-        const body = this.body(choice);
-        const stack = [body];
-        while (stack.length) {
-          const child = stack.pop();
-          if (!child || typeof child !== "object") continue;
-          if (child.capture !== undefined) this.fail(this.origins.get(child) ?? choice, "a query cannot declare captures");
-          for (const value of Object.values(child)) stack.push(value);
-        }
+        const body = this.body(choice, true);
+        if (body.chain) this.fail(choice, "a chain cannot be the query target");
+        validateBindings50(body, (record, message) => this.fail(this.origins.get(record) ?? choice, message), { query: true });
         const sequence = [];
         if (this.value(query) === "…") sequence.push({ remainder: true });
         for (const operand of body.seq ?? [body]) sequence.push(operand);
@@ -577,10 +604,11 @@ export class DomBuilder {
   predicate(node) {
     const expr = part(node, "expr");
     const value = this.expression(expr);
-    if (value.lambda !== undefined || value.const !== undefined || value.capture !== undefined || value.param !== undefined) {
+    const first = expr.span[0];
+    if (value.lambda !== undefined ||
+        expr.span[1] === first + 1 && (value.const || value.capture || value.param)) {
       return value;
     }
-    const first = expr.span[0];
     const index = this.tokens[first].value === "¬" ? first + 1 : first;
     if (!["'", "."].includes(this.tokens[index].value)) this.fail(node, "a predicate requires an explicit binder");
     return { lambda: "", body: value, at: this.at(node) };
@@ -617,8 +645,12 @@ export class DomBuilder {
       case "splat-entry":
         return { kind: "splat", value: this.expression(part(body, "expr")), ...suffix };
       case "copy-entry": {
-        const source = this.expression(part(body, "post"));
-        if (source.property === undefined) this.fail(body, "a copy ends with a property selector");
+        const post = part(body, "post");
+        const last = rules(post).at(-1);
+        const itemProperty = last?.rule === "atom" && rules(last)[0]?.rule === "item-reference" &&
+          !!part(rules(last)[0], "key");
+        if (last?.rule !== "prop" && !itemProperty) this.fail(body, "a copy ends with a property selector");
+        const source = this.expression(post);
         return { kind: "copy", source: source.receiver, key: source.property, ...suffix };
       }
     }
@@ -648,6 +680,7 @@ export class DomBuilder {
           ...(children[1] && { children: this.items(children[1]) }), at };
       }
       case "pattern-atom": {
+        const tests = this.testOrder(children.slice(1));
         const at = this.at(first);
         let atom;
         switch (first.rule) {
@@ -676,7 +709,7 @@ export class DomBuilder {
             atom = { constant: this.value(first).slice(1), at };
             break;
         }
-        return this.tests(atom, children.slice(1), true);
+        return this.tests(atom, tests, true, ["pattern-rule", "call"].includes(first.rule));
       }
       case "parameter":
         return this.parameter(node);
@@ -733,58 +766,4 @@ export class DomBuilder {
         this.fail(node, `unexpected child part ${node.rule}`);
     }
   }
-}
-
-function tooDeep(declaration) {
-  const pending = [];
-  const push = (value, depth) => {
-    if (value && typeof value === "object") pending.push([value, depth]);
-  };
-  const entries = (items, depth) => {
-    for (const item of items) for (const key of ["guard", "source", "value"]) push(item[key], depth);
-  };
-  push(declaration.term, 0);
-  push(declaration.value, 0);
-  push(declaration.error, 0);
-  push(declaration.warning, 0);
-  for (const condition of declaration.conditions ?? []) push(condition, 0);
-  for (const alt of declaration.alternatives ?? []) {
-    push(alt.expr, 0);
-    push(alt.term, 0);
-  }
-  for (const item of declaration.emit?.items ?? []) {
-    push(item.guard, 0);
-    push(item.term, 0);
-  }
-  for (const step of declaration.steps ?? []) push(step.pattern, 0);
-  if (declaration.instance) push(declaration.instance, 0);
-  for (const arg of declaration.args ?? []) push(arg, 0);
-  while (pending.length) {
-    const [node, depth] = pending.pop();
-    if (depth > DOM_MAX_DEPTH) return true;
-    if (Array.isArray(node)) {
-      for (const child of node) push(child, depth);
-      continue;
-    }
-    if (node.primary || node.expression || node.kind || node.body && node.lambda === undefined) {
-      push(node.primary ?? node.expression ?? node.body, depth);
-      if (node.kind) entries([node], depth);
-      continue;
-    }
-    if (node.bag || node.list) {
-      entries(node.bag ?? node.list, depth + 1);
-      continue;
-    }
-    if (node.map) {
-      push(node.map, depth + 1);
-      if (node.by.method) push(node.by.args, depth + 1);
-      else if (!node.by.property) push(node.by, depth + 1);
-      continue;
-    }
-    for (const [key, child] of Object.entries(node)) {
-      if (key === "at") continue;
-      push(child, key === "literal" || key === "range" || key === "requirements" ? depth : depth + 1);
-    }
-  }
-  return false;
 }

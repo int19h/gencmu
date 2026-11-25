@@ -12,6 +12,7 @@ const fence = (text) => "```jbogenbau\n" + text + "\n```\n";
 const defaults = "%const $DEFAULTS $node ↦ {value: $node.children!'value.join(), image: $node.children!'image.join()}";
 const stageNames = new Set(["stage", "extend-stage", "redefine-stage"]);
 const handMigrations = JSON.parse(fs.readFileSync(new URL("./shared-case-migrations.json", import.meta.url), "utf8"));
+const negativeMigrations = JSON.parse(fs.readFileSync(new URL("./shared-negative-migrations.json", import.meta.url), "utf8"));
 const portableTag = /^[A-Z][A-Za-z0-9_-]*$/;
 
 function coordinate(line, column) {
@@ -43,24 +44,27 @@ function declarationsInSource(declarations, markdown, document, unicode) {
     code += "\n".repeat(startLine - line) + " ".repeat(startColumn - 1) + source + "\n";
     line = startLine + source.split(/\r\n|\r|\n/).length;
     map.push({ ...entry, to: [startLine, startColumn], oldText, newText: source,
-      oldEnd: positions[end] ?? positions.at(-1), same });
+      oldPositions: positions.slice(oldStart, end), oldEnd: positions[end] ?? positions.at(-1), same });
   }
   return { markdown: fence(code.trimEnd()), map };
 }
 
-function tokens(text, [line, column] = [1, 1]) {
+function tokens(text, [line, column] = [1, 1], positions) {
   const values = [];
+  let offset = 0;
   const spans = /--[^\r\n]*|"[^"]*"|\r\n|\r|\n|[\t \p{White_Space}]+|[%@$]?[A-Za-z_][A-Za-z0-9_-]*|\.\.\.|\.\.|::|:=|:-|\+\+|[^]/gu;
   for (const match of text.matchAll(spans)) {
     const token = match[0];
+    const at = positions?.[offset] ?? [line, column];
+    offset += [...token].length;
     if (/\r|\n/.test(token)) {
       const lines = token.split(/\r\n|\r|\n/);
-      if (token.startsWith('"')) values.push({ token, at: [line, column] });
+      if (token.startsWith('"')) values.push({ token, at });
       line += lines.length - 1;
       column = [...lines.at(-1)].length + 1;
       continue;
     }
-    if (!/^\s|^--/.test(token)) values.push({ token, at: [line, column] });
+    if (!/^\s|^--/.test(token)) values.push({ token, at });
     column += [...token].length;
   }
   return values;
@@ -73,14 +77,17 @@ function migrateLocation(where, maps) {
   const at = [where.line, where.column];
   const owner = maps.get(where.document).find(item => !before(at, item.from) && before(at, item.oldEnd));
   if (!owner) return { from: where, review: "The expected position is outside a translated declaration." };
-  if (owner.same) return { from: where, to: { ...where, line: where.line + owner.to[0] - owner.from[0] } };
   if (at[0] === owner.from[0] && at[1] === owner.from[1]) {
     return { from: where, to: { ...where, line: owner.to[0], column: owner.to[1] } };
   }
-  const input = tokens(owner.oldText, owner.from);
+  const input = tokens(owner.oldText, owner.from, owner.oldPositions);
   const output = tokens(owner.newText, owner.to);
   const source = input.findIndex(item => item.at[0] === at[0] && item.at[1] === at[1]);
   if (source === -1) return { from: where, review: "The expected position is inside or between tokens." };
+  if (owner.same) {
+    const [line, column] = output[source].at;
+    return { from: where, to: { ...where, line, column }, anchor: "unchanged token" };
+  }
   const value = input[source].token;
   const matches = stream => stream.flatMap((item, index) => item.token === value ? [index] : []);
   const originalMatches = matches(input);
@@ -124,15 +131,47 @@ function overridesFor(caseId) {
   return Object.hasOwn(handMigrations, caseId) ? handMigrations[caseId] : undefined;
 }
 
+function possibleOmittedValues(doms) {
+  const terminals = new Set();
+  const visit = node => {
+    if (!node || typeof node !== "object") return;
+    if (node.elidable) {
+      let head = node.optional.seq?.[0] ?? (node.optional.capture !== undefined ? node.optional.expr : node.optional);
+      let fallback;
+      while (head.test) {
+        if (head.test === "=") fallback = head.value;
+        head = head.expr;
+      }
+      const value = node.default ?? fallback;
+      if (value && value.string !== "") terminals.add(head.ref ?? "*");
+    }
+    for (const child of Object.values(node)) visit(child);
+  };
+  for (const dom of doms) visit(dom.rules);
+  return terminals;
+}
+
+function tokenInput(tokens, preserve = false) {
+  if (!Array.isArray(tokens) || preserve) return tokens;
+  return tokens.map(token => {
+    if (!token || typeof token !== "object") return token;
+    const { tags, props, value, image, ...fields } = token;
+    if (tags !== undefined && (!Array.isArray(tags) || tags.some(tag => typeof tag !== "string") ||
+        new Set(tags).size !== tags.length)) return token;
+    if (props !== undefined && (!props || typeof props !== "object" || Array.isArray(props))) return token;
+    if (value !== undefined && typeof value !== "string" || image !== undefined && typeof image !== "string") return token;
+    if (props === undefined && tags === undefined) return token;
+    return { ...fields, props: { ...Object.fromEntries((tags ?? []).map(tag => [tag, true])), ...props,
+      ...(value !== undefined && { value }), ...(image !== undefined && { image }) } };
+  });
+}
+
 function caseInput(testCase) {
   const { grammar, documents, expect, parses, tokens: supplied, ...input } = testCase;
-  const tokens = supplied?.map(token => {
-    if (!token || !Array.isArray(token.tags) || token.tags.some(tag => typeof tag !== "string")) return token;
-    const { tags, ...fields } = token;
-    return { ...fields, props: Object.fromEntries(tags.map(tag => [tag, true])) };
-  });
+  const tokens = tokenInput(supplied, expect?.error === "usage" || parses?.some(run => run.expect?.error === "usage"));
   return { ...input, ...(supplied && { tokens }),
-    ...(parses && { parses: parses.map(({ expect, ...run }) => run) }) };
+    ...(parses && { parses: parses.map(({ expect, ...run }) =>
+      run.tokens === undefined ? run : { ...run, tokens: tokenInput(run.tokens, expect?.error === "usage") }) }) };
 }
 
 export function translateSharedCase(family, file, testCase) {
@@ -140,15 +179,27 @@ export function translateSharedCase(family, file, testCase) {
   const versioned = overridesFor(id);
   if (versioned) {
     const { fixture, ...record } = versioned;
+    const merged = fixture && { ...caseInput(testCase), ...fixture };
+    if (fixture?.tokens) merged.tokens = tokenInput(fixture.tokens, testCase.expect?.error === "usage");
     return { id, status: "hand-migrated", ...record,
-      ...(fixture && { fixture: { ...caseInput(testCase), ...fixture } }),
+      ...(merged && { fixture: merged }),
       reference: testCase.expect ?? testCase.parses };
   }
   if (testCase.pipeline !== undefined) {
-    return { id, status: "old", reason: "The original case selects a bundled format 49 pipeline." };
+    if (typeof testCase.pipeline !== "string" || !/^[a-z0-9][a-z0-9-]*(?:\/[a-z0-9][a-z0-9-]*)+$/.test(testCase.pipeline)) {
+      return { id, status: "portable-negative", fixture: caseInput(testCase), reference: testCase.expect };
+    }
+    return { id, status: "deferred", reason: `The case waits for the format 50 migration of ${testCase.pipeline}.` };
   }
   if (family === "notation" && testCase.expect.error) {
-    return { id, status: "old", reason: "The original case exercises a format 49 document error." };
+    const counterpart = negativeMigrations[id];
+    if (counterpart?.expected) {
+      return { id, status: "retained-negative", oldPath: true, document: counterpart.document ?? testCase.document,
+        ...counterpart, reference: testCase.expect };
+    }
+    if (counterpart?.retired) return { id, status: "retired", oldPath: true, reason: counterpart.retired };
+    return { id, status: "needs-negative", oldPath: true, reason: "Identify the retained fault or a removed construct.",
+      reference: testCase.expect };
   }
   const isNotation = family === "notation";
   const entry = isNotation ? "notation.md" : testCase.pipelineDocument ?? "pipeline.md";
@@ -175,10 +226,6 @@ export function translateSharedCase(family, file, testCase) {
     if (previous) return;
     doms.set(file, dom);
     active.add(file);
-    const declarations = translateDom49(dom, loader.unicode);
-    const rendered = declarationsInSource(declarations, sources[file], file, loader.unicode);
-    translated[file] = rendered.markdown;
-    maps.set(file, rendered.map);
     const names = [...inherited, ...dom.directives.filter(item => item.name === "names")
       .map(item => resolvePath(document, item.args[0]))];
     for (const directive of dom.directives) {
@@ -192,8 +239,31 @@ export function translateSharedCase(family, file, testCase) {
   try {
     loader = loaderWith(sources);
     visit(entry);
+    const counts = new Map();
+    for (const dom of doms.values()) for (const item of dom.constants) {
+      counts.set(item.name, (counts.get(item.name) ?? 0) + 1);
+    }
+    const uniqueConstants = new Set([...counts].filter(([, count]) => count === 1).map(([name]) => name));
+    const omittedValues = possibleOmittedValues(doms.values());
+    for (const [file, dom] of doms) {
+      const declarations = translateDom49(dom, loader.unicode, uniqueConstants, omittedValues);
+      const rendered = declarationsInSource(declarations, sources[file], file, loader.unicode);
+      translated[file] = rendered.markdown;
+      maps.set(file, rendered.map);
+    }
   } catch (error) {
-    if (error instanceof GencmuError) return { id, status: "old", reason: error.description, location: error.where };
+    if (error instanceof GencmuError) {
+      const location = error.where;
+      if (location.document === "data/unicode/unicode.txt" || location.document === "data/unicode/unicode-properties.txt") {
+        return { id, status: "portable-negative", oldPath: true,
+          fixture: { ...caseInput(testCase), pipelineDocument: "p.md", documents: {
+            [location.document]: sources[location.document],
+            ...(Object.hasOwn(sources, "data/unicode/unicode.txt") && { "data/unicode/unicode.txt": sources["data/unicode/unicode.txt"] }),
+            "p.md": fence("%stage main\n%rule text ε"),
+          } }, expected: { description: error.description, ...location }, reference: testCase.expect ?? testCase.parses };
+      }
+      return { id, status: "needs-negative", oldPath: true, reason: error.description, location, reference: testCase.expect ?? testCase.parses };
+    }
     if (error instanceof MigrationRequired) return { id, status: "needs-hand", reason: error.message, at: error.at };
     throw error;
   }

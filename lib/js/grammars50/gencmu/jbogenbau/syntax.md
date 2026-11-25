@@ -16,7 +16,7 @@ The declarations contain the rule bodies and the clauses that belong to them. Th
   rule | ranking-directive | directive | constant-definition
 
 %rule rule
-  | rule-keyword rule-name "=" call
+  | rule-keyword (rule-name | call) "=" call
   | rule-keyword (rule-name | call) (body | statement-term headed-body)
     [conditions-clause] [diagnostic-clause] [suppress-warnings-clause] [output-clause]
 
@@ -128,8 +128,10 @@ Factors are symbols, groups and the operators that apply to them. A capture or p
   binding-token ":" "+" factor
 
 %rule repetition
-  "{" ["..."] choice ["/" choice] "}"
-  | "{" choice "..." ["/" choice] "}"
+  "{" [{"..."}] choice [{"..."}] [chain-separator] "}"
+
+%rule chain-separator
+  "/" [{"..."}] choice [{"..."}]
 
 %rule empty
   "ε"
@@ -169,7 +171,7 @@ Factors are symbols, groups and the operators that apply to them. A capture or p
   range | rule-reference | call | tag | post
 ```
 
-<details><summary>Railroad diagrams of the 29 rules from <code>choice</code> to <code>test-operand</code></summary>
+<details><summary>Railroad diagrams of the 30 rules from <code>choice</code> to <code>test-operand</code></summary>
 <p><img src="../../../docs/diagrams/50/gencmu/jbogenbau/syntax/choice.svg" alt="Railroad diagram of the rule choice"></p>
 <p><img src="../../../docs/diagrams/50/gencmu/jbogenbau/syntax/some-of.svg" alt="Railroad diagram of the rule some-of"></p>
 <p><img src="../../../docs/diagrams/50/gencmu/jbogenbau/syntax/sequence.svg" alt="Railroad diagram of the rule sequence"></p>
@@ -188,6 +190,7 @@ Factors are symbols, groups and the operators that apply to them. A capture or p
 <p><img src="../../../docs/diagrams/50/gencmu/jbogenbau/syntax/optional.svg" alt="Railroad diagram of the rule optional"></p>
 <p><img src="../../../docs/diagrams/50/gencmu/jbogenbau/syntax/captured-terminator.svg" alt="Railroad diagram of the rule captured-terminator"></p>
 <p><img src="../../../docs/diagrams/50/gencmu/jbogenbau/syntax/repetition.svg" alt="Railroad diagram of the rule repetition"></p>
+<p><img src="../../../docs/diagrams/50/gencmu/jbogenbau/syntax/chain-separator.svg" alt="Railroad diagram of the rule chain-separator"></p>
 <p><img src="../../../docs/diagrams/50/gencmu/jbogenbau/syntax/empty.svg" alt="Railroad diagram of the rule empty"></p>
 <p><img src="../../../docs/diagrams/50/gencmu/jbogenbau/syntax/splice.svg" alt="Railroad diagram of the rule splice"></p>
 <p><img src="../../../docs/diagrams/50/gencmu/jbogenbau/syntax/splice-target.svg" alt="Railroad diagram of the rule splice-target"></p>
@@ -411,8 +414,16 @@ Expression rules group operators by precedence. Method names select the syntax o
   method-name ["(" [{expr / ","}] ")"]
 %conditions
   $.first-token.tokens!'value.join() ∉
-    ["parse", "followed-by", "preceded-by", "without-elision-except",
-     "has", "has-value", "ngrams", "at-most", "any", "all"]
+    ["parse",
+     "followed-by",
+     "preceded-by",
+     "without-elision-except",
+     "has",
+     "has-value",
+     "ngrams",
+     "at-most",
+     "any",
+     "all"]
 
 %rule method-name
   Identifier | Call-Name

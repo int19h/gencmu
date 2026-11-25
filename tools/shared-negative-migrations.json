@@ -1,0 +1,2567 @@
+{
+  "notation/267-default-fails-test.json": {
+    "reason": "The explicit default fails the written equality test.",
+    "expected": {
+      "description": "the default does not pass the omission predicate",
+      "line": 2,
+      "column": 23
+    }
+  },
+  "notation/267-default-off-head.json": {
+    "reason": "The default belongs to the first terminal of the elidable optional.",
+    "expected": {
+      "description": "only an elidable head takes a default value",
+      "line": 2,
+      "column": 19
+    }
+  },
+  "notation/267-default-plain-optional.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 16,
+      "description": "only an elidable head takes a default value"
+    }
+  },
+  "notation/and-too-many-paired.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 12,
+      "description": "an ordered subset takes at most sixteen operands"
+    }
+  },
+  "notation/and-too-many.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 9,
+      "description": "an ordered subset takes at most sixteen operands"
+    }
+  },
+  "notation/attach-on-insert.json": {
+    "retired": "The format 49 attachment operator on an inserted emission item has no format 50 spelling."
+  },
+  "notation/attach-on-this.json": {
+    "retired": "The format 49 attachment operator on the whole emission item has no format 50 spelling."
+  },
+  "notation/attach-tag.json": {
+    "retired": "The format 49 attachment list has no format 50 spelling."
+  },
+  "notation/attach-this.json": {
+    "retired": "The format 49 attachment list has no format 50 spelling."
+  },
+  "notation/attach-without-carrier.json": {
+    "retired": "The format 49 attachment carrier clause has no format 50 spelling."
+  },
+  "notation/backslash-outside-braces.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 11,
+      "stage": "syntax",
+      "token": 3
+    }
+  },
+  "notation/braces-empty-separator.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 15,
+      "stage": "syntax",
+      "token": 5
+    }
+  },
+  "notation/braces-empty.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 11,
+      "stage": "syntax",
+      "token": 3
+    }
+  },
+  "notation/braces-marker-in-separator.json": {
+    "reason": "The separator cannot have a chain marker.",
+    "expected": {
+      "description": "a chain marker cannot label a separator",
+      "line": 2,
+      "column": 15
+    }
+  },
+  "notation/braces-order-capture-test.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 14,
+      "description": "a chain item or separator cannot bind a capture directly"
+    }
+  },
+  "notation/braces-order-chain-capture.json": {
+    "reason": "The chain follows another symbol. Its opening brace wins over the inner capture.",
+    "expected": {
+      "description": "a chain must occupy a whole alternative",
+      "line": 2,
+      "column": 11
+    }
+  },
+  "notation/braces-order-test-chain.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 21,
+      "description": "a test applies to one symbol"
+    }
+  },
+  "notation/braces-separator-first.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 11,
+      "stage": "syntax",
+      "token": 3
+    }
+  },
+  "notation/braces-stray-close.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 11,
+      "stage": "syntax",
+      "token": 3
+    }
+  },
+  "notation/braces-two-markers.json": {
+    "reason": "The second written chain marker is the fault.",
+    "expected": {
+      "description": "a chain can have only one marker",
+      "line": 2,
+      "column": 17
+    }
+  },
+  "notation/braces-two-separators.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 17,
+      "stage": "syntax",
+      "token": 6
+    }
+  },
+  "notation/braces-unclosed.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 3,
+      "column": 1,
+      "stage": "syntax",
+      "token": 5
+    }
+  },
+  "notation/canonical-name-concat-position.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 30,
+      "description": "an invalid or unknown string escape"
+    }
+  },
+  "notation/capture-around-braces.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 9,
+      "description": "a capture wraps one symbol"
+    }
+  },
+  "notation/capture-capital.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 9,
+      "description": "a capture name must use lowercase letters, digits, hyphens or underscores"
+    }
+  },
+  "notation/capture-choice-wraps.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 9,
+      "description": "a capture wraps one symbol"
+    }
+  },
+  "notation/capture-group.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 9,
+      "description": "a capture wraps one symbol"
+    }
+  },
+  "notation/capture-inner-capital.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 9,
+      "description": "a capture name must use lowercase letters, digits, hyphens or underscores"
+    }
+  },
+  "notation/capture-optional-wraps.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 9,
+      "description": "a capture wraps one symbol"
+    }
+  },
+  "notation/capture-order-syntax-first.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 3,
+      "column": 11,
+      "stage": "syntax",
+      "token": 10
+    }
+  },
+  "notation/capture-order-wraps-braces.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 9,
+      "description": "a capture wraps one symbol"
+    }
+  },
+  "notation/capture-twice-across-choices.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 23,
+      "description": "a route binds $x twice"
+    }
+  },
+  "notation/capture-twice-and.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 15,
+      "description": "a route binds $x twice"
+    }
+  },
+  "notation/capture-twice-earliest.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 25,
+      "description": "a route binds $y twice"
+    }
+  },
+  "notation/capture-twice-gated.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 20,
+      "description": "a route binds $x twice"
+    }
+  },
+  "notation/capture-twice-in-alternative.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 13,
+      "description": "a route binds $a twice"
+    }
+  },
+  "notation/capture-twice-many.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 302,
+      "description": "a route binds $c0 twice"
+    }
+  },
+  "notation/capture-twice-nested.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 31,
+      "description": "a route binds $x twice"
+    }
+  },
+  "notation/capture-twice-optional.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 17,
+      "description": "a route binds $x twice"
+    }
+  },
+  "notation/chain-in-and.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 9,
+      "description": "a chain must occupy a whole alternative"
+    }
+  },
+  "notation/chain-in-braces.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 11,
+      "description": "a chain must occupy a whole alternative"
+    }
+  },
+  "notation/chain-in-choice.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 11,
+      "description": "a chain must occupy a whole alternative"
+    }
+  },
+  "notation/chain-in-group.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 13,
+      "description": "a chain must occupy a whole alternative"
+    }
+  },
+  "notation/chain-in-optional.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 11,
+      "description": "a chain must occupy a whole alternative"
+    }
+  },
+  "notation/chain-in-parse-remainder.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 37,
+      "description": "a chain cannot be the query target"
+    }
+  },
+  "notation/chain-in-parse-right.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 35,
+      "description": "a chain cannot be the query target"
+    }
+  },
+  "notation/chain-in-parse.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 35,
+      "description": "a chain cannot be the query target"
+    }
+  },
+  "notation/chain-in-sequence.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 11,
+      "description": "a chain must occupy a whole alternative"
+    }
+  },
+  "notation/character-surrogate.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 10,
+      "description": "an invalid or unknown string escape"
+    }
+  },
+  "notation/concat-order-second-tag-before-scalar.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 24,
+      "description": "an invalid or unknown string escape"
+    }
+  },
+  "notation/concat-order-set-before-scalar.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 25,
+      "description": "an invalid or unknown string escape"
+    }
+  },
+  "notation/concat-order-tag-before-scalar.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 17,
+      "description": "an invalid or unknown string escape"
+    }
+  },
+  "notation/concat-order-unresolved-before-scalar.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 24,
+      "description": "an invalid or unknown string escape"
+    }
+  },
+  "notation/concat-reject-body-group-inline.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 17,
+      "stage": "syntax",
+      "token": 4
+    }
+  },
+  "notation/concat-reject-body-inline.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 16,
+      "stage": "syntax",
+      "token": 3
+    }
+  },
+  "notation/concat-reject-pattern-inline.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 17,
+      "stage": "syntax",
+      "token": 5
+    }
+  },
+  "notation/concat-reject-pattern-range-left-inline.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 17,
+      "stage": "syntax",
+      "token": 5
+    }
+  },
+  "notation/concat-reject-pattern-range-right-inline.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 22,
+      "stage": "syntax",
+      "token": 7
+    }
+  },
+  "notation/concat-reject-pattern-value-inline.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 19,
+      "stage": "syntax",
+      "token": 7
+    }
+  },
+  "notation/concat-reject-range-left-inline.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 16,
+      "stage": "syntax",
+      "token": 3
+    }
+  },
+  "notation/concat-reject-range-right-inline.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 21,
+      "stage": "syntax",
+      "token": 5
+    }
+  },
+  "notation/concat-reject-triple-plus.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 17,
+      "stage": "syntax",
+      "token": 4
+    }
+  },
+  "notation/concat-reject-value-capture-inline.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 18,
+      "stage": "syntax",
+      "token": 5
+    }
+  },
+  "notation/concat-reject-value-group.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 14,
+      "description": "a string operand needs a literal, constant or parameter"
+    }
+  },
+  "notation/concat-reject-value-grouped-constant.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 3,
+      "column": 14,
+      "description": "a string operand needs a literal, constant or parameter"
+    }
+  },
+  "notation/concat-reject-value-inline.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 18,
+      "stage": "syntax",
+      "token": 5
+    }
+  },
+  "notation/concat-reject-value-missing-inline.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 18,
+      "stage": "syntax",
+      "token": 5
+    }
+  },
+  "notation/const-name-lower-case.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 8,
+      "stage": "syntax",
+      "token": 1
+    }
+  },
+  "notation/deferred-fix1-capture-choice.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 4,
+      "column": 27,
+      "description": "a query cannot declare captures"
+    }
+  },
+  "notation/deferred-fix1-capture-optional.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 4,
+      "column": 24,
+      "description": "a query cannot declare captures"
+    }
+  },
+  "notation/deferred-fix1-capture-separator.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 4,
+      "column": 26,
+      "description": "a query cannot declare captures"
+    }
+  },
+  "notation/deferred-parse-capture.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 4,
+      "column": 21,
+      "description": "a query cannot declare captures"
+    }
+  },
+  "notation/deferred-parse-remainder-alone.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 4,
+      "column": 22,
+      "stage": "syntax",
+      "token": 11
+    }
+  },
+  "notation/deferred-parse-remainder-group.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 4,
+      "column": 24,
+      "stage": "syntax",
+      "token": 12
+    }
+  },
+  "notation/deferred-parse-remainder-interior.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 4,
+      "column": 25,
+      "stage": "syntax",
+      "token": 12
+    }
+  },
+  "notation/definition-order-across-definitions.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 13,
+      "description": "a route binds $x twice"
+    }
+  },
+  "notation/diagnostic-capture-duplicate.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 17,
+      "description": "a route binds $x twice"
+    }
+  },
+  "notation/diagnostic-capture-empty.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 12,
+      "description": "a capture wraps one symbol"
+    }
+  },
+  "notation/diagnostic-capture-group.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 12,
+      "description": "a capture wraps one symbol"
+    }
+  },
+  "notation/diagnostic-capture-name.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 12,
+      "description": "a capture name must use lowercase letters, digits, hyphens or underscores"
+    }
+  },
+  "notation/diagnostic-capture-repeat.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 13,
+      "description": "a chain item or separator cannot bind a capture directly"
+    }
+  },
+  "notation/diagnostic-directive-include.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 1,
+      "description": "%include takes one quoted path"
+    }
+  },
+  "notation/diagnostic-directive-resolution-count.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 30,
+      "stage": "syntax",
+      "token": 2
+    }
+  },
+  "notation/diagnostic-directive-resolution-type.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 23,
+      "stage": "syntax",
+      "token": 1
+    }
+  },
+  "notation/diagnostic-directive-stage-type.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 1,
+      "description": "%stage takes one stage name"
+    }
+  },
+  "notation/directive-include-name.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 3,
+      "column": 1,
+      "description": "%include takes one quoted path"
+    }
+  },
+  "notation/directive-stage-no-name.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 1,
+      "description": "%stage takes one stage name"
+    }
+  },
+  "notation/directive-stage-two-names.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 1,
+      "description": "%stage takes one stage name"
+    }
+  },
+  "notation/directive-tag-before-conversion.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 1,
+      "description": "%stage takes one stage name"
+    }
+  },
+  "notation/elidable-marker-repeated.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 16,
+      "stage": "syntax",
+      "token": 4
+    }
+  },
+  "notation/emit-epsilon-alone.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 19,
+      "stage": "syntax",
+      "token": 4
+    }
+  },
+  "notation/emoji-invalid-digit.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 7,
+      "stage": "syntax",
+      "token": 1
+    }
+  },
+  "notation/emoji-invalid-hash.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 7,
+      "stage": "syntax",
+      "token": 1
+    }
+  },
+  "notation/emoji-invalid-regional-indicator.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 7,
+      "stage": "lexical",
+      "token": 6
+    }
+  },
+  "notation/emoji-invalid-skin-tone.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 7,
+      "stage": "lexical",
+      "token": 6
+    }
+  },
+  "notation/emoji-invalid-text-presentation.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 7,
+      "stage": "lexical",
+      "token": 6
+    }
+  },
+  "notation/emoji-invalid-variation-selector.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 8,
+      "stage": "lexical",
+      "token": 7
+    }
+  },
+  "notation/emoji-invalid-zwj-sequence.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 8,
+      "stage": "lexical",
+      "token": 7
+    }
+  },
+  "notation/empty-final-block-open-comment.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 11,
+      "stage": "syntax",
+      "token": 2
+    }
+  },
+  "notation/empty-final-block-open-string.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 14,
+      "stage": "lexical",
+      "token": 14
+    }
+  },
+  "notation/error-capture-sequence.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 6,
+      "column": 9,
+      "description": "a capture wraps one symbol"
+    }
+  },
+  "notation/error-unknown-keyword.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 7,
+      "column": 1,
+      "stage": "syntax",
+      "token": 3
+    }
+  },
+  "notation/feature-condition-depth.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 1,
+      "description": "an expression, term or condition is nested more than 256 deep"
+    }
+  },
+  "notation/final-1-blank-lines-open-comment.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 11,
+      "stage": "syntax",
+      "token": 2
+    }
+  },
+  "notation/final-1-blank-lines-open-string.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 14,
+      "stage": "lexical",
+      "token": 14
+    }
+  },
+  "notation/final-2-blank-lines-open-comment.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 11,
+      "stage": "syntax",
+      "token": 2
+    }
+  },
+  "notation/final-2-blank-lines-open-string.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 6,
+      "column": 1,
+      "stage": "lexical",
+      "token": 15
+    }
+  },
+  "notation/flags-different-call.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 6,
+      "stage": "syntax",
+      "token": 1
+    }
+  },
+  "notation/flags-different-ordinary.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 6,
+      "stage": "syntax",
+      "token": 1
+    }
+  },
+  "notation/flags-duplicate-call.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 6,
+      "stage": "syntax",
+      "token": 1
+    }
+  },
+  "notation/flags-extend-call.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 13,
+      "stage": "syntax",
+      "token": 1
+    }
+  },
+  "notation/flags-unknown-call.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 6,
+      "stage": "syntax",
+      "token": 1
+    }
+  },
+  "notation/flags-unknown-pattern.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 6,
+      "stage": "syntax",
+      "token": 1
+    }
+  },
+  "notation/guard-pattern-sigil.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 9,
+      "stage": "syntax",
+      "token": 2
+    }
+  },
+  "notation/i276-captured-terminator-tail.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 19,
+      "stage": "syntax",
+      "token": 7
+    }
+  },
+  "notation/i276-comment-block-removed.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 23,
+      "stage": "syntax",
+      "token": 5
+    }
+  },
+  "notation/i276-conditions-after-diagnostic.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 33,
+      "stage": "syntax",
+      "token": 5
+    }
+  },
+  "notation/i276-diagnostic-after-suppression.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 38,
+      "stage": "syntax",
+      "token": 5
+    }
+  },
+  "notation/i276-diagnostic-both.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 29,
+      "stage": "syntax",
+      "token": 5
+    }
+  },
+  "notation/i276-splice-terminal.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 13,
+      "stage": "syntax",
+      "token": 3
+    }
+  },
+  "notation/i276-splice-whitespace.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 18,
+      "stage": "syntax",
+      "token": 4
+    }
+  },
+  "notation/i276-suppression-empty.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 32,
+      "stage": "syntax",
+      "token": 4
+    }
+  },
+  "notation/i276-suppression-mixed-wildcard.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 34,
+      "stage": "syntax",
+      "token": 5
+    }
+  },
+  "notation/include-tag-before-conversion.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 1,
+      "description": "%include takes one quoted path"
+    }
+  },
+  "notation/keyword-prefix.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 3,
+      "column": 1,
+      "stage": "syntax",
+      "token": 3
+    }
+  },
+  "notation/layered-pattern-36.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 3,
+      "column": 21,
+      "stage": "syntax",
+      "token": 20
+    }
+  },
+  "notation/layered-pattern-37.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 3,
+      "column": 21,
+      "stage": "syntax",
+      "token": 20
+    }
+  },
+  "notation/layered-pattern-38.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 3,
+      "column": 18,
+      "stage": "syntax",
+      "token": 18
+    }
+  },
+  "notation/layered-pattern-39.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 3,
+      "column": 18,
+      "stage": "syntax",
+      "token": 18
+    }
+  },
+  "notation/layered-pattern-40.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 3,
+      "column": 18,
+      "stage": "syntax",
+      "token": 18
+    }
+  },
+  "notation/layered-pattern-41.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 3,
+      "column": 18,
+      "stage": "syntax",
+      "token": 18
+    }
+  },
+  "notation/layered-pattern-42.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 3,
+      "column": 20,
+      "stage": "syntax",
+      "token": 20
+    }
+  },
+  "notation/layered-pattern-43.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 3,
+      "column": 24,
+      "stage": "syntax",
+      "token": 21
+    }
+  },
+  "notation/layered-pattern-44.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 3,
+      "column": 26,
+      "stage": "syntax",
+      "token": 22
+    }
+  },
+  "notation/layered-pattern-45.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 3,
+      "column": 24,
+      "stage": "syntax",
+      "token": 23
+    }
+  },
+  "notation/layered-pattern-46.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 3,
+      "column": 24,
+      "stage": "syntax",
+      "token": 23
+    }
+  },
+  "notation/layered-pattern-47.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 3,
+      "column": 23,
+      "stage": "syntax",
+      "token": 22
+    }
+  },
+  "notation/layered-pattern-48.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 3,
+      "column": 23,
+      "stage": "syntax",
+      "token": 22
+    }
+  },
+  "notation/layered-pattern-49.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 3,
+      "column": 23,
+      "stage": "syntax",
+      "token": 22
+    }
+  },
+  "notation/layered-pattern-50.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 3,
+      "column": 23,
+      "stage": "syntax",
+      "token": 22
+    }
+  },
+  "notation/layered-pattern-51.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 3,
+      "column": 18,
+      "stage": "syntax",
+      "token": 18
+    }
+  },
+  "notation/layered-pattern-52.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 3,
+      "column": 18,
+      "stage": "syntax",
+      "token": 18
+    }
+  },
+  "notation/layered-pattern-53.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 3,
+      "column": 18,
+      "stage": "syntax",
+      "token": 18
+    }
+  },
+  "notation/layered-pattern-54.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 3,
+      "column": 22,
+      "stage": "syntax",
+      "token": 20
+    }
+  },
+  "notation/layered-pattern-55.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 3,
+      "column": 21,
+      "stage": "syntax",
+      "token": 20
+    }
+  },
+  "notation/layered-pattern-56.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 3,
+      "column": 21,
+      "stage": "syntax",
+      "token": 20
+    }
+  },
+  "notation/layered-pattern-57.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 3,
+      "column": 24,
+      "stage": "syntax",
+      "token": 22
+    }
+  },
+  "notation/layered-pattern-58.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 3,
+      "column": 24,
+      "stage": "syntax",
+      "token": 21
+    }
+  },
+  "notation/layered-pattern-59.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 3,
+      "column": 20,
+      "stage": "syntax",
+      "token": 19
+    }
+  },
+  "notation/layered-pattern-60.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 3,
+      "column": 23,
+      "stage": "syntax",
+      "token": 21
+    }
+  },
+  "notation/layered-pattern-61.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 3,
+      "column": 19,
+      "description": "only a rule atom, call or parameter can have a child list"
+    }
+  },
+  "notation/layered-pattern-62.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 3,
+      "column": 19,
+      "description": "only a rule atom, call or parameter can have a child list"
+    }
+  },
+  "notation/layered-pattern-63.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 3,
+      "column": 25,
+      "description": "only a rule atom, call or parameter can have a child list"
+    }
+  },
+  "notation/layered-pattern-64.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 3,
+      "column": 22,
+      "description": "only a rule atom, call or parameter can have a child list"
+    }
+  },
+  "notation/layered-pattern-65.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 3,
+      "column": 21,
+      "description": "only a rule atom, call or parameter can have a child list"
+    }
+  },
+  "notation/layered-pattern-66.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 3,
+      "column": 20,
+      "description": "an operator needs one whole pattern"
+    }
+  },
+  "notation/layered-pattern-67.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 3,
+      "column": 21,
+      "description": "an operator needs one whole pattern"
+    }
+  },
+  "notation/layered-pattern-68.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 3,
+      "column": 20,
+      "description": "an operator needs one whole pattern"
+    }
+  },
+  "notation/layered-pattern-69.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 3,
+      "column": 24,
+      "stage": "syntax",
+      "token": 22
+    }
+  },
+  "notation/layered-pattern-70.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 3,
+      "column": 20,
+      "description": "an operator needs one whole pattern"
+    }
+  },
+  "notation/layered-pattern-72.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 3,
+      "column": 23,
+      "description": "a filter, value test and default must occur once in that order"
+    }
+  },
+  "notation/layered-pattern-73.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 3,
+      "column": 22,
+      "description": "a filter, value test and default must occur once in that order"
+    }
+  },
+  "notation/layered-pattern-82.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 3,
+      "column": 25,
+      "stage": "syntax",
+      "token": 22
+    }
+  },
+  "notation/layered-pattern-83.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 3,
+      "column": 19,
+      "stage": "syntax",
+      "token": 19
+    }
+  },
+  "notation/layered-pattern-84.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 3,
+      "column": 19,
+      "stage": "syntax",
+      "token": 19
+    }
+  },
+  "notation/layered-pattern-85.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 3,
+      "column": 18,
+      "stage": "syntax",
+      "token": 18
+    }
+  },
+  "notation/layered-pattern-86.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 3,
+      "column": 19,
+      "stage": "syntax",
+      "token": 19
+    }
+  },
+  "notation/lex-four-dots.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 11,
+      "stage": "syntax",
+      "token": 3
+    }
+  },
+  "notation/mark-body.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 12,
+      "description": "unknown or forbidden engine key _Elided"
+    }
+  },
+  "notation/marked-optional-concat-token.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 13,
+      "stage": "syntax",
+      "token": 3
+    }
+  },
+  "notation/marked-optional-nothing.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 13,
+      "stage": "syntax",
+      "token": 4
+    }
+  },
+  "notation/marked-optional-order-test-after.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 22,
+      "description": "a test applies to one symbol"
+    }
+  },
+  "notation/marked-optional-three-pluses.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 13,
+      "stage": "syntax",
+      "token": 4
+    }
+  },
+  "notation/marked-optional-two-markers.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 13,
+      "stage": "syntax",
+      "token": 4
+    }
+  },
+  "notation/notation-r5-value-operand-body-capture-equal.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 14,
+      "description": "a string operand needs a literal, constant or parameter"
+    }
+  },
+  "notation/notation-r5-value-operand-body-capture-unequal.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 14,
+      "description": "a string operand needs a literal, constant or parameter"
+    }
+  },
+  "notation/notation-r5-value-operand-body-empty-set-equal.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 14,
+      "description": "a string operand needs a literal, constant or parameter"
+    }
+  },
+  "notation/notation-r5-value-operand-body-empty-set-unequal.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 14,
+      "description": "a string operand needs a literal, constant or parameter"
+    }
+  },
+  "notation/notation-r5-value-operand-body-grouped-string-equal.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 14,
+      "description": "a string operand needs a literal, constant or parameter"
+    }
+  },
+  "notation/notation-r5-value-operand-body-grouped-string-unequal.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 14,
+      "description": "a string operand needs a literal, constant or parameter"
+    }
+  },
+  "notation/notation-r5-value-operand-body-grouped-union-equal.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 14,
+      "description": "a string operand needs a literal, constant or parameter"
+    }
+  },
+  "notation/notation-r5-value-operand-body-grouped-union-unequal.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 14,
+      "description": "a string operand needs a literal, constant or parameter"
+    }
+  },
+  "notation/notation-r5-value-operand-body-method-equal.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 14,
+      "description": "a string operand needs a literal, constant or parameter"
+    }
+  },
+  "notation/notation-r5-value-operand-body-method-unequal.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 14,
+      "description": "a string operand needs a literal, constant or parameter"
+    }
+  },
+  "notation/notation-r5-value-operand-body-pattern-equal.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 14,
+      "description": "a string operand needs a literal, constant or parameter"
+    }
+  },
+  "notation/notation-r5-value-operand-body-pattern-unequal.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 14,
+      "description": "a string operand needs a literal, constant or parameter"
+    }
+  },
+  "notation/notation-r5-value-operand-body-range-equal.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 14,
+      "description": "a string operand needs a literal, constant or parameter"
+    }
+  },
+  "notation/notation-r5-value-operand-body-range-unequal.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 14,
+      "description": "a string operand needs a literal, constant or parameter"
+    }
+  },
+  "notation/notation-r5-value-operand-body-tag-equal.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 14,
+      "description": "a string operand needs a literal, constant or parameter"
+    }
+  },
+  "notation/notation-r5-value-operand-body-tag-unequal.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 14,
+      "description": "a string operand needs a literal, constant or parameter"
+    }
+  },
+  "notation/notation-r5-value-operand-pattern-capture-equal.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 33,
+      "description": "a string operand needs a literal, constant or parameter"
+    }
+  },
+  "notation/notation-r5-value-operand-pattern-capture-unequal.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 33,
+      "description": "a string operand needs a literal, constant or parameter"
+    }
+  },
+  "notation/notation-r5-value-operand-pattern-empty-set-equal.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 33,
+      "description": "a string operand needs a literal, constant or parameter"
+    }
+  },
+  "notation/notation-r5-value-operand-pattern-empty-set-unequal.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 33,
+      "description": "a string operand needs a literal, constant or parameter"
+    }
+  },
+  "notation/notation-r5-value-operand-pattern-grouped-string-equal.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 33,
+      "description": "a string operand needs a literal, constant or parameter"
+    }
+  },
+  "notation/notation-r5-value-operand-pattern-grouped-string-unequal.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 33,
+      "description": "a string operand needs a literal, constant or parameter"
+    }
+  },
+  "notation/notation-r5-value-operand-pattern-grouped-union-equal.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 33,
+      "description": "a string operand needs a literal, constant or parameter"
+    }
+  },
+  "notation/notation-r5-value-operand-pattern-grouped-union-unequal.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 33,
+      "description": "a string operand needs a literal, constant or parameter"
+    }
+  },
+  "notation/notation-r5-value-operand-pattern-method-equal.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 33,
+      "description": "a string operand needs a literal, constant or parameter"
+    }
+  },
+  "notation/notation-r5-value-operand-pattern-method-unequal.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 33,
+      "description": "a string operand needs a literal, constant or parameter"
+    }
+  },
+  "notation/notation-r5-value-operand-pattern-pattern-equal.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 33,
+      "description": "a string operand needs a literal, constant or parameter"
+    }
+  },
+  "notation/notation-r5-value-operand-pattern-pattern-unequal.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 33,
+      "description": "a string operand needs a literal, constant or parameter"
+    }
+  },
+  "notation/notation-r5-value-operand-pattern-range-equal.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 33,
+      "description": "a string operand needs a literal, constant or parameter"
+    }
+  },
+  "notation/notation-r5-value-operand-pattern-range-unequal.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 33,
+      "description": "a string operand needs a literal, constant or parameter"
+    }
+  },
+  "notation/notation-r5-value-operand-pattern-tag-equal.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 33,
+      "description": "a string operand needs a literal, constant or parameter"
+    }
+  },
+  "notation/notation-r5-value-operand-pattern-tag-unequal.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 33,
+      "description": "a string operand needs a literal, constant or parameter"
+    }
+  },
+  "notation/pattern-duplicate-capture.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 24,
+      "description": "a route binds $y twice"
+    }
+  },
+  "notation/pattern-invalid-tested-optional.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 17,
+      "description": "a test applies to one symbol"
+    }
+  },
+  "notation/pattern-mark-terminal.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 35,
+      "description": "unknown or forbidden engine key _Elided"
+    }
+  },
+  "notation/pattern-native-depth.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 1,
+      "description": "an expression, term or condition is nested more than 256 deep"
+    }
+  },
+  "notation/pattern-rule-repeated-tags.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 39,
+      "description": "a filter, value test and default must occur once in that order"
+    }
+  },
+  "notation/postfix-ellipsis.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 11,
+      "stage": "syntax",
+      "token": 3
+    }
+  },
+  "notation/properties-invalid-spelling-00.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 12,
+      "description": "unknown or forbidden engine key _Script_Latn"
+    }
+  },
+  "notation/properties-invalid-spelling-01.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 12,
+      "description": "unknown or forbidden engine key _sc_Latin"
+    }
+  },
+  "notation/properties-invalid-spelling-02.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 12,
+      "description": "unknown or forbidden engine key _Script__Latin"
+    }
+  },
+  "notation/properties-invalid-spelling-03.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 12,
+      "description": "unknown or forbidden engine key _Bidi_Class_L"
+    }
+  },
+  "notation/properties-invalid-spelling-04.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 12,
+      "description": "unknown or forbidden engine key _lu"
+    }
+  },
+  "notation/properties-invalid-spelling-05.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 12,
+      "description": "unknown or forbidden engine key _Letter"
+    }
+  },
+  "notation/properties-invalid-spelling-06.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 12,
+      "description": "unknown or forbidden engine key _Uppercase_Letter"
+    }
+  },
+  "notation/properties-invalid-spelling-07.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 12,
+      "description": "unknown or forbidden engine key _LC"
+    }
+  },
+  "notation/properties-invalid-spelling-08.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 12,
+      "description": "unknown or forbidden engine key _gc_LC"
+    }
+  },
+  "notation/properties-invalid-spelling-09.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 12,
+      "description": "unknown or forbidden engine key _General_Category_Cased_Letter"
+    }
+  },
+  "notation/properties-invalid-spelling-10.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 12,
+      "description": "unknown or forbidden engine key _ccc_Above"
+    }
+  },
+  "notation/properties-invalid-spelling-11.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 12,
+      "description": "unknown or forbidden engine key _ccc_10"
+    }
+  },
+  "notation/properties-invalid-spelling-12.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 12,
+      "description": "unknown or forbidden engine key _Canonical_Combining_Class_10"
+    }
+  },
+  "notation/properties-invalid-spelling-13.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 12,
+      "description": "unknown or forbidden engine key _Other_Alphabetic"
+    }
+  },
+  "notation/properties-invalid-spelling-14.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 12,
+      "description": "unknown or forbidden engine key _Numeric_Value"
+    }
+  },
+  "notation/properties-invalid-spelling-15.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 12,
+      "description": "unknown or forbidden engine key _Age_15_1"
+    }
+  },
+  "notation/properties-invalid-spelling-16.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 12,
+      "description": "unknown or forbidden engine key _age_15_1"
+    }
+  },
+  "notation/properties-invalid-spelling-17.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 12,
+      "description": "unknown or forbidden engine key _Any"
+    }
+  },
+  "notation/property-long-name.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 11,
+      "description": "unknown or forbidden engine key _Letter"
+    }
+  },
+  "notation/property-lower-case.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 11,
+      "description": "unknown or forbidden engine key _lu"
+    }
+  },
+  "notation/property-malformed.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 9,
+      "description": "unknown or forbidden engine key _Letter"
+    }
+  },
+  "notation/property-unknown.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 11,
+      "description": "unknown or forbidden engine key _Foo"
+    }
+  },
+  "notation/range-ellipsis.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 13,
+      "stage": "syntax",
+      "token": 3
+    }
+  },
+  "notation/ranked-capture-group.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 12,
+      "description": "a capture wraps one symbol"
+    }
+  },
+  "notation/ranked-test-group.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 22,
+      "description": "a test applies to one symbol"
+    }
+  },
+  "notation/reader-order-capture-name-before-scalar.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 16,
+      "description": "an invalid or unknown string escape"
+    }
+  },
+  "notation/reader-order-grouped-terminal-scalar.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 14,
+      "description": "an invalid or unknown string escape"
+    }
+  },
+  "notation/reader-order-pattern-repeated-tag-before-engine-tag.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 49,
+      "description": "a filter, value test and default must occur once in that order"
+    }
+  },
+  "notation/reader-order-pattern-repeated-tag-before-scalar.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 36,
+      "description": "an invalid or unknown string escape"
+    }
+  },
+  "notation/reader-order-pattern-reversed-tests-before-scalar.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 36,
+      "description": "an invalid or unknown string escape"
+    }
+  },
+  "notation/reader-order-pattern-scalar-reference-tag.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 36,
+      "description": "an invalid or unknown string escape"
+    }
+  },
+  "notation/reader-order-pattern-scalar-reference-value.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 36,
+      "description": "an invalid or unknown string escape"
+    }
+  },
+  "notation/reader-order-prefixed-scalar-join-tag.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 46,
+      "description": "an invalid or unknown string escape"
+    }
+  },
+  "notation/reader-order-prefixed-scalar-join-value.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 46,
+      "description": "an invalid or unknown string escape"
+    }
+  },
+  "notation/reader-order-range-first-scalar-tag.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 13,
+      "description": "an invalid or unknown string escape"
+    }
+  },
+  "notation/reader-order-range-first-scalar-value.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 13,
+      "description": "an invalid or unknown string escape"
+    }
+  },
+  "notation/reader-order-range-last-scalar-tag.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 18,
+      "description": "an invalid or unknown string escape"
+    }
+  },
+  "notation/reader-order-range-last-scalar-value.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 18,
+      "description": "an invalid or unknown string escape"
+    }
+  },
+  "notation/reader-order-repeated-tag-before-scalar.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 13,
+      "description": "an invalid or unknown string escape"
+    }
+  },
+  "notation/reader-order-reversed-tests-before-scalar.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 13,
+      "description": "an invalid or unknown string escape"
+    }
+  },
+  "notation/reader-order-scalar-reference-tag.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 13,
+      "description": "an invalid or unknown string escape"
+    }
+  },
+  "notation/reader-order-scalar-reference-value.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 13,
+      "description": "an invalid or unknown string escape"
+    }
+  },
+  "notation/reader-order-target-before-group-scalar.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 14,
+      "description": "an invalid or unknown string escape"
+    }
+  },
+  "notation/reader-order-unknown-engine-tag-tag.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 12,
+      "description": "unknown or forbidden engine key _Bogus"
+    }
+  },
+  "notation/reader-order-unknown-engine-tag-value.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 12,
+      "description": "unknown or forbidden engine key _Bogus"
+    }
+  },
+  "notation/removed-scalar-constant.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 10,
+      "stage": "lexical",
+      "token": 9
+    }
+  },
+  "notation/retired-prefer.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 1,
+      "stage": "syntax",
+      "token": 0
+    }
+  },
+  "notation/string-escape-seven-digits.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 44,
+      "description": "an invalid or unknown string escape"
+    }
+  },
+  "notation/string-escape-surrogate.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 12,
+      "description": "an invalid or unknown string escape"
+    }
+  },
+  "notation/string-escape-too-large.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 10,
+      "description": "an invalid or unknown string escape"
+    }
+  },
+  "notation/template-duplicate-capture.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 28,
+      "description": "a route binds $y twice"
+    }
+  },
+  "notation/template-duplicate.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 22,
+      "description": "a route binds $x twice"
+    }
+  },
+  "notation/template-invalid-tested-optional.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 21,
+      "description": "a test applies to one symbol"
+    }
+  },
+  "notation/test-after-braces.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 15,
+      "description": "a test applies to one symbol"
+    }
+  },
+  "notation/test-after-empty.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 16,
+      "description": "a test applies to one symbol"
+    }
+  },
+  "notation/test-after-group.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 22,
+      "description": "a test applies to one symbol"
+    }
+  },
+  "notation/test-after-optional.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 19,
+      "description": "a test applies to one symbol"
+    }
+  },
+  "notation/test-operand-open.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 13,
+      "description": "a key requirement needs a tag, key-set constant or parameter"
+    }
+  },
+  "notation/test-operand-rule.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 13,
+      "description": "a key requirement needs a tag, key-set constant or parameter"
+    }
+  },
+  "notation/test-operand-string.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 13,
+      "description": "a key requirement needs a tag, key-set constant or parameter"
+    }
+  },
+  "notation/test-operand-tags.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 14,
+      "description": "a string operand needs a literal, constant or parameter"
+    }
+  },
+  "notation/test-property.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 26,
+      "description": "a key requirement needs a tag, key-set constant or parameter"
+    }
+  },
+  "notation/test-tag-forms.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 36,
+      "description": "a key requirement needs a tag, key-set constant or parameter"
+    }
+  },
+  "notation/test-twice.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 22,
+      "description": "a filter, value test and default must occur once in that order"
+    }
+  },
+  "notation/tree-pattern-prefix-first-refused.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 15,
+      "stage": "syntax",
+      "token": 4
+    }
+  },
+  "notation/tree-pattern-refused-01.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 15,
+      "stage": "syntax",
+      "token": 4
+    }
+  },
+  "notation/tree-pattern-refused-03.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 15,
+      "stage": "syntax",
+      "token": 4
+    }
+  },
+  "notation/tree-pattern-refused-04.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 15,
+      "stage": "syntax",
+      "token": 4
+    }
+  },
+  "notation/tree-pattern-refused-05.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 15,
+      "stage": "syntax",
+      "token": 4
+    }
+  },
+  "notation/tree-pattern-refused-06.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 15,
+      "stage": "syntax",
+      "token": 4
+    }
+  },
+  "notation/tree-pattern-refused-07.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 17,
+      "stage": "syntax",
+      "token": 5
+    }
+  },
+  "notation/tree-pattern-refused-08.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 17,
+      "stage": "syntax",
+      "token": 5
+    }
+  },
+  "notation/tree-pattern-refused-09.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 15,
+      "stage": "syntax",
+      "token": 4
+    }
+  },
+  "notation/tree-pattern-refused-11.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 15,
+      "stage": "syntax",
+      "token": 4
+    }
+  },
+  "notation/tree-pattern-refused-14.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 18,
+      "description": "a key requirement needs a tag, key-set constant or parameter"
+    }
+  },
+  "notation/tree-pattern-refused-15.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 15,
+      "stage": "syntax",
+      "token": 4
+    }
+  },
+  "notation/tree-pattern-refused-16.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 17,
+      "stage": "syntax",
+      "token": 5
+    }
+  },
+  "notation/tree-pattern-refused-17.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 15,
+      "stage": "syntax",
+      "token": 4
+    }
+  },
+  "notation/unknown-directive-after-lexical.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 9,
+      "stage": "lexical",
+      "token": 8
+    }
+  },
+  "notation/unknown-directive-after-syntax.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 9,
+      "stage": "syntax",
+      "token": 2
+    }
+  },
+  "notation/values-capture-binder-reader-order.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 9,
+      "description": "a capture wraps one symbol"
+    }
+  },
+  "notation/values-capture-constant-binder.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 9,
+      "description": "a capture name must use lowercase letters, digits, hyphens or underscores"
+    }
+  },
+  "notation/values-capture-double-tag-test.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 16,
+      "description": "a filter, value test and default must occur once in that order"
+    }
+  },
+  "notation/values-capture-engine-binder.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 19,
+      "stage": "syntax",
+      "token": 3
+    }
+  },
+  "notation/values-capture-free-modifier-test-order.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 16,
+      "description": "a filter, value test and default must occur once in that order"
+    }
+  },
+  "notation/values-capture-group.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 9,
+      "description": "a capture wraps one symbol"
+    }
+  },
+  "notation/values-capture-optional.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 9,
+      "description": "a capture wraps one symbol"
+    }
+  },
+  "notation/values-capture-value-before-tags.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 17,
+      "description": "a filter, value test and default must occur once in that order"
+    }
+  },
+  "notation/values-directive-name-method.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 1,
+      "description": "%stage takes one stage name"
+    }
+  },
+  "notation/values-directive-ranking-missing.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 22,
+      "stage": "syntax",
+      "token": 1
+    }
+  },
+  "notation/values-directive-separate-names.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 1,
+      "description": "%stage takes one stage name"
+    }
+  },
+  "notation/values-directive-underscore.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 1,
+      "description": "%stage takes one stage name"
+    }
+  },
+  "notation/values-engine-constant-declaration.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 8,
+      "stage": "syntax",
+      "token": 1
+    }
+  },
+  "notation/values-include-extra-operand.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 1,
+      "description": "%include takes one quoted path"
+    }
+  },
+  "notation/values-include-range-syntax.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 16,
+      "stage": "syntax",
+      "token": 2
+    }
+  },
+  "notation/values-invalid-engine-scalar.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 10,
+      "description": "an invalid or unknown string escape"
+    }
+  },
+  "notation/values-pattern-double-tag-test.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "line": 2,
+      "column": 32,
+      "description": "a filter, value test and default must occur once in that order"
+    }
+  }
+}

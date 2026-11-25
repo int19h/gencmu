@@ -43,6 +43,8 @@ function selected(record, pointer) {
 // These cases fail during source reading. The remaining grammar errors need
 // the format 50 loader to validate the DOM, stitch the stage or run the parse.
 const sourceErrors = new Map([
+  ["bare-and-zero/malformed", /duplicate direct write/],
+  ["singleton-repetition/malformed", /primary must mark a mandatory child/],
   ["ordered-deletion/malformed", /stage syntax/],
   ["synthetic-bare-read/malformed", /_Elided/],
   ["guarded-defaults/malformed", /explicit binder/],

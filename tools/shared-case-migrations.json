@@ -16,9 +16,9 @@
       "tokens": [
         {
           "text": "mi",
-          "value": "mi",
           "props": {
-            "W": true
+            "W": true,
+            "value": "mi"
           }
         }
       ]
@@ -59,9 +59,9 @@
       "tokens": [
         {
           "text": "x",
-          "value": "x",
           "props": {
-            "W": true
+            "W": true,
+            "value": "x"
           }
         }
       ],
@@ -81,9 +81,9 @@
       "tokens": [
         {
           "text": "x",
-          "value": "x",
           "props": {
-            "W": true
+            "W": true,
+            "value": "x"
           }
         }
       ],
@@ -103,9 +103,9 @@
       "tokens": [
         {
           "text": "x",
-          "value": "x",
           "props": {
-            "W": true
+            "W": true,
+            "value": "x"
           }
         }
       ],
@@ -125,9 +125,9 @@
       "tokens": [
         {
           "text": "x",
-          "value": "x",
           "props": {
-            "W": true
+            "W": true,
+            "value": "x"
           }
         }
       ],
@@ -147,9 +147,9 @@
       "tokens": [
         {
           "text": "x",
-          "value": "x",
           "props": {
-            "W": true
+            "W": true,
+            "value": "x"
           }
         }
       ],
@@ -169,9 +169,9 @@
       "tokens": [
         {
           "text": "x",
-          "value": "x",
           "props": {
-            "W": true
+            "W": true,
+            "value": "x"
           }
         }
       ],
@@ -191,9 +191,9 @@
       "tokens": [
         {
           "text": "x",
-          "value": "x",
           "props": {
-            "W": true
+            "W": true,
+            "value": "x"
           }
         }
       ],
@@ -259,9 +259,9 @@
       "tokens": [
         {
           "text": "mi",
-          "value": "mi",
           "props": {
-            "W": true
+            "W": true,
+            "value": "mi"
           }
         }
       ],
@@ -284,16 +284,16 @@
       "tokens": [
         {
           "text": "mi",
-          "value": "mi",
           "props": {
-            "W": true
+            "W": true,
+            "value": "mi"
           }
         },
         {
           "text": "do",
-          "value": "do",
           "props": {
-            "W": true
+            "W": true,
+            "value": "do"
           }
         }
       ],
@@ -329,16 +329,16 @@
       "tokens": [
         {
           "text": "ko'a",
-          "value": "ko'a",
           "props": {
-            "W": true
+            "W": true,
+            "value": "ko'a"
           }
         },
         {
           "text": "ko'e",
-          "value": "ko'e",
           "props": {
-            "W": true
+            "W": true,
+            "value": "ko'e"
           }
         }
       ],
@@ -545,6 +545,27 @@
         "%emit $c256, $c257{L}",
         "%rule e ^A → {M}",
         "%emit"
+      ]
+    },
+    "expectedNative": {
+      "outcome": "accept",
+      "assertions": [
+        {
+          "path": "/stages/0/output/0/props",
+          "equals": {
+            "M": true,
+            "image": "a",
+            "value": "a"
+          }
+        },
+        {
+          "path": "/stages/0/output/1/props",
+          "equals": {
+            "L": true,
+            "image": "a",
+            "value": "a"
+          }
+        }
       ]
     }
   },
@@ -878,5 +899,34 @@
   "notation/concat-classifier-key-dom.json": {
     "reason": "Keep the three references as separately positioned list items and retain the two joined constants.",
     "document": "```jbogenbau\n%const $JOIN-1 \"a\" ++ $B\n%const $GROUP (\"x\" ++ \"y\")\n%const $C {AB: [$K, $JOIN-1, $GROUP]}\n```\n"
+  },
+  "engine/values-pattern-omitted-empty-value.json": {
+    "reason": "The old pattern admits a written empty T and an omitted T with a saved value. Keep the two distinct routes.",
+    "fixture": {
+      "source": [
+        "%stage main",
+        "%ambiguity-resolution greedy",
+        "%rule text $x:c",
+        "%conditions $x ≅ #⁅ X T=\"\" ⁆ ∨ $x ≅ #⁅ X T<_Elided> ⁆",
+        "%rule c X [+T=\"v\"]"
+      ]
+    },
+    "expectedNative": {
+      "outcome": "accept"
+    }
+  },
+  "engine/elidable-table-unequal-empty.json": {
+    "reason": "The written inequality itself blocks omission with an empty default. Keep the value predicate on both the terminal and the pattern.",
+    "fixture": {
+      "source": [
+        "%stage main",
+        "%ambiguity-resolution late #·_<_Elided>",
+        "%rule text (A [+T≠\"\"]) | (A [+OTHER] [+OTHER]) | (A [+OTHER] [+OTHER] [+OTHER])",
+        "%conditions $ ≅ #⁅ A T=\"\" ⁆ ∨ $ ≅ #⁅ A OTHER OTHER [OTHER] ⁆"
+      ]
+    },
+    "expectedNative": {
+      "outcome": "accept"
+    }
   }
 }

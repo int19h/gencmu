@@ -12,7 +12,7 @@ The declarations contain the rule bodies and the clauses that belong to them. Th
   rule | ranking-directive | directive | constant-definition
 
 %rule rule
-  | rule-keyword rule-name "=" call
+  | rule-keyword (rule-name | call) "=" call
   | rule-keyword (rule-name | call) (body | statement-term headed-body)
     [conditions-clause] [diagnostic-clause] [suppress-warnings-clause] [output-clause]
 
@@ -104,8 +104,10 @@ Factors are symbols, groups and the operators that apply to them. A capture or p
   binding-token ":" "+" factor
 
 %rule repetition
-  "{" ["..."] choice ["/" choice] "}"
-  | "{" choice "..." ["/" choice] "}"
+  "{" [{"..."}] choice [{"..."}] [chain-separator] "}"
+
+%rule chain-separator
+  "/" [{"..."}] choice [{"..."}]
 
 %rule empty
   "ε"
@@ -411,7 +413,7 @@ A prefix gates or guards one entry. Commas separate entries at their own nesting
 
 A pattern starts with `#` and one node test, bare child list, or grouped predicate. An exact prefix suppresses the node test's single-child search.
 
-A pattern atom names a rule, terminal, constant, or wildcard. A tag test follows the atom, as in `#_<Tense>`. The reader converts it as [engine §9.3](../../../docs/engine.md#93-conversion-and-validation) says.
+A pattern atom names a rule, terminal, constant, or wildcard. A tag test follows the atom, as in `#_<Tense>`. The reader converts it as [engine §9.3](../../docs/engine.md#93-conversion-and-validation) says.
 
 The brackets `⁅` and `⁆` enclose child items. A child list attaches to the preceding atom. Only a rule name, emoji rule, template family, exact call, or compatible parameter accepts an attached list.
 

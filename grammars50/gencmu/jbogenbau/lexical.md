@@ -40,9 +40,21 @@ If a line comment begins or no name character follows, the name ends. This preve
   {value: $node.children!'value.join(),
    image: $node.children!'image.join()}
 %const $OUTPUTS
-  {Identifier, Lowercase-Name, Uppercase-Name, Call-Name, Parameter, Emoji-Name,
-   Capture, Constant, Constant-Call, String, Resource-Path, Integer, Engine-Tag,
-   Keyword, *$KEYWORDS.keys}
+  {Identifier,
+   Lowercase-Name,
+   Uppercase-Name,
+   Call-Name,
+   Parameter,
+   Emoji-Name,
+   Capture,
+   Constant,
+   Constant-Call,
+   String,
+   Resource-Path,
+   Integer,
+   Engine-Tag,
+   Keyword,
+   *$KEYWORDS.keys}
 ```
 
 ## The text
@@ -71,7 +83,7 @@ The left-recursive rule lets greedy ranking compare the length of each piece.
 
 A name starts with an ASCII letter. Letters, digits, hyphens and underscores can follow it. A name ends before a comment.
 
-An emoji name is one scalar with the required Unicode properties. Adjacent emoji names stay separate.
+An emoji name is one scalar with `Emoji_Presentation` and without `Emoji_Component`. Adjacent emoji names stay separate.
 
 A scalar can meet the rules for both an ASCII name and an emoji name. The ASCII token keeps its spelling and category.
 
@@ -374,7 +386,7 @@ The keyword table assigns a distinct key to each known keyword. An unknown keywo
 
 Compound punctuation takes priority over shorter pieces. The lexical stage leaves negation and question marks separate. The syntax stage joins them into gates where allowed.
 
-A single punctuation token can also carry the emoji name key. The number sign keeps its role as a pattern marker.
+The emoji-name rule emits an eligible punctuation scalar. Syntax rules can still match its value. The number sign keeps its role as a pattern marker.
 
 ```jbogenbau
 %rule punctuation

@@ -25,18 +25,24 @@ export class MigrationRequired extends Error {
   }
 }
 
-export function translateDom49(dom, unicode) {
+export function translateDom49(dom, unicode, uniqueConstants, omittedValues = new Set()) {
   if (dom.format !== 49) throw new Error("The translator requires a format 49 DOM.");
-  const printer = new Printer(dom, unicode);
+  const printer = new Printer(dom, unicode, uniqueConstants, omittedValues);
   return printer.document(dom);
 }
 
 class Printer {
-  constructor(dom, unicode) {
+  constructor(dom, unicode, uniqueConstants, omittedValues) {
     this.unicode = unicode;
-    this.constants = new Map(dom.constants.map(item => [item.name, item.value]));
+    this.constants = new Map(dom.constants
+      .filter(item => item.op === "define" &&
+        (uniqueConstants ? uniqueConstants.has(item.name) : dom.constants.filter(other => other.name === item.name).length === 1))
+      .map(item => [item.name, item.value]));
     this.valueTypes = new Map();
     this.classifiers = new Set();
+    this.spanReceiver = false;
+    this.repeated = new Set();
+    this.omittedValues = omittedValues;
   }
 
   hand(reason) {
@@ -78,8 +84,13 @@ class Printer {
     if (item.steps) return `%${item.name} ${item.steps.map(({ step, pattern }) =>
       pattern ? `${step} ${pattern.const ? this.term(pattern) : this.patternLiteral(pattern)}` : step).join(", ")}`;
     const values = ["include", "names"].includes(item.name) ? item.args.map(arg => this.quote(arg)) : item.args;
-    return [`%${item.name}`, ...values,
-      ...(item.conditions?.length ? ["%conditions", item.conditions.map(node => this.term(node)).join(", ")] : [])].join(" ");
+    this.spanReceiver = item.name === "features";
+    try {
+      return [`%${item.name}`, ...values,
+        ...(item.conditions?.length ? ["%conditions", item.conditions.map(node => this.term(node, "truth")).join(", ")] : [])].join(" ");
+    } finally {
+      this.spanReceiver = false;
+    }
   }
 
   constant(item) {
@@ -117,21 +128,30 @@ class Printer {
   }
 
   rule(item) {
+    this.repeated = new Set();
+    const findRepeated = (node, inList = false) => {
+      if (!node || typeof node !== "object") return;
+      if (node.capture !== undefined && inList) this.repeated.add(node.capture);
+      for (const [part, child] of Object.entries(node)) {
+        findRepeated(child, inList || (part === "repeat" || part === "separator") && !node.chain);
+      }
+    };
+    for (const alt of item.alternatives ?? []) findRepeated(alt.expr);
     const head = [keyword(item.op, "rule"), item.name].join(" ") +
       (item.params ? `(${item.params.map(param => "@" + param).join(", ")})` :
         item.args ? `(${item.args.map(arg => this.argument(arg)).join(", ")})` : "");
     if (item.instance) return `${head} = ${this.call(item.instance)}`;
     const headerTerm = this.ownerTerm(item);
     const attachment = item.emit?.items.length === 1 && item.emit.items[0];
-    const carrier = attachment && (attachment.before?.length || attachment.after?.length) &&
-      attachment.capture && this.ownerTerm(attachment) === undefined ? attachment.capture : undefined;
-    if (carrier) this.changes.push("Represent the attachment parts as children beside the primary. The selected node covers the whole rule.");
+    if (attachment && (attachment.before?.length || attachment.after?.length)) {
+      this.hand("Inspect the attachment cover and preserve its selected carrier, children and output strings.");
+    }
     const alternatives = item.alternatives.map(alt => {
       const term = this.ownerTerm(alt, item.image !== undefined);
-      const needPrimary = !carrier && bareSymbol(alt.expr) &&
+      const needPrimary = bareSymbol(alt.expr) &&
         (headerTerm !== undefined || term !== undefined) && item.tags === undefined && alt.tags === undefined;
       const parent = item.alternatives.length > 1 && alt.expr.ranked ? "choice" : undefined;
-      const body = (needPrimary ? "^" : "") + this.body(alt.expr, parent, carrier);
+      const body = (needPrimary ? "^" : "") + this.body(alt.expr, parent);
       return [...alt.gates.map(gate), body, ...(term === undefined ? [] : ["→", term])].join(" ");
     });
     const lines = [head + (headerTerm === undefined ? "" : ` → ${headerTerm}`)];
@@ -140,16 +160,23 @@ class Printer {
     } else {
       lines[0] += ` ${alternatives[0]}`;
     }
-    if (item.conditions.length) lines.push(`%conditions ${item.conditions.map(node => this.term(node)).join(", ")}`);
+    if (item.conditions.length) lines.push(`%conditions ${item.conditions.map(node => this.term(node, "truth")).join(", ")}`);
     if (item.error) lines.push(`%error ${this.term(item.error)}`);
     if (item.warning) lines.push(`%warning ${this.term(item.warning)}`);
     if (item.suppressWarnings) lines.push(`%suppress-warnings ${item.suppressWarnings.join(", ")}`);
     if (item.erased) lines.push("%erased");
-    if (item.emit) lines.push(carrier ? "%emit" : this.emission(item.emit));
+    if (item.emit) {
+      const whole = !item.emit.items.length || item.emit.items.some(output => output.capture === "");
+      if (whole && item.tags === undefined && item.alternatives.some(alt => alt.tags === undefined &&
+          (alt.expr.repeat || alt.expr.optional || alt.expr.ranked || alt.expr.and))) {
+        this.hand("A singleton route can inherit keys in the old publication. Establish its format 50 bag and cover.");
+      }
+      lines.push(this.emission(item.emit));
+    }
     return lines.join("\n");
   }
 
-  ownerTerm(owner, inheritedImage = false) {
+  ownerTerm(owner, inheritedImage = false, insertion = false) {
     const entries = [];
     const direct = new Set();
     for (const entry of owner.tags === undefined ? [] : this.tagEntries(owner.tags)) {
@@ -161,6 +188,10 @@ class Printer {
     } else {
       if (owner.value) entries.push(`value: ${this.term(owner.value)}`);
       if (owner.image) entries.push(`image: ${this.term(owner.image)}`);
+    }
+    if (insertion) {
+      if (!owner.value && !owner.image) entries.push('image: value: ""');
+      else if (!owner.value) entries.push('value: ""');
     }
     return owner.tags !== undefined || entries.length ? bag(entries) : undefined;
   }
@@ -186,8 +217,8 @@ class Printer {
     if (items.length === 0 || items.length === 1 && only.capture === "" && this.ownerTerm(only) === undefined) return "%emit";
     return `%emit ${items.map(item => {
       if (item.before?.length || item.after?.length) this.hand("Move attachment captures into the selected node or its children.");
-      const term = this.ownerTerm(item);
-      if (item.insert) return `ε${term ?? bag(['image: value: ""'])}`;
+      const term = this.ownerTerm(item, false, item.insert);
+      if (item.insert) return `ε${term}`;
       if (item.tags !== undefined) return `$${item.capture}${term}`;
       const entries = [`*$${item.capture}`];
       if (item.value && !item.image) entries.push(`image: value: ${this.term(item.value)}`);
@@ -233,7 +264,9 @@ class Printer {
   }
 
   elidable(node) {
-    if (node.test === "=" && node.value.string === "" && !node.expr.test) return `${this.body(node.expr)}<_Elided>`;
+    if (node.test && node.value?.string === "") {
+      this.hand("Distinguish the head's written empty value from its omitted origin before migrating the test.");
+    }
     return this.body(node);
   }
 
@@ -265,6 +298,9 @@ class Printer {
     if (node.tag) return node.tag;
     if (node.test || node.range || node.wildcard || node.splice || node.call || node.param) return this.body(node);
     if (node.string !== undefined || node.const && this.type(node) === "string") return this.operand(node);
+    if (node.const && this.type(node) === "any") {
+      this.hand(`Resolve $${node.const} at the argument's stage and version before choosing its category.`);
+    }
     return `= ${this.term(node)}`;
   }
 
@@ -277,19 +313,18 @@ class Printer {
   }
 
   pattern(node) {
-    // Empty string tests on written terminals have a distinct origin test.
-    const rewrite = value => {
-      if (Array.isArray(value)) return value.map(rewrite);
-      if (!value || typeof value !== "object") return value;
-      if ((value.test === "=" || value.test === "≠") && value.value.string === "" &&
-          (value.expr.terminal || value.expr.wildcard)) {
-        const { exact, ...expr } = value.expr;
-        return { test: "tags", requirements: [{ negated: value.test === "≠", value: { tag: "_Elided" } }],
-          expr, ...(value.exact && { exact: true }) };
+    const pending = [node];
+    while (pending.length) {
+      const part = pending.pop();
+      if (!part || typeof part !== "object") continue;
+      if ((part.test === "=" || part.test === "≠") && part.value.string === "" &&
+          (this.omittedValues.has("*") || this.omittedValues.has(part.expr.terminal) ||
+            part.expr.wildcard && this.omittedValues.size)) {
+        this.hand("The pattern can see a written empty value or an omission with a saved value. Choose the intended operands.");
       }
-      return Object.fromEntries(Object.entries(value).map(([key, child]) => [key, rewrite(child)]));
-    };
-    return layeredPatternText(rewrite(node), item => {
+      for (const child of Object.values(part)) pending.push(child);
+    }
+    return layeredPatternText(node, item => {
       if (item.call) return this.call(item);
       if (item.name || item.terminal) return item.name ?? item.terminal;
       if (item.constant) return "$" + item.constant;
@@ -301,7 +336,7 @@ class Printer {
   term(node, context = "") {
     if (node.capture !== undefined || node.captured !== undefined) {
       const capture = `$${node.capture ?? node.captured}`;
-      return context === "string" ? `${capture}.span.tokens!'value.join()` : capture;
+      return context === "string" ? this.stringRead(capture, node, "value") : capture;
     }
     if (node.tag) return bag([node.tag]);
     if (node.const) return `$${node.const}`;
@@ -340,6 +375,9 @@ class Printer {
   }
 
   stringList(node) {
+    if (node.if && this.type(node.then) === "string") {
+      return list([`(${this.term(node.if, "truth")})? ${this.term(node.then, "string")}`]);
+    }
     return this.type(node) === "string" ? list([this.term(node, "string")]) : this.term(node, "strings");
   }
 
@@ -379,9 +417,7 @@ class Printer {
   method({ method, receiver, args }) {
     if (method === "value" || method === "image") {
       if (receiver.method === "emitted") return `${this.term(receiver.receiver)}'${method}`;
-      const base = this.term(receiver);
-      const span = SPAN_METHODS.has(receiver.method) ? base : `${base}.span`;
-      return `${span}.tokens!'${method}.join()`;
+      return this.stringRead(this.term(receiver), receiver, method);
     }
     if (method === "classify") return `$${classifierName(args[0].classifier)}.classify(${this.term(receiver, "string")})`;
     if (method === "parse") return `${this.term(receiver)}.parse(${this.body(args[0].body)})`;
@@ -393,5 +429,14 @@ class Printer {
     const operands = args.map(arg => arg.rule || arg.terminal || arg.call || arg.param ? this.target(arg) : this.term(arg));
     const separator = ["followed-by", "preceded-by"].includes(method) ? " | " : ", ";
     return `${this.term(receiver)}.${method}${operands.length ? `(${operands.join(separator)})` : ""}`;
+  }
+
+  stringRead(base, receiver, channel) {
+    const capture = receiver.capture ?? receiver.captured;
+    if (this.repeated.has(capture)) {
+      this.hand(`Resolve the ordered string read on repeated capture $${capture}.`);
+    }
+    const span = SPAN_METHODS.has(receiver.method) || this.spanReceiver && capture === "" ? base : `${base}.span`;
+    return `${span}.tokens!'${channel}.join()`;
   }
 }

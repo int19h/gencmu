@@ -10,6 +10,7 @@ import { GencmuError } from "../lib/js/src/errors.js";
 import { NamesScope } from "../lib/js/src/unicode-names.js";
 import { DocumentStrings } from "../lib/js/src/string-escapes.js";
 import { fnv1a64 } from "../lib/js/src/hash.js";
+import { compareCodePoints } from "../lib/js/src/tags.js";
 import { DomBuilder } from "./transition/dom.js";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
@@ -24,28 +25,28 @@ export function readFile(file) {
   }
 }
 
-export function createTransitionCompiler(read = file => readFile(path.join(root, file))) {
+export function createTransitionCompiler(read) {
   const bundled = file => readFile(path.join(root, file));
   const loader = new Loader(bundled);
   const transition = loader.pipeline("tools/transition/pipeline.md");
   const unicodePath = "data/unicode/unicode.txt";
   const propertiesPath = "data/unicode/unicode-properties.txt";
-  const bundledUnicode = bundled(unicodePath);
-  const bundledProperties = bundled(propertiesPath);
-  const sourceUnicode = read(unicodePath) ?? bundledUnicode;
-  const sourceProperties = read(propertiesPath) ?? bundledProperties;
-  const customCore = sourceUnicode !== bundledUnicode;
+  const sourceUnicode = read?.(unicodePath);
+  const sourceProperties = read?.(propertiesPath);
   // The old reader needs the bundled table to load the compiler's own source.
   // The source being compiled can use a table supplied with that source.
-  const unicode = customCore || sourceProperties !== bundledProperties
-    ? new UnicodeTable(sourceUnicode, customCore && sourceProperties === bundledProperties ? undefined : sourceProperties)
+  const unicode = sourceUnicode !== undefined || sourceProperties !== undefined
+    ? new UnicodeTable(sourceUnicode ?? bundled(unicodePath), sourceProperties)
     : loader.unicode;
   const pipeline = unicode === loader.unicode ? transition
     : new Pipeline(transition.path, transition.stages, { unicode });
-  const need = file => {
+  const resource = file => {
     const bundledNames = "data/unicode/unicode-names.txt";
-    const text = read(file) ?? (file === bundledNames || file === "data/unicode/unicode-names-reference.txt"
+    return read?.(file) ?? (file === bundledNames || file === "data/unicode/unicode-names-reference.txt"
       ? bundled(bundledNames) : undefined);
+  };
+  const need = file => {
+    const text = resource(file);
     if (text === undefined) throw new GencmuError("grammar", "the resource was not found", { document: file });
     return text;
   };
@@ -72,30 +73,56 @@ export function createTransitionCompiler(read = file => readFile(path.join(root,
     return { hash: fnv1a64(markdown), ...(names.dependencies && { names: names.dependencies }), dom };
   }
 
-  function compilePipeline(entry) {
+  function pipelineReadings(entry) {
     const documents = new Map();
-    const active = new Set();
-    const visit = (document, inherited) => {
-      if (active.has(document)) throw new GencmuError("grammar", "include cycle", { document });
-      const compiled = documentEntry(need(document), document, inherited);
-      const previous = documents.get(document);
-      if (previous && JSON.stringify(previous) !== JSON.stringify(compiled)) {
-        throw new GencmuError("grammar", "this include produces different records in two names scopes", { document });
+    const active = [];
+    const reached = new Set();
+    const target = (document, directive) => {
+      try {
+        return resolvePath(document, directive.args[0]);
+      } catch (error) {
+        if (!(error instanceof GencmuError)) throw error;
+        throw new GencmuError(error.kind, error.description,
+          { document, line: directive.at[0], column: directive.at[1] });
       }
-      if (previous) return;
-      documents.set(document, compiled);
-      active.add(document);
+    };
+    const visit = (document, inherited, from) => {
+      const chain = () => [...active, document].join(" → ");
+      if (active.includes(document)) {
+        throw new GencmuError("grammar", `${document} includes itself (${chain()})`, from);
+      }
+      const identity = JSON.stringify([document, inherited]);
+      if (reached.has(identity)) return;
+      const text = read ? read(document) : bundled(document);
+      if (text === undefined) {
+        throw new GencmuError("grammar", `${document} was not found (${chain()})`, from ?? { document });
+      }
+      const compiled = documentEntry(text, document, inherited);
+      reached.add(identity);
+      if (!documents.has(document)) documents.set(document, []);
+      documents.get(document).push({ inherited, entry: compiled });
+      active.push(document);
       const names = [...inherited, ...compiled.dom.directives.filter(item => item.name === "names")
-        .map(item => resolvePath(document, item.args[0]))];
+        .map(item => target(document, item))];
+      const scope = [...new Set(names)].sort(compareCodePoints);
       for (const directive of compiled.dom.directives) {
-        if (directive.name === "include") visit(resolvePath(document, directive.args[0]), names);
+        if (directive.name === "include") visit(target(document, directive), scope,
+          { document, line: directive.at[0], column: directive.at[1] });
       }
-      active.delete(document);
+      active.pop();
     };
     visit(entry, []);
-    return Object.fromEntries([...documents].sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0));
+    return new Map([...documents].sort(([a], [b]) => compareCodePoints(a, b)));
   }
-  return { compileDocument, compilePipeline, documentEntry, unicode };
+
+  function compilePipeline(entry) {
+    return Object.fromEntries([...pipelineReadings(entry)].map(([file, readings]) => {
+      const first = readings[0].entry;
+      return [file, readings.every(reading => JSON.stringify(reading.entry) === JSON.stringify(first)) ?
+        first : { readings }];
+    }));
+  }
+  return { compileDocument, compilePipeline, pipelineReadings, documentEntry, unicode };
 }
 
 function main() {
@@ -107,7 +134,7 @@ function main() {
   const relative = path.relative(root, absolute);
   const base = relative.startsWith("../") ? path.dirname(absolute) : root;
   const key = path.relative(base, absolute);
-  const read = resource => readFile(path.join(base, resource)) ?? readFile(path.join(root, resource));
+  const read = resource => readFile(path.join(base, resource));
   const compiler = createTransitionCompiler(read);
   const text = read(key);
   if (text === undefined) throw new Error(`${file}: the document was not found`);

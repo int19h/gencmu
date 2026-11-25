@@ -249,7 +249,7 @@ if (part === "sources") {
   };
   const bundles = JSON.parse(read(manifestPath));
   checkSources(cacheDocuments(existing(bundles["49"].cacheRoot)),
-    cacheDocuments(existing(bundles["50"].cacheRoot)), new Loader(read));
+    notation50Resources(root).sourceDocuments, new Loader(read));
   console.log("source checks passed");
   process.exit(0);
 }
@@ -301,7 +301,7 @@ function generate50(grammar50) {
   let moved50 = false;
   for (const file of grammar50.sources.filter(file => file.endsWith(".md"))) {
     const text = fs.readFileSync(path.join(root, file), "utf8");
-    const dom = grammar50.documents[file]?.dom ?? grammar50.compiler.compileDocument(text, file);
+    const dom = grammar50.sourceDocuments[file].dom;
     const relative = file.slice(grammar50.bundle.sourceRoot.length + 1);
     const { text: next, files } = withDiagrams(relative, text, dom, new Map(), "50");
     formatted50.set(file, next);
@@ -342,6 +342,11 @@ function generate50(grammar50) {
     if (!check) fs.unlinkSync(path.join(root, file));
   }
   for (const [file, text] of caches50) write(`lib/js/${file}`, text);
+  for (const file of existing(`lib/js/${resources50.bundle.cacheRoot}`)) {
+    if (caches50.has(file.slice("lib/js/".length))) continue;
+    stale.push(file);
+    if (!check) fs.unlinkSync(path.join(root, file));
+  }
   write(`lib/js/${manifestPath}`, fs.readFileSync(path.join(root, manifestPath), "utf8"));
 
   for (const [file, text] of diagrams50) write(file, text);
@@ -560,9 +565,5 @@ for (const item of syncVendorEditor({ checkMode: check, basicEditor })) {
   stale.push(item);
 }
 
-if (part !== "generated") {
-  const documents50 = {};
-  for (const text of caches50.values()) Object.assign(documents50, JSON.parse(text).documents);
-  checkSources(documents, documents50, loader);
-}
+if (part !== "generated") checkSources(documents, resources50.sourceDocuments, loader);
 finish();

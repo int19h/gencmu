@@ -1,6 +1,6 @@
 # Transition lexer
 
-Reads the tokens of the tree emission notation.
+The lexer reads one token or layout piece at a time. The left-recursive text rule lets greedy ranking compare piece lengths.
 
 ```jbogenbau
 %ambiguity-resolution greedy
@@ -14,6 +14,13 @@ Reads the tokens of the tree emission notation.
   | constant-token | constant-call-token | include-directive | names-directive | keyword
   | integer | punctuation | layout
 
+```
+
+## Names and numbers
+
+Names end before layout or comments. A name immediately before an opening parenthesis can act as a call name.
+
+```jbogenbau
 %rule emoji-name
   _Emoji_Presentation<¬_Emoji_Component>≠"#"
 %conditions
@@ -68,6 +75,13 @@ Reads the tokens of the tree emission notation.
   "A".."Z"
   | upper-initial-name name-character
 
+```
+
+## Engine keys
+
+An underscore alone is a wildcard. The key rule consumes the full name, including a dot between digits.
+
+```jbogenbau
 %rule wildcard
   "_"
 %conditions
@@ -93,6 +107,13 @@ Reads the tokens of the tree emission notation.
 %conditions
   $.following-tokens.parse(digit …)
 
+```
+
+## Calls and binders
+
+A call name ends just before its opening parenthesis. Parameter and capture prefixes distinguish the two kinds of binders.
+
+```jbogenbau
 %rule call-name
   lower-initial-name
   | $emoji:_Emoji_Presentation<¬_Emoji_Component>≠"#"
@@ -131,6 +152,13 @@ Reads the tokens of the tree emission notation.
 %emits
   $ :: Constant-Call
 
+```
+
+## Strings and resources
+
+A quoted string keeps layout and comment characters inside the quotes. Include and names directives tag their path as a resource.
+
+```jbogenbau
 %rule string
   quoted-string
 %emits
@@ -165,6 +193,13 @@ Reads the tokens of the tree emission notation.
 %rule resource-path
   quoted-string
 
+```
+
+## Layout
+
+Whitespace and comments separate tokens. The lexer emits no token for layout.
+
+```jbogenbau
 %rule layout-run
   layout | layout-run layout
 
@@ -181,6 +216,13 @@ Reads the tokens of the tree emission notation.
 %conditions
   $.value ∉ ("‹U+000A›" "‹U+000D›")
 
+```
+
+## Keywords
+
+The classifier gives known directives distinct keys. An unknown percent name stays a keyword so the syntax stage can reject it.
+
+```jbogenbau
 %classifier keywords
   "rule" ∈ KW-RULE
   "redefine-rule" ∈ KW-REDEFINE-RULE
@@ -213,6 +255,13 @@ Reads the tokens of the tree emission notation.
 %emits
   $
 
+```
+
+## Punctuation
+
+The longest compound operator wins. The emoji name rule emits eligible single punctuation scalars, and the syntax stage can still match their value.
+
+```jbogenbau
 %rule punctuation
   | "⁅" | "⁆" | "·" | "…" | "*" | "|" | "&" | "(" | ")" | "[" | "]" | "{" | "}"
   | "/" | "+" | "<" | ">" | "#" | "ε" | "," | "∧" | "∨" | "⟹" | "=" | "∈" | "⊆"

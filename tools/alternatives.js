@@ -883,6 +883,48 @@ function unbreakable(line) {
   return /^\s*"(?:[^"\\]|\\.)*"\s*$/u.test(line);
 }
 
+function format50ClauseProblems(markdown, dom, path) {
+  const lines = splitLines(markdown);
+  const problems = [];
+  const walk = [dom];
+  while (walk.length) {
+    const node = walk.pop();
+    if (!node || typeof node !== "object") continue;
+    const entries = node.bag ?? node.list ?? node.emit?.items;
+    if (entries) {
+      const starts = entries.map(entry => entry.at?.[0]).filter(Boolean);
+      if (new Set(starts).size > 1) {
+        for (const [index, line] of starts.entries()) {
+          if (line === starts[index - 1]) problems.push(`${path}:${line}: put one entry on each line of a long constructor`);
+        }
+      }
+    }
+    for (const child of Object.values(node)) walk.push(child);
+  }
+  const { text, positions } = extractGrammarText(markdown, path, unicode);
+  const physical = new Set(positions.map(([line]) => line));
+  const conditionStart = /^\s*%conditions\b/;
+  const operator = /(?:[∧∨⟹∪∩∖≠≤≥≅≇∈∉⊆⊈=<>+]|\|)\s*$/u;
+  for (let index = 0; index < lines.length; index++) {
+    const line = lines[index];
+    if (!physical.has(index + 1) || !conditionStart.test(line)) continue;
+    let start = line.replace(conditionStart, "").trim() ? line.indexOf("%conditions") + "%conditions".length + 1 : null;
+    let previous = line;
+    for (let next = index + 1; next < lines.length && physical.has(next + 1); next++) {
+      const content = lines[next];
+      if (/^\s*%/.test(content)) break;
+      if (!content.trim() || /^\s*--/.test(content)) continue;
+      const indent = content.search(/\S/);
+      if (start === null || previous.trimEnd().endsWith(",")) start = indent;
+      else if (operator.test(previous) && indent < start + 2) {
+        problems.push(`${path}:${next + 1}: indent a continued condition at least two columns past its start`);
+      }
+      previous = content;
+    }
+  }
+  return problems;
+}
+
 /**
  * The layout problems of a document, for every rule with an alternative.
  * Each message names the file, the line and the rule. A line that holds
@@ -896,7 +938,7 @@ function unbreakable(line) {
 export function layoutProblems(markdown, dom, path, limit = LINE_LIMIT) {
   const lines = splitLines(markdown);
   /** @type {string[]} */
-  const problems = dom.format === 50 ? [] : clauseLayoutProblems(markdown, dom, path);
+  const problems = dom.format === 50 ? format50ClauseProblems(markdown, dom, path) : clauseLayoutProblems(markdown, dom, path);
   if (dom.format !== 50) for (const problem of clauseTermProblems(markdown, dom, path)) problems.push(problem);
   for (const problem of commentLayoutProblems(markdown, path)) problems.push(problem);
   const { text, positions } = extractGrammarText(markdown, path, unicode);

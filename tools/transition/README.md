@@ -8,11 +8,16 @@ Run a command from the repository root.
 node tools/transition-compiler.js document PATH
 node tools/transition-compiler.js pipeline PATH
 node tools/write-bootstrap50.js
+node tools/check-seed50.js
 ```
 
-The document command prints one format 50 DOM. The pipeline command prints the documents that the pipeline includes, with their source fingerprints. The bootstrap command writes the required seed and prints its SHA-256 digest.
+The document command prints one format 50 DOM. The pipeline command prints the documents that the pipeline includes, with their source fingerprints. If a document has different readings, the command prints each entry with its inherited names files.
+
+The bootstrap command writes the required seed and prints its SHA-256 digest. The seed check compares the package copy and inspects the method calls and property selectors.
 
 The JavaScript package ships two source roots. The bundle manifest names each root, its bootstrap and its cache directory.
+
+A cache omits a document with different readings. Diagrams use the first reading in pipeline and include order. The layout check includes documents that have no cache entry.
 
 Run `node tools/sync.js` to update generated resources. Use these commands to test the generated files and source checks in separate runs.
 
@@ -38,5 +43,8 @@ The optional start and count select a slice of the sorted case filenames. Each o
 
 - `translated` includes the source and any changes that the printer made.
 - `hand-migrated` uses the written translation in `tools/shared-case-migrations.json`.
-- `old` keeps the existing case in its format 49 runner.
+- `retained-negative` or `portable-negative` gives a format 50 counterpart and preserves the old test.
+- `retired` names the removed construct that the old test exercises.
+- `deferred` names the bundled pipeline that still needs its format 50 migration.
+- `needs-negative` records a format 49 error that still needs an assessed counterpart or retirement.
 - `needs-hand` names a source decision that needs a written translation.
