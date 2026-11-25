@@ -38,7 +38,7 @@ declare function validateClosedTypes(root: any, fail: any, { closed, slots, trut
     truth?: boolean | undefined;
     whole?: string | undefined;
 }): void;
-export declare function validateDeclarationShape50(declaration: any, fail: any, unicode: any, emptyDelimiters?: any[]): void;
+export declare function validateDeclarationShape50(category: any, declaration: any, fail: any, unicode: any, emptyDelimiters?: any[]): void;
 /** @param {DocumentValidation} [configuration] */
 export declare function validateDocumentShape50(dom: any, configuration?: DocumentValidation): void;
 /** @param {DocumentValidation} [configuration] */

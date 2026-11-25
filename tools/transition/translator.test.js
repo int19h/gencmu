@@ -614,3 +614,22 @@ test("the translator finishes a nested body argument before its sibling", () => 
     if (at) assert.deepEqual(moved.at, at);
   }
 });
+
+test("the translator keeps rule edits named like directives in their stage", () => {
+  const names = ["names", "include", "stage", "features", "elision-only",
+    "ambiguity-resolution", "extend-stage", "redefine-stage"];
+  const grammar = names.flatMap(name => [
+    `%rule ${name}(@X) @X`,
+    `%extend-rule ${name}(A) B [+T ≝ "end"]`,
+  ]).concat("%rule text B").join("\n");
+  const result = translateSharedCase("engine", "rule-edits-named-like-directives", { grammar });
+  assert.equal(result.status, "translated");
+  const dom = compiler.compileDocument(result.fixture.documents["main.md"]);
+  const edits = dom.rules.filter(rule => rule.op === "extend");
+  assert.deepEqual(edits.map(rule => rule.name), names);
+  assert.deepEqual(dom.directives.map(directive => directive.name), ["ambiguity-resolution"]);
+  for (const edit of edits) {
+    const value = edit.alternatives[0].term.bag.find(entry => entry.keys?.includes("value")).value;
+    assert.equal(value.receiver.map.receiver.method, "span");
+  }
+});

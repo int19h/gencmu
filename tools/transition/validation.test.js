@@ -787,3 +787,38 @@ for (const [source, message, line, column] of [
     }
   });
 }
+
+for (const name of ["names", "include", "stage", "features", "elision-only",
+  "ambiguity-resolution", "extend-stage", "redefine-stage"]) {
+  test(`directive spelling ${name} can name a rule template and feature`, () => {
+    const dom = read([
+      '%names "data/unicode/unicode-names.txt"',
+      "%stage main",
+      `%features ${name}`,
+      "%ambiguity-resolution greedy",
+      `%rule ${name}(@X) @X`,
+      `%extend-rule ${name}(A) B`,
+      `%redefine-rule ${name}(C) D`,
+      `%rule text ${name}(A)`,
+    ].join("\n"));
+    assert.deepEqual(dom.directives.map(directive => directive.name),
+      ["names", "stage", "features", "ambiguity-resolution"]);
+    assert.deepEqual(dom.directives[2].args, [name]);
+    assert.deepEqual(dom.rules.slice(0, 3).map(rule => [rule.name, rule.op]),
+      [[name, "define"], [name, "extend"], [name, "redefine"]]);
+    assert.deepEqual(dom.rules[0].params, ["X"]);
+    assert.deepEqual([dom.rules[1].args[0].tag, dom.rules[2].args[0].tag], ["A", "C"]);
+    for (const reading of [dom, reverseMembers(dom)]) {
+      assert.equal(validateDocument50(reading, { unicode: compiler.unicode }), reading);
+    }
+  });
+}
+
+test("the names directive still needs the preamble after a names instance edit", () => {
+  const rules = "%rule names(@X) @X\n%extend-rule names(A) B";
+  const directive = '%names "data/unicode/unicode-names.txt"';
+  assertFault(() => read(rules + "\n" + directive), /%names must precede/, 4, 1);
+  const dom = read(rules);
+  dom.directives.push({ name: "names", args: ["data/unicode/unicode-names.txt"], at: [4, 1] });
+  assertFault(() => validateDocument50(dom), /%names must precede/, 4, 1);
+});

@@ -79,7 +79,7 @@ function operandMutations(dom) {
     for (const key of ["params", "suppressWarnings"]) {
       for (const [index] of (node[key] ?? []).entries()) result.push({ path: [...path, key, String(index)], value: invalidName });
     }
-    if (declaration && ["stage", "extend-stage", "redefine-stage", "features"].includes(node.name)) {
+    if (declaration && kind === "directives" && ["stage", "extend-stage", "redefine-stage", "features"].includes(node.name)) {
       for (const [index] of node.args.entries()) result.push({ path: [...path, "args", String(index)], value: invalidName });
     }
     if (path.length > 2 && !wrappers.has(parent) && !nameFields.some(key => typeof node[key] === "string")) {

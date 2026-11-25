@@ -58,16 +58,17 @@ function groupedRules(entry, doms, stageNames) {
     const dom = doms.get(file);
     if (!dom || active.has(file)) return;
     active.add(file);
-    const declarations = [...dom.rules, ...dom.directives, ...dom.constants]
-      .sort((a, b) => a.at[0] - b.at[0] || a.at[1] - b.at[1]);
-    for (const declaration of declarations) {
-      if (stageNames.has(declaration.name) && declaration.args && !declaration.op) {
+    const declarations = ["rules", "directives", "constants"]
+      .flatMap(category => dom[category].map(declaration => [declaration, category]))
+      .sort(([a], [b]) => a.at[0] - b.at[0] || a.at[1] - b.at[1]);
+    for (const [declaration, category] of declarations) {
+      if (category === "directives" && stageNames.has(declaration.name)) {
         stage = declaration.args[0];
-      } else if (declaration.name === "include" && declaration.args && !declaration.op) {
+      } else if (category === "directives" && declaration.name === "include") {
         visit(resolvePath(file, declaration.args[0]));
       } else {
-        if (!stages.has(stage)) stages.set(stage, new Set());
-        stages.get(stage).add(declaration);
+        if (!stages.has(stage)) stages.set(stage, new Map());
+        stages.get(stage).set(declaration, category);
       }
     }
     active.delete(file);
@@ -116,12 +117,12 @@ function reaches(names, rules) {
 
 function checkBodyArguments(declarations) {
   const definitions = new Map();
-  for (const rule of declarations) {
-    if (!rule.alternatives && !rule.instance) continue;
+  for (const [rule, category] of declarations) {
+    if (category !== "rules") continue;
     if (!definitions.has(rule.name)) definitions.set(rule.name, []);
     definitions.get(rule.name).push(rule);
   }
-  for (const declaration of declarations) {
+  for (const [declaration, category] of declarations) {
     const pending = [[declaration]];
     while (pending.length) {
       const [node, owner, slot] = pending.pop();
@@ -136,7 +137,7 @@ function checkBodyArguments(declarations) {
         throw new MigrationRequired("Prove the instance value when its body argument can supply a nonempty omitted default.",
           node.at ?? owner.at ?? declaration.at);
       }
-      const call = node.call ? node : node === declaration && declaration.args && declaration.alternatives ?
+      const call = node.call ? node : node === declaration && category === "rules" && declaration.args ?
         { call: declaration.name, args: declaration.args, at: declaration.at } : undefined;
       const children = children49(node, !!call);
       for (let i = children.length - 1; i >= 0; i--) {
@@ -156,8 +157,8 @@ export function omittedValueSuppliers49(entry, doms, stageNames) {
     checkBodyArguments(declarations);
     const rules = new Map();
     const affected = new Map();
-    for (const rule of declarations) {
-      if (!rule.alternatives && !rule.instance) continue;
+    for (const [rule, category] of declarations) {
+      if (category !== "rules") continue;
       if (!rules.has(rule.name)) rules.set(rule.name, { edges: new Set(), cooked: false });
       const facts = rules.get(rule.name);
       facts.cooked ||= Boolean(rule.erased || rule.value || rule.alternatives?.some(alt => alt.value));
@@ -168,7 +169,7 @@ export function omittedValueSuppliers49(entry, doms, stageNames) {
       }
     }
     if (!affected.size) continue;
-    const targets = valueTestTargets(declarations);
+    const targets = valueTestTargets(declarations.keys());
     const tested = reaches(targets, rules);
     const affectedNames = new Map([...affected.values()].map(rule => [rule.name, rule.at]));
     for (const target of targets) {

@@ -47,14 +47,15 @@ export function inspectConverted50(declarations, configuration, storeDom) {
   let preamble = true;
   for (const [category, record] of declarations) {
     dom[category].push(record);
+    const names = category === "directives" && record.name === "names";
     try {
-      if (record.name === "names" && record.args && !preamble) fail(record, "%names must precede all other declarations");
-      validateDeclarationShape50(record, fail, configuration.unicode, emptyDelimiters);
+      if (names && !preamble) fail(record, "%names must precede all other declarations");
+      validateDeclarationShape50(category, record, fail, configuration.unicode, emptyDelimiters);
     } catch (error) {
       storeDom?.(dom, "prefix");
       throw error;
     }
-    preamble &&= record.name === "names" && !!record.args;
+    preamble &&= names;
   }
   storeDom?.(dom, "complete");
   if (emptyDelimiters.length) fail(emptyDelimiters[0], "a split delimiter cannot be empty");
