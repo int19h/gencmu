@@ -18,7 +18,7 @@ for (const source of [
   '%const $K [{}, {a: 1}]',
   '%const $X [["a"]] ∖ ["a"]',
   '%const $X [["a"], ["b"]] ∖ ["a"]',
-  '%rule r\n  | $x:"a"\n  | "b" → {k: ["a"].all($x ↦ $x = "a")}',
+  '%rule r\n  | $x:"a"\n  | "b" → {(["a"].all($x ↦ $x = "a"))? k: "yes"}',
   '%rule r $x:"a"\n%conditions $x.followed-by(r) ∧ ["a"].all($y ↦ $y = "a")',
   '%rule r → {value: 1}\n  | "a" → {value: "ok"}',
   '%rule r → {image: 1}\n  | "a" → {¬image}',
@@ -449,7 +449,7 @@ for (const source of [
   '%const $V [*[], []]!.join()',
   '%const $V [f? 1, ¬f? "a"]',
   '%const $V [$UNRESOLVED, "a"].join()',
-  '%const $V {flag: ¬(1 = 2)}',
+  '%const $V {¬(1 = 2)? Flag}',
   '%rule r → {value: 1}\n  | "a" → {*{value: "ok"}}',
   '%rule r → {value: 1}\n  | "a" → {({value: "ok"})\'value}',
   '%rule r → {image: 1}\n  | "a" → {({image: "ok"})\'image}',
@@ -878,7 +878,7 @@ for (const subject of ["", "text"]) {
   for (const actual of ['["a"].all($n ↦ $n = "a")', '1 = 1']) {
     test(`a pattern ${subject || "bare child list"} keeps the scope of ${actual}`, () => {
       const call = `f(= ${actual})`;
-      const dom = read(`%rule f(@X) "a" %conditions @X\n%rule text ${call} → {ok: $ ≅ #${subject}⁅ ${call} ⁆}`);
+      const dom = read(`%rule f(@X) "a" %conditions @X\n%rule text ${call} → {($ ≅ #${subject}⁅ ${call} ⁆)? Ok}`);
       assert.equal(validateDocument50(dom), dom);
       const reversed = reverseMembers(dom);
       assert.equal(validateDocument50(reversed), reversed);
@@ -979,7 +979,7 @@ test("a marked actual starts its own binding and type scope", () => {
   const predicate = '["a"].all($x ↦ $x = "a")';
   for (const declaration of [
     `%const $P $x ↦ #f(= ${predicate})`,
-    `%rule text $x:A → {test: $ ≅ #f(= ${predicate})}`,
+    `%rule text $x:A → {($ ≅ #f(= ${predicate}))? Test}`,
     '%rule text A %conditions $ ≅ #f(= "a")',
   ]) {
     const dom = read(header + declaration);
@@ -991,7 +991,7 @@ test("a marked actual starts its own binding and type scope", () => {
     /an implicit receiver needs a function binding/);
   assert.throws(() => read(header + "%const $P $x ↦ #f(= $x)"),
     /an argument cannot read or declare captures/);
-  assert.throws(() => read(header + '%rule text $x:A → {test: $ ≅ #f(= ["a"].all($x ↦ "a"))}'),
+  assert.throws(() => read(header + '%rule text $x:A → {($ ≅ #f(= ["a"].all($x ↦ "a")))? Test}'),
     /this operand does not have a truth value/);
 });
 

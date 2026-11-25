@@ -55,7 +55,7 @@ const sources = [
 %const $PATHS #⁅ ⋮A ⋱B C⋰ ⁆
 %const $CHILDREN #·⁅ [A] {A} {(B | C) / D} ⋯ ⁆
 %const $SET #(A ∪ B ∩ C ∖ d)
-%rule patterns(@X) "a" → {p: #@X, q: #@X⁅ A ⁆}
+%rule patterns(@X) "a" %conditions $ ≅ #@X, $ ≅ #@X⁅ A ⁆
 %rule empty ε`,
 ];
 

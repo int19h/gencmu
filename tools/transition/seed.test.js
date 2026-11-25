@@ -85,7 +85,7 @@ test("the seed audit accepts forwarding a list capture", t => {
   assert.match(stdout, /"capture":"list","consumer":"0","ok":true/);
 });
 
-test("the seed audit keeps a list truth test separate from a stored value", t => {
+test("the seed audit keeps a list truth test separate from a data operand", t => {
   const withCapture = bootstrap => {
     const rules = document(bootstrap, "syntax").rules;
     const rule = {
@@ -98,7 +98,9 @@ test("the seed audit keeps a list truth test separate from a stored value", t =>
   const control = audit(t, withCapture);
   assert.equal(control.status, 0);
   const invalid = audit(t, bootstrap => {
-    withCapture(bootstrap).term = { bag: [{ kind: "write", keys: ["k"], value: { capture: "list" }, gates: [], at: [10000, 20] }] };
+    withCapture(bootstrap).conditions = [{
+      list: [{ kind: "item", value: { capture: "list" }, gates: [], at: [10000, 20] }],
+    }];
   });
   assert.equal(invalid.status, 1);
   assert.match(invalid.stdout, /"capture":"list","consumer":"value","ok":false/);

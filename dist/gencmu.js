@@ -19471,6 +19471,13 @@
     if (fault) fail(fault.node, fault.description);
   }
 
+  function boundaryTargetFault(node) {
+    if ((node.method === "followed-by" || node.method === "preceded-by") &&
+        node.args.some(target => target.terminal?.startsWith("_"))) {
+      return "a boundary target must be a rule, exact instance or user tag";
+    }
+  }
+
   function boundaryFault(root) {
     let first, fault;
     const captures = new Set();
@@ -19485,11 +19492,9 @@
       if (node.capture !== undefined && !node.expr && !locals.has(node.capture)) captures.add(node.capture);
       if (node.method === "followed-by" || node.method === "preceded-by") {
         if (!fault) {
-          if (node.args.some(target => target.terminal?.startsWith("_"))) {
-            fault = { node, message: "a boundary target must be a rule, exact instance or user tag" };
-          } else if (first) {
-            fault = { node, message: "a condition item cannot have more than one boundary atom" };
-          }
+          const message = boundaryTargetFault(node) ??
+            (first ? "a condition item cannot have more than one boundary atom" : undefined);
+          if (message) fault = { node, message };
         }
         first ??= node;
       }
@@ -19509,6 +19514,26 @@
     }
   }
 
+  // Test the declared slots of one alternative. An optional slot still
+  // exists, but its truth is unresolved until its bindings are available.
+  function conditionApplies50(condition, slots) {
+    const absent = Symbol("absent condition capture");
+    const report = () => { throw absent; };
+    function* check(part, bindings, presence, slot) {
+      if (slot === "argument[]" || part?.gates?.length) return;
+      return yield expansionScope(part, slots, report, bindings, presence, check, slot);
+    }
+    const present = new Map([...slots].filter(([, list]) => !list).map(([name]) => [name, true]));
+    try {
+      run(expansionScope(condition, slots, report, new Set([""]), present, check, "expression", true));
+      return true;
+    } catch (error) {
+      if (error === absent) return false;
+      if (error instanceof CapturePresence50) return true;
+      throw error;
+    }
+  }
+
   function validateDefinitionConditions50(rule, slots, fail, check = validateClosedTypes) {
     const shared = new Map();
     for (const slot of slots) for (const [name, type] of slot) {
@@ -19518,6 +19543,9 @@
     for (const condition of rule.conditions ?? []) {
       const boundary = boundaryFault(condition);
       check(condition, fail, { slots: types, truth: true, boundary });
+      if (slots.length > 1 && !slots.some(slot => conditionApplies50(condition, slot))) {
+        fail(rule, "a condition applies to no alternative");
+      }
     }
   }
 
@@ -19538,6 +19566,12 @@
   const kindOf = type => Array.isArray(type) ? "list" : type;
   const elementOf = type => Array.isArray(type) ? type[0] : undefined;
   const openType = type => type === undefined || type === emptyElement;
+  const storedTypes = new Set(["string", "number", "bag", "keys"]);
+
+  function invalidStoredType(type) {
+    while (Array.isArray(type)) type = elementOf(type);
+    return !openType(type) && !storedTypes.has(type);
+  }
 
   function joinTypes(left, right, constraint = false) {
     if (left === incompatible || right === incompatible) return incompatible;
@@ -19606,6 +19640,41 @@
     ["error-free", ["forest", "forest"]],
   ]);
 
+  // Resolve only literal, unconditionally edited classifier entries here.
+  function literalBagFields(node) {
+    if (!node?.bag) return;
+    const fields = new Map();
+    const names = new Set();
+    for (const entry of node.bag) {
+      if (entry.gates.length || entry.guard) return;
+      if (entry.kind === "delete") fields.delete(entry.key);
+      else if (entry.kind === "write" || entry.kind === "bare") {
+        for (const key of entry.keys ?? [entry.key]) {
+          fields.set(key, entry.value);
+          names.add(key);
+        }
+      } else return;
+    }
+    return { fields, names };
+  }
+
+  function validateLiteralClassifier(node, receiver, type, fail) {
+    const table = literalBagFields(receiver);
+    if (!table) return;
+    for (const field of table.fields.values()) {
+      const value = type(field);
+      const member = elementOf(value);
+      const strings = Array.isArray(value) && (openType(member) || member === "string");
+      if (!field || !(openType(value) || value === "keys" || value === "string" || strings)) {
+        fail(node, "a method has the wrong receiver or arguments");
+      }
+      const references = value === "keys" && literalBagFields(field);
+      if (references) for (const key of references.fields.keys()) {
+        if (!table.names.has(key)) fail(node, `a classifier references unknown class ${key}`);
+      }
+    }
+  }
+
   const methodArguments = new Map([
     ["split", "string"], ["join", "string"], ["classify", "string"],
     ["select", "keys"], ["overlaps", "keys"], ["all", "function"], ["any", "function"],
@@ -19658,6 +19727,8 @@
       }
       if (Array.isArray(node)) continue;
       if (boundary?.node === node) fail(node, boundary.message);
+      const targetFault = boundaryTargetFault(node);
+      if (targetFault) fail(node, targetFault);
       if (closed && node.capture !== undefined && !scope.has(node.capture)) {
         fail(node, "a constant cannot read a capture outside its function scope");
       }
@@ -19753,6 +19824,9 @@
           if (entry.kind !== "write" && effectiveStrings.has(entry)) {
             fail(entry, "a value or image needs a string");
           }
+          if (entry.kind === "copy" && invalid(type(entry.source), bagTypes)) {
+            fail(entry, "a copy needs a node or bag");
+          }
           if (entry.kind !== "write") continue;
           const value = type(entry.value);
           if (value === "function") fail(entry.value, "a key cannot store a function");
@@ -19760,9 +19834,13 @@
           if (effectiveStrings.has(entry)) {
             fail(entry.value, "a value or image needs a string");
           }
+          if (invalidStoredType(value)) fail(entry.value, "a key needs a stored value");
         }
       }
-      if (message && !inActual && node.method === "parse") fail(node, "a message cannot read a query");
+      if (message && !inActual) {
+        if (node.method === "parse") fail(node, "a message cannot read a query");
+        if (node.method === "verbatim-text") fail(node, "a message cannot claim verbatim text");
+      }
       const mapped = maps.get(node);
       const receiver = type(node.receiver) ?? elementOf(type(mapped));
       if (node.property && invalid(receiver, bagTypes)) fail(node, "a property read needs a node or bag");
@@ -19774,6 +19852,14 @@
         const argumentType = methodArguments.get(node.method);
         if (argumentType && invalid(type(node.args[0]), [argumentType])) wrong();
         if (node.method === "any" && kindOf(receiver) === "list" && !node.args.length) wrong();
+        if (node.method === "classify") {
+          if (node.receiver) validateLiteralClassifier(node, node.receiver, type, fail);
+          else for (const entry of mapped?.list ?? []) {
+            if (entry.kind === "item" && !entry.guard && !entry.gates.length) {
+              validateLiteralClassifier(node, entry.value, type, fail);
+            }
+          }
+        }
         const member = elementOf(receiver);
         if (node.method === "join" && invalid(member, ["string"]) ||
             node.method === "union" && invalid(member, ["keys"])) wrong();
@@ -19916,6 +20002,7 @@
     const rule = category === "rules" ? declaration : undefined;
     const ruleBodies = new WeakSet((rule?.alternatives ?? []).map(alt => alt.expr));
     const outputItems = new WeakSet(rule?.emit?.items ?? []);
+    const parameters = new Set(rule?.params);
     const defaults = new WeakMap();
     const pending = operandFields50(declaration, category).reverse()
       .map(([, node, slot]) => ({ node, slot, captureContext: slot === "argument[]" ? "argument" : undefined }));
@@ -19963,7 +20050,10 @@
       for (const value of [node.const, node.constant, node.apply]) {
         if (typeof value === "string" && !CONSTANT_NAME.test(value)) locate(node, "invalid constant name");
       }
-      if (node.param !== undefined && !parameterName.test(node.param)) locate(node, "invalid parameter name");
+      if (node.param !== undefined) {
+        if (!parameterName.test(node.param)) locate(node, "invalid parameter name");
+        if (!parameters.has(node.param)) locate(node, `unknown parameter @${node.param}`);
+      }
       if (typeof node.call === "string" && !validRule(node.call, unicode) ||
           typeof node.rule === "string" && !validRule(node.rule, unicode) ||
           kind === "patternName" && !validRule(node.name, unicode)) {
@@ -20069,6 +20159,10 @@
             locate(node, message === argumentsError ? "a feature condition cannot read a named capture" : message),
             { closed: true, bindings: [""], slot: "expression" });
           validateClosedTypes(condition, locate, { truth: true, whole: "span" });
+        }
+      } else if (category === "directives" && declaration.name === "ambiguity-resolution") {
+        for (const step of declaration.steps) {
+          validateClosedTypes(step.pattern, locate, { slot: "resolutionPattern" });
         }
       } else if (category === "constants") {
         validateClosedTypes(declaration.value, locate, { closed: true });
