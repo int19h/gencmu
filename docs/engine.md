@@ -4,7 +4,7 @@ This document is the specification that every gencmu library implements. It defi
 
 The cases in `tests/engine/` and `tests/notation/` are part of the specification unless they load a bundled pipeline. A case that loads a bundled pipeline tests that pipeline's documents, not this specification. An implementation that disagrees with a case violates this specification or the pipeline's documents.
 
-`docs/notation.md` explains the notation to grammar authors, and `grammars/gencmu/jbogenbau/` defines it. `docs/output.md` defines the result's JSON and the renderings.
+`docs/notation.md` explains the notation to grammar authors, and `grammars50/gencmu/jbogenbau/` defines it. `docs/output.md` defines the result's JSON and the renderings.
 
 Grammar identifiers and tags in examples illustrate generic rules. They impose no pipeline contract.
 
@@ -60,7 +60,7 @@ A text is a sequence of Unicode scalar values. A text that is not one is a usage
 
 Source-map loaders inspect supplied strings in code point order of their keys before hashing or parsing any entry.
 
-A library reads a grammar document from disk as strict UTF-8. Bytes that are not valid UTF-8 are a `grammar` error of loading, not a usage error, because the caller supplied no string. The error names the document and says that its bytes do not decode. It has no line and no column. The library finds this before it hashes the document or looks in `data/preparsed/FAMILY.json` (§8). A byte order mark stays in the text as the character U+FEFF.
+A library reads a grammar document from disk as strict UTF-8. Bytes that are not valid UTF-8 are a `grammar` error of loading, not a usage error, because the caller supplied no string. The error names the document and says that its bytes do not decode. It has no line and no column. The library finds this before it hashes the document or looks in the preparsed family file (§8). A byte order mark stays in the text as the character U+FEFF.
 
 The error description is `the document is not valid UTF-8: an invalid byte sequence at byte N`. Here `N` is the zero-based offset of the invalid sequence's first byte. This rule also covers Unicode resources, including extra names files.
 
@@ -2357,7 +2357,9 @@ An unclosed `jbogenbau` block is a document error. The reader reports it at the 
 
 The reader joins each block's lines with `\n` and joins the blocks with one `\n` between them. Every line end inside a block reads as `\n`, whether the document uses LF, CRLF, or CR. Every character of the grammar text keeps its line and column in the document. An end-of-text error stands after its last character. An empty final block does not move that position. A line that adds no character to the grammar text does not move that position either.
 
-The reader parses grammar text with the notation pipeline, `grammars/gencmu/jbogenbau/pipeline.md`. Its preparsed documents ship in `data/preparsed/gencmu.json`. The loader splices their DOMs under §13 to build the notation stages. Bootstrap entries need no source files or text hash comparison. Every required entry must exist and meet the DOM rules. An invalid format, malformed entry, missing include, or splice error is a bootstrap loading error.
+The format 50 reader parses grammar text with `grammars50/gencmu/jbogenbau/pipeline.md`. Its preparsed documents ship in `data/preparsed50/gencmu.json`. The loader splices their DOMs under §13 to build the notation stages. Bootstrap entries need no source files or text hash comparison. Every required entry must exist and meet the DOM rules. An invalid format, malformed entry, missing include, or splice error is a bootstrap loading error.
+
+`data/notation-bundles.json` names the source root, notation pipeline, bootstrap and cache root for each format. The format 49 loader uses `grammars/` and `data/preparsed/`.
 
 The rules in §9 turn the notation tree into a document DOM. The bootstrap can therefore read every grammar, including its own documents. Reading those documents must reproduce their preparsed entries exactly, the bootstrap fixpoint. `tools/sync.js` regenerates the entries until this holds.
 
@@ -2379,7 +2381,7 @@ Each ranked-choice node retains the position of its first `≻`. Expansion carri
 
 A tie in either stage of the notation pipeline, `lexical` or `syntax`, is an error of kind `grammar` of loading (§6). The error names the document. It has no line and no column, since an ambiguity has no single position. Its message names the notation stage and says that the grammar text is ambiguous. A library never puts such an error at the start of the document in place of a position.
 
-Every bootstrap failure names `data/preparsed/gencmu.json` in its structured document field and its message. Reading and schema errors have no stage, line, or column. Splicing errors have no stage field. For a stage without rules, the description is `stage NAME: has no rules`. Other splicing errors retain their descriptions without an added stage prefix.
+Every bootstrap failure names the bootstrap file in its structured document field and its message. Reading and schema errors have no stage, line, or column. Splicing errors have no stage field. For a stage without rules, the description is `stage NAME: has no rules`. Other splicing errors retain their descriptions without an added stage prefix.
 
 The splicer marks empty-stage errors with a private problem kind. Bootstrap handlers select that kind without inspecting message text.
 
@@ -2403,11 +2405,11 @@ A notation stage follows the same publication and elision rules as other stages.
 
 Each stage of the notation runs as any stage does (§4 to §7, §11, §12). So each notation stage runs the check of §7 where it declares `%elision-only`. The bundled notation declares it in no stage, but a caller's own bootstrap can (`docs/api.md`). An ambiguity that the check finds is an error of the document in the same way as a tie. The error names the document and the notation stage, with no line or column. The caller's option for the check (`docs/api.md`) does not reach a notation stage, so it neither switches the check on there nor off.
 
-Each family has one preparsed file, `data/preparsed/FAMILY.json`, for the documents below `grammars/FAMILY/`. The required `gencmu.json` supplies the bootstrap. A loader reads only the optional file that each document key selects, besides that required file. A missing, malformed or mismatched optional file gives cache misses. Once a current document meets the cache identity rules, decode it under the supplied-DOM rules. An illegal record reports its error without falling back to source.
+Each format 50 family has one preparsed file, `data/preparsed50/FAMILY.json`, for the documents below `grammars50/FAMILY/`. The required `gencmu.json` supplies the bootstrap. A loader reads only the optional file that each document key selects, besides that required file. A missing, malformed or mismatched optional file gives cache misses. Once a current document meets the cache identity rules, decode it under the supplied-DOM rules. An illegal record reports its error without falling back to source.
 
-A document key under `grammars/FAMILY/` selects `data/preparsed/FAMILY.json`. Other document keys select no optional file. A loader can still reuse DOMs that it reads through the notation, under the complete identity below.
+A document key under `grammars50/FAMILY/` selects `data/preparsed50/FAMILY.json`. Other document keys select no optional file. A loader can still reuse DOMs that it reads through the notation, under the complete identity below.
 
-The bootstrap fingerprint is the 64-bit FNV-1a hash of the complete UTF-8 text of `data/preparsed/gencmu.json`. Its own header omits `bootstrap` to avoid a circular fingerprint. Every other family's header records that fingerprint as `bootstrap`. The required entries load even when custom Unicode resources differ from its header. Ordinary entries still require the full cache identity.
+The bootstrap fingerprint is the 64-bit FNV-1a hash of the complete UTF-8 text of the selected bootstrap file. Its own header omits `bootstrap` to avoid a circular fingerprint. Every other family's header records that fingerprint as `bootstrap`. The required entries load even when custom Unicode resources differ from its header. Ordinary entries still require the full cache identity.
 
 Implementation note: An implementation can keep the DOMs that it built before.
 
@@ -2427,7 +2429,7 @@ If `names` is absent, the loader skips this comparison and keeps the otherwise v
 
 Shared cache cases require a hit when the complete base-and-extras set and all hashes match. If `names` is present, a changed extra path or hash gives a miss. An absent `names` member permits a hit despite changed or missing unused extras. These cases keep every other cache dependency equal.
 
-`data/preparsed/FAMILY.json` records the fingerprint of the bundled table and a `bundledNames` registry of bundled names resources. The generator records `data/unicode/unicode-names.txt` and every bundled extra by normalized path, with keys in code-point order. It hashes their pinned text, never a caller's replacement. The hash is 64-bit FNV-1a over UTF-8 bytes, written as 16 lowercase hexadecimal digits. Each package ships the preparsed files beside its Unicode resources under `data/`.
+`data/preparsed50/FAMILY.json` records the fingerprint of the bundled table and a `bundledNames` registry of bundled names resources. The generator records `data/unicode/unicode-names.txt` and every bundled extra by normalized path, with keys in code-point order. It hashes their pinned text, never a caller's replacement. The hash is 64-bit FNV-1a over UTF-8 bytes, written as 16 lowercase hexadecimal digits. Each package ships the preparsed files beside its Unicode resources under `data/`.
 
 The shortcut requires the active core to declare the bundled names version, 15.1.0. A different version is a grammar loading error. For an unoverridden bundled resource, the loader takes its current fingerprint from `bundledNames`. It compares that fingerprint with the document entry's `names` value. If every selected resource uses this route, a cache hit reads, parses, and fetches no names file. Supplied resources count as overrides, even if their bytes match the bundle.
 
