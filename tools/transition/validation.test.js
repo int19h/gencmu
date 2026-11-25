@@ -866,10 +866,31 @@ for (const example of directiveExamples) {
 
 test("the directive walks still inspect real feature and resolution operands", () => {
   const dom = { format: 50, rules: [], constants: [], directives: [{
-    name: "features", args: ["f"], at: [1, 1], conditions: [{ method: "unknown", args: [], at: [1, 20] }],
+    name: "features", args: ["f"], at: [1, 1], conditions: [{ method: "unknown", receiver: { capture: "" }, args: [], at: [1, 20] }],
   }] };
   assertFault(() => validateDocument50(dom), /unknown method \.unknown/, 1, 20);
   dom.directives[0] = { name: "ambiguity-resolution", at: [1, 1],
     steps: [{ step: "leftmost-longest", pattern: { name: "r", at: [1, 20] } }] };
   assertFault(() => validateDocument50(dom), /exact local pattern/, 1, 20);
+});
+
+for (const subject of ["", "text"]) {
+  for (const actual of ['["a"].all($n ↦ $n = "a")', '1 = 1']) {
+    test(`a pattern ${subject || "bare child list"} keeps the scope of ${actual}`, () => {
+      const call = `f(= ${actual})`;
+      const dom = read(`%rule f(@X) "a" %conditions @X\n%rule text ${call} → {ok: $ ≅ #${subject}⁅ ${call} ⁆}`);
+      assert.equal(validateDocument50(dom), dom);
+      const reversed = reverseMembers(dom);
+      assert.equal(validateDocument50(reversed), reversed);
+    });
+  }
+}
+
+test("a Boolean operation and a bare child list reject each other's written payload", () => {
+  const logical = read('%const $V (1 = 1) ∨ (2 = 2)');
+  logical.constants[0].value.any = true;
+  assert.throws(() => validateDocument50(logical), /invalid operand "any" on a disjunction/);
+  const pattern = read('%const $P #⁅ A ⁆');
+  pattern.constants[0].value.pattern.any = [];
+  assert.throws(() => validateDocument50(pattern), /"any" must be true on a bareChildren/);
 });

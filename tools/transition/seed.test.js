@@ -143,3 +143,21 @@ test("the seed audit ignores directive extensions named after operands", t => {
   const records = result => result.stdout.slice(result.stdout.indexOf("\n") + 1);
   assert.equal(records(extended), records(original));
 });
+
+for (const [category, accepts] of [["directives", true], ["rules", false], ["constants", false]]) {
+  test(`the seed audit handles the foreign method member on ${category}[0]`, t => {
+    const expected = document(seed, "lexical")[category][0].at;
+    const { status, stdout } = audit(t, bootstrap => {
+      document(bootstrap, "lexical")[category][0].method = "metadata";
+    });
+    assert.equal(status, accepts ? 0 : 1);
+    const rows = stdout.trim().split("\n").map(line => JSON.parse(line));
+    const outcome = rows.find(row => row.validation && row.document.endsWith("/lexical.md"));
+    assert.equal(outcome.ok, accepts);
+    if (!accepts) {
+      assert.match(outcome.message, /unknown member "method"/);
+      assert.deepEqual([outcome.at.line, outcome.at.column], expected);
+    }
+    assert.ok(!rows.some(row => row.method === "metadata"));
+  });
+}

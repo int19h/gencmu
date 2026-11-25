@@ -64,7 +64,9 @@ export function operandMutations(dom) {
   function visit(node, path, parent, at, category) {
     if (!node || typeof node !== "object") return;
     if (Array.isArray(node)) {
-      for (const [index, child] of node.entries()) visit(child, [...path, String(index)], parent, at, category);
+      for (const [index, child, childSlot] of operandFields50(node, category)) {
+        visit(child, [...path, index], parent, at, childSlot);
+      }
       return;
     }
     const site = node.at ?? at;
@@ -82,7 +84,7 @@ export function operandMutations(dom) {
     }
     for (const [key, child, childKind] of operandFields50(node, category)) visit(child, [...path, key], key, site, childKind);
   }
-  for (const kind of declarationKinds) visit(dom[kind], [kind], kind, undefined, kind);
+  for (const kind of declarationKinds) visit(dom[kind], [kind], kind, undefined, `${kind}[]`);
   return result;
 }
 

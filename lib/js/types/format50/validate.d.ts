@@ -5,7 +5,7 @@ export type DocumentValidation = {
 export declare function validateOrigin50(node: any, fail: any, pattern: any): void;
 export declare function validatePatternChildren50(node: any, fail: any): void;
 export declare function documentFault50(document: any): (node: any, description: any) => never;
-export declare function withOwner50(root: any, fail: any, owner: any, category: any): (node: any, message: any) => any;
+export declare function withOwner50(root: any, fail: any, owner: any, category: any, checkMembers?: boolean): (node: any, message: any) => any;
 /** @param {{ closed?: boolean, query?: boolean, bindings?: Iterable<string> }} [configuration] */
 export declare function validateBindings50(root: any, fail: any, configuration?: {
     closed?: boolean;

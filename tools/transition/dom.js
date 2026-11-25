@@ -1,7 +1,8 @@
 import { GencmuError } from "../../lib/js/src/errors.js";
 import { KEY_STEPS, validSteps } from "../../lib/js/src/dom.js";
+import { recordKind50 } from "../../lib/js/src/format50/records.js";
 import { methods50 } from "../../lib/js/src/format50/signatures.js";
-import { documentFault50, elidableForm50, validateDeclarationShape50,
+import { documentFault50, elidableForm50, isBodySymbol50, validateDeclarationShape50,
   validateDocumentDefinitions50, validateDocumentDepth50, validateSubsetSize50 } from "../../lib/js/src/format50/validate.js";
 
 const EXPRESSION_WRAPPERS = new Set([
@@ -35,8 +36,6 @@ function baseFactor(node) {
 function containsCapture(node) {
   return ["capture", "captured-terminator"].includes(node.rule) || rules(node).some(containsCapture);
 }
-const isSymbol = body => ["ref", "call", "param", "literal", "range", "wildcard", "splice", "test"]
-  .some(key => Object.hasOwn(body, key));
 
 // Conversion yields one record at a time in written order. A failed shape
 // check exposes the prefix through that declaration to the test observer.
@@ -315,7 +314,7 @@ export class DomBuilder {
         const capture = this.binder(first);
         if (GROUPS.has(baseFactor(children[1]).rule)) this.fail(first, "a capture wraps one symbol");
         const target = expr(children[1], false, elidable);
-        if (!isSymbol(target)) this.fail(first, "a capture wraps one symbol");
+        if (!isBodySymbol50(target)) this.fail(first, "a capture wraps one symbol");
         return { capture, expr: target };
       }
       case "marked-factor": {
@@ -328,7 +327,7 @@ export class DomBuilder {
         if (GROUPS.has(baseFactor(first).rule)) this.fail(children[1], "a test applies to one symbol");
         const tests = this.testOrder(children.slice(1), elidable);
         const base = expr();
-        if (!isSymbol(base)) this.fail(children[1], "a test applies to one symbol");
+        if (!isBodySymbol50(base)) this.fail(children[1], "a test applies to one symbol");
         return this.tests(base, tests);
       }
       case "ref":
@@ -452,10 +451,10 @@ export class DomBuilder {
     else if (first.rule === "target-argument") result = { targets: rules(first).map(target => this.target(target)), at };
     else {
       const body = this.ownedBody(first, { at });
-      if (body.ref !== undefined) {
+      if (recordKind50(body, "body") === "reference") {
         const key = /^[A-Z_]/.test(body.ref) ? "tag" : "rule";
         result = { [key]: body.ref, at };
-      } else if (isSymbol(body)) result = { ...body, at: body.at ?? at };
+      } else if (isBodySymbol50(body)) result = { ...body, at: body.at ?? at };
       else result = { body, at };
     }
     return result;
@@ -635,7 +634,7 @@ export class DomBuilder {
     const expr = part(node, "expr");
     const value = this.expression(expr);
     const first = expr.span[0];
-    if (value.lambda !== undefined ||
+    if (recordKind50(value, "expression") === "lambda" ||
         expr.span[1] === first + 1 && (value.const || value.capture || value.param)) {
       return value;
     }

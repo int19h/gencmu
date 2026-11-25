@@ -18388,140 +18388,274 @@
   }
 
   // ---- format50/records.js
-  // Walk written operands in semantic order. A declaration's array supplies its
-  // category. In particular, a directive's name supplies its record shape and any
-  // other members belong to its opaque extension data.
-  /** @param {string[]} operands @param {string[]} names */
-  const recordShapeFields50 = (operands = [], names = []) => ({ operands, names });
-  const leafFields50 = recordShapeFields50();
-  /** @param {string} field */
-  const namedLeaf50 = field => recordShapeFields50([], [field]);
-  /** @param {string} field */
-  const singleOperand50 = field => recordShapeFields50([field]);
-  const recordShapes50 = {
-    document: recordShapeFields50(["rules", "directives", "constants"]),
-    rule: recordShapeFields50(["term", "alternatives", "conditions", "error", "warning", "emit"], ["name", "suppressWarnings"]),
-    template: recordShapeFields50(["term", "alternatives", "conditions", "error", "warning", "emit"], ["name", "params", "suppressWarnings"]),
-    edit: recordShapeFields50(["args", "term", "alternatives", "conditions", "error", "warning", "emit"], ["name", "suppressWarnings"]),
-    binding: recordShapeFields50(["instance", "conditions"], ["name"]),
-    constant: recordShapeFields50(["value"], ["name"]),
-    stage: recordShapeFields50([], ["args"]),
-    features: recordShapeFields50(["conditions"], ["args"]),
-    resolution: singleOperand50("steps"),
-    step: recordShapeFields50(["pattern"], ["step"]),
-    alternative: recordShapeFields50(["gates", "expr", "term"]),
-    emission: singleOperand50("items"),
-    insert: recordShapeFields50(["gates", "guard", "term"]),
-    forward: recordShapeFields50(["gates", "guard"], ["capture"]),
-    braced: recordShapeFields50(["gates", "guard", "term"], ["capture"]),
-    gate: namedLeaf50("feature"),
-    bare: recordShapeFields50(["gates", "guard"], ["key"]),
-    delete: recordShapeFields50(["gates", "guard"], ["key"]),
-    copy: recordShapeFields50(["gates", "guard", "source"], ["key"]),
-    write: recordShapeFields50(["gates", "guard", "value"], ["keys"]),
-    splat: recordShapeFields50(["gates", "guard", "value"]),
-    item: recordShapeFields50(["gates", "guard", "value"]),
-    call: recordShapeFields50(["args"], ["call"]),
-    test: recordShapeFields50(["expr", "value"]),
-    tags: recordShapeFields50(["expr", "requirements"]),
-    requirement: singleOperand50("value"),
-    captureSymbol: recordShapeFields50(["expr"], ["capture"]),
-    optional: singleOperand50("optional"),
-    elidable: recordShapeFields50(["optional", "default"]),
-    repeat: recordShapeFields50(["repeat", "separator"]),
-    conditional: recordShapeFields50(["if", "then", "else"]),
-    comparison: recordShapeFields50(["left", "right"]),
-    method: recordShapeFields50(["receiver", "args"], ["method"]),
-    property: recordShapeFields50(["receiver"], ["property"]),
-    map: recordShapeFields50(["map", "by"]),
-    lambda: recordShapeFields50(["body"], ["lambda"]),
-    apply: recordShapeFields50(["arg"], ["apply"]),
-    patternCall: recordShapeFields50(["args", "children"], ["call"]),
-    patternName: recordShapeFields50(["children"], ["name"]),
-    patternParam: recordShapeFields50(["children"], ["param"]),
-  };
+  // The written DOM forms in Output formats, "A grammar DOM". A slot selects
+  // its forms. Within a slot, a form's identifying members select the form.
+  // The fields follow semantic traversal order. A string names the operand's
+  // slot. Scalar and name members have no operands.
+  /** @internal @typedef {true | 0 | string | typeof flag50} Field50 */
+  /** @internal @typedef {{slots: string[], fields: Record<string, Field50>, when: string[], tag?: string, open?: boolean}} Form50 */
+  const scalar50 = true;
+  const name50 = 0;
+  const flag50 = Symbol("true member");
 
-  const operatorFields50 = ["any", "all", "not", "union", "intersection", "difference", "concat", "flatten", "bag", "list"];
-  const bodyFields50 = ["primary", "splice", "seq", "choice", "ranked", "and", "literal", "range"];
-  const wrapperFields50 = ["targets", "requirements", "body", "expression", "pattern", "child"];
-  const operandShapes50 = new Map([...operatorFields50, ...bodyFields50, ...wrapperFields50].map(key => [key, singleOperand50(key)]));
-  const nameShapes50 = new Map(["const", "constant", "param", "ref", "rule", "tag", "terminal", "key", "capture"]
-    .map(key => [key, namedLeaf50(key)]));
-  const stageNames50 = new Set(["stage", "extend-stage", "redefine-stage"]);
-
-  /** @param {any} node @param {string} [category] */
-  function recordShape50(node, category) {
-    if (category === "document") return recordShapes50.document;
-    if (category === "rules") {
-      if (node.instance) return recordShapes50.binding;
-      if (node.args) return recordShapes50.edit;
-      return node.params ? recordShapes50.template : recordShapes50.rule;
-    }
-    if (category === "constants") return recordShapes50.constant;
-    if (category === "directives") {
-      if (node.name === "features") return recordShapes50.features;
-      if (node.name === "ambiguity-resolution") return recordShapes50.resolution;
-      return stageNames50.has(node.name) ? recordShapes50.stage : leafFields50;
-    }
-
-    // Structural records have exclusive constructors. Use the constructor to
-    // select operands, and use the surrounding slot for the output variants.
-    if (category === "output" || Object.hasOwn(node, "insert") ||
-        Object.hasOwn(node, "capture") && Object.hasOwn(node, "gates")) {
-      return node.insert ? recordShapes50.insert : node.term ? recordShapes50.braced : recordShapes50.forward;
-    }
-    if (node.kind !== undefined) {
-      const kind = /** @type {keyof typeof recordShapes50} */ (node.kind);
-      switch (kind) {
-        case "gate": case "bare": case "delete": case "copy": case "write": case "splat": case "item":
-          return recordShapes50[kind];
-        default: return leafFields50;
-      }
-    }
-    if (Object.hasOwn(node, "items")) return recordShapes50.emission;
-    if (Object.hasOwn(node, "step")) return recordShapes50.step;
-    if (Object.hasOwn(node, "test")) return node.test === "tags" ? recordShapes50.tags : recordShapes50.test;
-    if (Object.hasOwn(node, "negated")) return recordShapes50.requirement;
-    if (Object.hasOwn(node, "expr")) return Object.hasOwn(node, "capture") ? recordShapes50.captureSymbol : recordShapes50.alternative;
-    if (Object.hasOwn(node, "call")) return Object.hasOwn(node, "children") ? recordShapes50.patternCall : recordShapes50.call;
-    if (Object.hasOwn(node, "name")) return recordShapes50.patternName;
-    if (Object.hasOwn(node, "param")) return recordShapes50.patternParam;
-    if (node.any === true) return bareChildren50;
-    if (Object.hasOwn(node, "optional")) return node.elidable ? recordShapes50.elidable : recordShapes50.optional;
-    if (Object.hasOwn(node, "repeat")) return recordShapes50.repeat;
-    if (Object.hasOwn(node, "if")) return recordShapes50.conditional;
-    if (Object.hasOwn(node, "op")) return recordShapes50.comparison;
-    if (Object.hasOwn(node, "method")) return recordShapes50.method;
-    if (Object.hasOwn(node, "property")) return recordShapes50.property;
-    if (Object.hasOwn(node, "map")) return recordShapes50.map;
-    if (Object.hasOwn(node, "lambda")) return recordShapes50.lambda;
-    if (Object.hasOwn(node, "apply")) return recordShapes50.apply;
-    for (const [key, form] of operandShapes50) if (Object.hasOwn(node, key)) return form;
-    for (const [key, form] of nameShapes50) if (Object.hasOwn(node, key)) return form;
-    return leafFields50;
+  /** @param {string} slots @param {string} when @param {Record<string, Field50>} fields
+   *  @param {{ tag?: string, open?: boolean }} [options] @returns {Form50} */
+  function form50(slots, when, fields, options) {
+    return { slots: slots.split(" "), when: when ? when.split(" ") : [], fields, ...options };
   }
 
-  const bareChildren50 = singleOperand50("children");
+  /** @type {Record<string, Field50>} */
+  const ruleFields50 = {
+    name: name50, op: scalar50, term: "expression", alternatives: "alternative[]",
+    conditions: "expression[]", error: "expression", warning: "expression",
+    emit: "emission", suppressWarnings: name50, erased: flag50, at: scalar50,
+  };
+  /** @type {Record<string, Field50>} */
+  const entryPrefix50 = { kind: scalar50, gates: "gate[]", guard: "expression" };
+  /** @type {Record<string, Field50>} */
+  const outputPrefix50 = { gates: "gate[]", guard: "expression" };
+  /** @type {Record<string, Field50>} */
+  const position50 = { at: scalar50 };
+  /** @type {Record<string, Field50>} */
+  const exact50 = { exact: flag50, at: scalar50 };
+  /** @type {Record<string, Field50>} */
+  const pathFields50 = { name: scalar50, args: scalar50, at: scalar50 };
 
-  /** @internal @param {any} node @param {string} [category] @returns {[string, any, string?][]} */
-  function operandFields50(node, category) {
-    if (Array.isArray(node)) return Array.from(node.entries(), ([index, child]) => [String(index), child, category]);
+  /** @type {Record<string, Form50>} */
+  const recordTable50 = {
+    document: form50("document", "", { format: scalar50, rules: "rules[]", directives: "directives[]", constants: "constants[]" }),
+    binding: form50("rules", "instance", { name: name50, op: scalar50, instance: "instance", conditions: "expression[]", at: scalar50 }),
+    edit: form50("rules", "args", { args: "argument[]", ...ruleFields50 }),
+    template: form50("rules", "params", { ...ruleFields50, params: name50 }),
+    rule: form50("rules", "", ruleFields50),
+    constant: form50("constants", "", { name: name50, op: scalar50, value: "expression", at: scalar50 }),
+    stage: form50("directives", "name", { ...pathFields50, args: name50 }, { tag: "stage", open: true }),
+    extendStage: form50("directives", "name", { ...pathFields50, args: name50 }, { tag: "extend-stage", open: true }),
+    redefineStage: form50("directives", "name", { ...pathFields50, args: name50 }, { tag: "redefine-stage", open: true }),
+    include: form50("directives", "name", pathFields50, { tag: "include", open: true }),
+    names: form50("directives", "name", pathFields50, { tag: "names", open: true }),
+    features: form50("directives", "name", { ...pathFields50, args: name50, conditions: "expression[]" }, { tag: "features", open: true }),
+    elisionPolicy: form50("directives", "name", pathFields50, { tag: "elision-only", open: true }),
+    resolution: form50("directives", "name", { name: scalar50, steps: "step[]", at: scalar50 }, { tag: "ambiguity-resolution", open: true }),
+    step: form50("step", "step", { step: name50, pattern: "resolutionPattern" }),
+    alternative: form50("alternative", "expr gates", { gates: "gate[]", expr: "body", term: "expression" }),
+    emission: form50("emission", "items", { items: "output[]" }),
+    insert: form50("output", "insert", { ...outputPrefix50, insert: flag50, term: "expression", at: scalar50 }),
+    braced: form50("output", "capture term", { ...outputPrefix50, capture: name50, term: "expression", at: scalar50 }),
+    forward: form50("output", "capture gates", { ...outputPrefix50, capture: name50, at: scalar50 }),
+    gate: form50("gate", "kind", { feature: name50, kind: scalar50, negated: scalar50 }, { tag: "gate" }),
+    bare: form50("bagEntry", "kind", { ...entryPrefix50, key: name50, at: scalar50 }, { tag: "bare" }),
+    write: form50("bagEntry", "kind", { ...entryPrefix50, keys: name50, value: "expression", at: scalar50 }, { tag: "write" }),
+    copy: form50("bagEntry", "kind", { ...entryPrefix50, source: "expression", key: name50, at: scalar50 }, { tag: "copy" }),
+    delete: form50("bagEntry", "kind", { ...entryPrefix50, key: name50, at: scalar50 }, { tag: "delete" }),
+    splat: form50("bagEntry listItem", "kind", { ...entryPrefix50, value: "expression", at: scalar50 }, { tag: "splat" }),
+    item: form50("listItem", "kind", { ...entryPrefix50, value: "expression", at: scalar50 }, { tag: "item" }),
+
+    sequence: form50("body", "seq", { seq: "body[]" }),
+    choice: form50("body", "choice", { choice: "body[]" }),
+    ranked: form50("body", "ranked", { ranked: "body[]" }),
+    subset: form50("body", "and", { and: "body[]" }),
+    elidable: form50("body", "optional elidable", { optional: "body", elidable: flag50, default: "stringTerm" }),
+    optional: form50("body", "optional", { optional: "body" }),
+    chain: form50("body", "repeat chain", { repeat: "body", separator: "body", chain: scalar50 }),
+    repeat: form50("body", "repeat", { repeat: "body", separator: "body" }),
+    reference: form50("body spliceTarget", "ref", { ref: name50 }),
+    literal: form50("body", "literal", { literal: "stringTerm" }),
+    literalArgument: form50("argument", "literal", { literal: "stringTerm", ...position50 }),
+    range: form50("body", "range", { range: "stringTerm[]" }),
+    rangeArgument: form50("argument", "range", { range: "stringTerm[]", ...position50 }),
+    wildcard: form50("body", "wildcard", { wildcard: flag50 }),
+    wildcardArgument: form50("argument", "wildcard", { wildcard: flag50, ...position50 }),
+    empty: form50("body", "empty", { empty: flag50 }),
+    remainder: form50("body", "remainder", { remainder: flag50 }),
+    splice: form50("body", "splice", { splice: "spliceTarget" }),
+    spliceArgument: form50("argument", "splice", { splice: "spliceTarget", ...position50 }),
+    captureSymbol: form50("body", "capture expr", { capture: name50, expr: "body" }),
+    primary: form50("body", "primary", { primary: "body" }),
+    bodyTags: form50("body argument", "test", { test: scalar50, expr: "body", requirements: "requirement[]", at: scalar50 }, { tag: "tags" }),
+    bodyTest: form50("body argument", "test", { test: scalar50, expr: "body", value: "stringTerm", at: scalar50 }),
+    call: form50("body argument target methodArgument instance spliceTarget", "call", { call: name50, args: "argument[]", at: scalar50 }),
+    parameter: form50("body argument target methodArgument expression selector stringTerm requirementValue", "param", { param: name50, at: scalar50 }),
+    expressionArgument: form50("argument", "expression", { expression: "expression", at: scalar50 }),
+    ruleArgument: form50("argument", "rule", { rule: name50, ...position50 }),
+    ruleTarget: form50("target methodArgument", "rule", { rule: name50 }),
+    tagArgument: form50("argument", "tag", { tag: name50, ...position50 }),
+    tagRequirement: form50("requirementValue", "tag", { tag: name50 }),
+    terminalTarget: form50("target methodArgument", "terminal", { terminal: name50 }),
+    bodyArgument: form50("argument", "body", { body: "body", ...position50 }),
+    query: form50("methodArgument", "body", { body: "body" }),
+    targetsArgument: form50("argument", "targets", { targets: "target[]", at: scalar50 }),
+    requirementsArgument: form50("argument", "requirements", { requirements: "requirement[]", at: scalar50 }),
+    requirement: form50("requirement", "negated value", { negated: scalar50, value: "requirementValue" }),
+    keyArgument: form50("methodArgument", "key", { key: name50 }),
+
+    conditional: form50("expression methodArgument", "if else", { if: "expression", then: "expression", else: "expression", at: scalar50 }),
+    implication: form50("expression methodArgument", "if", { if: "expression", then: "expression", at: scalar50 }),
+    lambda: form50("expression methodArgument selector", "lambda body", { lambda: name50, body: "expression", at: scalar50 }),
+    disjunction: form50("expression methodArgument", "any", { any: "expression[]", at: scalar50 }),
+    conjunction: form50("expression methodArgument", "all", { all: "expression[]", at: scalar50 }),
+    negation: form50("expression methodArgument", "not", { not: "expression", at: scalar50 }),
+    comparison: form50("expression methodArgument", "op", { op: scalar50, left: "expression", right: "expression", at: scalar50 }),
+    union: form50("expression methodArgument", "union", { union: "expression[]", at: scalar50 }),
+    intersection: form50("expression methodArgument", "intersection", { intersection: "expression[]", at: scalar50 }),
+    difference: form50("expression methodArgument", "difference", { difference: "expression[]", at: scalar50 }),
+    concat: form50("expression methodArgument", "concat", { concat: "expression[]", at: scalar50 }),
+    flatten: form50("expression methodArgument", "flatten", { flatten: "expression", at: scalar50 }),
+    property: form50("expression methodArgument", "property receiver", { property: name50, receiver: "expression", at: scalar50 }),
+    method: form50("expression methodArgument", "method receiver", { method: name50, receiver: "expression", args: "methodArgument[]", at: scalar50 }),
+    shortProperty: form50("selector", "property", { property: name50, at: scalar50 }),
+    shortMethod: form50("selector", "method", { method: name50, args: "methodArgument[]", at: scalar50 }),
+    map: form50("expression methodArgument", "map", { map: "expression", by: "selector", at: scalar50 }),
+    capture: form50("expression methodArgument selector", "capture", { capture: name50 }),
+    constantReference: form50("expression methodArgument selector stringTerm requirementValue resolutionPattern", "const", { const: name50, at: scalar50 }),
+    application: form50("expression methodArgument", "apply", { apply: name50, arg: "expression", at: scalar50 }),
+    string: form50("expression methodArgument stringTerm", "string", { string: scalar50 }),
+    integer: form50("expression methodArgument", "integer", { integer: scalar50 }),
+    pattern: form50("expression methodArgument", "pattern", { pattern: "pattern" }),
+    emptyPattern: form50("expression methodArgument", "emptySet", { emptySet: flag50 }),
+    implicitItem: form50("expression methodArgument", "item", { item: flag50 }),
+    bag: form50("expression methodArgument", "bag", { bag: "bagEntry[]" }),
+    list: form50("expression methodArgument", "list", { list: "listItem[]" }),
+
+    exactBareChildren: form50("pattern resolutionPattern", "any children exact", { any: flag50, exact: flag50, children: "childItem[]" }),
+    bareChildren: form50("pattern resolutionPattern", "any children", { any: flag50, children: "childItem[]" }),
+    patternName: form50("pattern patternAtom resolutionPattern", "name", { name: name50, ...exact50, children: "childItem[]" }),
+    patternCallWithChildren: form50("pattern resolutionPattern", "call children", { call: name50, args: "argument[]", ...exact50, children: "childItem[]" }),
+    patternCall: form50("pattern patternAtom resolutionPattern", "call", { call: name50, args: "argument[]", ...exact50 }),
+    patternParameterWithChildren: form50("pattern resolutionPattern", "param children", { param: name50, ...exact50, children: "childItem[]" }),
+    patternParameter: form50("pattern patternAtom resolutionPattern", "param", { param: name50, ...exact50 }),
+    patternTerminal: form50("pattern patternAtom resolutionPattern", "terminal", { terminal: name50, ...exact50 }),
+    patternLiteral: form50("pattern patternAtom resolutionPattern", "literal", { literal: "stringTerm", ...exact50 }),
+    patternRange: form50("pattern patternAtom resolutionPattern", "range", { range: "stringTerm[]", ...exact50 }),
+    patternWildcard: form50("pattern patternAtom resolutionPattern", "wildcard", { wildcard: flag50, ...exact50 }),
+    patternConstant: form50("pattern patternAtom resolutionPattern", "constant", { constant: name50, ...exact50 }),
+    patternTags: form50("pattern patternAtom resolutionPattern", "test", { test: scalar50, expr: "patternAtom", requirements: "requirement[]", ...exact50 }, { tag: "tags" }),
+    patternTest: form50("pattern resolutionPattern", "test", { test: scalar50, expr: "patternAtom", value: "stringTerm", ...exact50 }),
+    patternUnion: form50("pattern resolutionPattern", "union", { union: "pattern[]", ...position50 }),
+    patternIntersection: form50("pattern resolutionPattern", "intersection", { intersection: "pattern[]", ...position50 }),
+    patternDifference: form50("pattern resolutionPattern", "difference", { difference: "pattern[]", ...position50 }),
+    patternPath: form50("pattern resolutionPattern", "path pattern", { path: scalar50, pattern: "pattern" }),
+    child: form50("childItem", "child", { child: "pattern" }),
+    siblings: form50("childItem", "siblings", { siblings: flag50 }),
+    childOptional: form50("childItem", "optional", { optional: "childItem[]" }),
+    childRepeatSeparated: form50("childItem", "repeat separator", { repeat: "childItem[]", separator: "childItem[]" }),
+    childRepeat: form50("childItem", "repeat", { repeat: "childItem[]" }),
+    childChoice: form50("childItem", "choice", { choice: "childItem[][]" }),
+  };
+
+  /** @internal @typedef {{kind: string, when: string[], tag?: string, members: Set<string>, names: string[],
+   *             operands: [string, string][], flags: string[], open?: boolean}} Record50 */
+  /** @type {Map<string, Record50[]>} */
+  const recordSlots50 = new Map();
+  for (const [kind, form] of Object.entries(recordTable50)) {
+    const entries = Object.entries(form.fields);
+    const record = {
+      kind, when: form.when, tag: form.tag, open: form.open,
+      members: new Set(entries.map(([key]) => key)),
+      names: entries.filter(([, field]) => field === name50).map(([key]) => key),
+      flags: entries.filter(([, field]) => field === flag50).map(([key]) => key),
+      operands: /** @type {[string, string][]} */ (entries.filter(([, field]) => typeof field === "string")),
+    };
+    for (const slot of form.slots) {
+      const records = recordSlots50.get(slot) ?? [];
+      if (slot === "patternAtom") {
+        const members = new Set(record.members);
+        members.delete("exact");
+        members.delete("children");
+        records.push({ ...record, members, operands: record.operands.filter(([key]) => key !== "children") });
+      } else records.push(record);
+      recordSlots50.set(slot, records);
+    }
+    // The local semantic walks receive known structural subtrees. A host or a
+    // more specific form wins before a form that shares its leading member.
+    if (!["document", "rules", "directives", "constants"].some(slot => form.slots.includes(slot))) {
+      const records = recordSlots50.get("operand") ?? [];
+      records.push(record);
+      recordSlots50.set("operand", records);
+    }
+  }
+  /** @type {Map<string, Map<string, Record50[]>>} */
+  const recordDispatch50 = new Map();
+  for (const [slot, records] of recordSlots50) {
+    records.sort((a, b) => b.when.length - a.when.length || Number(b.tag !== undefined) - Number(a.tag !== undefined));
+    /** @type {Map<string, Record50[]>} */
+    const groups = new Map();
+    for (const record of records) {
+      const field = record.when[0] ?? "";
+      const group = groups.get(field) ?? [];
+      group.push(record);
+      groups.set(field, group);
+    }
+    recordDispatch50.set(slot, groups);
+  }
+
+  /** @param {any} node @param {string} [slot] */
+  function describeRecord50(node, slot = "operand") {
+    for (const [field, records] of recordDispatch50.get(slot) ?? []) {
+      if (field && !Object.hasOwn(node, field)) continue;
+      for (const record of records) {
+        if ((record.tag === undefined || node[field] === record.tag) &&
+            record.when.every(key => Object.hasOwn(node, key))) return record;
+      }
+    }
+  }
+
+  /** @internal @param {any} node @param {string} [slot] */
+  function recordKind50(node, slot) {
+    return node && typeof node === "object" && !Array.isArray(node) ? describeRecord50(node, slot)?.kind : undefined;
+  }
+
+  /** @internal @param {any} node @param {string} [slot] @returns {[string, any, string?][]} */
+  function operandFields50(node, slot) {
+    if (Array.isArray(node)) {
+      const item = slot?.endsWith("[]") ? slot.slice(0, -2) : slot;
+      return Array.from(node.entries(), ([index, child]) => [String(index), child, item]);
+    }
+    const record = describeRecord50(node, slot);
     /** @type {[string, any, string?][]} */
     const children = [];
-    const form = recordShape50(node, category);
-    for (const key of form.operands) {
+    for (const [key, operand] of record?.operands ?? []) {
       const child = node[key];
-      if (child && typeof child === "object" && Object.hasOwn(node, key)) {
-        children.push([key, child, category === "document" ? key : key === "items" ? "output" : undefined]);
-      }
+      if (child && typeof child === "object" && Object.hasOwn(node, key)) children.push([key, child, operand]);
     }
     return children;
   }
 
-  /** @internal @param {any} node @param {string} [category] */
-  function nameFields50(node, category) {
-    return recordShape50(node, category).names;
+  /** @internal @param {any} node @param {string} [slot] */
+  function nameFields50(node, slot) {
+    return describeRecord50(node, slot)?.names ?? [];
   }
+
+  /** @internal @param {any} node @param {string} slot */
+  function memberFault50(node, slot) {
+    if (slot.endsWith("[]")) return Array.isArray(node) ? undefined : `a ${slot.slice(0, -2)} list needs an array`;
+    if (!node || typeof node !== "object" || Array.isArray(node)) return `a ${slot} needs a record`;
+    const record = describeRecord50(node, slot);
+    if (!record) return `invalid ${slot} record`;
+    if (!record.open) {
+      let extra;
+      for (const key of Object.keys(node)) {
+        if (!record.members.has(key) && (extra === undefined || key < extra)) extra = key;
+      }
+      if (extra === "children" && (slot === "pattern" || slot === "patternAtom" || slot === "resolutionPattern")) {
+        return "only an untested rule atom, call or parameter can have a child list";
+      }
+      if (extra !== undefined) return `unknown member "${extra}" on a ${record.kind} record`;
+    }
+    for (const key of record.flags) {
+      if (Object.hasOwn(node, key) && node[key] !== true) return `"${key}" must be true on a ${record.kind} record`;
+    }
+    for (const [key, operand] of record.operands) {
+      if (!Object.hasOwn(node, key)) continue;
+      const child = node[key];
+      if (!child || typeof child !== "object" || Array.isArray(child) !== operand.endsWith("[]")) {
+        return `invalid operand "${key}" on a ${record.kind} record`;
+      }
+    }
+  }
+
+  /** @internal */
+  const recordKinds50 = Object.keys(recordTable50);
 
   // ---- format50/signatures.js
   // @ts-nocheck
@@ -18562,8 +18696,9 @@
 
   const argumentsError = "an argument cannot read or declare captures";
 
-  const baseSymbol = node => ["ref", "call", "param", "literal", "range", "wildcard", "splice", "test"]
-    .some(key => Object.hasOwn(node, key));
+  const symbolKinds50 = new Set(["reference", "call", "parameter", "literal", "range", "wildcard", "splice", "bodyTags", "bodyTest"]);
+  /** @internal */
+  const isBodySymbol50 = node => symbolKinds50.has(recordKind50(node, "body"));
   const ruleName50 = /^(?!.*--)[a-z][A-Za-z0-9_-]*$/;
   const featureName = /^(?!.*--)[A-Za-z][A-Za-z0-9-]*$/;
   const terminalName = /^[A-Z_]/;
@@ -18590,7 +18725,8 @@
   }
 
   function validatePatternChildren50(node, fail) {
-    if (node.test || !node.any && !node.name && !node.call && !node.param) {
+    const kind = recordKind50(node, "pattern");
+    if (!["bareChildren", "exactBareChildren", "patternName", "patternCallWithChildren", "patternParameterWithChildren"].includes(kind)) {
       fail(node, "only an untested rule atom, call or parameter can have a child list");
     }
   }
@@ -18602,15 +18738,19 @@
     };
   }
 
-  function withOwner50(root, fail, owner, category) {
+  function withOwner50(root, fail, owner, category, checkMembers = false) {
     const sites = new WeakMap();
     const pending = [[root, owner, category]];
     while (pending.length) {
       const [node, parent, kind] = pending.pop();
+      const site = Array.isArray(node?.at) ? node : parent;
+      if (checkMembers) {
+        const fault = memberFault50(node, kind);
+        if (fault) fail(site, fault);
+      }
       if (!node || typeof node !== "object") continue;
-      const site = Array.isArray(node.at) ? node : parent;
       sites.set(node, site);
-      for (const [, child, childKind] of operandFields50(node, kind)) pending.push([child, site, childKind]);
+      for (const [, child, childKind] of operandFields50(node, kind).reverse()) pending.push([child, site, childKind]);
     }
     return (node, message) => fail(Array.isArray(node?.at) ? node : sites.get(node) ?? owner, message);
   }
@@ -18642,7 +18782,11 @@
 
   function validateArgument50(argument, fail) {
     validateBindings50(argument, fail, { closed: true });
-    if (argument.body) validateBody50(argument.body, fail);
+    if (recordKind50(argument, "argument") === "bodyArgument") validateBody50(argument.body, fail);
+  }
+
+  function bodyChildren50(node) {
+    return operandFields50(node, "body").flatMap(([, child, slot]) => slot === "body[]" ? child : slot === "body" ? [child] : []);
   }
 
   function validateQuery50(method, fail) {
@@ -18659,8 +18803,7 @@
       if (!node || typeof node !== "object") continue;
       if (node.remainder) fail(method, "a query permits a remainder only at each outer edge");
       if (node.chain) fail(method, "a chain cannot be the query target");
-      const children = node.seq ?? node.choice ?? node.ranked ?? node.and ??
-        [node.optional, node.repeat, node.separator, node.primary, node.expr];
+      const children = bodyChildren50(node);
       for (let i = children.length - 1; i >= 0; i--) pending.push(children[i]);
     }
     validateBindings50(body, fail, { query: true });
@@ -18726,12 +18869,12 @@
   }
 
   function* bindingSlots(body, list) {
-    if (body.capture !== undefined) return new Map([[body.capture, list]]);
-    if (body.primary) return yield bindingSlots(body.primary, list);
-    if (body.optional) return yield bindingSlots(body.optional, true);
-    const routes = body.choice ?? body.ranked;
-    const children = routes ?? body.seq ?? body.and ??
-      (body.repeat ? [body.repeat, ...(body.separator ? [body.separator] : [])] : []);
+    const kind = recordKind50(body, "body");
+    if (kind === "captureSymbol") return new Map([[body.capture, list]]);
+    if (kind === "primary") return yield bindingSlots(body.primary, list);
+    if (kind === "optional" || kind === "elidable") return yield bindingSlots(body.optional, true);
+    if (!["choice", "ranked", "sequence", "subset", "repeat", "chain"].includes(kind)) return new Map();
+    const children = bodyChildren50(body);
     const slots = [];
     for (const child of children) slots.push(yield bindingSlots(child, list || !!body.repeat || body.and?.length > 1));
     const result = new Map();
@@ -18744,26 +18887,27 @@
   function validateBody50(body, fail) {
     const zero = () => ({ names: new Map(), min: 0, max: 0 });
     function* visit(node, blocked = false, chain = false, whole = true) {
-      if (node.primary) {
+      const kind = recordKind50(node, "body");
+      if (kind === "primary") {
         const symbol = node.primary.expr && node.primary.capture !== undefined ? node.primary.expr : node.primary;
         const base = atomOf(symbol);
-        if (!baseSymbol(base)) fail(node, "a primary marks one symbol or capture");
+        if (!isBodySymbol50(base)) fail(node, "a primary marks one symbol or capture");
         if (blocked || base.splice) fail(node, "a primary must mark a mandatory child that is not a splice");
         const route = yield visit(node.primary, blocked, chain, false);
         route.min++;
         route.max++;
         return route;
       }
-      if (node.capture !== undefined && node.expr) {
+      if (kind === "captureSymbol") {
         if (chain) fail(node, "a chain item or separator cannot bind a capture directly");
         if (!CAPTURE_NAME.test(node.capture)) fail(node, "a capture name must use lowercase letters, digits, hyphens or underscores");
-        if (!baseSymbol(node.expr)) fail(node, "a capture wraps one symbol");
+        if (!isBodySymbol50(node.expr)) fail(node, "a capture wraps one symbol");
         const route = yield visit(node.expr, blocked, chain, false);
         if (route.names.has(node.capture)) fail(route.names.get(node.capture), "a route binds a capture twice");
         route.names.set(node.capture, node);
         return route;
       }
-      if (node.optional) {
+      if (kind === "optional" || kind === "elidable") {
         do {
           validateOmission(node, fail);
           node = node.optional;
@@ -18772,9 +18916,8 @@
         route.min = 0;
         return route;
       }
-      const children = node.seq ?? node.and ?? node.choice ?? node.ranked ??
-        (node.repeat && [node.repeat, ...(node.separator ? [node.separator] : [])]);
-      if (!children) return zero();
+      if (!["sequence", "subset", "choice", "ranked", "repeat", "chain"].includes(kind)) return zero();
+      const children = bodyChildren50(node);
       if (node.chain && !whole) fail(node, "a chain must occupy a whole alternative");
       if (node.and) validateSubsetSize50(node.and.length, node, fail);
       const exclusive = !!(node.choice || node.ranked);
@@ -18801,14 +18944,17 @@
   }
 
   function validateExactPattern50(pattern, fail, { origin = true } = {}) {
-    if (pattern.const || pattern.constant) return;
-    if (pattern.union || pattern.intersection || pattern.difference) {
-      for (const part of pattern.union ?? pattern.intersection ?? pattern.difference) {
+    const kind = recordKind50(pattern, "resolutionPattern");
+    if (kind === "constantReference" || kind === "patternConstant") return;
+    if (["patternUnion", "patternIntersection", "patternDifference"].includes(kind)) {
+      for (const part of operandFields50(pattern, "resolutionPattern")[0][1]) {
         validateExactPattern50(part, fail, { origin });
       }
       return;
     }
-    if (!pattern.exact || pattern.path || pattern.children || pattern.any) fail(pattern, "a key step needs an exact local pattern");
+    if (!pattern.exact || kind === "patternPath" || pattern.children) {
+      fail(pattern, "a key step needs an exact local pattern");
+    }
     let atom = pattern;
     while (atom.test) {
       if (!origin && atom.requirements?.some(item => !item.negated && item.value.tag === "_Elided")) {
@@ -18873,15 +19019,16 @@
   // Only fold operations with closed scalar operands here. The native loader
   // resolves constants, input properties and parameter-dependent guards.
   function* closedScalar50(node) {
+    const kind = recordKind50(node);
     if (node.string !== undefined) return node.string;
     if (node.integer !== undefined) return BigInt(node.integer);
     if (node.not) {
       const operand = yield closedScalar50(node.not);
       if (typeof operand === "boolean") return !operand;
     }
-    if (node.all || node.any) {
-      const deciding = !!node.any;
-      for (const part of node.all ?? node.any) {
+    if (kind === "conjunction" || kind === "disjunction") {
+      const deciding = kind === "disjunction";
+      for (const part of node[deciding ? "any" : "all"]) {
         const value = yield closedScalar50(part);
         if (typeof value !== "boolean") return;
         if (value === deciding) return deciding;
@@ -18950,26 +19097,27 @@
 
   function* captureWitness50(body, required, forbidden, names) {
     if (!required.every(name => names(body).has(name))) return;
-    if (body.capture !== undefined) return forbidden.has(body.capture) ? undefined : [];
-    if (body.primary) return yield captureWitness50(body.primary, required, forbidden, names);
-    if (body.optional) {
+    const kind = recordKind50(body, "body");
+    if (kind === "captureSymbol") return forbidden.has(body.capture) ? undefined : [];
+    if (kind === "primary") return yield captureWitness50(body.primary, required, forbidden, names);
+    if (kind === "optional" || kind === "elidable") {
       if (!required.length && (!body.elidable || omissionAllowed50(body) === true)) return [0];
       const route = yield captureWitness50(body.optional, required, forbidden, names);
       if (route) return [1, ...route];
       return;
     }
-    if (body.choice || body.ranked) {
-      for (const [index, child] of (body.choice ?? body.ranked).entries()) {
+    if (kind === "choice" || kind === "ranked") {
+      for (const [index, child] of bodyChildren50(body).entries()) {
         const route = yield captureWitness50(child, required, forbidden, names);
         if (route) return [index, ...route];
       }
       return;
     }
-    if (body.repeat) return yield repeatWitness50(body, required, forbidden, names);
-    if (body.and) {
+    if (kind === "repeat" || kind === "chain") return yield repeatWitness50(body, required, forbidden, names);
+    if (kind === "subset") {
       let mask = 0;
       let route = [];
-      for (const [index, child] of body.and.entries()) {
+      for (const [index, child] of bodyChildren50(body).entries()) {
         const needed = required.filter(name => names(child).has(name));
         if (!needed.length && (required.length || mask)) continue;
         const childRoute = yield captureWitness50(child, needed, forbidden, names);
@@ -18982,9 +19130,9 @@
       }
       return mask ? [mask, ...route] : undefined;
     }
-    if (body.seq) {
+    if (kind === "sequence") {
       let route = [];
-      for (const child of body.seq) {
+      for (const child of bodyChildren50(body)) {
         const needed = required.filter(name => names(child).has(name));
         const childRoute = yield captureWitness50(child, needed, forbidden, names);
         if (!childRoute) return;
@@ -19117,6 +19265,7 @@
 
   function* expansionScope(root, slots, report, bindings, presence, check, truth = false, forwarding = false) {
     if (!root || typeof root !== "object") return;
+    const kind = recordKind50(root);
     const walk = (part, asTruth = false) => asTruth ?
       expansionScope(part, slots, report, bindings, presence, check, true) : check(part, bindings, presence);
     if (root.method === "present" && root.receiver?.capture !== undefined) {
@@ -19162,10 +19311,10 @@
       const value = yield walk(root.not, true);
       return typeof value === "boolean" ? !value : value;
     }
-    if (root.all || root.any) {
-      const result = !!root.any;
+    if (kind === "conjunction" || kind === "disjunction") {
+      const result = kind === "disjunction";
       let unknown = false;
-      for (const part of root.all ?? root.any) {
+      for (const part of root[result ? "any" : "all"]) {
         const value = yield walk(part, true);
         if (value === result || value === deferredTruth) return value;
         unknown ||= value === undefined;
@@ -19469,6 +19618,7 @@
     while (pending.length) {
       const [node, ready, scope, implicit, needsTruth] = pending.pop();
       if (!node || typeof node !== "object") continue;
+      const kind = recordKind50(node);
       if (!ready) {
         pending.push([node, true, scope, implicit, needsTruth]);
         if (["all", "any"].includes(node.method) && node.args[0]?.lambda !== undefined) predicates.set(node.args[0], node);
@@ -19490,7 +19640,7 @@
           const [key, child] = children[i];
           const childTruth = key === "if" || key === "guard" || key === "not" ||
             key === "then" && (!node.else || needsTruth) || key === "else" && needsTruth ||
-            (key === "all" || key === "any") && Array.isArray(child) || Array.isArray(node) && needsTruth;
+            kind === "conjunction" || kind === "disjunction" || Array.isArray(node) && needsTruth;
           pending.push([child, false, scope, implicit, childTruth]);
         }
         continue;
@@ -19653,7 +19803,7 @@
         }
         if (!openDifference) remember(node, listDifference ? type(group[0]) : known[0]);
       }
-      if (node.not || Array.isArray(node.all) || Array.isArray(node.any)) remember(node, "truth");
+      if (kind === "negation" || kind === "conjunction" || kind === "disjunction") remember(node, "truth");
       if (needsTruth && ["string", "number", "pattern", "function"].includes(type(node))) {
         fail(node, "this operand does not have a truth value");
       }
@@ -19744,7 +19894,7 @@
   }
 
   function validateDeclarationShape50(category, declaration, fail, unicode, emptyDelimiters = []) {
-    const locate = withOwner50(declaration, fail, declaration, category);
+    const locate = withOwner50(declaration, fail, declaration, category, true);
     validateHeader(category, declaration, locate, unicode);
     if (category === "constants" && declaration.name === "INPUTS") fail(declaration, "$INPUTS is supplied by the engine");
     const resolution = category === "directives" && declaration.name === "ambiguity-resolution";
@@ -19761,10 +19911,10 @@
     const captureContexts = new WeakMap();
     const defaults = new WeakMap();
     const pending = operandFields50(declaration, category).reverse()
-      .map(([, node]) => [node, false, false, false, false]);
+      .map(([, node, slot]) => [node, false, false, false, false, undefined, slot]);
     while (pending.length) {
       const task = pending.pop();
-      const [node, width, inRepeat, inPattern, requirement, phase] = task;
+      const [node, width, inRepeat, inPattern, requirement, phase, slot] = task;
       if (!node || typeof node !== "object") continue;
       if (phase === "complete") {
         if (actuals.has(node)) validateArgument50(node, locate);
@@ -19777,7 +19927,7 @@
         pending.push(task);
         const context = actuals.has(node) ? "argument" : captureContexts.get(node);
         if (context) captureContexts.set(node.receiver, context);
-        pending.push([node.receiver, false, inRepeat, inPattern, false]);
+        pending.push([node.receiver, false, inRepeat, inPattern, false, undefined, "expression"]);
         continue;
       }
       if (ruleBodies.has(node)) validateBody50(node, locate);
@@ -19842,18 +19992,19 @@
       if (node.bag) validateBag50(node.bag, locate);
       if (inRepeat && node.siblings) locate(node, "a repeated child list cannot contain a sibling gap");
       if (actuals.has(node) || node.method === "parse") {
-        pending.push([node, width, inRepeat, inPattern, requirement, "complete"]);
+        pending.push([node, width, inRepeat, inPattern, requirement, "complete", slot]);
       }
-      const ordered = operandFields50(node);
+      const ordered = operandFields50(node, slot);
       if (node.elidable && node.default && node.optional.seq) defaults.set(node.optional.seq, node.default);
-      if (defaults.has(node)) ordered.splice(1, 0, ["default", defaults.get(node)]);
-      for (const [key, value] of ordered.reverse()) {
+      if (defaults.has(node)) ordered.splice(1, 0, ["default", defaults.get(node), "stringTerm"]);
+      for (const [key, value, childSlot] of ordered.reverse()) {
         if (selector && key === "receiver" || key === "default" && node.optional?.seq) continue;
         if (node.method === "parse" && key === "args") captureContexts.set(value, "query");
         else if (captureContext) captureContexts.set(value, captureContext);
-        const repeated = inRepeat && key !== "child" || Array.isArray(node.repeat) && (key === "repeat" || key === "separator");
+        const repeated = inRepeat && key !== "child" || slot === "childItem" && (key === "repeat" || key === "separator");
         pending.push([value, node.method === "ngrams" && key === "args" || width && Array.isArray(node),
-          repeated, key === "pattern" || inPattern && key !== "body", key === "value" && Object.hasOwn(node, "negated")]);
+          repeated, childSlot === "pattern" || childSlot === "resolutionPattern" || inPattern && key !== "body",
+          childSlot === "requirementValue", undefined, childSlot]);
       }
     }
   }
@@ -19866,6 +20017,8 @@
   function validateDocumentShape50(dom, configuration = {}) {
     const { document, unicode } = configuration;
     const fail = documentFault50(document);
+    const fault = memberFault50(dom, "document");
+    if (fault) fail(dom, fault);
     const emptyDelimiters = [];
     let preamble = true;
     for (const [category, declaration] of orderedDeclarations(dom)) {
@@ -19936,47 +20089,48 @@
     return dom;
   }
 
+  const transparentDepth50 = new Set([
+    "primary", "expressionArgument", "bodyArgument", "query", "requirementsArgument", "targetsArgument",
+    "requirement", "bare", "write", "copy", "delete", "splat", "item",
+  ]);
+
   function tooDeep(category, declaration) {
     const pending = [];
-    const push = (value, depth) => {
-      if (value && typeof value === "object") pending.push([value, depth]);
+    const push = (value, depth, slot) => {
+      if (value && typeof value === "object") pending.push([value, depth, slot]);
     };
-    for (const [key, child] of operandFields50(declaration, category)) {
+    for (const [key, child, slot] of operandFields50(declaration, category)) {
       if (key === "alternatives" || key === "steps" || key === "emit") {
-        for (const host of key === "emit" ? child.items : child) {
-          for (const [field, value] of operandFields50(host)) if (field !== "gates") push(value, 0);
+        const [hosts, hostSlot] = key === "emit" ? [child.items, "output[]"] : [child, slot];
+        for (const [, host, kind] of operandFields50(hosts, hostSlot)) {
+          for (const [field, value, operand] of operandFields50(host, kind)) if (field !== "gates") push(value, 0, operand);
         }
-      } else push(child, key === "args" ? 1 : 0);
+      } else push(child, key === "args" ? 1 : 0, slot);
     }
     while (pending.length) {
-      const [node, depth] = pending.pop();
+      const [node, depth, slot] = pending.pop();
       if (depth > DOM_MAX_DEPTH) return true;
-      if (Array.isArray(node)) {
-        for (const child of node) push(child, depth);
-        continue;
-      }
-      if (node.primary || node.expression || node.body && node.lambda === undefined) {
-        push(node.primary ?? node.expression ?? node.body, depth);
-        continue;
-      }
-      if (node.targets || node.kind || Object.hasOwn(node, "negated") && node.value) {
-        for (const [key, child] of operandFields50(node)) if (key !== "gates") push(child, depth);
-        continue;
-      }
-      if (node.bag || node.list) {
-        for (const entry of node.bag ?? node.list) {
-          for (const [key, child] of operandFields50(entry)) if (key !== "gates") push(child, depth + 1);
+      const kind = recordKind50(node, slot);
+      const children = operandFields50(node, slot);
+      if (kind === "bag" || kind === "list") {
+        for (const [, entries, entryList] of children) {
+          for (const [, entry, entrySlot] of operandFields50(entries, entryList)) {
+            for (const [key, child, operand] of operandFields50(entry, entrySlot)) {
+              if (key !== "gates") push(child, depth + 1, operand);
+            }
+          }
         }
         continue;
       }
-      if (node.map) {
-        push(node.map, depth + 1);
-        if (node.by.method) push(node.by.args, depth + 1);
-        else if (!node.by.property) push(node.by, depth + 1);
-        continue;
-      }
-      for (const [key, child] of operandFields50(node)) {
-        push(child, key === "literal" || key === "range" || key === "requirements" ? depth : depth + 1);
+      for (const [key, child, operand] of children) {
+        if (key === "gates") continue;
+        if (key === "by" && ["shortMethod", "shortProperty"].includes(recordKind50(child, operand))) {
+          for (const [, arg, argSlot] of operandFields50(child, operand)) push(arg, depth + 1, argSlot);
+        } else {
+          const transparent = Array.isArray(node) || transparentDepth50.has(kind) ||
+            key === "literal" || key === "range" || key === "requirements";
+          push(child, transparent ? depth : depth + 1, operand);
+        }
       }
     }
     return false;
