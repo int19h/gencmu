@@ -28,6 +28,24 @@ test("layout inspects long constructors and condition continuation in format 50"
   ]);
 });
 
+test("only plain strings can share a line in a long list", () => {
+  const compiler = createTransitionCompiler();
+  const table = entry => fenced(`%const $LEXICON
+  {BAI: ["ba'i", ${entry},
+         "bau", "be'i"],
+   CAI: ["cai"]}`);
+  const problems = entry => {
+    const source = table(entry);
+    return layoutProblems(source, compiler.compileDocument(source), "table.md");
+  };
+  assert.deepEqual(problems('"bai"'), []);
+  for (const entry of ['(1 = 1)? "bai"', 'f? "bai"', '*["bai"]', '("bai")']) {
+    assert.deepEqual(problems(entry), [
+      "table.md:3: put one entry on each line of a long constructor",
+    ], entry);
+  }
+});
+
 test("a continued term belongs on a separate line past its owner", () => {
   const compiler = createTransitionCompiler();
   const bad = fenced("%rule text A → {One,\n                 Two}");

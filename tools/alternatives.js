@@ -885,6 +885,9 @@ function unbreakable(line) {
 
 function format50ClauseProblems(markdown, dom, path) {
   const lines = splitLines(markdown);
+  const { text, positions } = extractGrammarText(markdown, path, unicode);
+  const chars = [...text];
+  const offsets = new Map(positions.map(([line, column], offset) => [`${line}:${column}`, offset]));
   const problems = [];
   const walk = [dom];
   while (walk.length) {
@@ -892,18 +895,22 @@ function format50ClauseProblems(markdown, dom, path) {
     if (!node || typeof node !== "object") continue;
     const entries = node.bag ?? node.list ?? node.emit?.items;
     if (entries) {
-      const starts = entries.map(entry => entry.at?.[0]).filter(Boolean);
-      if (new Set(starts).size > 1) {
-        for (const [index, line] of starts.entries()) {
-          if (line === starts[index - 1]) problems.push(`${path}:${line}: put one entry on each line of a long constructor`);
+      const positioned = entries.filter(entry => entry.at?.[0]);
+      if (new Set(positioned.map(entry => entry.at[0])).size > 1) {
+        // Grouping disappears from the DOM. A plain item starts at its quote.
+        const plain = entry => node.list === entries && entry.kind === "item" && !entry.gates.length && !entry.guard &&
+          typeof entry.value?.string === "string" && chars[offsets.get(entry.at.join(":"))] === '"';
+        for (let index = 1; index < positioned.length; index++) {
+          const entry = positioned[index];
+          const previous = positioned[index - 1];
+          if (entry.at[0] === previous.at[0] && !(plain(entry) && plain(previous))) {
+            problems.push(`${path}:${entry.at[0]}: put one entry on each line of a long constructor`);
+          }
         }
       }
     }
     for (const child of Object.values(node)) walk.push(child);
   }
-  const { text, positions } = extractGrammarText(markdown, path, unicode);
-  const chars = [...text];
-  const offsets = new Map(positions.map(([line, column], offset) => [`${line}:${column}`, offset]));
   const beforeBody = start => {
     let index = start - 1;
     while (index >= 0 && /^[ \t]$/.test(chars[index])) index--;
