@@ -22,6 +22,7 @@
 // libraries' own reader of grammar blocks (lib/js/src/markdown.js), which
 // docs/engine.md specifies, reads the grammar, as every library does.
 import { syntaxEbnf } from "./notation-ebnf.js";
+import { manifestPath, notation50Resources } from "./notation50-resources.js";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -46,15 +47,19 @@ import { exampleProblems } from "./examples.js";
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 const sourceDirectory = path.join(root, "lib", "js", "src");
-const modules = new Map();
-for (const file of fs.readdirSync(sourceDirectory).filter((name) => name.endsWith(".js") && name !== "node.js")) {
-  const text = fs.readFileSync(path.join(sourceDirectory, file), "utf8");
-  modules.set(file, browserModule(file, text));
-}
 // The packages' copies of grammars/.
 const copies = ["lib/js/grammars", "lib/python/src/gencmu/grammars", "lib/go/grammars", "lib/rust/grammars"];
 const grammars = path.join(root, "grammars");
 const check = process.argv.includes("--check");
+const part = process.argv.find(arg => arg.startsWith("--part="))?.slice("--part=".length);
+const family = process.argv.find(arg => arg.startsWith("--family="))?.slice("--family=".length);
+if (family !== undefined && (part !== "generated" || !/^[a-z][a-z0-9-]*$/.test(family) ||
+  !fs.existsSync(path.join(grammars, family)))) {
+  throw new Error("--family requires a bundled format 49 family and --part=generated");
+}
+if (part !== undefined && part !== "format50" && (!check || !["generated", "sources"].includes(part))) {
+  throw new Error("--part takes format50, or generated and sources with --check");
+}
 const basicEditor = process.argv.includes("--basic-editor");
 const stale = [];
 const includeEdges = sourceIncludeEdges(root);
@@ -82,22 +87,328 @@ function grammarFiles(directory = grammars, prefix = "") {
   return files;
 }
 
+/** @param {string} relative */
+const existing = (relative) => {
+  const directory = path.join(root, relative);
+  if (!fs.existsSync(directory)) return [];
+  return fs.readdirSync(directory, { withFileTypes: true }).filter((entry) => !entry.name.startsWith(".")).flatMap((entry) => (entry.isDirectory() ? existing(`${relative}/${entry.name}`) : [`${relative}/${entry.name}`]));
+};
+
+function cacheDocuments(files) {
+  const entries = {};
+  for (const file of files) {
+    if (!file.endsWith(".json")) continue;
+    Object.assign(entries, JSON.parse(fs.readFileSync(path.join(root, file), "utf8")).documents);
+  }
+  return entries;
+}
+
+function checkSources(documents, documents50, loader) {
+  // Inspect all shared fixture controls before generation. Library readers
+  // rely on this contract, even when they bypass the main case runners.
+  const misshapen = fixtureShapeProblems(root);
+  if (misshapen.length) {
+    console.error(misshapen.join("\n"));
+    process.exit(1);
+  }
+
+  // No other document holds a generated element: one there would show
+  // diagrams that nothing updates. The packages' copies of grammars/ hold
+  // the same elements as grammars/.
+  const strays = [];
+  for (const file of markdownFiles(root)) {
+    if (file.startsWith("grammars/") || file.startsWith("grammars50/") || file.startsWith("lib/js/grammars50/") || copies.some((copy) => file.startsWith(`${copy}/`))) continue;
+    const owned = ownedLines(documentLines(fs.readFileSync(path.join(root, file), "utf8")).lines);
+    owned.forEach((line, index) => {
+      if (line) strays.push(`${file}:${index + 1}: a line of a railroad diagram's generated element outside grammars/; remove it`);
+    });
+  }
+  if (strays.length) {
+    console.error(strays.join("\n"));
+    process.exit(1);
+  }
+
+  // docs/notation.md, "Layout of the bundled grammars": each marked
+  // alternative stands on lines of its own, plain alternatives can share
+  // lines or stand one on each line, no line of a rule body holds more
+  // than 100 characters, a comment line does not count toward that limit,
+  // and a comment stands on its own lines (tools/alternatives.js).
+  const sprawling = [];
+  for (const [file, { dom }] of Object.entries(documents)) {
+    for (const problem of layoutProblems(fs.readFileSync(path.join(root, file), "utf8"), dom, file)) sprawling.push(problem);
+  }
+  for (const [file, { dom }] of Object.entries(documents50)) {
+    const text = fs.readFileSync(path.join(root, file), "utf8");
+    for (const problem of layoutProblems(text, dom, file)) sprawling.push(problem);
+  }
+  if (sprawling.length) {
+    console.error(sprawling.join("\n"));
+    process.exit(1);
+  }
+  loader.usePreparsed({
+    format: DOM_FORMAT,
+    bootstrap: loader.bootstrapHash,
+    unicode: loader.unicodeHash,
+    properties: loader.propertiesHash,
+    bundledNames: bundledNamesRegistry(),
+    documents,
+  });
+  const { problems: badExamples } = exampleProblems(root, { loader, runExamples: check });
+  if (badExamples.length) {
+    console.error(badExamples.join("\n"));
+    process.exit(1);
+  }
+  // The checks of the documents' Markdown read it through the parser of
+  // tools/markdown.js:
+  //
+  // - Every %include of a document follows, in the same list item, a link to
+  //   the same path, so that the prose and the blocks name the same documents
+  //   (docs/design.md, "Pipelines"; tools/links.js).
+  // - Every paragraph, heading and table row of every Markdown document
+  //   stands on one line, with its code spans, and no document has an
+  //   indented code block or an HTML block (docs/design.md, "Documents";
+  //   tools/prose-lines.js).
+  // - Every Lojban text that a grammar document quotes has a corpus case, or
+  //   an entry in tests/quoted-allow.txt (tests/README.md, "Quoted texts").
+  if (parserMissing && check) {
+    console.error(`cannot check the Markdown of the documents: ${parserMissing}`);
+    process.exit(1);
+  } else if (parserMissing) {
+    console.warn(`the Markdown of the documents is not checked: ${parserMissing}`);
+  } else {
+    const unlinked = [];
+    for (const file of grammarFiles().filter(file => file.endsWith(".md"))) {
+      const dom = includeEdges.get(`grammars/${file}`);
+      const isLinked = includeLinks(fs.readFileSync(path.join(grammars, file), "utf8"));
+      for (const directive of dom.directives) {
+        if (directive.name === "include" && !isLinked(directive.at[0], directive.args[0])) unlinked.push(`${file}:${directive.at[0]}: %include "${directive.args[0]}" does not follow a list item with a link [text](${directive.args[0]})`);
+      }
+    }
+    for (const [file, { dom }] of Object.entries(documents50)) {
+      const text = fs.readFileSync(path.join(root, file), "utf8");
+      const isLinked = includeLinks(text);
+      for (const directive of dom.directives) {
+        if (directive.name === "include" && !isLinked(directive.at[0], directive.args[0])) {
+          unlinked.push(`${file}:${directive.at[0]}: include needs a matching list item link`);
+        }
+      }
+    }
+    if (unlinked.length) {
+      console.error(unlinked.join("\n"));
+      process.exit(1);
+    }
+    const anchors = new Map();
+    const readAnchors = (relative) => {
+      if (!anchors.has(relative)) {
+        const file = path.join(root, relative);
+        anchors.set(relative, fs.existsSync(file) ? headingAnchors(fs.readFileSync(file, "utf8")) : null);
+      }
+      return anchors.get(relative);
+    };
+    const missingAnchors = grammarFiles().filter(file => file.endsWith(".md")).flatMap((file) =>
+      localAnchorProblems(fs.readFileSync(path.join(grammars, file), "utf8"), `grammars/${file}`, readAnchors));
+    for (const file of Object.keys(documents50)) {
+      const text = fs.readFileSync(path.join(root, file), "utf8");
+      for (const problem of localAnchorProblems(text, file, readAnchors)) missingAnchors.push(problem);
+    }
+    if (missingAnchors.length) {
+      console.error(missingAnchors.join("\n"));
+      process.exit(1);
+    }
+    // The packages' copies of grammars/ are checked as grammars/, which
+    // this run copies to them.
+    const broken = markdownFiles(root).filter((file) => !file.startsWith("lib/js/grammars50/") && !copies.some((copy) => file.startsWith(`${copy}/`))).flatMap((file) => proseLineProblems(fs.readFileSync(path.join(root, file), "utf8"), file));
+    if (broken.length) {
+      console.error(broken.join("\n"));
+      process.exit(1);
+    }
+    const badCllFootnotes = repositoryCllFootnoteProblems(root);
+    if (badCllFootnotes.length) {
+      console.error(badCllFootnotes.join("\n"));
+      process.exit(1);
+    }
+    // The DOMs and the pipelines of the sources, as this run reads them.
+    const unpinned = quotedTextProblems(root, { doms: includeEdges, runCases: false });
+    if (unpinned.length) {
+      console.error(unpinned.join("\n"));
+      process.exit(1);
+    }
+  }
+}
+
+if (part === "sources") {
+  const read = relative => {
+    const file = path.join(root, relative === "data/unicode/unicode-names-reference.txt" ?
+      "data/unicode/unicode-names.txt" : relative);
+    return fs.existsSync(file) ? fs.readFileSync(file, "utf8") : undefined;
+  };
+  const bundles = JSON.parse(read(manifestPath));
+  checkSources(cacheDocuments(existing(bundles["49"].cacheRoot)),
+    notation50Resources(root).sourceDocuments, new Loader(read));
+  console.log("source checks passed");
+  process.exit(0);
+}
+
 // Every grammar file that this script bundles is one of the repository's
 // files, as every tool lists them (tools/documents.js). So the checks below
 // see each document that the packages ship.
 const listed = new Set(repositoryFiles(root));
 const unlisted = grammarFiles().map((file) => `grammars/${file}`).filter((file) => !listed.has(file));
+const grammar50 = notation50Resources(root);
+for (const file of grammar50.sources) if (!listed.has(file)) unlisted.push(file);
 if (unlisted.length) {
   console.error(unlisted.map((file) => `${file}: git does not track this file, and sync.js would bundle it; add it to git, or remove it`).join("\n"));
   process.exit(1);
 }
 
-// Inspect all shared fixture controls before generation. Library readers
-// rely on this contract, even when they bypass the main case runners.
-const misshapen = fixtureShapeProblems(root);
-if (misshapen.length) {
-  console.error(misshapen.join("\n"));
-  process.exit(1);
+function readData(cacheRoot) {
+  return Object.fromEntries(existing("data")
+    .filter(file => !file.startsWith(cacheRoot + "/"))
+    .map(file => [file, fs.readFileSync(path.join(root, file), "utf8")]));
+}
+
+function writeBrowserResources(sources50, dataSources, caches50) {
+  // Names and properties resources remain separate for playground requests.
+  const sources = Object.fromEntries(grammarFiles().map(file => [file, fs.readFileSync(path.join(grammars, file), "utf8")]));
+  const browserSources = Object.fromEntries(Object.entries({...Object.fromEntries(Object.entries(sources).map(([key,value]) => [`grammars/${key}`,value])), ...sources50, ...dataSources, ...Object.fromEntries(caches50)}).filter(([file, text]) =>
+    !file.endsWith(".txt") || !/^[ \t\r\n]*unicode-(?:names|properties)[ \t]/.test(text)));
+  write("dist/grammars.js", `// Generated by tools/sync.js from grammars/ and data/: eager resources, by package-relative path.
+(function (root) {
+  "use strict";
+  root.gencmuGrammars = ${JSON.stringify(browserSources)};
+  root.gencmuEditor = ${JSON.stringify(basicEditor ? "basic" : "full")};
+})(typeof self !== "undefined" ? self : this);
+`);
+}
+
+function writeBrowserLibrary() {
+  const modules = new Map();
+  for (const file of fs.readdirSync(sourceDirectory, { recursive: true, withFileTypes: true })) {
+    if (!file.isFile() || !file.name.endsWith(".js")) continue;
+    const relative = path.relative(sourceDirectory, path.join(file.parentPath, file.name)).split(path.sep).join("/");
+    if (relative === "node.js") continue;
+    modules.set(relative, browserModule(relative, fs.readFileSync(path.join(sourceDirectory, relative), "utf8")));
+  }
+  // The browser bundle: the modules of lib/js/src, except the Node entry point,
+  // in dependency order, inside one factory function with nothing outside it.
+  const order = [];
+  const visit = (file, trail = []) => {
+    if (order.includes(file)) return;
+    if (trail.includes(file)) throw new Error(`an import cycle: ${[...trail, file].join(" → ")}`);
+    if (!modules.has(file)) throw new Error(`missing browser module ${[...trail, file].join(" → ")}`);
+    for (const dependency of modules.get(file).imports) visit(dependency, [...trail, file]);
+    order.push(file);
+  };
+  for (const file of [...modules.keys()].sort()) visit(file);
+  const declared = new Map();
+  const bodies = order.map((file) => {
+    const body = modules.get(file).text
+      .replace(/^export\s+\{[^}]*\}\s+from\s+"[^"]+";$/gms, "")
+      .replace(/^export\s+\*\s+from\s+"[^"]+";$/gm, "")
+      .replace(/^export\s*\{\s*\};$/gm, "")
+      .replace(/^export\s+(?=(async\s+)?(function|class|const|let)\b)/gm, "");
+    for (const match of body.matchAll(/^(?:async\s+)?(?:function\*?|class|const|let)\s+([A-Za-z_$][\w$]*)/gm)) {
+      if (declared.has(match[1])) throw new Error(`${match[1]} is declared in both ${declared.get(match[1])} and ${file}; the bundle needs unique top-level names`);
+      declared.set(match[1], file);
+    }
+    return `  // ---- ${file}\n` + body.split("\n").map((line) => (line ? "  " + line : line)).join("\n");
+  });
+  const exported = [...fs.readFileSync(path.join(sourceDirectory, "index.js"), "utf8").matchAll(/export\s+(?:\{([^}]*)\}|function\s+(\w+)|const\s+(\w+))/g)]
+    .flatMap((match) => (match[1] ? match[1].split(",").map((name) => name.trim()).filter(Boolean) : [match[2] || match[3]]));
+  const version = JSON.parse(fs.readFileSync(path.join(root, "lib", "js", "package.json"), "utf8")).version;
+  write("dist/gencmu.js", `// Generated by tools/sync.js from lib/js/src/: the gencmu library as one factory
+// function with nothing outside it, so that a page can hand its source to a
+// worker built from a Blob, which fetches nothing.
+(function (root) {
+  "use strict";
+  function gencmuFactory() {
+${bodies.join("\n")}
+    return { version: ${JSON.stringify(version)}, ${exported.join(", ")} };
+  }
+  root.gencmuFactory = gencmuFactory;
+  root.gencmu = gencmuFactory();
+})(typeof self !== "undefined" ? self : this);
+`);
+}
+
+function finish() {
+  if (check && stale.length) {
+    console.error(`out of date; run node tools/sync.js:\n  ${stale.join("\n  ")}`);
+    process.exit(1);
+  }
+  console.log(check ? "generated files are up to date" : `updated ${stale.length} file(s)`);
+}
+
+function generate50(grammar50) {
+  // Format 50 has a separate source root, bootstrap and optional cache namespace.
+  const formatted50 = new Map();
+  const diagrams50 = new Map();
+  let moved50 = false;
+  for (const file of grammar50.sources.filter(file => file.endsWith(".md"))) {
+    const text = fs.readFileSync(path.join(root, file), "utf8");
+    const dom = grammar50.sourceDocuments[file].dom;
+    const relative = file.slice(grammar50.bundle.sourceRoot.length + 1);
+    const { text: next, files } = withDiagrams(relative, text, dom, new Map(), "50");
+    formatted50.set(file, next);
+    moved50 ||= text !== next;
+    write(file, next);
+    for (const [svg, content] of files) diagrams50.set(svg, content);
+  }
+  const resources50 = !moved50
+    ? grammar50
+    : notation50Resources(root, { readSource: file => formatted50.get(file) ?? (fs.existsSync(path.join(root, file)) ?
+      fs.readFileSync(path.join(root, file), "utf8") : undefined) });
+  const caches50 = resources50.cacheFiles();
+  for (const [file, text] of caches50) write(file, text);
+
+  const enginePath = "docs/engine.md";
+  const engineText = fs.readFileSync(path.join(root, enginePath), "utf8");
+  const recognitionBlock = /(Recognition productions:\n\n```text\n)[\s\S]*?(\n```)/;
+  const syntaxPath = path.posix.join(path.posix.dirname(resources50.bundle.notation), "syntax.md");
+  const listing = syntaxEbnf(resources50.documents[syntaxPath].dom);
+  const listingText = `Recognition productions:\n\n\`\`\`text\n${listing}\n\`\`\`\n\n`;
+  const conversionHeading = "### 9.3 Conversion and validation";
+  if (!engineText.includes(conversionHeading)) throw new Error(`${enginePath}: missing conversion heading`);
+  write(enginePath, recognitionBlock.test(engineText)
+    ? engineText.replace(recognitionBlock, (_whole, before, after) => before + listing + after)
+    : engineText.replace(conversionHeading, () => listingText + conversionHeading));
+
+  const sources50 = Object.fromEntries(grammar50.sources.map(file =>
+    [file, formatted50.get(file) ?? fs.readFileSync(path.join(root, file), "utf8")]));
+  for (const [file, text] of Object.entries(sources50)) write(`lib/js/${file}`, text);
+  for (const file of existing("lib/js/grammars50")) {
+    if (Object.hasOwn(sources50, file.slice("lib/js/".length))) continue;
+    stale.push(file);
+    if (!check) fs.unlinkSync(path.join(root, file));
+  }
+  for (const file of existing(resources50.bundle.cacheRoot)) {
+    if (caches50.has(file)) continue;
+    stale.push(file);
+    if (!check) fs.unlinkSync(path.join(root, file));
+  }
+  for (const [file, text] of caches50) write(`lib/js/${file}`, text);
+  for (const file of existing(`lib/js/${resources50.bundle.cacheRoot}`)) {
+    if (caches50.has(file.slice("lib/js/".length))) continue;
+    stale.push(file);
+    if (!check) fs.unlinkSync(path.join(root, file));
+  }
+  write(`lib/js/${manifestPath}`, fs.readFileSync(path.join(root, manifestPath), "utf8"));
+
+  for (const [file, text] of diagrams50) write(file, text);
+  for (const file of existing(`${DIAGRAMS}/50`)) {
+    if (diagrams50.has(file)) continue;
+    stale.push(file);
+    if (!check) fs.unlinkSync(path.join(root, file));
+  }
+  return { resources50, sources50, caches50, diagrams50 };
+}
+
+const { resources50, sources50, caches50, diagrams50 } = generate50(grammar50);
+if (part === "format50") {
+  writeBrowserLibrary();
+  writeBrowserResources(sources50, readData(resources50.bundle.cacheRoot), caches50);
+  finish();
+  process.exit(0);
 }
 
 // The bootstrap: the notation's own pipeline read with the bootstrap, until
@@ -149,7 +460,8 @@ let moved = false;
 const reader = loaderWith(bootstrapText);
 /** @type {Map<string, {text: string, dom: any}>} each grammar document as this pass reads it */
 const read = new Map();
-for (const file of grammarFiles()) {
+const legacyFiles = grammarFiles().filter(file => family === undefined || file.startsWith(family + "/"));
+for (const file of legacyFiles) {
   if (!file.endsWith(".md")) continue;
   const text = fs.readFileSync(path.join(grammars, file), "utf8");
   read.set(file, { text, dom: extractGrammarText(text, file, reader.unicode).blocks === 0 ? { rules: [] } : reader.readDocument(text, `grammars/${file}`) });
@@ -157,7 +469,7 @@ for (const file of grammarFiles()) {
 // Whether a test on an elided terminator allows its omission, in each
 // stage of each pipeline that reads the document. With no such test, this
 // costs nothing.
-const outcomes = elisionOutcomes(reader, grammarFiles().filter((file) => file.endsWith("/pipeline.md")).map(file => `grammars/${file}`), new Map([...read].map(([file, { dom }]) => [`grammars/${file}`, dom])));
+const outcomes = elisionOutcomes(reader, legacyFiles.filter((file) => file.endsWith("/pipeline.md")).map(file => `grammars/${file}`), new Map([...read].map(([file, { dom }]) => [`grammars/${file}`, dom])));
 for (const [file, { text, dom }] of read) {
   const { text: next, files } = withDiagrams(file, text, dom, outcomes.get(`grammars/${file}`));
   for (const [relative, svg] of files) diagrams.set(relative, svg);
@@ -168,28 +480,12 @@ for (const [file, { text, dom }] of read) {
 if (moved) bootstrapText = settle(bootstrapText);
 write(BOOTSTRAP_PATH, bootstrapText);
 
-// No other document holds a generated element: one there would show
-// diagrams that nothing updates. The packages' copies of grammars/ hold
-// the same elements as grammars/.
-const strays = [];
-for (const file of markdownFiles(root)) {
-  if (file.startsWith("grammars/") || copies.some((copy) => file.startsWith(`${copy}/`))) continue;
-  const owned = ownedLines(documentLines(fs.readFileSync(path.join(root, file), "utf8")).lines);
-  owned.forEach((line, index) => {
-    if (line) strays.push(`${file}:${index + 1}: a line of a railroad diagram's generated element outside grammars/; remove it`);
-  });
-}
-if (strays.length) {
-  console.error(strays.join("\n"));
-  process.exit(1);
-}
-
 // The preparsed DOMs, read with the engine and the bootstrap. Where the
 // pass of the diagrams changed neither a document nor the bootstrap, its
 // DOM is the one that pass read.
 const loader = moved ? loaderWith(bootstrapText) : reader;
 const documents = {};
-for (const file of grammarFiles()) {
+for (const file of legacyFiles) {
   if (!file.endsWith(".md")) continue;
   const text = fs.readFileSync(path.join(grammars, file), "utf8");
   // A document holds grammar when the reader finds a block in it.
@@ -216,123 +512,18 @@ for (const [resource,entries] of families) {
     unicode:loader.unicodeHash, properties:loader.propertiesHash, bundledNames, documents:entries};
   familyTexts.set(resource,JSON.stringify(envelope) + "\n");
 }
-if (familyTexts.get(BOOTSTRAP_PATH) !== bootstrapText) throw new Error("the preparsed bootstrap does not reach its fixpoint");
-
-
-// The top-level alternatives of a rule keep the layout of
-// docs/notation.md, "Layout of the bundled grammars": each marked
-// alternative stands on lines of its own, plain alternatives can share
-// lines or stand one on each line, no line of a rule body holds more
-// than 100 characters, a comment line does not count toward that limit,
-// and a comment stands on its own lines (tools/alternatives.js).
-const sprawling = [];
-for (const [file, { dom }] of Object.entries(documents)) {
-  for (const problem of layoutProblems(fs.readFileSync(path.join(root, file), "utf8"), dom, file)) sprawling.push(problem);
-}
-if (sprawling.length) {
-  console.error(sprawling.join("\n"));
-  process.exit(1);
-}
-loader.usePreparsed({
-  format: DOM_FORMAT,
-  bootstrap: loader.bootstrapHash,
-  unicode: loader.unicodeHash,
-  properties: loader.propertiesHash,
-  bundledNames,
-  documents,
-});
-const { problems: badExamples } = exampleProblems(root, { loader, runExamples: check });
-if (badExamples.length) {
-  console.error(badExamples.join("\n"));
-  process.exit(1);
-}
-// Regenerate the recognition listing only when the manual contains its marker.
-const enginePath = "docs/engine.md";
-const engineText = fs.readFileSync(path.join(root, enginePath), "utf8");
-const recognitionBlock = /(Recognition productions:\n\n```text\n)[\s\S]*?(\n```)/;
-if (recognitionBlock.test(engineText)) {
-  const syntaxDom = JSON.parse(bootstrapText).documents["grammars/gencmu/jbogenbau/syntax.md"].dom;
-  write(enginePath, engineText.replace(recognitionBlock,
-    (_whole, before, after) => before + syntaxEbnf(syntaxDom) + after));
+if ((!family || family === "gencmu") && familyTexts.get(BOOTSTRAP_PATH) !== bootstrapText) {
+  throw new Error("the preparsed bootstrap does not reach its fixpoint");
 }
 
-// The checks of the documents' Markdown read it through the parser of
-// tools/markdown.js:
-//
-// - Every %include of a document follows, in the same list item, a link to
-//   the same path, so that the prose and the blocks name the same documents
-//   (docs/design.md, "Pipelines"; tools/links.js).
-// - Every paragraph, heading and table row of every Markdown document
-//   stands on one line, with its code spans, and no document has an
-//   indented code block or an HTML block (docs/design.md, "Documents";
-//   tools/prose-lines.js).
-// - Every Lojban text that a grammar document quotes has a corpus case, or
-//   an entry in tests/quoted-allow.txt (tests/README.md, "Quoted texts").
-if (parserMissing && check) {
-  console.error(`cannot check the Markdown of the documents: ${parserMissing}`);
-  process.exit(1);
-} else if (parserMissing) {
-  console.warn(`the Markdown of the documents is not checked: ${parserMissing}`);
-} else {
-  const unlinked = [];
-  for (const file of grammarFiles().filter(file => file.endsWith(".md"))) {
-    const dom = includeEdges.get(`grammars/${file}`);
-    const isLinked = includeLinks(fs.readFileSync(path.join(grammars, file), "utf8"));
-    for (const directive of dom.directives) {
-      if (directive.name === "include" && !isLinked(directive.at[0], directive.args[0])) unlinked.push(`${file}:${directive.at[0]}: %include "${directive.args[0]}" does not follow a list item with a link [text](${directive.args[0]})`);
-    }
-  }
-  if (unlinked.length) {
-    console.error(unlinked.join("\n"));
-    process.exit(1);
-  }
-  const anchors = new Map();
-  const readAnchors = (relative) => {
-    if (!anchors.has(relative)) {
-      const file = path.join(root, relative);
-      anchors.set(relative, fs.existsSync(file) ? headingAnchors(fs.readFileSync(file, "utf8")) : null);
-    }
-    return anchors.get(relative);
-  };
-  const missingAnchors = grammarFiles().filter(file => file.endsWith(".md")).flatMap((file) =>
-    localAnchorProblems(fs.readFileSync(path.join(grammars, file), "utf8"), `grammars/${file}`, readAnchors));
-  if (missingAnchors.length) {
-    console.error(missingAnchors.join("\n"));
-    process.exit(1);
-  }
-  // The packages' copies of grammars/ are checked as grammars/, which
-  // this run copies to them.
-  const broken = markdownFiles(root).filter((file) => !copies.some((copy) => file.startsWith(`${copy}/`))).flatMap((file) => proseLineProblems(fs.readFileSync(path.join(root, file), "utf8"), file));
-  if (broken.length) {
-    console.error(broken.join("\n"));
-    process.exit(1);
-  }
-  const badCllFootnotes = repositoryCllFootnoteProblems(root);
-  if (badCllFootnotes.length) {
-    console.error(badCllFootnotes.join("\n"));
-    process.exit(1);
-  }
-  // The DOMs and the pipelines of the sources, as this run reads them.
-  const unpinned = quotedTextProblems(root, { doms: includeEdges, runCases: false });
-  if (unpinned.length) {
-    console.error(unpinned.join("\n"));
-    process.exit(1);
-  }
-}
 for (const [file,text] of familyTexts) write(file,text);
 
 // The SVG files of the railroad diagrams. They are documentation, so no
 // package ships them. A file under docs/diagrams/ that this run does not
 // write, such as the diagram of a rule that is gone, goes.
 for (const [relative, text] of diagrams) write(relative, text);
-/** @param {string} relative */
-const existing = (relative) => {
-  const directory = path.join(root, relative);
-  if (!fs.existsSync(directory)) return [];
-  return fs.readdirSync(directory, { withFileTypes: true }).filter((entry) => !entry.name.startsWith(".")).flatMap((entry) => (entry.isDirectory() ? existing(`${relative}/${entry.name}`) : [`${relative}/${entry.name}`]));
-};
-for (const relative of existing(DIAGRAMS)) {
-  if (diagrams.has(relative)) continue;
+for (const relative of existing(family ? `${DIAGRAMS}/${family}` : DIAGRAMS)) {
+  if (diagrams.has(relative) || diagrams50.has(relative) || relative.startsWith(`${DIAGRAMS}/50/`)) continue;
   stale.push(relative);
   if (check) continue;
   fs.unlinkSync(path.join(root, relative));
@@ -359,73 +550,28 @@ for (const copy of copies) {
   }
 }
 // Copy engine data beside each package's grammar directory.
-const dataSources = Object.fromEntries(existing("data").map(file => [file, fs.readFileSync(path.join(root, file), "utf8")]));
+const dataSources = readData(resources50.bundle.cacheRoot);
 for (const copy of copies) {
   const packageRoot = path.dirname(copy);
-  for (const [file, text] of Object.entries(dataSources)) write(`${packageRoot}/${file}`, text);
+  for (const [file, text] of Object.entries(dataSources)) {
+    if (file === manifestPath && packageRoot !== "lib/js") continue;
+    write(`${packageRoot}/${file}`, text);
+  }
   for (const relative of existing(`${packageRoot}/data`)) {
-    if (Object.hasOwn(dataSources, relative.slice(packageRoot.length + 1))) continue;
+    const key = relative.slice(packageRoot.length + 1);
+    if (Object.hasOwn(dataSources, key) && (key !== manifestPath || packageRoot === "lib/js")) continue;
+    if (packageRoot === "lib/js" && key.startsWith(resources50.bundle.cacheRoot + "/")) continue;
     stale.push(relative);
     if (!check) fs.unlinkSync(path.join(root, relative));
   }
 }
-// Names and properties resources remain separate for playground requests.
-const browserSources = Object.fromEntries(Object.entries({...Object.fromEntries(Object.entries(sources).map(([key,value]) => [`grammars/${key}`,value])), ...dataSources}).filter(([file, text]) =>
-  !file.endsWith(".txt") || !/^[ \t\r\n]*unicode-(?:names|properties)[ \t]/.test(text)));
-write("dist/grammars.js", `// Generated by tools/sync.js from grammars/ and data/: eager resources, by package-relative path.
-(function (root) {
-  "use strict";
-  root.gencmuGrammars = ${JSON.stringify(browserSources)};
-  root.gencmuEditor = ${JSON.stringify(basicEditor ? "basic" : "full")};
-})(typeof self !== "undefined" ? self : this);
-`);
+writeBrowserResources(sources50, dataSources, caches50);
 
-// The browser bundle: the modules of lib/js/src, except the Node entry point,
-// in dependency order, inside one factory function with nothing outside it.
-const order = [];
-const visit = (file, trail = []) => {
-  if (order.includes(file)) return;
-  if (trail.includes(file)) throw new Error(`an import cycle: ${[...trail, file].join(" → ")}`);
-  for (const dependency of modules.get(file).imports) visit(dependency, [...trail, file]);
-  order.push(file);
-};
-for (const file of [...modules.keys()].sort()) visit(file);
-const declared = new Map();
-const bodies = order.map((file) => {
-  const body = modules.get(file).text
-    .replace(/^export\s+\{[^}]*\}\s+from\s+"[^"]+";$/gms, "")
-    .replace(/^export\s+\*\s+from\s+"[^"]+";$/gm, "")
-    .replace(/^export\s*\{\s*\};$/gm, "")
-    .replace(/^export\s+(?=(async\s+)?(function|class|const|let)\b)/gm, "");
-  for (const match of body.matchAll(/^(?:async\s+)?(?:function\*?|class|const|let)\s+([A-Za-z_$][\w$]*)/gm)) {
-    if (declared.has(match[1])) throw new Error(`${match[1]} is declared in both ${declared.get(match[1])} and ${file}; the bundle needs unique top-level names`);
-    declared.set(match[1], file);
-  }
-  return `  // ---- ${file}\n` + body.split("\n").map((line) => (line ? "  " + line : line)).join("\n");
-});
-const exported = [...fs.readFileSync(path.join(sourceDirectory, "index.js"), "utf8").matchAll(/export\s+(?:\{([^}]*)\}|function\s+(\w+)|const\s+(\w+))/g)]
-  .flatMap((match) => (match[1] ? match[1].split(",").map((name) => name.trim()).filter(Boolean) : [match[2] || match[3]]));
-const version = JSON.parse(fs.readFileSync(path.join(root, "lib", "js", "package.json"), "utf8")).version;
-write("dist/gencmu.js", `// Generated by tools/sync.js from lib/js/src/: the gencmu library as one factory
-// function with nothing outside it, so that a page can hand its source to a
-// worker built from a Blob, which fetches nothing.
-(function (root) {
-  "use strict";
-  function gencmuFactory() {
-${bodies.join("\n")}
-    return { version: ${JSON.stringify(version)}, ${exported.join(", ")} };
-  }
-  root.gencmuFactory = gencmuFactory;
-  root.gencmu = gencmuFactory();
-})(typeof self !== "undefined" ? self : this);
-`);
+writeBrowserLibrary();
 
 for (const item of syncVendorEditor({ checkMode: check, basicEditor })) {
   stale.push(item);
 }
 
-if (check && stale.length) {
-  console.error(`out of date; run node tools/sync.js:\n  ${stale.join("\n  ")}`);
-  process.exit(1);
-}
-console.log(check ? "generated files are up to date" : `updated ${stale.length} file(s)`);
+if (part !== "generated") checkSources(documents, resources50.sourceDocuments, loader);
+finish();

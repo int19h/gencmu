@@ -295,6 +295,8 @@ All three declaration arrays must exist. Each follows written order. Merge their
 
 Instance edits accept only `extend,redefine`. The ordinary rule form also covers edits of a public instance name. Stage directive names are `stage,extend-stage,redefine-stage`. The path directives are `include,names`. A nonempty features condition array belongs only to a stage-local features declaration.
 
+Preserve any extra fields on a directive as extension data. Do not read their contents as operands. Other records reject unknown fields.
+
 Preserve the preamble restriction on names resources.
 
 A rule body requires at least one alternative. Its conditions array is required and can be empty. Statement and alternative terms must be bag constructors under the expression records below. To take all entries from a computed bag, write `→ {*$F($x)}`. Never attach the terms of a preceding definition to an extension.

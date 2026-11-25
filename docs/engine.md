@@ -4,7 +4,7 @@ This document is the specification that every gencmu library implements. It defi
 
 The cases in `tests/engine/` and `tests/notation/` are part of the specification unless they load a bundled pipeline. A case that loads a bundled pipeline tests that pipeline's documents, not this specification. An implementation that disagrees with a case violates this specification or the pipeline's documents.
 
-`docs/notation.md` explains the notation to grammar authors, and `grammars/gencmu/jbogenbau/` defines it. `docs/output.md` defines the result's JSON and the renderings.
+`docs/notation.md` explains the notation to grammar authors, and `grammars50/gencmu/jbogenbau/` defines it. `docs/output.md` defines the result's JSON and the renderings.
 
 Grammar identifiers and tags in examples illustrate generic rules. They impose no pipeline contract.
 
@@ -60,7 +60,7 @@ A text is a sequence of Unicode scalar values. A text that is not one is a usage
 
 Source-map loaders inspect supplied strings in code point order of their keys before hashing or parsing any entry.
 
-A library reads a grammar document from disk as strict UTF-8. Bytes that are not valid UTF-8 are a `grammar` error of loading, not a usage error, because the caller supplied no string. The error names the document and says that its bytes do not decode. It has no line and no column. The library finds this before it hashes the document or looks in `data/preparsed/FAMILY.json` (§8). A byte order mark stays in the text as the character U+FEFF.
+A library reads a grammar document from disk as strict UTF-8. Bytes that are not valid UTF-8 are a `grammar` error of loading, not a usage error, because the caller supplied no string. The error names the document and says that its bytes do not decode. It has no line and no column. The library finds this before it hashes the document or looks in the preparsed family file (§8). A byte order mark stays in the text as the character U+FEFF.
 
 The error description is `the document is not valid UTF-8: an invalid byte sequence at byte N`. Here `N` is the zero-based offset of the invalid sequence's first byte. This rule also covers Unicode resources, including extra names files.
 
@@ -2357,7 +2357,9 @@ An unclosed `jbogenbau` block is a document error. The reader reports it at the 
 
 The reader joins each block's lines with `\n` and joins the blocks with one `\n` between them. Every line end inside a block reads as `\n`, whether the document uses LF, CRLF, or CR. Every character of the grammar text keeps its line and column in the document. An end-of-text error stands after its last character. An empty final block does not move that position. A line that adds no character to the grammar text does not move that position either.
 
-The reader parses grammar text with the notation pipeline, `grammars/gencmu/jbogenbau/pipeline.md`. Its preparsed documents ship in `data/preparsed/gencmu.json`. The loader splices their DOMs under §13 to build the notation stages. Bootstrap entries need no source files or text hash comparison. Every required entry must exist and meet the DOM rules. An invalid format, malformed entry, missing include, or splice error is a bootstrap loading error.
+The format 50 reader parses grammar text with `grammars50/gencmu/jbogenbau/pipeline.md`. Its preparsed documents ship in `data/preparsed50/gencmu.json`. The loader splices their DOMs under §13 to build the notation stages. Bootstrap entries need no source files or text hash comparison. Every required entry must exist and meet the DOM rules. An invalid format, malformed entry, missing include, or splice error is a bootstrap loading error.
+
+`data/notation-bundles.json` names the source root, notation pipeline, bootstrap and cache root for each format. The format 49 loader uses `grammars/` and `data/preparsed/`.
 
 The rules in §9 turn the notation tree into a document DOM. The bootstrap can therefore read every grammar, including its own documents. Reading those documents must reproduce their preparsed entries exactly, the bootstrap fixpoint. `tools/sync.js` regenerates the entries until this holds.
 
@@ -2379,7 +2381,7 @@ Each ranked-choice node retains the position of its first `≻`. Expansion carri
 
 A tie in either stage of the notation pipeline, `lexical` or `syntax`, is an error of kind `grammar` of loading (§6). The error names the document. It has no line and no column, since an ambiguity has no single position. Its message names the notation stage and says that the grammar text is ambiguous. A library never puts such an error at the start of the document in place of a position.
 
-Every bootstrap failure names `data/preparsed/gencmu.json` in its structured document field and its message. Reading and schema errors have no stage, line, or column. Splicing errors have no stage field. For a stage without rules, the description is `stage NAME: has no rules`. Other splicing errors retain their descriptions without an added stage prefix.
+Every bootstrap failure names the bootstrap file in its structured document field and its message. Reading and schema errors have no stage, line, or column. Splicing errors have no stage field. For a stage without rules, the description is `stage NAME: has no rules`. Other splicing errors retain their descriptions without an added stage prefix.
 
 The splicer marks empty-stage errors with a private problem kind. Bootstrap handlers select that kind without inspecting message text.
 
@@ -2403,11 +2405,11 @@ A notation stage follows the same publication and elision rules as other stages.
 
 Each stage of the notation runs as any stage does (§4 to §7, §11, §12). So each notation stage runs the check of §7 where it declares `%elision-only`. The bundled notation declares it in no stage, but a caller's own bootstrap can (`docs/api.md`). An ambiguity that the check finds is an error of the document in the same way as a tie. The error names the document and the notation stage, with no line or column. The caller's option for the check (`docs/api.md`) does not reach a notation stage, so it neither switches the check on there nor off.
 
-Each family has one preparsed file, `data/preparsed/FAMILY.json`, for the documents below `grammars/FAMILY/`. The required `gencmu.json` supplies the bootstrap. A loader reads only the optional file that each document key selects, besides that required file. A missing, malformed or mismatched optional file gives cache misses. Once a current document meets the cache identity rules, decode it under the supplied-DOM rules. An illegal record reports its error without falling back to source.
+Each format 50 family has one preparsed file, `data/preparsed50/FAMILY.json`, for the documents below `grammars50/FAMILY/`. The required `gencmu.json` supplies the bootstrap. A loader reads only the optional file that each document key selects, besides that required file. A missing, malformed or mismatched optional file gives cache misses. Once a current document meets the cache identity rules, decode it under the supplied-DOM rules. An illegal record reports its error without falling back to source.
 
-A document key under `grammars/FAMILY/` selects `data/preparsed/FAMILY.json`. Other document keys select no optional file. A loader can still reuse DOMs that it reads through the notation, under the complete identity below.
+A document key under `grammars50/FAMILY/` selects `data/preparsed50/FAMILY.json`. The bootstrap family uses the optional file named by `bootstrapFamilyCache`, in the reserved `data/preparsed50/bootstrap/` directory. Other document keys select no optional file. A loader can still reuse DOMs that it reads through the notation, under the complete identity below.
 
-The bootstrap fingerprint is the 64-bit FNV-1a hash of the complete UTF-8 text of `data/preparsed/gencmu.json`. Its own header omits `bootstrap` to avoid a circular fingerprint. Every other family's header records that fingerprint as `bootstrap`. The required entries load even when custom Unicode resources differ from its header. Ordinary entries still require the full cache identity.
+The bootstrap fingerprint is the 64-bit FNV-1a hash of the complete UTF-8 text of the selected bootstrap file. Its own header omits `bootstrap` to avoid a circular fingerprint. Every other family's header records that fingerprint as `bootstrap`. The required entries load even when custom Unicode resources differ from its header. Ordinary entries still require the full cache identity.
 
 Implementation note: An implementation can keep the DOMs that it built before.
 
@@ -2427,7 +2429,7 @@ If `names` is absent, the loader skips this comparison and keeps the otherwise v
 
 Shared cache cases require a hit when the complete base-and-extras set and all hashes match. If `names` is present, a changed extra path or hash gives a miss. An absent `names` member permits a hit despite changed or missing unused extras. These cases keep every other cache dependency equal.
 
-`data/preparsed/FAMILY.json` records the fingerprint of the bundled table and a `bundledNames` registry of bundled names resources. The generator records `data/unicode/unicode-names.txt` and every bundled extra by normalized path, with keys in code-point order. It hashes their pinned text, never a caller's replacement. The hash is 64-bit FNV-1a over UTF-8 bytes, written as 16 lowercase hexadecimal digits. Each package ships the preparsed files beside its Unicode resources under `data/`.
+`data/preparsed50/FAMILY.json` records the fingerprint of the bundled table and a `bundledNames` registry of bundled names resources. The generator records `data/unicode/unicode-names.txt` and every bundled extra by normalized path, with keys in code-point order. It hashes their pinned text, never a caller's replacement. The hash is 64-bit FNV-1a over UTF-8 bytes, written as 16 lowercase hexadecimal digits. Each package ships the preparsed files beside its Unicode resources under `data/`.
 
 The shortcut requires the active core to declare the bundled names version, 15.1.0. A different version is a grammar loading error. For an unoverridden bundled resource, the loader takes its current fingerprint from `bundledNames`. It compares that fingerprint with the document entry's `names` value. If every selected resource uses this route, a cache hit reads, parses, and fetches no names file. Supplied resources count as overrides, even if their bytes match the bundle.
 
@@ -2759,6 +2761,170 @@ An output list takes its commas directly from the directive. Bare `%emit` select
 
 A braced item requires one occurrence as its part. A braced item produces a `projection` node. The insertion `ε` requires a bag. See [Emission](notation.md#emission) for the strings and placement of selected items.
 
+Recognition productions:
+
+```text
+text = [statement {statement}]
+statement = rule | ranking-directive | directive | constant-definition
+rule = rule-keyword (rule-name | call) "=" call | rule-keyword (rule-name | call) (body | (statement-term headed-body)) [conditions-clause] [diagnostic-clause] [suppress-warnings-clause] [output-clause]
+rule-keyword = KW-RULE | KW-EXTEND-RULE | KW-REDEFINE-RULE
+rule-name = Identifier | Emoji-Name
+statement-term = "→" bag
+body = ["|"] ordinary-body | ranked-body
+headed-body = "|" (ordinary-body | ranked-body)
+ordinary-body = alternative {"|" alternative}
+ranked-body = [feature-gate {feature-gate}] ranked-choice [alternative-term]
+ranked-choice = some-of "≻" some-of {"≻" some-of}
+alternative = [feature-gate {feature-gate}] some-of [alternative-term]
+alternative-term = "→" bag
+choice = ["|"] some-of {"|" some-of} | ranked-choice
+some-of = ["&"] sequence {"&" sequence}
+sequence = factor {factor}
+factor = marked-factor | capture | tested-factor | untested-factor
+marked-factor = "^" (capture | tested-factor | untested-factor)
+capture = binding-token ":" factor
+binding-token = Capture | Constant
+untested-factor = rule-reference | call | splice | parameter | tag | string-terminal | range | wildcard | group | optional | repetition | empty
+rule-reference = Lowercase-Name | Emoji-Name
+tag = Uppercase-Name | Engine-Tag
+string-terminal = string | constant-reference
+string-operand = string | constant-reference | parameter
+range = string-operand ".." string-operand
+wildcard = "_"
+group = "(" choice ")"
+optional = "[" ["+"] choice "]" | "[" captured-terminator "]"
+captured-terminator = binding-token ":" "+" factor
+repetition = "{" ["..." {"..."}] choice ["..." {"..."}] [chain-separator] "}"
+chain-separator = "/" ["..." {"..."}] choice ["..." {"..."}]
+empty = "ε"
+splice = $mark:"*" $target:splice-target
+  assert ($.source-text = ($mark.source-text ++ $target.source-text))
+splice-target = rule-reference | call
+feature-gate = ["¬"] Identifier "?"
+  assert ($.decomposed-source-text = $.span.tokens!'value.join())
+tested-factor = untested-factor symbol-test {symbol-test}
+symbol-test = tag-test | value-test | default-value
+tag-test = "<" [tag-requirement {tag-requirement}] ">"
+tag-requirement = ["¬"] test-operand
+value-test = ("=" | "≠") test-operand
+default-value = "≝" test-operand
+test-operand = range | rule-reference | call | tag | post
+call = Call-Name "(" call-argument {"," call-argument} ")"
+call-argument = "=" expr | requirement-argument | target-argument | body-argument | symbol-argument
+requirement-argument = "<" [tag-requirement {tag-requirement}] ">"
+target-argument = target-option "|" target-option {"|" target-option}
+target-option = rule-reference | tag | call | parameter
+body-argument = group | optional | repetition | empty
+symbol-argument = tested-factor | range | wildcard | splice | rule-reference | call | parameter | tag | string-terminal
+parameter = Parameter
+constant-reference = Constant
+string = String
+conditions-clause = KW-CONDITIONS [","] expr {"," expr}
+diagnostic-clause = error-clause | warning-clause
+error-clause = KW-ERROR expr
+warning-clause = KW-WARNING expr
+suppress-warnings-clause = KW-SUPPRESS-WARNINGS ("_" | suppression-code {"," suppression-code})
+suppression-code = Identifier
+output-clause = erased-clause | emit-clause
+erased-clause = KW-ERASED
+emit-clause = KW-EMIT [output {"," output}]
+output = prefix ((Capture [bag]) | ("ε" bag))
+directive = directive-keyword [directive-argument {directive-argument}] [conditions-clause]
+directive-keyword = KW-STAGE | KW-EXTEND-STAGE | KW-REDEFINE-STAGE | KW-INCLUDE | KW-NAMES | KW-FEATURES | KW-ELISION-ONLY
+directive-argument = directive-identifier | directive-string | directive-terminal | directive-expression
+directive-identifier = Identifier
+directive-string = String | Resource-Path
+directive-terminal = Engine-Tag | range
+directive-expression = expr | Emoji-Name | "_"
+  assert ¬(($.onward.parse(String …) ∧ ($.first-token.tokens!'value.join() = $.span.tokens!'value.join())))
+ranking-directive = KW-AMBIGUITY-RESOLUTION ranking-step {"," ranking-step}
+ranking-step = Identifier [pattern-literal | constant-reference]
+constant-definition = constant-keyword constant-name expr
+constant-keyword = KW-CONST | KW-REDEFINE-CONST
+constant-name = Constant
+expr = function | disj ["⟹" expr]
+function = Capture "↦" expr
+disj = ["∨"] conj {"∨" conj}
+conj = ["∧"] neg {"∧" neg}
+neg = "¬" neg | comparison
+comparison = union [comparator union]
+comparator = "=" | "≤" | "≥" | "<" | ">" | "∈" | "⊆" | "≅" | "≠" | "∉" | "⊈" | "≇"
+union = inter {("∪" | "∖") inter}
+inter = sum {"∩" sum}
+sum = post {("++" | "+") post}
+post = atom [(prop | method | map | flatten) {(prop | method | map | flatten)}]
+prop = "'" key
+method = "." selector
+selector = named-selector | parse-selector | neighbor-selector | family-selector | key-selector | width-selector | predicate-selector
+named-selector = method-name ["(" [expr {"," expr}] ")"]
+  assert ($.first-token.tokens!'value.join() ∉ ["parse", "followed-by", "preceded-by", "without-elision-except", "has", "has-value", "ngrams", "at-most", "any", "all"])
+method-name = Identifier | Call-Name
+parse-selector = "parse" "(" query-body ")"
+query-body = ["…"] choice ["…"]
+neighbor-selector = ("followed-by" | "preceded-by") "(" neighbor-target {"|" neighbor-target} ")"
+neighbor-target = target-option | "(" target-option ")"
+family-selector = "without-elision-except" "(" (rule-reference | call | parameter) ")"
+key-selector = ("has" | "has-value") "(" key ")"
+width-selector = ("ngrams" | "at-most") "(" integer ")"
+predicate-selector = ("all" | "any") "(" [predicate] ")"
+predicate = expr
+map = "!" (prop | method | ("(" predicate ")"))
+flatten = "↓"
+atom = Capture | constant-reference | application | parameter | string | integer | pattern-literal | "∅" | bag | list | item-reference | method | grouped-expr
+grouped-expr = "(" expr ["?" expr "|" expr] ")"
+application = Constant-Call "(" expr ")"
+item-reference = "'" [$name:key]
+  assert ($name ∨ ¬($.following-tokens.parse((key | "'") …)))
+integer = Integer
+key = Identifier | Engine-Tag
+bag = "{" [entry {"," entry}] "}"
+entry = prefix (write-entry | delete-entry | splat-entry | copy-entry | bare-entry)
+bare-entry = key
+write-entry = (key ":") {(key ":")} expr
+delete-entry = "¬" key
+splat-entry = "*" expr
+copy-entry = post
+  assert ($.last-token.tokens!'value.join() ≠ "'")
+prefix = [feature-gate {feature-gate}] [guard]
+guard = expr "?"
+list = "[" [item {"," item}] "]"
+item = prefix ["*"] expr
+pattern-literal = "#" pattern-primary
+pattern-union = pattern-intersection {("∪" | "∖") pattern-intersection}
+pattern-intersection = pattern-path {"∩" pattern-path}
+pattern-path = ("⋮" | "⋱") pattern-primary | pattern-primary ["⋰"]
+pattern-primary = pattern-node | bare-child-list | "(" pattern-union ")"
+pattern-node = [$exact:"·"] $atom:pattern-atom [$list:child-list]
+  assert $exact.all(.onward.parse(pattern-exact-start …))
+  assert ($list ⟹ $atom.onward.parse(pattern-attached-start …))
+  assert (¬($list) ⟹ ¬($atom.onward.parse(pattern-attached-start …)))
+bare-child-list = [$exact:"·"] child-list
+  assert $exact.all(.onward.parse(pattern-exact-start …))
+pattern-atom = (pattern-rule | tag | string | range | wildcard | constant-reference) [symbol-test {symbol-test}]
+pattern-rule = Lowercase-Name | Emoji-Name | call | parameter
+child-list = "⁅" [child-choice] "⁆"
+child-choice = child-alternative {"|" child-alternative}
+child-alternative = child-sequence | child-set-operation
+child-sequence = child-item {child-item}
+child-set-operation = child-intersection ("∪" | "∖") child-intersection {("∪" | "∖") child-intersection} | child-path "∩" child-path {"∩" child-path}
+child-intersection = child-path {"∩" child-path}
+child-item = child-path | child-optional | child-repetition | "⋯"
+  assert ¬($.last-token.onward.parse(adjacent-item-opening …))
+child-path = ("⋮" | "⋱") child-primary | child-primary ["⋰"]
+child-primary = pattern-node | bare-child-list | "(" child-choice ")"
+child-optional = "[" child-choice "]"
+child-repetition = "{" child-choice ["/" child-choice] "}"
+pattern-exact-start = $mark:"·" $next:ANY-TOKEN
+  assert ($.source-text = ($mark.source-text ++ $next.source-text))
+pattern-attached-start = $atom:pattern-atom $open:"⁅"
+  assert ($.source-text = ($atom.source-text ++ $open.source-text))
+pattern-item-opening = "⁅" | "·"
+adjacent-item-opening = $left:ANY-TOKEN $right:pattern-item-opening
+  assert ($left'value ≠ "⋯")
+  assert ($left'value ≠ "⋰")
+  assert ($.source-text = ($left.source-text ++ $right.source-text))
+```
+
 ### 9.3 Conversion and validation
 
 Inspect syntax, names, scope, arity and closed types before recognition. Inspect inactive conditional branches and disabled entries for invalid shapes. Specialization resolves types that depend on the stage's features or input. The same constructors and validation apply to text, cached documents and caller-supplied DOMs.
@@ -2894,7 +3060,7 @@ In a supplied tree, read the immediate operands before reporting a missing combi
 
 A constructor reads only the immediate operand kinds in its row. A part from a different layer cannot supply a missing operand. For example, a grouped item sequence cannot supply a whole-pattern operand of a path. A child set can read both child intersections and child paths. Its operator must follow the operand checks.
 
-A wildcard needs its token. A tested pattern constant must resolve to a string terminal. An attached list needs a rule atom, call or compatible parameter. Report a forbidden list at its opening bracket unless substitution supplies the invalid operand.
+A wildcard needs its token. A tested pattern constant must resolve to a string terminal. An attached list needs a rule atom, call or compatible parameter. Report a forbidden list at the target unless substitution supplies the invalid operand.
 
 The reader maps decomposed comparators to their canonical spellings. It preserves decoded string scalars. For resource paths, it decodes escapes within the original literal runs.
 
@@ -2932,7 +3098,7 @@ A written elidable optional starts with its ungrouped user terminal or parameter
 
 A group, optional or repetition cannot take a capture label, even around one symbol. A capture inside a repetition binds a flat list of nodes in input order. Conditions, terms and emission items can use a list under their own rules. See §10 for recognition reductions and §11.1 for forwarding.
 
-A chain occupies one whole alternative and cannot be the query target. A chain marker cannot label a separator. An ordered subset accepts at most sixteen operands. A default outside an elidable head or on a head whose omission predicate is false fails at its `≝`.
+A chain occupies one whole alternative and cannot be the query target. A chain marker cannot label a separator. An ordered subset accepts at most sixteen operands. A written default outside an elidable head fails at its `≝`. The default record owns a failed omission test.
 
 A stage selector takes one name. An include or names directive takes one path. A features directive takes at least one feature name. The elision directive takes no operand.
 
@@ -3019,6 +3185,8 @@ Reject unknown fields in structural DOM records and malformed record shapes. Dir
 All three declaration arrays must exist and retain written order. A declaration has one source position, distinct from those of other declarations in the document. Format 50 is required for a supplied DOM or the mandatory bootstrap. A missing, invalid or obsolete optional cache file can miss. Once the loader selects a current document for decoding, an invalid record fails at the same site as a supplied DOM.
 
 Reject wrong forms at the same logical position for source, cache and supplied input. A syntactic origin test uses a requirement record. It is separate from engine class membership. Ordinary membership tests can inspect a rule’s visible keys. [Output formats](output.md#a-grammar-dom) defines each record.
+
+A DOM fault uses the position of the faulty record or its closest owner with a position. A method uses the position of its dot. A fault that needs a written token uses that token's position.
 
 #### Strings and ranges
 
@@ -3323,9 +3491,9 @@ Keep earlier completed stages intact. A tree-only reported error retains the cho
 
 ## 13. The pipeline
 
-Bundled pipeline names are directory paths below `grammars/`, with two or more `/`-separated segments. Each segment matches `[a-z0-9][a-z0-9-]*`. The loader checks this spelling before any document lookup and accepts no short aliases. It reads `grammars/NAME/pipeline.md` for a valid name. Invalid names and absent bundled pipelines cause a `usage` error.
+Bundled pipeline names are directory paths below the source root in the selected bundle manifest. A name has two or more `/`-separated segments. Each segment matches `[a-z0-9][a-z0-9-]*`. The loader checks this spelling before it reads `NAME/pipeline.md` below that root. Invalid names and absent bundled pipelines cause a `usage` error. The format 49 entry point selects `grammars/`.
 
-`bundledPipelines()` takes each bundled key that starts with `grammars/` and ends with `/pipeline.md`. It removes that prefix and that suffix. Its result uses code-point order. The spelling for each language follows `docs/api.md`.
+`bundledPipelines()` takes each bundled key below the selected source root that ends with `/pipeline.md`. It removes the source root prefix and that suffix. Its result uses code-point order. The spelling for each language follows `docs/api.md`.
 
 A directory without `pipeline.md` defines no pipeline. Enumeration includes only valid pipeline names. This discovery uses no separate catalog file.
 

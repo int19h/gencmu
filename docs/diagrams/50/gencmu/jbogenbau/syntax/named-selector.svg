@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="433" height="122" viewBox="0 0 433 122" role="img" aria-label="Railroad diagram of the rule named-selector">
+<style>path{fill:none;stroke:#333;stroke-width:1.5}.rule rect{fill:#e8eefc;stroke:#333;stroke-width:1.5}.terminal rect{fill:#fdf6d8;stroke:#333;stroke-width:1.5}text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"DejaVu Sans Mono","Liberation Mono",monospace;font-size:14px;fill:#111;text-anchor:middle}text.label{font-size:12px;font-style:italic;fill:#555;text-anchor:start}text.title{font-weight:bold;text-anchor:start}</style>
+<rect width="100%" height="100%" fill="#fff"/>
+<text class="title" x="10" y="24" textLength="117.6" lengthAdjust="spacingAndGlyphs">named-selector</text>
+<text class="label" x="147.6" y="24" textLength="115.2" lengthAdjust="spacingAndGlyphs">conditions apply</text>
+<path d="M10 58v16m4 -16v16M14 66h6"/>
+<g class="rule"><rect x="20" y="54" width="109" height="24" rx="0"/><text x="74.5" y="71" textLength="92.4" lengthAdjust="spacingAndGlyphs">method-name</text></g>
+<path d="M129 66h10"/>
+<path d="M139 66h20"/>
+<g class="terminal"><rect x="159" y="54" width="42" height="24" rx="12"/><text x="180" y="71" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;(&quot;</text></g>
+<path d="M201 66h10"/>
+<path d="M211 66h20"/>
+<path d="M231 66h20"/>
+<g class="rule"><rect x="251" y="54" width="50" height="24" rx="0"/><text x="276" y="71" textLength="33.6" lengthAdjust="spacingAndGlyphs">expr</text></g>
+<path d="M301 66H321"/>
+<path d="M301 66a10 10 0 0 1 10 10V90a10 10 0 0 1 -10 10H297"/>
+<g class="terminal"><rect x="255" y="88" width="42" height="24" rx="12"/><text x="276" y="105" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;,&quot;</text></g>
+<path d="M255 100H251a10 10 0 0 1 -10 -10V76a10 10 0 0 1 10 -10"/>
+<path d="M321 66H341"/>
+<path d="M211 66a10 10 0 0 0 10 -10V54a10 10 0 0 1 10 -10H321a10 10 0 0 1 10 10V56a10 10 0 0 0 10 10"/>
+<path d="M341 66h10"/>
+<g class="terminal"><rect x="351" y="54" width="42" height="24" rx="12"/><text x="372" y="71" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;)&quot;</text></g>
+<path d="M393 66H413"/>
+<path d="M139 66a10 10 0 0 0 10 -10V44a10 10 0 0 1 10 -10H393a10 10 0 0 1 10 10V56a10 10 0 0 0 10 10"/>
+<path d="M413 66h6m0 -8v16m4 -16v16"/>
+</svg>

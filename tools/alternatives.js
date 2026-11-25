@@ -19,6 +19,7 @@
 // and the DOM's positions. From a rule's position, a small scanner finds
 // where each alternative begins, and stops at the next keyword.
 import fs from "node:fs";
+import { operandFields50 } from "../lib/js/src/format50/records.js";
 import { UnicodeTable } from "../lib/js/src/unicode.js";
 import { extractGrammarText, splitLines } from "../lib/js/src/markdown.js";
 
@@ -83,7 +84,7 @@ function sourceWithoutComments(text) {
  */
 export function isPlainAlternative(alternative, text) {
   if (!alternative || (alternative.gates && alternative.gates.length !== 0)) return false;
-  if (alternative.tags !== undefined || alternative.value !== undefined || alternative.image !== undefined) return false;
+  if (alternative.term !== undefined || alternative.tags !== undefined || alternative.value !== undefined || alternative.image !== undefined) return false;
   if (/[\[\]{}()&≻]/.test(sourceWithoutStrings(sourceWithoutComments(text)))) return false;
   const expr = alternative.expr;
   const items = expr && Array.isArray(expr.seq) ? expr.seq : [expr];
@@ -120,7 +121,7 @@ export function scanComments(chars) {
  * @typedef {{text: string, lines: number[], plain: boolean, from: number, to: number}} WrittenAlternative
  * @typedef {{rule: any, keyword: string, alternatives: WrittenAlternative[]}} RuleLayout
  * @param {string} markdown
- * @param {{rules: any[]}} dom
+ * @param {{rules: any[], format?: number}} dom
  * @param {string} path
  * @returns {RuleLayout[]}
  */
@@ -139,7 +140,7 @@ export function alternativeLayouts(markdown, dom, path) {
     if (alternatives.length < 1) continue;
     const start = indexOf.get(`${rule.at[0]}:${rule.at[1]}`);
     if (start === undefined || chars[start] !== "%") throw new Error(`${path}:${rule.at[0]}:${rule.at[1]}: no keyword at the position of rule ${rule.name}`);
-    const starts = scanBody(chars, start);
+    const starts = scanBody(chars, start, dom.format === 50);
     if (starts.length !== alternatives.length) throw new Error(`${path}:${rule.at[0]}: found ${starts.length} alternatives of rule ${rule.name} in its text, but its DOM has ${alternatives.length}`);
     const written = starts.map(({ from, to }, index) => {
       const writtenText = chars.slice(from, to).join("");
@@ -164,9 +165,10 @@ export function alternativeLayouts(markdown, dom, path) {
  * at the end of the text.
  * @param {string[]} chars
  * @param {number} start
+ * @param {boolean} format50
  * @returns {{from: number, to: number}[]}
  */
-function scanBody(chars, start) {
+function scanBody(chars, start, format50) {
   const isSpace = (/** @type {string | undefined} */ c) => c !== undefined && /\p{White_Space}/u.test(c);
   const isNameChar = (/** @type {string | undefined} */ c) => c !== undefined && /[A-Za-z0-9_-]/.test(c);
   let i = start + 1;
@@ -195,6 +197,21 @@ function scanBody(chars, start) {
     }
   }
   i = skipLayout(i);
+  // In format 50 a header term is a bag. Its internal bars belong to
+  // expressions and cannot start an alternative.
+  if (format50 && chars[i] === "→") i = skipBag(skipLayout(i + 1));
+  function skipBag(at) {
+    let braces = 0;
+    for (; at < chars.length; at++) {
+      at = skipLayout(at);
+      const c = chars[at];
+      if (c === '"') {
+        while (++at < chars.length && chars[at] !== '"') {}
+      } else if (c === "{") braces++;
+      else if (c === "}" && --braces === 0) return at + 1;
+    }
+    return at;
+  }
   // A header clause precedes the bar that starts the ordinary body.
   if (chars[i] === ":" && [":", "=", "-"].includes(chars[i + 1])) {
     let headerDepth = 0;
@@ -230,6 +247,8 @@ function scanBody(chars, start) {
       i++;
       while (i < chars.length && chars[i] !== c) i++;
       i++;
+    } else if (format50 && c === "→" && depth === 0) {
+      i = skipBag(skipLayout(i + 1));
     } else {
       if (c === "(" || c === "[" || c === "{" || c === "<" || c === "⁅") depth++;
       else if (c === ")" || c === "]" || c === "}" || c === ">" || c === "⁆") depth--;
@@ -350,7 +369,7 @@ function hasTopLevel(text, op) {
  * condition or term ends each line with its operator, and the next
  * line stands one column after the opening bracket.
  * @param {string} markdown
- * @param {{rules: any[]}} dom
+ * @param {{rules: any[], format?: number}} dom
  * @param {string} path
  * @returns {string[]}
  */
@@ -865,12 +884,94 @@ function unbreakable(line) {
   return /^\s*"(?:[^"\\]|\\.)*"\s*$/u.test(line);
 }
 
+function format50ClauseProblems(markdown, dom, path) {
+  const lines = splitLines(markdown);
+  const { text, positions } = extractGrammarText(markdown, path, unicode);
+  const chars = [...text];
+  const offsets = new Map(positions.map(([line, column], offset) => [`${line}:${column}`, offset]));
+  const problems = [];
+  const walk = [[dom, "document"]];
+  while (walk.length) {
+    const [node, category] = walk.pop();
+    if (!node || typeof node !== "object") continue;
+    const operands = operandFields50(node, category);
+    const [constructor, entries] = operands.find(([key]) => key === "bag" || key === "list" || key === "items") ?? [];
+    if (entries) {
+      const positioned = entries.filter(entry => entry.at?.[0]);
+      if (new Set(positioned.map(entry => entry.at[0])).size > 1) {
+        // Grouping disappears from the DOM. A plain item starts at its quote.
+        const plain = entry => constructor === "list" && entry.kind === "item" && !entry.gates.length && !entry.guard &&
+          typeof entry.value?.string === "string" && chars[offsets.get(entry.at.join(":"))] === '"';
+        for (let index = 1; index < positioned.length; index++) {
+          const entry = positioned[index];
+          const previous = positioned[index - 1];
+          if (entry.at[0] === previous.at[0] && !(plain(entry) && plain(previous))) {
+            problems.push(`${path}:${entry.at[0]}: put one entry on each line of a long constructor`);
+          }
+        }
+      }
+    }
+    for (const [, child, childCategory] of operands.reverse()) walk.push([child, childCategory]);
+  }
+  const beforeBody = start => {
+    let index = start - 1;
+    while (index >= 0 && /^[ \t]$/.test(chars[index])) index--;
+    return chars[index] === "|" ? index : start;
+  };
+  const checkTerm = (start, end, owner) => {
+    while (end > start && /\s/.test(chars[end - 1])) end--;
+    if (end <= start || positions[start][0] === positions[end - 1][0]) return;
+    const part = scrubComments(chars.slice(start, end));
+    let quoted = false;
+    for (const [offset, character] of part.entries()) {
+      if (character === '"') quoted = !quoted;
+      if (quoted || character !== "→") continue;
+      const [line, column] = positions[start + offset];
+      const initial = lines[line - 1].trimStart().startsWith("→");
+      if (!initial || column !== positions[owner][1] + 4) {
+        problems.push(`${path}:${line}: put a continued term on a line four columns past its owner`);
+      }
+      return;
+    }
+  };
+  for (const { rule, alternatives } of alternativeLayouts(markdown, dom, path)) {
+    if (rule.term) {
+      const start = offsets.get(rule.at.join(":"));
+      checkTerm(start, beforeBody(alternatives[0].from), start);
+    }
+    for (const [index, alternative] of alternatives.entries()) {
+      if (rule.alternatives[index].term) checkTerm(alternative.from, alternative.to, beforeBody(alternative.from));
+    }
+  }
+  const physical = new Set(positions.map(([line]) => line));
+  const conditionStart = /^\s*%conditions\b/;
+  const operator = /(?:[∧∨⟹∪∩∖≠≤≥≅≇∈∉⊆⊈=<>+]|\|)\s*$/u;
+  for (let index = 0; index < lines.length; index++) {
+    const line = lines[index];
+    if (!physical.has(index + 1) || !conditionStart.test(line)) continue;
+    let start = line.replace(conditionStart, "").trim() ? line.indexOf("%conditions") + "%conditions".length + 1 : null;
+    let previous = line;
+    for (let next = index + 1; next < lines.length && physical.has(next + 1); next++) {
+      const content = lines[next];
+      if (/^\s*%/.test(content)) break;
+      if (!content.trim() || /^\s*--/.test(content)) continue;
+      const indent = content.search(/\S/);
+      if (start === null || previous.trimEnd().endsWith(",")) start = indent;
+      else if (operator.test(previous) && indent < start + 2) {
+        problems.push(`${path}:${next + 1}: indent a continued condition at least two columns past its start`);
+      }
+      previous = content;
+    }
+  }
+  return problems;
+}
+
 /**
  * The layout problems of a document, for every rule with an alternative.
  * Each message names the file, the line and the rule. A line that holds
  * only a comment does not count toward the limit, wherever it stands.
  * @param {string} markdown
- * @param {{rules: any[]}} dom
+ * @param {{rules: any[], format?: number}} dom
  * @param {string} path
  * @param {number} [limit]
  * @returns {string[]}
@@ -878,8 +979,8 @@ function unbreakable(line) {
 export function layoutProblems(markdown, dom, path, limit = LINE_LIMIT) {
   const lines = splitLines(markdown);
   /** @type {string[]} */
-  const problems = clauseLayoutProblems(markdown, dom, path);
-  for (const problem of clauseTermProblems(markdown, dom, path)) problems.push(problem);
+  const problems = dom.format === 50 ? format50ClauseProblems(markdown, dom, path) : clauseLayoutProblems(markdown, dom, path);
+  if (dom.format !== 50) for (const problem of clauseTermProblems(markdown, dom, path)) problems.push(problem);
   for (const problem of commentLayoutProblems(markdown, path)) problems.push(problem);
   const { text, positions } = extractGrammarText(markdown, path, unicode);
   const chars = [...text];
@@ -899,7 +1000,7 @@ export function layoutProblems(markdown, dom, path, limit = LINE_LIMIT) {
     }
     // A sole alternative under a bare header stands without a leading
     // bar. A header with a clause keeps its bar.
-    if (alternatives.length === 1 && rule.tags === undefined && rule.value === undefined && rule.image === undefined) {
+    if (alternatives.length === 1 && rule.term === undefined && rule.tags === undefined && rule.value === undefined && rule.image === undefined) {
       const commentIndexes = new Set();
       for (const { from, to } of scanComments(chars)) for (let i = from; i < to; i++) commentIndexes.add(i);
       let before = alternatives[0].from - 1;
@@ -961,7 +1062,7 @@ function commentLayoutProblems(markdown, path) {
 /**
  * Header clauses and blank layout in grammar blocks, outside opaque tokens.
  * @param {string} markdown
- * @param {{rules: any[]}} dom
+ * @param {{rules: any[], format?: number}} dom
  * @param {string} path
  * @returns {string[]}
  */

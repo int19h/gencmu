@@ -1,0 +1,17 @@
+{
+  "49": {
+    "format": 49,
+    "sourceRoot": "grammars",
+    "notation": "grammars/gencmu/jbogenbau/pipeline.md",
+    "bootstrap": "data/preparsed/gencmu.json",
+    "cacheRoot": "data/preparsed"
+  },
+  "50": {
+    "format": 50,
+    "sourceRoot": "grammars50",
+    "notation": "grammars50/gencmu/jbogenbau/pipeline.md",
+    "bootstrap": "data/preparsed50/gencmu.json",
+    "cacheRoot": "data/preparsed50",
+    "bootstrapFamilyCache": "data/preparsed50/bootstrap/gencmu.json"
+  }
+}

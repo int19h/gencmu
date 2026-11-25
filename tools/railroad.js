@@ -1,3 +1,4 @@
+import { operandFields50, recordKind50 } from "../lib/js/src/format50/records.js";
 import { canonicalArgument, hasUnresolved } from "../lib/js/src/templates.js";
 // Railroad diagrams of the grammar documents' rules (docs/design.md,
 // "Railroad diagrams"). tools/sync.js writes one SVG file for each rule of
@@ -404,15 +405,49 @@ function diagramTermText(term) {
   return hasUnresolved(term) ? canonicalArgument(term,unicode) : formatTerm(term);
 }
 
+// Format 50 actuals can pass a constant expression, as in `= {Run-Initial}`.
+function expressionText(expr) {
+  const kind = recordKind50(expr, "expression");
+  if (kind === "string") return canonicalArgument(expr,unicode);
+  if (kind === "integer") return expr.integer;
+  if (kind === "constantReference") return "$" + expr.const;
+  if (kind === "parameter") return "@" + expr.param;
+  if (kind === "list") {
+    return "[" + expr.list.map(entry => {
+      if (entry.gates.length || entry.guard) throw new Error(`unprintable argument ${JSON.stringify(expr)}`);
+      return (entry.kind === "splat" ? "*" : "") + expressionText(entry.value);
+    }).join(", ") + "]";
+  }
+  if (kind === "bag") {
+    return "{" + expr.bag.map(entry => {
+      if (entry.gates.length || entry.guard) throw new Error(`unprintable argument ${JSON.stringify(expr)}`);
+      if (entry.kind === "bare") return entry.key;
+      if (entry.kind === "delete") return "¬" + entry.key;
+      if (entry.kind === "splat") return "*" + expressionText(entry.value);
+      if (entry.kind === "write") return entry.keys.map(key => key + ": ").join("") + expressionText(entry.value);
+      throw new Error(`unprintable argument ${JSON.stringify(expr)}`);
+    }).join(", ") + "}";
+  }
+  throw new Error(`unprintable argument ${JSON.stringify(expr)}`);
+}
+
+function argumentText(arg) {
+  const form = recordKind50(arg, "argument");
+  if (form === "expressionArgument") return "= " + expressionText(arg.expression);
+  return form === "call" ? symbolText(arg) : canonicalArgument(arg,unicode);
+}
+
 function symbolText(expr) {
-  if (expr.splice) return "*"+symbolText(expr.splice);
-  if (expr.param || expr.call) return canonicalArgument(expr,unicode);
-  if (expr.test) return symbolText(expr.expr) + testText(expr);
-  if (expr.literal) return diagramTermText(expr.literal);
-  if (expr.wildcard) return "_";
-  if (typeof expr.ref === "string") return expr.ref;
+  const form = recordKind50(expr, "body");
+  if (form === "splice") return "*"+symbolText(expr.splice);
+  if (form === "call") return `${expr.call}(${expr.args.map(argumentText).join(", ")})`;
+  if (form === "parameter") return canonicalArgument(expr,unicode);
+  if (form === "bodyTags" || form === "bodyTest") return symbolText(expr.expr) + testText(expr);
+  if (form === "literal") return diagramTermText(expr.literal);
+  if (form === "wildcard") return "_";
+  if (form === "reference") return expr.ref;
   if ("terminal" in expr) return /^[a-z]/.test(expr.terminal) ? `~${expr.terminal}` : expr.terminal;
-  if ("range" in expr) return expr.range.map(diagramTermText).join("..");
+  if (form === "range") return expr.range.map(diagramTermText).join("..");
   if ("property" in expr) return `'\\p{${expr.property}}'`;
   throw new Error(`not a symbol: ${JSON.stringify(expr)}`);
 }
@@ -434,7 +469,8 @@ const isTerminal = (expr) => expr.test ? isTerminal(expr.expr) : typeof expr.ref
 export function testText(expr) {
   if (expr.test === "tags") return "<" + expr.requirements.map(requirement => (requirement.negated ? "¬" : "") + diagramTermText(requirement.value)).join(" ") + ">";
   const value = diagramTermText(expr.value);
-  const set = ["union", "intersection", "difference", "if"].some((key) => key in expr.value) ? `(${value})` : value;
+  const form = recordKind50(expr.value, "expression");
+  const set = ["union", "intersection", "difference", "conditional", "implication"].includes(form) ? `(${value})` : value;
   if (expr.test === "∩=∅" || expr.test === "∩≠∅") return `∩${set}${expr.test.slice(1)}`;
   if (expr.test === "=" || expr.test === "≠") return `${expr.test}${value}`;
   return `${expr.test}${set}`;
@@ -461,7 +497,7 @@ export function testedElisions(rule) {
       const first = expr.optional.capture ? expr.optional.expr : "seq" in expr.optional ? expr.optional.seq[0] : expr.optional;
       if ("test" in first) found.push(expr);
     }
-    for (const key of ["seq", "choice", "ranked", "and", "optional", "repeat", "separator", "expr", "splice"]) if (key in expr) visit(expr[key]);
+    for (const [, child, slot] of operandFields50(expr, "body")) if (slot === "body" || slot === "body[]") visit(child);
   };
   for (const alternative of rule.alternatives??[]) visit(alternative.expr);
   return found;
@@ -587,24 +623,25 @@ const unknownOmission = () => null;
  * @returns {Piece}
  */
 export function expressionPiece(expr, limit = MAX_WIDTH, omission = unknownOmission) {
+  const form = recordKind50(expr, "body");
   const inside = limit - 4 * RADIUS;
   /** @param {any} part */
   const framed = (part) => expressionPiece(part, inside, omission);
-  if ("seq" in expr) return wrapped(expr.seq.map(framed), limit);
-  if ("choice" in expr) return choice(expr.choice.map(framed));
-  if ("ranked" in expr) {
+  if (form === "sequence") return wrapped(expr.seq.map(framed), limit);
+  if (form === "choice") return choice(expr.choice.map(framed));
+  if (form === "ranked") {
     const room = inside - label("≻ same span").width - 3 * GAP - label(String(expr.ranked.length)).width;
     return rankedChoice(expr.ranked.map((/** @type {any} */ option) => expressionPiece(option, room, omission)));
   }
   // A & B & C reads any non-empty subsequence in order. So it is the choice
   // of where the subsequence begins, each item after that being optional.
-  if ("and" in expr) {
+  if (form === "subset") {
     return choice(expr.and.map((/** @type {any} */ item, /** @type {number} */ index) => wrapped([
       expressionPiece(item, inside - 4 * RADIUS, omission),
       ...expr.and.slice(index + 1).map((/** @type {any} */ rest) => optional(expressionPiece(rest, inside - 8 * RADIUS, omission))),
     ], inside)));
   }
-  if ("optional" in expr) {
+  if (form === "optional" || form === "elidable") {
     if (!expr.elidable) return optional(framed(expr.optional));
     // The terminator's test can forbid its omission (engine §3.8): then
     // only the written route is left.
@@ -614,15 +651,16 @@ export function expressionPiece(expr, limit = MAX_WIDTH, omission = unknownOmiss
     const kind = "elided";
     return optional(framed(expr.optional), allowed ? kind : `${kind}, where its test allows`);
   }
-  if ("repeat" in expr) {
+  if (form === "repeat" || form === "chain") {
     const note = expr.chain ? `${expr.chain} chain` : undefined;
     return repeat(framed(expr.repeat), expr.separator ? framed(expr.separator) : undefined, note);
   }
   // A capture names a part for the clauses, and changes nothing that the
   // rule reads.
-  if ("capture" in expr) return expressionPiece(expr.expr, limit, omission);
-  if ("test" in expr) return box(symbolText(expr.expr) + testText(expr), isTerminal(expr.expr));
-  if (expr.empty === true) return skip();
+  if (form === "captureSymbol") return expressionPiece(expr.expr, limit, omission);
+  if (form === "primary") return expressionPiece(expr.primary, limit, omission);
+  if (form === "bodyTest" || form === "bodyTags") return box(symbolText(expr.expr) + testText(expr), isTerminal(expr.expr));
+  if (form === "empty") return skip();
   return box(symbolText(expr), isTerminal(expr));
 }
 
@@ -674,8 +712,8 @@ function hasRankedChoice(rule) {
     const expression = pending.pop();
     if (Array.isArray(expression)) {for (const child of expression) pending.push(child);continue;}
     if (!expression || typeof expression !== "object") continue;
-    if ("ranked" in expression) return true;
-    for (const key of ["seq", "choice", "and", "optional", "repeat", "separator", "expr", "splice"]) if (key in expression) pending.push(expression[key]);
+    if (recordKind50(expression, "body") === "ranked") return true;
+    for (const [, child, slot] of operandFields50(expression, "body")) if (slot === "body" || slot === "body[]") pending.push(child);
   }
   return false;
 }
@@ -690,7 +728,7 @@ function hasRankedChoice(rule) {
  * @returns {string}
  */
 export function ruleSvg(rule, omission = unknownOmission) {
-  const title=rule.name+(rule.params ? "("+rule.params.map(name=>"@"+name).join(", ")+")" : rule.args ? "("+rule.args.map(arg=>canonicalArgument(arg,unicode)).join(", ")+")" : "");
+  const title=rule.name+(rule.params ? "("+rule.params.map(name=>"@"+name).join(", ")+")" : rule.args ? "("+rule.args.map(argumentText).join(", ")+")" : "");
   const body = rulePiece(rule, omission);
   const mark = 10;
   const titleWidth = length(title) * CHAR_WIDTH;
@@ -893,10 +931,11 @@ export function ownedLines(lines) {
  * @param {{rules: any[]}} dom the document's DOM
  * @param {Map<string, Set<boolean>[]>} [outcomes] the answers of the
  *   omission predicate for the document's rules, from elisionOutcomes
+ * @param {string} [variant] an optional diagram namespace
  * @returns {{text: string, files: Map<string, string>}} the document, and
  *   the SVG files
  */
-export function withDiagrams(file, markdown, dom, outcomes = new Map()) {
+export function withDiagrams(file, markdown, dom, outcomes = new Map(), variant = "") {
   const { lines, ends } = documentLines(markdown);
   const newline = ends.find((end) => end !== "") ?? "\n";
   const blocks = fencedBlocks(lines);
@@ -916,7 +955,7 @@ export function withDiagrams(file, markdown, dom, outcomes = new Map()) {
 
   // The diagrams of each grammar block, by the line of its closing fence.
   // The rules come in the order of the document, and so do the blocks.
-  const directory = diagramDirectory(file);
+  const directory = diagramDirectory(variant ? `${variant}/${file}` : file);
   const up = "../".repeat(file.split("/").length);
   const names = diagramNames(dom.rules);
   const grammarBlocks = blocks.filter((block) => block.grammar);
