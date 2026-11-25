@@ -4,6 +4,7 @@ import { GencmuError } from "../errors.js";
  * bridge adds underscores until no capture of the rule has the name.
  */
 export declare const PRIMARY_CAPTURE = "primary_";
+export declare const SYMBOL_KEYS: string[];
 /**
  * A visible key: a capitalized key or an engine key.
  * @param {any} key

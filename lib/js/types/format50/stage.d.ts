@@ -1,4 +1,4 @@
-import { Token as RecognizerToken } from "../tokens.js";
+import { Token } from "../tokens.js";
 import { Bag } from "./bag.js";
 import { Occurrence } from "./evaluate.js";
 /** A token that a stage hands on, or a token of the origin table. */
@@ -29,7 +29,7 @@ export declare class Token50 {
         insertedBy?: string;
     });
     /** The token as the recognizer reads it: its visible keys and its value. */
-    recognizerToken(): RecognizerToken;
+    recognizerToken(): Token;
 }
 /**
  * The capture slots of an alternative: whether each capture is one node or

@@ -18387,1481 +18387,6 @@
     }
   }
 
-  // ---- format50/signatures.js
-  // @ts-nocheck
-
-
-  // Method arities from Engine §10, including short map selectors.
-  const zero = [
-    "span", "children", "present", "without-elision", "tokens", "flags", "classes",
-    "first-token", "last-token", "tokens-after-first", "onward", "following-tokens",
-    "preceding-tokens", "starts-input", "ends-input", "source-text",
-    "decomposed-source-text", "verbatim-text", "keys", "union", "error-free",
-  ];
-  const unary = [
-    "without-elision-except", "parse", "has", "has-value", "select", "overlaps",
-    "classify", "all", "split", "ngrams", "at-most",
-  ];
-
-  const methods50 = new Map([
-    ...zero.map(name => [name, { min: 0, max: 0 }]),
-    ...unary.map(name => [name, { min: 1, max: 1 }]),
-    ...["any", "join"].map(name => [name, { min: 0, max: 1 }]),
-    ...["followed-by", "preceded-by"].map(name => [name, { min: 1, max: Infinity }]),
-  ]);
-
-  function validProperty50(name, unicode) {
-    return typeof name === "string" && (/^(?!.*--)[a-zA-Z][a-zA-Z0-9_-]*$/.test(name) ||
-      (name !== "_Elided" && (unicode ? unicode.canonicalTag(name) === name :
-        Object.hasOwn(PROPERTY_CATALOG.tags, name))));
-  }
-
-  // ---- format50/validate.js
-  // @ts-nocheck
-
-
-
-
-
-  const argumentsError = "an argument cannot read or declare captures";
-
-  // DOM member order is for serialization. Walk every record's children in
-  // semantic order, including a guard before its payload and a test's symbol
-  // before its requirements or value. Arrays keep their written order.
-  const operandKeys50 = [
-    "rules", "directives", "constants",
-    "gates", "guard", "receiver", "args", "instance", "steps",
-    "expr", "term", "alternatives", "conditions", "error", "warning", "emit", "items",
-    "if", "then", "else", "left", "right", "map", "by",
-    "all", "any", "not", "union", "intersection", "difference", "concat", "flatten", "arg",
-    "bag", "list", "source", "value", "requirements", "targets", "body", "expression",
-    "primary", "splice", "seq", "choice", "ranked", "and", "optional", "default", "repeat", "separator",
-    "literal", "range", "pattern", "children", "child",
-  ];
-
-  /** @internal */
-  function operandFields50(node) {
-    if (Array.isArray(node)) return Array.from(node.entries(), ([index, child]) => [String(index), child]);
-    const fields = [];
-    for (const key of operandKeys50) {
-      const child = node[key];
-      if (child && typeof child === "object" && Object.hasOwn(node, key)) fields.push([key, child]);
-    }
-    return fields;
-  }
-
-  const baseSymbol = node => ["ref", "call", "param", "literal", "range", "wildcard", "splice", "test"]
-    .some(key => Object.hasOwn(node, key));
-  const ruleName50 = /^(?!.*--)[a-z][A-Za-z0-9_-]*$/;
-  const featureName = /^(?!.*--)[A-Za-z][A-Za-z0-9-]*$/;
-  const terminalName = /^[A-Z_]/;
-  const userTag = /^(?!.*--)[A-Z][A-Za-z0-9_-]*$/;
-  const parameterName = /^(?!.*--)[A-Za-z][A-Za-z0-9_-]*$/;
-  // A custom Unicode table can grant an emoji name to any permitted scalar.
-  const validRule = (name, unicode) => ruleName50.test(name) ||
-    typeof name === "string" && (unicode ? unicode.isEmojiName(name) :
-      name !== "#" && name !== "@" && [...name].length === 1 && !/^[\uD800-\uDFFF]$/.test(name));
-  const validTag = (name, unicode) => userTag.test(name) || name.startsWith("_") && validProperty50(name, unicode);
-  /** @typedef {{ document?: string, unicode?: import("../unicode.js").UnicodeTable }} DocumentValidation */
-  const atomOf = node => {
-    while (node.test) node = node.expr;
-    return node;
-  };
-
-  function validateOrigin50(node, fail, pattern) {
-    if (!node.requirements || !node.test) return;
-    const atom = atomOf(node);
-    const rule = atom.name || atom.call || atom.splice || atom.ref && !terminalName.test(atom.ref);
-    if (rule && node.requirements.some(req => req.value.tag === "_Elided" && (!pattern || !req.negated))) {
-      fail(node, "the _Elided origin test applies only to a terminal");
-    }
-  }
-
-  function validatePatternChildren50(node, fail) {
-    if (node.test || !node.any && !node.name && !node.call && !node.param) {
-      fail(node, "only an untested rule atom, call or parameter can have a child list");
-    }
-  }
-
-  function documentFault50(document) {
-    return (node, description) => {
-      const [line, column] = Array.isArray(node?.at) ? node.at : [];
-      throw new GencmuError("grammar", description, { document, line, column });
-    };
-  }
-
-  function withOwner50(root, fail, owner) {
-    const sites = new WeakMap();
-    const pending = [[root, owner]];
-    while (pending.length) {
-      const [node, parent] = pending.pop();
-      if (!node || typeof node !== "object") continue;
-      const site = Array.isArray(node.at) ? node : parent;
-      sites.set(node, site);
-      for (const [, child] of operandFields50(node)) pending.push([child, site]);
-    }
-    return (node, message) => fail(Array.isArray(node?.at) ? node : sites.get(node) ?? owner, message);
-  }
-
-  /** @param {{ closed?: boolean, query?: boolean, bindings?: Iterable<string> }} [configuration] */
-  function validateBindings50(root, fail, configuration = {}) {
-    const { closed = false, query = false, bindings = [] } = configuration;
-    const pending = [[root, new Set(bindings), false]];
-    while (pending.length) {
-      const [node, scope, implicit] = pending.pop();
-      if (!node || typeof node !== "object") continue;
-      if (node.lambda !== undefined) {
-        const name = node.lambda;
-        if (name && scope.has(name)) fail(node, "a function binder cannot hide a live name");
-        pending.push([node.body, name ? new Set([...scope, name]) : scope, true]);
-        continue;
-      }
-      if (node.capture !== undefined) {
-        if (node.expr && (closed || query)) {
-          fail(node, query ? "a query cannot declare captures" : argumentsError);
-        }
-        if (closed && !scope.has(node.capture)) fail(node, argumentsError);
-      }
-      if (node.item && !implicit) fail(node, "an implicit receiver needs a function binding");
-      const children = operandFields50(node);
-      for (let i = children.length - 1; i >= 0; i--) pending.push([children[i][1], scope, implicit]);
-    }
-  }
-
-  function validateArgument50(argument, fail) {
-    validateBindings50(argument, fail, { closed: true });
-    if (argument.body) validateBody50(argument.body, fail);
-  }
-
-  function validateQuery50(method, fail) {
-    const body = method.args[0]?.body;
-    if (!body) return fail(method, "a query needs a body");
-    const items = body.seq ?? [body];
-    const first = Number(Boolean(items[0]?.remainder));
-    const end = items.length - Number(Boolean(items.at(-1)?.remainder));
-    const parts = items.slice(first, end);
-    if (!parts.length) fail(method, "a query needs a body");
-    const pending = parts.slice().reverse();
-    while (pending.length) {
-      const node = pending.pop();
-      if (!node || typeof node !== "object") continue;
-      if (node.remainder) fail(method, "a query permits a remainder only at each outer edge");
-      if (node.chain) fail(method, "a chain cannot be the query target");
-      const children = node.seq ?? node.choice ?? node.ranked ?? node.and ??
-        [node.optional, node.repeat, node.separator, node.primary, node.expr];
-      for (let i = children.length - 1; i >= 0; i--) pending.push(children[i]);
-    }
-    validateBindings50(body, fail, { query: true });
-    validateBody50(parts.length === 1 ? parts[0] : { seq: parts }, fail);
-  }
-
-  const elidableForm50 = "an elidable optional starts with an ungrouped user terminal or parameter and can bind only its sole terminator";
-
-  function validateSubsetSize50(size, node, fail) {
-    if (size > 16) fail(node, "an ordered subset takes at most sixteen operands");
-  }
-
-  function elidableHead50(optional) {
-    const start = optional.seq?.[0] ?? optional;
-    let head = start.capture !== undefined ? start.expr : start;
-    const tests = [];
-    while (head?.test) {
-      tests.push(head);
-      head = head.expr;
-    }
-    return { start, head, tests };
-  }
-
-  function omissionAllowed50(node) {
-    const { head, tests } = elidableHead50(node.optional);
-    const fallback = tests.find(test => test.test === "=")?.value;
-    const value = (node.default ?? fallback ?? { string: "" }).string;
-    let known = true;
-    for (const test of tests) {
-      if (test.requirements) {
-        for (const { negated, value: requirement } of test.requirements) {
-          const tag = requirement.tag;
-          if (!tag || !head.ref && tag !== "_Elided") known = false;
-          else if ((tag === "_Elided" || tag === head.ref) === negated) return false;
-        }
-      } else if (!node.default && test.test === "=" && test.value === fallback) {
-        continue;
-      } else if (value === undefined || test.value?.string === undefined) {
-        known = false;
-      } else if ((test.value.string === value) !== (test.test === "=")) {
-        return false;
-      }
-    }
-    return known ? true : undefined;
-  }
-
-  function validateOmission(node, fail) {
-    if (!node.elidable) return;
-    const optional = node.optional;
-    const { start, head } = elidableHead50(optional);
-    if (!head?.param && !/^[A-Z]/.test(head?.ref ?? "") ||
-        start.capture !== undefined && optional.seq || optional.seq?.slice(1).some(part => captureSlots50(part).size)) {
-      fail(node, elidableForm50);
-    }
-    if (node.default?.string !== undefined && omissionAllowed50(node) === false) {
-      fail(node.default, "the default does not pass the omission predicate");
-    }
-  }
-
-  // Each slot is a node if the alternative binds it once on every route.
-  function captureSlots50(body) {
-    return run(bindingSlots(body, false));
-  }
-
-  function* bindingSlots(body, list) {
-    if (body.capture !== undefined) return new Map([[body.capture, list]]);
-    if (body.primary) return yield bindingSlots(body.primary, list);
-    if (body.optional) return yield bindingSlots(body.optional, true);
-    const routes = body.choice ?? body.ranked;
-    const children = routes ?? body.seq ?? body.and ??
-      (body.repeat ? [body.repeat, ...(body.separator ? [body.separator] : [])] : []);
-    const slots = [];
-    for (const child of children) slots.push(yield bindingSlots(child, list || !!body.repeat || body.and?.length > 1));
-    const result = new Map();
-    for (const child of slots) for (const [name, childList] of child) {
-      result.set(name, !!result.get(name) || childList || !!body.choice && slots.some(slot => !slot.has(name)));
-    }
-    return result;
-  }
-
-  function validateBody50(body, fail) {
-    const zero = () => ({ names: new Map(), min: 0, max: 0 });
-    function* visit(node, blocked = false, chain = false, whole = true) {
-      if (node.primary) {
-        const symbol = node.primary.expr && node.primary.capture !== undefined ? node.primary.expr : node.primary;
-        const base = atomOf(symbol);
-        if (!baseSymbol(base)) fail(node, "a primary marks one symbol or capture");
-        if (blocked || base.splice) fail(node, "a primary must mark a mandatory child that is not a splice");
-        const route = yield visit(node.primary, blocked, chain, false);
-        route.min++;
-        route.max++;
-        return route;
-      }
-      if (node.capture !== undefined && node.expr) {
-        if (chain) fail(node, "a chain item or separator cannot bind a capture directly");
-        if (!CAPTURE_NAME.test(node.capture)) fail(node, "a capture name must use lowercase letters, digits, hyphens or underscores");
-        if (!baseSymbol(node.expr)) fail(node, "a capture wraps one symbol");
-        const route = yield visit(node.expr, blocked, chain, false);
-        if (route.names.has(node.capture)) fail(route.names.get(node.capture), "a route binds a capture twice");
-        route.names.set(node.capture, node);
-        return route;
-      }
-      if (node.optional) {
-        do {
-          validateOmission(node, fail);
-          node = node.optional;
-        } while (node.optional);
-        const route = yield visit(node, true, chain, false);
-        route.min = 0;
-        return route;
-      }
-      const children = node.seq ?? node.and ?? node.choice ?? node.ranked ??
-        (node.repeat && [node.repeat, ...(node.separator ? [node.separator] : [])]);
-      if (!children) return zero();
-      if (node.chain && !whole) fail(node, "a chain must occupy a whole alternative");
-      if (node.and) validateSubsetSize50(node.and.length, node, fail);
-      const exclusive = !!(node.choice || node.ranked);
-      const route = zero();
-      for (const [index, child] of children.entries()) {
-        const next = yield visit(child, blocked || !!(node.ranked || node.repeat), node.repeat ? !!node.chain : chain, false);
-        for (const [name, binder] of next.names) {
-          if (!exclusive && route.names.has(name)) fail(binder, `a route binds $${name} twice`);
-          if (!route.names.has(name)) route.names.set(name, binder);
-        }
-        if (exclusive) {
-          route.min = index ? Math.min(route.min, next.min) : next.min;
-          route.max = Math.max(route.max, next.max);
-        } else {
-          route.min = node.and && index ? Math.min(route.min, next.min) : route.min + next.min;
-          route.max += next.max;
-          if (route.max > 1) fail(child, "a route has more than one primary");
-        }
-      }
-      return route;
-    }
-    const route = run(visit(body));
-    if (route.min !== route.max || route.max > 1) fail(body, "each route must have one primary or every route must have none");
-  }
-
-  function validateExactPattern50(pattern, fail, { origin = true } = {}) {
-    if (pattern.const || pattern.constant) return;
-    if (pattern.union || pattern.intersection || pattern.difference) {
-      for (const part of pattern.union ?? pattern.intersection ?? pattern.difference) {
-        validateExactPattern50(part, fail, { origin });
-      }
-      return;
-    }
-    if (!pattern.exact || pattern.path || pattern.children || pattern.any) fail(pattern, "a key step needs an exact local pattern");
-    let atom = pattern;
-    while (atom.test) {
-      if (!origin && atom.requirements?.some(item => !item.negated && item.value.tag === "_Elided")) {
-        fail(atom, "a leftmost-longest pattern cannot require _Elided");
-      }
-      atom = atom.expr;
-    }
-  }
-
-  function validateBag50(entries, fail) {
-    const unconditional = new Set();
-    for (const entry of entries) {
-      const keys = entry.kind === "write" ? entry.keys : ["copy", "bare"].includes(entry.kind) ? [entry.key] : [];
-      const chain = new Set();
-      for (const key of keys) {
-        const direct = !entry.guard && !entry.gates.length;
-        if (chain.has(key) || direct && unconditional.has(key)) fail(entry, `duplicate direct write for ${key}`);
-        chain.add(key);
-        if (direct) unconditional.add(key);
-      }
-    }
-  }
-
-  function validateRange(range, site, fail) {
-    for (const endpoint of range) {
-      if (endpoint.string !== undefined && [...endpoint.string].length !== 1) {
-        fail(site, "a range endpoint must be one scalar");
-      }
-    }
-    const [left, right] = range;
-    if (left.string !== undefined && right.string !== undefined &&
-        left.string.codePointAt(0) > right.string.codePointAt(0)) {
-      fail(site, "a range starts above its end");
-    }
-  }
-
-  // A name that the definition never binds is an error even behind a guard.
-  function validateDefinitionNames50(rule, slots, fail) {
-    const bindings = new Set(["", ...slots.flatMap(slot => [...slot.keys()])]);
-    const roots = [rule.term, ...rule.conditions ?? [],
-      rule.error, rule.warning, ...rule.emit?.items ?? []];
-    const terms = rule.alternatives.map((alt, index) => [alt.term, new Set(["", ...slots[index].keys()]), false]);
-    const pending = [[rule.term, bindings, false], ...terms,
-      ...roots.slice(1).map(root => [root, bindings, false])].reverse();
-    while (pending.length) {
-      const [part, scope, implicit] = pending.pop();
-      if (!part || typeof part !== "object") continue;
-      if (part.lambda !== undefined) {
-        if (part.lambda && scope.has(part.lambda)) fail(part, "a function binder cannot hide a live name");
-        pending.push([part.body, part.lambda ? new Set([...scope, part.lambda]) : scope, true]);
-        continue;
-      }
-      if (!implicit && part.item) fail(part, "an implicit receiver needs a function binding");
-      if (part.capture !== undefined && !part.expr && !scope.has(part.capture) && !bindings.has(part.capture)) {
-        fail(part, `$${part.capture} is captured by no alternative of ${rule.name}`);
-      }
-      const children = operandFields50(part);
-      for (let i = children.length - 1; i >= 0; i--) pending.push([children[i][1], scope, implicit]);
-    }
-  }
-
-  // Only fold operations with closed scalar operands here. The native loader
-  // resolves constants, input properties and parameter-dependent guards.
-  function* closedScalar50(node) {
-    if (node.string !== undefined) return node.string;
-    if (node.integer !== undefined) return BigInt(node.integer);
-    if (node.not) {
-      const operand = yield closedScalar50(node.not);
-      if (typeof operand === "boolean") return !operand;
-    }
-    if (node.all || node.any) {
-      const deciding = !!node.any;
-      for (const part of node.all ?? node.any) {
-        const value = yield closedScalar50(part);
-        if (typeof value !== "boolean") return;
-        if (value === deciding) return deciding;
-      }
-      return !deciding;
-    }
-    if (node.if) {
-      const condition = yield closedScalar50(node.if);
-      if (typeof condition !== "boolean") return;
-      if (!condition && !node.else) return true;
-      return yield closedScalar50(condition ? node.then : node.else);
-    }
-    if (node.concat) {
-      let result = "";
-      for (const part of node.concat) {
-        const value = yield closedScalar50(part);
-        if (typeof value !== "string") return;
-        result += value;
-      }
-      return result;
-    }
-    if (!node.op) return;
-    const left = yield closedScalar50(node.left);
-    const right = yield closedScalar50(node.right);
-    if (left === undefined || typeof left !== typeof right) return;
-    if (node.op === "=") return left === right;
-    if (node.op === "≠") return left !== right;
-    if (typeof left !== "bigint") return;
-    if (node.op === "+") return left + right;
-    if (node.op === "<") return left < right;
-    if (node.op === "≤") return left <= right;
-    if (node.op === ">") return left > right;
-    if (node.op === "≥") return left >= right;
-  }
-
-  function* closedTruth50(node) {
-    const scalar = yield closedScalar50(node);
-    if (typeof scalar === "boolean") return scalar;
-    if (node.bag) {
-      const keys = new Set();
-      for (const entry of node.bag) {
-        if (entry.gates.length || entry.guard || entry.kind === "copy" || entry.kind === "splat") return;
-        if (entry.kind === "delete") keys.delete(entry.key);
-        else for (const key of entry.keys ?? [entry.key]) keys.add(key);
-      }
-      return keys.size > 0;
-    }
-    if (node.list?.every(entry => !entry.gates.length && !entry.guard && entry.kind === "item")) {
-      return node.list.length > 0;
-    }
-  }
-
-  // Compare route keys in structural expansion order. The keys contain choice
-  // indices, optional routes and subset masks in the order the body reads them.
-  function routeOrder50(left, right) {
-    for (let i = 0; i < Math.min(left.length, right.length); i++) {
-      if (left[i] !== right[i]) return left[i] - right[i];
-    }
-    return left.length - right.length;
-  }
-
-  function keepFirstRoute50(routes, state, route) {
-    const old = routes.get(state);
-    if (!old || routeOrder50(route, old) < 0) routes.set(state, route);
-  }
-
-  function* captureWitness50(body, required, forbidden, names) {
-    if (!required.every(name => names(body).has(name))) return;
-    if (body.capture !== undefined) return forbidden.has(body.capture) ? undefined : [];
-    if (body.primary) return yield captureWitness50(body.primary, required, forbidden, names);
-    if (body.optional) {
-      if (!required.length && (!body.elidable || omissionAllowed50(body) === true)) return [0];
-      const route = yield captureWitness50(body.optional, required, forbidden, names);
-      if (route) return [1, ...route];
-      return;
-    }
-    if (body.choice || body.ranked) {
-      for (const [index, child] of (body.choice ?? body.ranked).entries()) {
-        const route = yield captureWitness50(child, required, forbidden, names);
-        if (route) return [index, ...route];
-      }
-      return;
-    }
-    if (body.repeat) return yield repeatWitness50(body, required, forbidden, names);
-    if (body.and) {
-      let mask = 0;
-      let route = [];
-      for (const [index, child] of body.and.entries()) {
-        const needed = required.filter(name => names(child).has(name));
-        if (!needed.length && (required.length || mask)) continue;
-        const childRoute = yield captureWitness50(child, needed, forbidden, names);
-        if (!childRoute) {
-          if (needed.length) return;
-          continue;
-        }
-        mask += 2 ** index;
-        route = route.concat(childRoute);
-      }
-      return mask ? [mask, ...route] : undefined;
-    }
-    if (body.seq) {
-      let route = [];
-      for (const child of body.seq) {
-        const needed = required.filter(name => names(child).has(name));
-        const childRoute = yield captureWitness50(child, needed, forbidden, names);
-        if (!childRoute) return;
-        route = route.concat(childRoute);
-      }
-      return route;
-    }
-    return [];
-  }
-
-  function* repeatRoutes50(body, bits, forbidden, names) {
-    const relevant = [...bits].filter(([name]) => names(body).has(name));
-    const routes = new Map();
-    const pending = [[0, 0n, [], forbidden]];
-    while (pending.length) {
-      const [index, mask, required, absent] = pending.pop();
-      const route = yield captureWitness50(body, required, absent, names);
-      if (!route) continue;
-      if (index === relevant.length) {
-        routes.set(mask, route);
-      } else {
-        const [name, bit] = relevant[index];
-        pending.push([index + 1, mask, required, new Set([...absent, name])]);
-        pending.push([index + 1, mask | bit, [...required, name], absent]);
-      }
-    }
-    return routes;
-  }
-
-  function* repeatWitness50(body, required, forbidden, names) {
-    const base = yield captureWitness50(body.repeat, required, forbidden, names);
-    if (base) return [0, ...base];
-    const bits = new Map(required.map((name, index) => [name, 1n << BigInt(index)]));
-    const all = (1n << BigInt(required.length)) - 1n;
-    const items = yield repeatRoutes50(body.repeat, bits, forbidden, names);
-    const separators = body.separator ? yield repeatRoutes50(body.separator, bits, forbidden, names) : new Map([[0n, []]]);
-    const inputs = new Map();
-    for (const [x, item] of items) for (const [y, separator] of separators) {
-      keepFirstRoute50(inputs, x | y, body.chain === "right" ? item.concat(separator) : separator.concat(item));
-    }
-    // Base productions come first. Follow the recursive productions until
-    // they supply the requested bindings, with no extra iterations.
-    let current = items;
-    const seen = new Set(current.keys());
-    let iterations = 1;
-    while (current.size) {
-      const next = new Map();
-      for (const [x, prefix] of inputs) for (const [y, prior] of current) {
-        const mask = x | y;
-        if (!seen.has(mask)) keepFirstRoute50(next, mask, prefix.concat(prior));
-      }
-      const route = next.get(all);
-      if (route) return [iterations, ...route];
-      for (const mask of next.keys()) seen.add(mask);
-      current = next;
-      iterations++;
-    }
-  }
-
-  const deferredTruth = Symbol("specialized truth");
-
-  class CapturePresence50 {
-    constructor(name) {
-      this.name = name;
-    }
-  }
-
-  function captureRoutes50(body) {
-    const slots = new WeakMap();
-    const names = node => {
-      if (!slots.has(node)) slots.set(node, captureSlots50(node));
-      return slots.get(node);
-    };
-    const routes = new WeakMap();
-    const unconstrained = new Map();
-    return function* witness(presence = unconstrained) {
-      if (routes.has(presence)) return routes.get(presence);
-      const required = [];
-      const forbidden = new Set();
-      for (const [name, present] of presence) {
-        if (present) required.push(name);
-        else forbidden.add(name);
-      }
-      const route = yield captureWitness50(body, required, forbidden, names);
-      routes.set(presence, route);
-      return route;
-    };
-  }
-
-  function checkExpansionScope(root, slots, witness, note, forwarding = false) {
-    const containsMissing = new WeakMap();
-    function* readsMissing(part) {
-      if (!part || typeof part !== "object") return false;
-      if (containsMissing.has(part)) return containsMissing.get(part);
-      let missing = Boolean(part.capture && !slots.has(part.capture));
-      for (const [, child] of operandFields50(part)) {
-        if (missing) break;
-        missing = yield readsMissing(child);
-      }
-      containsMissing.set(part, missing);
-      return missing;
-    }
-
-    function* report(node, description, presence) {
-      const route = yield witness(presence);
-      if (route) note(route, node, description);
-    }
-
-    // A separate operand check inherits its enclosing guard assignments.
-    // Assignments from one entry do not constrain another entry.
-    function* check(part, bindings, outerPresence, output = false) {
-      if (!(yield readsMissing(part))) return;
-      const choices = [outerPresence];
-      while (choices.length) {
-        const presence = choices.pop();
-        try {
-          yield expansionScope(part, slots, report, bindings, presence, check, false, output);
-        } catch (error) {
-          if (!(error instanceof CapturePresence50)) throw error;
-          for (const value of [false, true]) {
-            const next = new Map(presence);
-            next.set(error.name, value);
-            if (yield witness(next)) choices.push(next);
-          }
-        }
-      }
-    }
-    run(check(root, new Set([""]), new Map(), forwarding));
-  }
-
-  function* expansionScope(root, slots, report, bindings, presence, check, truth = false, forwarding = false) {
-    if (!root || typeof root !== "object") return;
-    const walk = (part, asTruth = false) => asTruth ?
-      expansionScope(part, slots, report, bindings, presence, check, true) : check(part, bindings, presence);
-    if (root.method === "present" && root.receiver?.capture !== undefined) {
-      return yield walk(root.receiver, true);
-    }
-    if (root.capture !== undefined && !root.expr && !forwarding) {
-      const name = root.capture;
-      if (!bindings.has(name) && !slots.has(name)) {
-        if (truth) return false;
-        yield report(root, `$${name} is absent from this expansion`, presence);
-        return;
-      }
-      if (truth && !bindings.has(name)) {
-        if (presence.has(name)) return presence.get(name);
-        throw new CapturePresence50(name);
-      }
-      return;
-    }
-    if (root.lambda !== undefined) {
-      yield check(root.body, new Set([...bindings, root.lambda]), presence);
-      return;
-    }
-    if (root.guard) {
-      const guard = yield walk(root.guard, true);
-      if (guard === false || guard === deferredTruth) return;
-    }
-    if (forwarding) {
-      if (slots.has(root.capture) || root.insert || root.capture === "") yield walk(root.term);
-      return;
-    }
-    if (root.if) {
-      const condition = yield walk(root.if, true);
-      if (condition === deferredTruth) return deferredTruth;
-      if (condition === undefined) {
-        const yes = yield walk(root.then, truth || !root.else);
-        const no = root.else ? yield walk(root.else, truth) : true;
-        return yes === no ? yes : undefined;
-      }
-      if (!condition && !root.else) return true;
-      return yield walk(condition ? root.then : root.else, truth || !root.else);
-    }
-    if (root.not) {
-      const value = yield walk(root.not, true);
-      return typeof value === "boolean" ? !value : value;
-    }
-    if (root.all || root.any) {
-      const result = !!root.any;
-      let unknown = false;
-      for (const part of root.all ?? root.any) {
-        const value = yield walk(part, true);
-        if (value === result || value === deferredTruth) return value;
-        unknown ||= value === undefined;
-      }
-      return unknown ? undefined : !result;
-    }
-    for (const [key, child] of operandFields50(root)) {
-      if (key !== "guard") yield walk(child);
-    }
-    if (!truth) return;
-    const literal = yield closedTruth50(root);
-    if (typeof literal === "boolean") return literal;
-    const pending = [root];
-    let inputDependent = false;
-    while (pending.length) {
-      const item = pending.pop();
-      if (!item || typeof item !== "object") continue;
-      if (item.const || item.param || item.apply) return deferredTruth;
-      inputDependent ||= item.capture !== undefined || item.item === true;
-      for (const [, child] of operandFields50(item)) pending.push(child);
-    }
-    return inputDependent ? undefined : deferredTruth;
-  }
-
-  // The caller supplies the expansion in grammar order. A native caller can
-  // extend each operand check with its stage types and presence witness.
-  function directKeys(entries = []) {
-    const keys = new Set();
-    for (const entry of entries) {
-      if (entry.guard || entry.gates.length) continue;
-      if (entry.kind === "write") for (const key of entry.keys) keys.add(key);
-      if (entry.kind === "delete" || entry.kind === "bare") keys.add(entry.key);
-    }
-    return keys;
-  }
-
-  const stringFields = ["value", "image"];
-  const noFieldEdit = Symbol("no field edit");
-  const absentField = Symbol("absent field");
-  const bareField = Symbol("bare field");
-  const unknownPayload = Symbol("present field with an unresolved payload");
-
-  // Unknown edits can hide a writer. Leave its string requirement to the
-  // loader when a later supplier is unresolved.
-  function* stringFieldEdit50(entry, key) {
-    let edit = noFieldEdit;
-    if (entry.kind === "write" && entry.keys.includes(key)) edit = entry.value;
-    if (entry.kind === "bare" && entry.key === key) edit = bareField;
-    if (entry.kind === "delete" && entry.key === key) edit = absentField;
-    if (entry.kind === "splat" || entry.kind === "copy" && entry.key === key) {
-      const source = yield bagField50(entry.value ?? entry.source, key);
-      edit = source === absentField ? noFieldEdit : source;
-    }
-    if (edit === noFieldEdit) return edit;
-    const guard = entry.guard ? yield closedTruth50(entry.guard) : true;
-    if (guard === false) return noFieldEdit;
-    if (guard !== true || entry.gates.length) return;
-    return edit;
-  }
-
-  function* bagField50(node, key) {
-    if (node?.if && node.else) {
-      const condition = yield closedTruth50(node.if);
-      if (typeof condition === "boolean") return yield bagField50(condition ? node.then : node.else, key);
-      const yes = yield bagField50(node.then, key);
-      const no = yield bagField50(node.else, key);
-      if (yes === no) return yes;
-      if (yes && no && yes !== absentField && no !== absentField) return unknownPayload;
-    }
-    if (node?.method === "flags" || node?.method === "classes") return absentField;
-    if (!node?.bag) return;
-    let field = absentField;
-    for (const item of node.bag) {
-      const edit = yield stringFieldEdit50(item, key);
-      if (edit !== noFieldEdit) field = edit;
-    }
-    return field;
-  }
-
-  function laterStringFields50(entries = []) {
-    return new Set(stringFields.filter(key => entries.some(entry => run(stringFieldEdit50(entry, key)) !== noFieldEdit)));
-  }
-
-  function validateDefinitionExpansion50(rule, alternative, slots, fail, check = validateClosedTypes, afterTerms) {
-    const witness = captureRoutes50(alternative.expr);
-    let fault;
-    let late = false;
-    let clause;
-    let sites;
-    const siteOrder = node => {
-      if (!sites) {
-        sites = new WeakMap();
-        const pending = [[clause, false]];
-        let index = 0;
-        while (pending.length) {
-          const [part, ready] = pending.pop();
-          if (!part || typeof part !== "object") continue;
-          if (ready) {
-            sites.set(part, index++);
-          } else {
-            pending.push([part, true]);
-            const children = operandFields50(part);
-            for (let i = children.length - 1; i >= 0; i--) pending.push([children[i][1], false]);
-          }
-        }
-      }
-      return sites.get(node) ?? Infinity;
-    };
-    const note = (route, node, description) => {
-      const order = fault ? routeOrder50(route, fault.route) : -1;
-      if (order < 0 || order === 0 && clause === fault.clause && siteOrder(node) < siteOrder(fault.node)) {
-        fault = { route, node, description, late, clause };
-      }
-    };
-    const collected = Symbol("collected type fault");
-    const noteType = (node, description) => {
-      const route = run(witness());
-      if (route) note(route, node, description);
-      throw collected;
-    };
-    const visit = (node, forwarding = false, message = false, body = false) => {
-      if (!node) return;
-      clause = node;
-      sites = undefined;
-      try {
-        if (body) return check(node, noteType);
-        if (forwarding && node.term && slots.get(node.capture)) noteType(node, "a braced output item needs a node");
-        checkExpansionScope(node, slots, witness, note, forwarding);
-        const hiddenKeys = node === rule.term ? directKeys(alternative.term?.bag) : undefined;
-        const hiddenStrings = node === rule.term ? laterStringFields50(alternative.term?.bag) : undefined;
-        check(node, noteType, { slots, forwarding, message, nodeTerm: !message, hiddenKeys, hiddenStrings });
-      } catch (error) {
-        if (error !== collected) throw error;
-      }
-    };
-    visit(rule.term);
-    visit(alternative.expr, false, false, true);
-    visit(alternative.term);
-    late = true;
-    visit(rule.error ?? rule.warning, false, true);
-    for (const item of rule.emit?.items ?? []) visit(item, true);
-    if (!fault || fault.late) afterTerms?.();
-    if (fault) fail(fault.node, fault.description);
-  }
-
-  function boundaryFault(root) {
-    let first, fault;
-    const captures = new Set();
-    const pending = [[root, new Set()]];
-    while (pending.length) {
-      const [node, locals] = pending.pop();
-      if (!node || typeof node !== "object") continue;
-      if (node.lambda !== undefined) {
-        pending.push([node.body, new Set([...locals, node.lambda])]);
-        continue;
-      }
-      if (node.capture !== undefined && !node.expr && !locals.has(node.capture)) captures.add(node.capture);
-      if (node.method === "followed-by" || node.method === "preceded-by") {
-        if (!fault) {
-          if (node.args.some(target => target.terminal?.startsWith("_"))) {
-            fault = { node, message: "a boundary target must be a rule, exact instance or user tag" };
-          } else if (first) {
-            fault = { node, message: "a condition item cannot have more than one boundary atom" };
-          }
-        }
-        first ??= node;
-      }
-      const children = operandFields50(node);
-      for (let i = children.length - 1; i >= 0; i--) pending.push([children[i][1], locals]);
-    }
-    const receiver = first?.receiver?.capture;
-    if (!fault && receiver && [...captures].some(name => name !== receiver)) {
-      return { node: first, message: "a condition with a named boundary receiver cannot read another capture" };
-    }
-    return fault;
-  }
-
-  function validateDefinitionBoundaries50(rule, fail) {
-    for (const condition of rule.conditions ?? []) {
-      const fault = boundaryFault(condition);
-      if (fault) fail(fault.node, fault.message);
-    }
-  }
-
-  function validateDefinitionConditions50(rule, slots, fail, check = validateClosedTypes) {
-    const shared = new Map();
-    for (const slot of slots) for (const [name, type] of slot) {
-      shared.set(name, !shared.has(name) || shared.get(name) === type ? type : undefined);
-    }
-    const types = new Map([...shared].filter(([, type]) => type !== undefined));
-    for (const condition of rule.conditions ?? []) {
-      const boundary = boundaryFault(condition);
-      check(condition, fail, { slots: types, truth: true, boundary });
-    }
-  }
-
-  // The native loader supplies the expanded productions in order and the
-  // structural nullability result for each one.
-  function validateDefinitionNullability50(productions, nullable, fail) {
-    for (const production of productions) {
-      if (production.errorSource && nullable(production)) {
-        fail(production.errorSource, "an error production can derive an empty sequence");
-      }
-    }
-  }
-
-  const comparable = new Set(["string", "number", "truth", "keys"]);
-  const isBag = type => type === "bag" || type === "keys";
-  const emptyElement = Symbol("empty list element");
-  const incompatible = Symbol("incompatible types");
-  const kindOf = type => Array.isArray(type) ? "list" : type;
-  const elementOf = type => Array.isArray(type) ? type[0] : undefined;
-  const openType = type => type === undefined || type === emptyElement;
-
-  function joinTypes(left, right, constraint = false) {
-    if (left === incompatible || right === incompatible) return incompatible;
-    if (left === emptyElement) return right;
-    if (right === emptyElement) return left;
-    if (left === undefined || right === undefined) return constraint ? left ?? right : undefined;
-    if (left === right) return left;
-    if (isBag(left) && isBag(right)) return "bag";
-    if (Array.isArray(left) && Array.isArray(right)) {
-      const element = joinTypes(elementOf(left), elementOf(right), constraint);
-      return element === incompatible ? incompatible : [element];
-    }
-    return incompatible;
-  }
-
-  function comparableElement(type) {
-    while (Array.isArray(type)) type = type[0];
-    return openType(type) || comparable.has(type);
-  }
-
-  function sameElementType(left, right) {
-    // Bags and key sets have a common storage type, but only key sets have
-    // element equality.
-    return comparableElement(left) && comparableElement(right) && joinTypes(left, right) !== incompatible;
-  }
-
-  const spanTypes = ["span", "node"];
-  const bagTypes = ["keys", "bag", "node"];
-  const predicateTypes = ["list", "forest"];
-  const methodTypes = new Map([
-    ["split", ["list", "string"]],
-    ["ngrams", ["list", "string"]],
-    ["parse", ["forest", ...spanTypes]],
-    ["span", ["span", "node"]],
-    ["children", ["list", "node"]],
-    ["tokens", ["list", ...spanTypes]],
-    ["join", ["string", "list"]],
-    ["union", ["keys", "list"]],
-    ["present", ["truth", "node", "list"]],
-    ["all", ["truth", ...predicateTypes]],
-    ["any", ["truth", ...predicateTypes]],
-    ["preceding-tokens", ["span", ...spanTypes]],
-    ["following-tokens", ["span", ...spanTypes]],
-    ["first-token", ["span", ...spanTypes]],
-    ["last-token", ["span", ...spanTypes]],
-    ["tokens-after-first", ["span", ...spanTypes]],
-    ["onward", ["span", ...spanTypes]],
-    ["starts-input", ["truth", ...spanTypes]],
-    ["ends-input", ["truth", ...spanTypes]],
-    ["source-text", ["string", ...spanTypes]],
-    ["decomposed-source-text", ["string", ...spanTypes]],
-    ["verbatim-text", ["string", ...spanTypes]],
-    ["without-elision", ["span", "node"]],
-    ["without-elision-except", ["span", "node"]],
-    ["preceded-by", ["truth", "node"]],
-    ["followed-by", ["truth", "node"]],
-    ["flags", ["keys", ...bagTypes, "span", "forest"]],
-    ["classes", ["keys", ...bagTypes, "span"]],
-    ["keys", ["keys", ...bagTypes]],
-    ["has", ["truth", ...bagTypes]],
-    ["has-value", ["truth", ...bagTypes]],
-    ["select", [undefined, ...bagTypes]],
-    ["overlaps", ["truth", "keys"]],
-    ["classify", ["keys", "keys", "bag"]],
-    ["at-most", ["number", "number"]],
-    ["error-free", ["forest", "forest"]],
-  ]);
-
-  const methodArguments = new Map([
-    ["split", "string"], ["join", "string"], ["classify", "string"],
-    ["select", "keys"], ["overlaps", "keys"], ["all", "function"], ["any", "function"],
-  ]);
-
-  // The document can check closed operand types. A reference that needs the
-  // effective stage, a template binding or an input shape stays unresolved.
-  function validateClosedTypes(root, fail, { closed = false, slots = new Map(), truth = false, forwarding = false,
-    message = false, nodeTerm = false, hiddenKeys = new Set(), hiddenStrings = new Set(), boundary, whole = "node" } = {}) {
-    const types = new WeakMap();
-    const type = node => node && typeof node === "object" ? types.get(node) : undefined;
-    const remember = (node, value) => {
-      if (value !== undefined) types.set(node, value);
-    };
-    const invalid = (value, allowed) => !openType(value) && !allowed.includes(kindOf(value));
-    const pending = [[root, false, new Map(), false, truth]];
-    const captureTypes = new Map([...slots].map(([name, list]) => [name, list ? ["node"] : "node"]));
-    const predicates = new WeakMap();
-    const maps = new WeakMap();
-    while (pending.length) {
-      const [node, ready, scope, implicit, needsTruth] = pending.pop();
-      if (!node || typeof node !== "object") continue;
-      if (!ready) {
-        pending.push([node, true, scope, implicit, needsTruth]);
-        if (["all", "any"].includes(node.method) && node.args[0]?.lambda !== undefined) predicates.set(node.args[0], node);
-        if (node.map && node.by) maps.set(node.by, node.map);
-        if (node.lambda !== undefined) {
-          const name = node.lambda;
-          if (name && scope.has(name)) fail(node, "a function binder cannot hide a live name");
-          const predicate = predicates.get(node);
-          const receiver = predicate ? type(predicate.receiver) ?? elementOf(type(maps.get(predicate))) : type(maps.get(node));
-          const argument = receiver === "forest" ? "node" : elementOf(receiver);
-          const frame = new Map(scope);
-          frame.set("", argument);
-          if (name) frame.set(name, argument);
-          pending.push([node.body, false, frame, true, predicates.has(node)]);
-          continue;
-        }
-        const children = operandFields50(node);
-        for (let i = children.length - 1; i >= 0; i--) {
-          const [key, child] = children[i];
-          const childTruth = key === "if" || key === "guard" || key === "not" ||
-            key === "then" && (!node.else || needsTruth) || key === "else" && needsTruth ||
-            (key === "all" || key === "any") && Array.isArray(child) || Array.isArray(node) && needsTruth;
-          pending.push([child, false, scope, implicit, childTruth]);
-        }
-        continue;
-      }
-      if (Array.isArray(node)) continue;
-      if (boundary?.node === node) fail(node, boundary.message);
-      if (closed && node.capture !== undefined && !scope.has(node.capture)) {
-        fail(node, "a constant cannot read a capture outside its function scope");
-      }
-      if (closed && node.item && !implicit) fail(node, "an implicit receiver needs a function binding");
-      if (node.capture !== undefined && !node.expr && !(forwarding && node === root)) {
-        const inferred = scope.has(node.capture) && node.capture ? scope.get(node.capture) :
-          node.capture === "" ? whole : captureTypes.get(node.capture);
-        remember(node, inferred);
-      }
-      if (node.item) remember(node, scope.get(""));
-      if (node.string !== undefined) remember(node, "string");
-      if (node.integer !== undefined) remember(node, "number");
-      if (node.lambda !== undefined) {
-        if (type(node.body) === "function") fail(node.body, "a function cannot return a function");
-        remember(node, "function");
-      }
-      if (node.map) {
-        if (invalid(type(node.map), ["list"])) fail(node, "a map needs a list");
-        if (node.by.lambda === undefined && !node.by.method && !node.by.property &&
-            invalid(type(node.by), ["function"])) fail(node, "a map needs a function or selector");
-        remember(node, [type(node.by.lambda !== undefined ? node.by.body : node.by)]);
-      }
-      if (node.flatten) {
-        const nested = elementOf(type(node.flatten));
-        if (invalid(type(node.flatten), ["list"]) || invalid(nested, ["list"])) {
-          fail(node, "flatten needs a list of lists");
-        }
-        remember(node, [nested === emptyElement ? emptyElement : elementOf(nested)]);
-      }
-      if (node.list) {
-        let member = emptyElement;
-        let required = emptyElement;
-        for (const entry of node.list) {
-          const value = type(entry.value);
-          if (entry.kind === "splat" && invalid(value, ["list"])) fail(entry, "a list splat needs a list");
-          if (value === "function") fail(entry.value, "a list cannot store a function");
-          const item = entry.kind === "splat" ? elementOf(value) : value;
-          member = joinTypes(member, item);
-          if (!entry.guard && !entry.gates.length) required = joinTypes(required, item, true);
-        }
-        if (required === incompatible) fail(node, "a list needs one common element type");
-        remember(node, [member === incompatible ? undefined : member]);
-      }
-      if (node.emptySet || node.pattern) remember(node, "pattern");
-      if (node.bag) {
-        const definiteKeys = node.bag.every(entry => entry.kind === "bare" || entry.kind === "delete" ||
-          entry.kind === "splat" && type(entry.value) === "keys");
-        const payloads = new Map();
-        let open = false;
-        for (const entry of node.bag) {
-          if (entry.kind === "write" && !entry.guard && !entry.gates.length) {
-            for (const key of entry.keys) payloads.set(key, true);
-          } else if (entry.kind === "write" || entry.kind === "copy" || entry.kind === "splat" && type(entry.value) !== "keys") {
-            open = true;
-            payloads.clear();
-          } else if ((entry.kind === "delete" || entry.kind === "bare") && !entry.guard && !entry.gates.length) {
-            payloads.delete(entry.key);
-          }
-        }
-        if (definiteKeys || !open && !payloads.size) remember(node, "keys");
-        else if (payloads.size) remember(node, "bag");
-        const writesNode = nodeTerm && node === (forwarding ? root.term : root);
-        const hidden = new Set(hiddenKeys);
-        const effective = new Set();
-        const effectiveStrings = new Set();
-        const laterStrings = new Set(hiddenStrings);
-        if (writesNode) for (const entry of node.bag.slice().reverse()) {
-          for (const key of stringFields) {
-            const edit = run(stringFieldEdit50(entry, key));
-            if (edit !== noFieldEdit && !laterStrings.has(key)) {
-              if (invalid(type(edit), ["string"])) effectiveStrings.add(entry);
-              laterStrings.add(key);
-            }
-          }
-          if (entry.kind === "write" || entry.kind === "bare") {
-            const keys = entry.keys ?? [entry.key];
-            if (keys.some(key => !hidden.has(key) && key.startsWith("_"))) {
-              effective.add(entry);
-            }
-          }
-          if (!entry.guard && !entry.gates.length) {
-            if (entry.kind === "write") for (const key of entry.keys) hidden.add(key);
-            if (entry.kind === "bare" || entry.kind === "delete") hidden.add(entry.key);
-          }
-        }
-        for (const entry of node.bag) {
-          if (entry.kind === "splat" && invalid(type(entry.value), ["keys", "node", "bag"])) {
-            fail(entry, "a bag splat needs a bag or node");
-          }
-          if (entry.kind === "bare" && effective.has(entry) && entry.key.startsWith("_")) {
-            fail(entry, "a constructor cannot write an engine key without provenance");
-          }
-          if (entry.kind !== "write" && effectiveStrings.has(entry)) {
-            fail(entry, "a value or image needs a string");
-          }
-          if (entry.kind !== "write") continue;
-          const value = type(entry.value);
-          if (value === "function") fail(entry.value, "a key cannot store a function");
-          if (entry.keys.some(key => key.startsWith("_"))) fail(entry, "a constructor cannot write an engine key");
-          if (effectiveStrings.has(entry)) {
-            fail(entry.value, "a value or image needs a string");
-          }
-        }
-      }
-      if (message && node.method === "parse") fail(node, "a message cannot read a query");
-      const mapped = maps.get(node);
-      const receiver = type(node.receiver) ?? elementOf(type(mapped));
-      if (node.property && invalid(receiver, bagTypes)) fail(node, "a property read needs a node or bag");
-      const signature = methodTypes.get(node.method);
-      if (signature) {
-        const [result, ...receivers] = signature;
-        const wrong = () => fail(node, "a method has the wrong receiver or arguments");
-        if (invalid(receiver, receivers)) wrong();
-        const argumentType = methodArguments.get(node.method);
-        if (argumentType && invalid(type(node.args[0]), [argumentType])) wrong();
-        if (node.method === "any" && kindOf(receiver) === "list" && !node.args.length) wrong();
-        const member = elementOf(receiver);
-        if (node.method === "join" && invalid(member, ["string"]) ||
-            node.method === "union" && invalid(member, ["keys"])) wrong();
-        const element = ["split", "ngrams"].includes(node.method) ? "string" : "node";
-        remember(node, result === "list" ? [element] :
-          node.method === "select" && receiver === "keys" ? "keys" : result);
-      }
-      if (node.concat) {
-        if (node.concat.some(part => invalid(type(part), ["string"]))) fail(node, "++ requires string operands");
-        remember(node, "string");
-      }
-      if (node.if) {
-        const yes = type(node.then);
-        const no = type(node.else);
-        const result = joinTypes(yes, no);
-        if (node.else && result === incompatible) {
-          fail(node, "a conditional requires compatible branch types");
-        }
-        if (!node.else) remember(node, "truth");
-        else remember(node, result);
-      }
-      const group = node.union ?? node.intersection ?? node.difference;
-      if (group && node.at) {
-        const known = group.map(type).filter(value => !openType(value));
-        const listDifference = node.difference && kindOf(type(group[0])) === "list";
-        const openDifference = node.difference && openType(type(group[0]));
-        if (listDifference) {
-          const [left, right] = group.map(type);
-          const member = elementOf(left);
-          const direct = sameElementType(member, right);
-          const exclusion = Array.isArray(right) && sameElementType(member, elementOf(right));
-          if (!direct && !exclusion) fail(node, "∖ requires compatible operands");
-        }
-        if (!listDifference && !openDifference &&
-            (known.some(value => value !== "keys" && value !== "pattern") || new Set(known).size > 1)) {
-          const op = node.union ? "∪" : node.intersection ? "∩" : "∖";
-          fail(node, `${op} requires compatible operands`);
-        }
-        if (!openDifference) remember(node, listDifference ? type(group[0]) : known[0]);
-      }
-      if (node.not || Array.isArray(node.all) || Array.isArray(node.any)) remember(node, "truth");
-      if (needsTruth && ["string", "number", "pattern", "function"].includes(type(node))) {
-        fail(node, "this operand does not have a truth value");
-      }
-      if (!node.op) continue;
-      const left = type(node.left);
-      const right = type(node.right);
-      if (["+", "<", "≤", ">", "≥"].includes(node.op) && [left, right].some(value => invalid(value, ["number"]))) {
-        fail(node, `${node.op} requires number operands`);
-      }
-      if (needsTruth && node.op === "+") fail(node, "this operand does not have a truth value");
-      if (["=", "≠"].includes(node.op)) {
-        if ([left, right].some(value => !openType(value) && !comparable.has(value)) ||
-            joinTypes(left, right) === incompatible) {
-          fail(node, `${node.op} requires comparable operands of one type`);
-        }
-      }
-      if (["⊆", "⊈"].includes(node.op) && [left, right].some(value => invalid(value, ["keys"]))) {
-        fail(node, `${node.op} requires key sets`);
-      }
-      if (["∈", "∉"].includes(node.op)) {
-        if (invalid(right, ["list"])) fail(node, `${node.op} requires a list on its right`);
-        if (!sameElementType(left, elementOf(right))) fail(node, `${node.op} requires compatible operands`);
-      }
-      if (["≅", "≇"].includes(node.op)) {
-        if (node.left.capture === undefined && !node.left.item) {
-          fail(node, "a structural comparison needs one capture or bound item on its left");
-        }
-        if (node.left.capture !== undefined && node.left.capture === node.right.capture ||
-            node.left.item && node.right.item) {
-          fail(node, "a structural comparison cannot compare a binding with itself");
-        }
-        if (invalid(left, ["node"])) fail(node, "a structural comparison needs a bound node on its left");
-        if (invalid(right, ["pattern", "node"])) {
-          fail(node, "a structural comparison needs a pattern or a bound node on its right");
-        }
-      }
-      remember(node, node.op === "+" ? "number" : "truth");
-    }
-    if (message && invalid(type(root), ["string"])) fail(root, "a message needs a string");
-  }
-
-  const stageDirectives = new Set(["stage", "extend-stage", "redefine-stage"]);
-
-  function validateHeader(declaration, fail, unicode) {
-    const { name, args, conditions, steps, instance, params, op } = declaration;
-    if (declaration.alternatives || instance) {
-      if (!validRule(name, unicode)) {
-        fail(declaration, "a rule name must begin with a lowercase letter or be an emoji name");
-      }
-      if (instance && (args || params)) fail(declaration, "an instance binding needs a plain rule name");
-      if (instance && op === "extend") fail(declaration, "an instance binding cannot extend a rule");
-      if (args && (op === "define" || args.some(arg => arg.param))) {
-        fail(declaration, "a rule head needs all parameters or an exact instance edit");
-      }
-      if (params) {
-        const seen = new Set();
-        for (const param of params) {
-          if (!parameterName.test(param)) fail(declaration, "invalid parameter name");
-          if (seen.has(param)) fail(declaration, `duplicate parameter @${param}`);
-          seen.add(param);
-        }
-        if (declaration.error || declaration.warning) fail(declaration, "a template cannot declare an error or warning");
-      }
-      if (declaration.suppressWarnings?.some(code => code !== "_" && !featureName.test(code))) {
-        fail(declaration, "invalid warning code");
-      }
-    } else if (declaration.value) {
-      if (!CONSTANT_NAME.test(name)) fail(declaration, "invalid constant name");
-    } else if (name === "include" || name === "names") {
-      if (conditions || args?.length !== 1 || typeof args[0] !== "string") fail(declaration, `%${name} takes one quoted path`);
-    } else if (name === "features") {
-      if (!args?.length || args.some(arg => !featureName.test(arg))) fail(declaration, "%features takes feature names");
-    } else if (name === "elision-only") {
-      if (conditions || args?.length !== 0) fail(declaration, "%elision-only takes no operands");
-    } else if (stageDirectives.has(name)) {
-      if (conditions || args?.length !== 1 || !ruleName50.test(args[0])) fail(declaration, `%${name} takes one stage name`);
-    } else if (name === "ambiguity-resolution") {
-      for (const step of steps ?? []) {
-        if (Boolean(step.pattern) !== KEY_STEPS.has(step.step)) fail(step, "invalid resolution step operand");
-      }
-      if (!validSteps(steps)) fail(declaration, "invalid resolution policy");
-    }
-  }
-
-  function validateDeclarationShape50(declaration, fail, unicode, emptyDelimiters = []) {
-    const locate = withOwner50(declaration, fail, declaration);
-    validateHeader(declaration, locate, unicode);
-    if (declaration.value && declaration.name === "INPUTS") fail(declaration, "$INPUTS is supplied by the engine");
-    for (const step of declaration.steps ?? []) {
-      if (step.pattern) validateExactPattern50(step.pattern, locate, { origin: step.step !== "leftmost-longest" });
-    }
-
-    const ruleBodies = new WeakSet((declaration.alternatives ?? []).map(alt => alt.expr));
-    const outputItems = new WeakSet(declaration.emit?.items ?? []);
-    const predicateSlots = new WeakSet();
-    const pending = [[declaration, false, false, false, false]];
-    while (pending.length) {
-      const [node, width, inRepeat, inPattern, requirement] = pending.pop();
-      if (!node || typeof node !== "object") continue;
-      if (ruleBodies.has(node)) validateBody50(node, locate);
-      if (outputItems.has(node) && node.capture === "" && !node.term) locate(node, "only a braced item can select the whole rule");
-      if (node.range) validateRange(node.range, node, locate);
-      if (node.integer !== undefined && (width ? !/^[1-9][0-9]*$/.test(node.integer) :
-        !/^(0|[1-9][0-9]*)$/.test(node.integer) || Number(node.integer) > 255)) {
-        locate(node, width ? "a width must be positive" : "a count literal must be between 0 and 255");
-      }
-      if (node.capture !== undefined && (node.capture !== "" || node.expr) && !CAPTURE_NAME.test(node.capture)) {
-        locate(node, "a capture name must use lowercase letters, digits, hyphens or underscores");
-      }
-      if (node.lambda === "" && !predicateSlots.has(node)) locate(node, "a predicate requires an explicit binder");
-      if (node.lambda && !CAPTURE_NAME.test(node.lambda)) {
-        locate(node, "a capture name must use lowercase letters, digits, hyphens or underscores");
-      }
-      if (node.by?.lambda === "") predicateSlots.add(node.by);
-      if (node.feature && !featureName.test(node.feature)) locate(node, "invalid feature name");
-      if (node.ref === "_Elided" || node.terminal === "_Elided" || node.property === "_Elided" ||
-          node.key === "_Elided" || !requirement && node.tag === "_Elided" ||
-          Array.isArray(node.keys) && node.keys.includes("_Elided") ||
-          ["has", "has-value"].includes(node.method) && node.args?.[0]?.key === "_Elided") {
-        locate(node, "unknown or forbidden engine key _Elided");
-      }
-      if (node.property !== undefined && !validProperty50(node.property, unicode)) locate(node, "invalid property name");
-      for (const value of [node.const, node.constant, node.apply]) {
-        if (typeof value === "string" && !CONSTANT_NAME.test(value)) locate(node, "invalid constant name");
-      }
-      if (node.param !== undefined && !parameterName.test(node.param)) locate(node, "invalid parameter name");
-      if (typeof node.call === "string" && !validRule(node.call, unicode) ||
-          typeof node.rule === "string" && !validRule(node.rule, unicode) ||
-          inPattern && typeof node.name === "string" && !validRule(node.name, unicode)) {
-        locate(node, "invalid rule name");
-      }
-      for (const name of [node.tag, node.terminal, typeof node.ref === "string" && terminalName.test(node.ref) ? node.ref : undefined]) {
-        if (typeof name === "string" && !(requirement && name === "_Elided") && !validTag(name, unicode)) {
-          locate(node, "invalid tag name");
-        }
-      }
-      if (typeof node.ref === "string" && !terminalName.test(node.ref) && !validRule(node.ref, unicode)) locate(node, "invalid rule name");
-      for (const key of Array.isArray(node.keys) ? node.keys : [node.key]) {
-        if (typeof key === "string" && !validProperty50(key, unicode)) locate(node, "invalid key name");
-      }
-      if (node.method) {
-        const sig = methods50.get(node.method);
-        if (!sig) locate(node, `unknown method .${node.method}`);
-        if (!node.args || node.args.length < sig.min || node.args.length > sig.max) {
-          locate(node, `method .${node.method} has the wrong number of arguments`);
-        }
-        if (["all", "any"].includes(node.method) && node.args[0]?.lambda === "") predicateSlots.add(node.args[0]);
-        if (node.method === "split" && node.args[0].string === "") emptyDelimiters.push(node);
-        if (node.method === "parse") validateQuery50(node, locate);
-      }
-      if ((node.call || node === declaration && declaration.alternatives) && node.args) for (const arg of node.args) {
-        validateArgument50(arg, locate);
-      }
-      validateOrigin50(node, locate, inPattern);
-      if (node.children) validatePatternChildren50(node, locate);
-      if (node.bag) validateBag50(node.bag, locate);
-      if (inRepeat && node.siblings) locate(node, "a repeated child list cannot contain a sibling gap");
-      for (const [key, value] of operandFields50(node).reverse()) {
-        const repeated = inRepeat && key !== "child" || Array.isArray(node.repeat) && (key === "repeat" || key === "separator");
-        pending.push([value, node.method === "ngrams" && key === "args" || width && Array.isArray(node),
-          repeated, key === "pattern" || inPattern && key !== "body", key === "value" && Object.hasOwn(node, "negated")]);
-      }
-    }
-  }
-
-  const orderedDeclarations = dom => [...dom.rules, ...dom.directives, ...dom.constants]
-    .sort((a, b) => a.at[0] - b.at[0] || a.at[1] - b.at[1]);
-
-  /** @param {DocumentValidation} [configuration] */
-  function validateDocumentShape50(dom, configuration = {}) {
-    const { document, unicode } = configuration;
-    const fail = documentFault50(document);
-    const emptyDelimiters = [];
-    let preamble = true;
-    for (const declaration of orderedDeclarations(dom)) {
-      if (declaration.name === "names" && declaration.args) {
-        if (!preamble) fail(declaration, "%names must precede all other declarations");
-      } else {
-        preamble = false;
-      }
-      validateDeclarationShape50(declaration, fail, unicode, emptyDelimiters);
-    }
-    if (emptyDelimiters.length) fail(emptyDelimiters[0], "a split delimiter cannot be empty");
-  }
-
-  /** @param {DocumentValidation} [configuration] */
-  function validateDocumentDefinitions50(dom, configuration = {}) {
-    const { document } = configuration;
-    const fail = documentFault50(document);
-    for (const declaration of orderedDeclarations(dom)) {
-      const locate = withOwner50(declaration, fail, declaration);
-      if (declaration.args && declaration.alternatives) validateClosedTypes(declaration.args, locate);
-      if (declaration.instance) validateClosedTypes(declaration.instance, locate);
-      if (declaration.alternatives) {
-        const slots = declaration.alternatives.map(alt => captureSlots50(alt.expr));
-        validateDefinitionNames50(declaration, slots, locate);
-        let earlier;
-        for (const [index, alternative] of declaration.alternatives.entries()) {
-          let checkingTerms = true;
-          try {
-            validateDefinitionExpansion50(declaration, alternative, slots[index], locate, validateClosedTypes,
-              () => { checkingTerms = false; });
-          } catch (error) {
-            if (checkingTerms || !(error instanceof GencmuError)) throw error;
-            // Conditions precede the message and outputs in the declaration.
-            // Remember the winning expansion fault before checking conditions.
-            earlier = error;
-            break;
-          }
-        }
-        validateDefinitionConditions50(declaration, slots, locate);
-        if (earlier) throw earlier;
-      } else if (declaration.name === "features") {
-        for (const condition of declaration.conditions ?? []) {
-          validateBindings50(condition, (node, message) =>
-            locate(node, message === argumentsError ? "a feature condition cannot read a named capture" : message),
-            { closed: true, bindings: [""] });
-          validateClosedTypes(condition, locate, { truth: true, whole: "span" });
-        }
-      } else if (declaration.value) {
-        validateClosedTypes(declaration.value, locate, { closed: true });
-      }
-    }
-  }
-
-  /** @param {DocumentValidation} [configuration] */
-  function validateDocumentDepth50(dom, configuration = {}) {
-    const { document } = configuration;
-    const fail = documentFault50(document);
-    for (const declaration of orderedDeclarations(dom)) {
-      if (tooDeep(declaration)) fail(declaration, `an expression, term or condition is nested more than ${DOM_MAX_DEPTH} deep`);
-    }
-  }
-
-  /** @param {DocumentValidation} [configuration] */
-  function validateDocument50(dom, configuration) {
-    validateDocumentShape50(dom, configuration);
-    validateDocumentDefinitions50(dom, configuration);
-    validateDocumentDepth50(dom, configuration);
-    return dom;
-  }
-
-  function tooDeep(declaration) {
-    const pending = [];
-    const push = (value, depth) => {
-      if (value && typeof value === "object") pending.push([value, depth]);
-    };
-    const entries = (items, depth) => {
-      for (const item of items) for (const key of ["guard", "source", "value"]) push(item[key], depth);
-    };
-    push(declaration.term, 0);
-    push(declaration.value, 0);
-    push(declaration.error, 0);
-    push(declaration.warning, 0);
-    for (const condition of declaration.conditions ?? []) push(condition, 0);
-    for (const alt of declaration.alternatives ?? []) {
-      push(alt.expr, 0);
-      push(alt.term, 0);
-    }
-    for (const item of declaration.emit?.items ?? []) {
-      push(item.guard, 0);
-      push(item.term, 0);
-    }
-    for (const step of declaration.steps ?? []) push(step.pattern, 0);
-    if (declaration.instance) push(declaration.instance, 0);
-    for (const arg of declaration.args ?? []) push(arg, 1);
-    while (pending.length) {
-      const [node, depth] = pending.pop();
-      if (depth > DOM_MAX_DEPTH) return true;
-      if (Array.isArray(node)) {
-        for (const child of node) push(child, depth);
-        continue;
-      }
-      if (node.primary || node.expression || node.kind || node.body && node.lambda === undefined) {
-        push(node.primary ?? node.expression ?? node.body, depth);
-        if (node.kind) entries([node], depth);
-        continue;
-      }
-      if (node.targets || Object.hasOwn(node, "negated") && node.value) {
-        push(node.targets ?? node.value, depth);
-        continue;
-      }
-      if (node.bag || node.list) {
-        entries(node.bag ?? node.list, depth + 1);
-        continue;
-      }
-      if (node.map) {
-        push(node.map, depth + 1);
-        if (node.by.method) push(node.by.args, depth + 1);
-        else if (!node.by.property) push(node.by, depth + 1);
-        continue;
-      }
-      for (const [key, child] of operandFields50(node)) {
-        push(child, key === "literal" || key === "range" || key === "requirements" ? depth : depth + 1);
-      }
-    }
-    return false;
-  }
-
-  // ---- hash.js
-  // FNV-1a over the text's UTF-8 bytes, 64 bits, as 16 hexadecimal digits:
-  // the hash that keys the preparsed DOMs in every library.
-  /**
-   * @param {string} text
-   * @returns {string}
-   */
-  function fnv1a64(text) {
-    let high = 0xcbf29ce4;
-    let low = 0x84222325;
-    for (const byte of new TextEncoder().encode(text)) {
-      low = (low ^ byte) >>> 0;
-      // The prime is 2^40 + 435. The low product fits exactly in a Number.
-      // Its carry and the shifted low word supply the high product modulo 2^32.
-      const product = low * 435;
-      high = (Math.imul(high, 435) + (low << 8) + Math.floor(product / 0x100000000)) >>> 0;
-      low = product >>> 0;
-    }
-    return high.toString(16).padStart(8, "0") + low.toString(16).padStart(8, "0");
-  }
-
   // ---- resources.js
   // Package-relative keys shared by resource loading and generation.
   const BOOTSTRAP_PATH = "data/preparsed/gencmu.json";
@@ -25132,6 +23657,27 @@
     return (absolute ? "/" : "") + parts.join("/") || ".";
   }
 
+  // ---- hash.js
+  // FNV-1a over the text's UTF-8 bytes, 64 bits, as 16 hexadecimal digits:
+  // the hash that keys the preparsed DOMs in every library.
+  /**
+   * @param {string} text
+   * @returns {string}
+   */
+  function fnv1a64(text) {
+    let high = 0xcbf29ce4;
+    let low = 0x84222325;
+    for (const byte of new TextEncoder().encode(text)) {
+      low = (low ^ byte) >>> 0;
+      // The prime is 2^40 + 435. The low product fits exactly in a Number.
+      // Its carry and the shifted low word supply the high product modulo 2^32.
+      const product = low * 435;
+      high = (Math.imul(high, 435) + (low << 8) + Math.floor(product / 0x100000000)) >>> 0;
+      low = product >>> 0;
+    }
+    return high.toString(16).padStart(8, "0") + low.toString(16).padStart(8, "0");
+  }
+
   // ---- unicode-names.js
 
 
@@ -26611,10 +25157,8387 @@
     return /** @type {GrammarDom} */ ({...dom, directives:dom.directives.map(({name,args,steps,at,conditions}) => /** @type {import("./types.js").DomDirective} */ ({name,...(args === undefined ? {} : {args}),...(steps === undefined ? {} : {steps}),at,...(conditions === undefined ? {} : {conditions})}))});
   }
 
+  // ---- format50/bag.js
+  // The bag of a node, a constant or a token (engine §3.7). A key is absent,
+  // present with no value, or present with a value. A bag is an ordered list
+  // of writes. A later write wins for its key. A reader of one key looks for
+  // the winning write from the last write back, so a hidden write is never
+  // evaluated, and its errors never surface.
+
+
+
+
+  /** A key that names a class (engine §3.7). */
+  const CLASS_KEY = /^[A-Z](.*[A-Z])?$/;
+
+  /** The entry of a key with no value. */
+  const BARE = Object.freeze({ bare: true });
+
+  // A value can read a value of a child, which reads a value of its own
+  // child. A long run of one rule nests these reads as deep as the tree. A
+  // read that is deeper than DEPTH stops, and the outermost read runs that
+  // deeper value first, so the host stack stays bounded (part 2 §10).
+  const DEPTH = 64;
+  let depth = 0;
+
+  /** The signal that a read went too deep. It is not an error of a grammar. */
+  class TooDeep {
+    /** @param {Deferred} deferred */
+    constructor(deferred) {
+      this.deferred = deferred;
+    }
+  }
+
+  /**
+   * A written value whose expression runs once, and only when a reader needs
+   * the payload.
+   */
+  class Deferred {
+    /** @param {() => any} compute */
+    constructor(compute) {
+      this.compute = compute;
+      this.done = false;
+      this.computing = false;
+      /** @type {any} */
+      this.payload = undefined;
+    }
+
+    force() {
+      if (this.done) return this.payload;
+      if (depth > 0) return this.run();
+      // The outermost read. Each value that went too deep runs first, from a
+      // short stack, and then the reads above it run again. A value that is
+      // done keeps its payload, so each run gets further.
+      const pending = [/** @type {Deferred} */ (this)];
+      while (pending.length) {
+        const next = /** @type {Deferred} */ (pending.at(-1));
+        if (next.done) {
+          pending.pop();
+          continue;
+        }
+        try {
+          next.run();
+          pending.pop();
+        } catch (signal) {
+          if (!(signal instanceof TooDeep)) throw signal;
+          pending.push(signal.deferred);
+        }
+      }
+      return this.payload;
+    }
+
+    /** @private */
+    run() {
+      if (this.done) return this.payload;
+      if (depth >= DEPTH) throw new TooDeep(this);
+      if (this.computing) throw new GencmuError("grammar", "a value of a bag reads itself");
+      this.computing = true;
+      depth++;
+      try {
+        this.payload = this.compute();
+        this.done = true;
+      } finally {
+        depth--;
+        this.computing = false;
+      }
+      return this.payload;
+    }
+  }
+
+  /**
+   * A key with no value, or a key with a value that runs on demand.
+   * @typedef {typeof BARE | {deferred: Deferred}} Entry
+   */
+
+  /**
+   * An entry with a value.
+   * @param {any} payload a payload, or a deferred computation of one
+   * @returns {Entry}
+   */
+  function valued(payload) {
+    return { deferred: payload instanceof Deferred ? payload : new Deferred(() => payload) };
+  }
+
+  /**
+   * A guard or a gate that runs once.
+   * @param {(() => boolean) | null} test
+   */
+  function once(test) {
+    if (test === null) return null;
+    let known;
+    return () => (known ??= test());
+  }
+
+  class Bag {
+    constructor() {
+      /** @type {any[]} */
+      this.writes = [];
+      /** @type {Map<string, any>} */
+      this.resolved = new Map();
+      /** @type {string[] | null} */
+      this.keyList = null;
+      /** @type {Set<string>} */
+      this.resolving = new Set();
+    }
+
+    /**
+     * A bag that holds these entries, in key order.
+     * @param {Iterable<[string, Entry]>} entries
+     */
+    static from(entries) {
+      const bag = new Bag();
+      for (const [key, entry] of entries) bag.write([key], entry, null);
+      return bag;
+    }
+
+    /**
+     * Writes one entry under each key.
+     * @param {string[]} keys
+     * @param {any} entry BARE, or an entry with a value
+     * @param {(() => boolean) | null} guard
+     */
+    write(keys, entry, guard) {
+      this.writes.push({ kind: "write", keys: new Set(keys), entry, guard: once(guard) });
+    }
+
+    /**
+     * Writes the entry that `source` has for `key`, where it has one.
+     * @param {string} key
+     * @param {() => Bag} source
+     * @param {(() => boolean) | null} guard
+     */
+    copy(key, source, guard) {
+      this.writes.push({ kind: "copy", key, source: new Deferred(source), guard: once(guard) });
+    }
+
+    /**
+     * Removes a key.
+     * @param {string} key
+     * @param {(() => boolean) | null} guard
+     */
+    delete(key, guard) {
+      this.writes.push({ kind: "delete", key, guard: once(guard) });
+    }
+
+    /**
+     * Writes each entry of a bag as it is.
+     * @param {() => Bag} source
+     * @param {(() => boolean) | null} guard
+     */
+    splat(source, guard) {
+      this.writes.push({ kind: "splat", source: new Deferred(source), guard: once(guard) });
+    }
+
+    /**
+     * The winning entry for a key, or null where the key is absent.
+     * @param {string} key
+     */
+    entry(key) {
+      if (this.resolved.has(key)) return this.resolved.get(key);
+      if (this.resolving.has(key)) throw new GencmuError("grammar", `the key ${key} of a bag reads itself`);
+      this.resolving.add(key);
+      try {
+        const found = this.resolve(key);
+        this.resolved.set(key, found);
+        return found;
+      } finally {
+        this.resolving.delete(key);
+      }
+    }
+
+    /**
+     * @param {string} key
+     * @returns {Entry | null}
+     */
+    resolve(key) {
+      let found = null;
+      for (let index = this.writes.length - 1; index >= 0; index--) {
+        const write = this.writes[index];
+        if (write.kind === "write") {
+          if (!write.keys.has(key) || (write.guard && !write.guard())) continue;
+          found = write.entry;
+          break;
+        }
+        if (write.kind === "delete") {
+          if (write.key !== key || (write.guard && !write.guard())) continue;
+          break;
+        }
+        if (write.kind === "copy") {
+          if (write.key !== key || (write.guard && !write.guard())) continue;
+          const source = write.source.force();
+          const entry = source.entry(key);
+          if (entry === null) continue;
+          found = entry;
+          break;
+        }
+        if (write.guard && !write.guard()) continue;
+        const entry = write.source.force().entry(key);
+        if (entry !== null) {
+          found = entry;
+          break;
+        }
+      }
+      return found;
+    }
+
+    /** @param {string} key */
+    has(key) {
+      return this.entry(key) !== null;
+    }
+
+    /** @param {string} key */
+    hasValue(key) {
+      const entry = this.entry(key);
+      return entry !== null && entry !== BARE;
+    }
+
+    /**
+     * The payload of a key, or undefined where it has none.
+     * @param {string} key
+     * @returns {any}
+     */
+    value(key) {
+      const entry = this.entry(key);
+      return entry === null || entry === BARE ? undefined : entry.deferred.force();
+    }
+
+    /** The present keys, in code point order. */
+    keys() {
+      if (this.keyList !== null) return this.keyList;
+      const candidates = new Set();
+      for (const write of this.writes) {
+        if (write.kind === "write") for (const key of write.keys) candidates.add(key);
+        else if (write.kind === "copy") candidates.add(write.key);
+        else if (write.kind === "splat" && (!write.guard || write.guard())) {
+          for (const key of write.source.force().keys()) candidates.add(key);
+        }
+      }
+      this.keyList = [...candidates].sort(compareCodePoints).filter(key => this.has(key));
+      return this.keyList;
+    }
+
+    get size() {
+      return this.keys().length;
+    }
+  }
+
+  /**
+   * A bag of bare keys.
+   * @param {Iterable<string>} keys
+   */
+  function keySet(keys) {
+    return Bag.from([...new Set(keys)].sort(compareCodePoints).map(key => [key, BARE]));
+  }
+
+  /**
+   * Whether every present entry of a bag has no value.
+   * @param {Bag} bag
+   */
+  function isKeySet(bag) {
+    return bag.keys().every(key => bag.entry(key) === BARE);
+  }
+
+  // ---- format50/evaluate.js
+  // Evaluates format 50 expressions on a chosen tree (engine §10). The
+  // recognizer evaluates the conditions that recognition needs. This module
+  // evaluates what runs after the choice: bag terms, the defaults function,
+  // emission terms and messages.
+
+
+
+
+
+
+  /** A function value: one parameter and a body, closed over its scope. */
+  class Fn {
+    /**
+     * @param {any} param
+     * @param {any} body
+     * @param {any} scope
+     */
+    constructor(param, body, scope) {
+      this.param = param;
+      this.body = body;
+      this.scope = scope;
+    }
+  }
+
+  /**
+   * The forest of a query after the choice of a parse. The stage answers its
+   * tests on the chosen derivation through the recognizer's evaluator.
+   */
+  class Forest {
+    /**
+     * @param {any} node the query record
+     * @param {any} scope the scope of its evaluation
+     */
+    constructor(node, scope) {
+      this.node = node;
+      this.scope = scope;
+    }
+  }
+
+  const QUERIES = new Set(["parse", "error-free", "followed-by", "preceded-by"]);
+
+  /** A half-open window on the input of a stage. */
+  class Span {
+    /**
+     * @param {StageData} stage
+     * @param {number} start
+     * @param {number} end
+     */
+    constructor(stage, start, end) {
+      this.stage = stage;
+      this.start = start;
+      this.end = end;
+    }
+  }
+
+  /**
+   * What an expression can read of its stage.
+   * @typedef {object} StageData
+   * @property {any[]} tokens the input tokens of the stage, as format 50 tokens
+   * @property {string[]} sourceText the original text as code points
+   * @property {(token: any, index: number) => any} leaf the input leaf of a token
+   * @property {Set<string>} features the features that are on
+   * @property {Map<string, any[]>} constants the versions of each constant
+   * @property {(kind: string, node: any, scope: any) => any} [lateQuery] runs a query after the choice of a parse
+   */
+
+  /**
+   * @param {any} description
+   * @param {any} at
+   * @param {any} document
+   */
+  function evaluationError(description, at, document) {
+    return new GencmuError("grammar", description, { ...(document ? { document } : {}), ...(at ? { line: at[0], column: at[1] } : {}) });
+  }
+
+  /**
+   * Joins strings with `+`, so that the engine shares the parts and does not
+   * copy them. A run of one rule joins the value of its child at each level,
+   * and a copy at each level costs the square of the run (part 2 §10).
+   * @param {string[]} parts
+   * @param {string} separator
+   */
+  function concatenate(parts, separator) {
+    let text = "";
+    for (const [index, part] of parts.entries()) text = index ? text + separator + part : part;
+    return text;
+  }
+
+  class Evaluator {
+    /** @param {StageData} stage */
+    constructor(stage) {
+      this.stage = stage;
+      /** @type {Map<any, any>} */
+      this.constantValues = new Map();
+      /** @type {() => Bag} the bag of the input keys of the stage */
+      this.inputs = () => new Bag();
+    }
+
+    /**
+     * @param {any} description
+     * @param {any} node
+     * @param {any} scope
+     * @returns {never}
+     */
+    fail(description, node, scope) {
+      throw evaluationError(description, node?.at, scope?.document);
+    }
+
+    /**
+     * The value of a constant version.
+     * @param {string} name
+     * @param {number} index
+     * @param {any} node
+     * @param {any} scope
+     * @returns {any}
+     */
+    constant(name, index, node, scope) {
+      const versions = this.stage.constants.get(name);
+      if (!versions || index < 0) this.fail(`the constant $${name} is not defined`, node, scope);
+      const version = versions[Math.min(index, versions.length - 1)];
+      if (this.constantValues.has(version)) return this.constantValues.get(version);
+      const own = { name, index: versions.indexOf(version) };
+      const constantScope = { constant: own, items: [], names: new Map(), document: version.document };
+      /** @type {any} */
+      const value = version.record.value.lambda !== undefined
+        ? new Fn(version.record.value.lambda, version.record.value.body, constantScope)
+        : this.evaluate(version.record.value, constantScope);
+      this.constantValues.set(version, value);
+      return value;
+    }
+
+    /**
+     * @param {any} name
+     * @param {any} node
+     * @param {any} scope
+     * @returns {any}
+     */
+    constantReference(name, node, scope) {
+      const self = scope.constant;
+      const versions = this.stage.constants.get(name);
+      const index = self && self.name === name ? self.index - 1 : (versions ? versions.length - 1 : -1);
+      return this.constant(name, index, node, scope);
+    }
+
+    /**
+     * Applies a function value to one argument.
+     * @param {any} fn
+     * @param {any} argument
+     * @param {any} node
+     * @returns {any}
+     */
+    applyFunction(fn, argument, node) {
+      if (!(fn instanceof Fn)) this.fail("only a function can take an argument", node, fn?.scope);
+      const names = new Map(fn.scope.names);
+      if (fn.param) names.set(fn.param, argument);
+      return this.evaluate(fn.body, { ...fn.scope, names, items: [...fn.scope.items, argument] });
+    }
+
+    /**
+     * @param {any} node
+     * @param {any} scope
+     * @returns {any}
+     */
+    predicate(node, scope) {
+      if (node.lambda !== undefined) return new Fn(node.lambda, node.body, scope);
+      /** @type {any} */
+      const value = this.evaluate(node, scope);
+      if (!(value instanceof Fn)) this.fail("a predicate needs a function", node, scope);
+      return value;
+    }
+
+    /**
+     * @param {any} node
+     * @param {any} scope
+     * @returns {any}
+     */
+    truth(node, scope) {
+      return this.toTruth(this.evaluate(node, scope, true), node, scope);
+    }
+
+    /**
+     * @param {any} value
+     * @param {any} node
+     * @param {any} scope
+     */
+    toTruth(value, node, scope) {
+      if (typeof value === "boolean") return value;
+      if (value instanceof Occurrence) return true;
+      if (Array.isArray(value)) return value.length > 0;
+      if (value instanceof Bag) return value.size > 0;
+      if (value instanceof Span) return value.end > value.start;
+      if (value instanceof Forest) return /** @type {NonNullable<StageData["lateQuery"]>} */ (this.stage.lateQuery)("truth", value.node, value.scope);
+      if (value === undefined) return false;
+      return this.fail(`${describe(value)} cannot serve as a truth value`, node, scope);
+    }
+
+    /**
+     * Evaluates an expression record.
+     * @param {any} node
+     * @param {any} scope
+     * @param {boolean} [truthPosition] whether a missing capture gives false
+     * @returns {any}
+     */
+    evaluate(node, scope, truthPosition = false) {
+      if (node.string !== undefined) return node.string;
+      if (node.inputs) return this.inputs();
+      if (node.integer !== undefined) return Number(node.integer);
+      if (node.capture !== undefined) return this.capture(node, scope, truthPosition);
+      if (node.const !== undefined) return this.constantReference(node.const, node, scope);
+      if (node.apply !== undefined) {
+        const fn = this.constantReference(node.apply, node, scope);
+        return this.applyFunction(fn, this.evaluate(node.arg, scope), node);
+      }
+      if (node.item) {
+        if (!scope.items.length) this.fail("no item is bound here", node, scope);
+        return scope.items.at(-1);
+      }
+      if (node.lambda !== undefined) return new Fn(node.lambda, node.body, scope);
+      if (node.bag) return this.bag(node.bag, scope);
+      if (node.list) return this.list(node.list, scope);
+      if (node.not !== undefined) return !this.truth(node.not, scope);
+      if (node.all) return node.all.every((/** @type {any} */ item) => this.truth(item, scope));
+      if (node.any) return node.any.some((/** @type {any} */ item) => this.truth(item, scope));
+      if (node.if !== undefined) {
+        const test = this.truth(node.if, scope);
+        if (node.else === undefined) return !test || this.truth(node.then, scope);
+        return test ? this.evaluate(node.then, scope, truthPosition) : this.evaluate(node.else, scope, truthPosition);
+      }
+      if (node.op !== undefined) return this.comparison(node, scope);
+      if (node.concat) return concatenate(node.concat.map((/** @type {any} */ item) => this.string(item, scope)), "");
+      if (node.union) return this.setOperation("union", node.union, scope, node);
+      if (node.intersection) return this.setOperation("intersection", node.intersection, scope, node);
+      if (node.difference) return this.difference(node, scope);
+      if (node.property !== undefined) {
+        /** @type {any} */
+        const receiver = node.receiver ? this.evaluate(node.receiver, scope) : this.item(node, scope);
+        return this.property(receiver, node.property, node, scope);
+      }
+      // A query runs on the chosen derivation, through the recognizer.
+      if (node.method !== undefined && QUERIES.has(node.method)) {
+        if (!this.stage.lateQuery) this.fail(`.${node.method} cannot run here`, node, scope);
+        return node.method === "followed-by" || node.method === "preceded-by"
+          ? /** @type {NonNullable<StageData["lateQuery"]>} */ (this.stage.lateQuery)("truth", node, scope)
+          : new Forest(node, scope);
+      }
+      if (node.method !== undefined && node.receiver && (node.method === "flags" || node.method === "any" || node.method === "all")) {
+        /** @type {any} */
+        const receiver = this.evaluate(node.receiver, scope);
+        if (receiver instanceof Forest) {
+          /** @type {any} */
+          const query = { ...node, receiver: receiver.node };
+          return node.method === "flags" ? /** @type {NonNullable<StageData["lateQuery"]>} */ (this.stage.lateQuery)("keys", query, receiver.scope) : /** @type {NonNullable<StageData["lateQuery"]>} */ (this.stage.lateQuery)("truth", query, receiver.scope);
+        }
+      }
+      if (node.method !== undefined) {
+        // In a shared term, .present on a capture of another alternative is
+        // false, as the bare capture is in a truth position.
+        if (node.method === "present" && node.receiver?.capture && !scope.names.has(node.receiver.capture) &&
+            !scope.captures?.has(node.receiver.capture) && scope.shared) return false;
+        /** @type {any} */
+        const receiver = node.receiver ? this.evaluate(node.receiver, scope) : this.item(node, scope);
+        return this.method(receiver, node, scope);
+      }
+      if (node.map !== undefined) return this.map(node, scope);
+      if (node.flatten !== undefined) {
+        /** @type {any} */
+        const list = this.evaluate(node.flatten, scope);
+        if (!Array.isArray(list) || !list.every(Array.isArray)) this.fail("↓ needs a list of lists", node, scope);
+        return list.flat(1);
+      }
+      if (node.param !== undefined) this.fail(`the parameter @${node.param} has no argument`, node, scope);
+      return this.fail("this expression cannot run after the choice of a parse", node, scope);
+    }
+
+    /**
+     * @param {any} node
+     * @param {any} scope
+     */
+    item(node, scope) {
+      if (!scope.items.length) this.fail("no item is bound here", node, scope);
+      return scope.items.at(-1);
+    }
+
+    /**
+     * @param {any} node
+     * @param {any} scope
+     * @param {any} truthPosition
+     */
+    capture(node, scope, truthPosition) {
+      const name = node.capture;
+      if (name === "") {
+        if (!scope.node) this.fail("$ has no occurrence here", node, scope);
+        return scope.node;
+      }
+      if (scope.names.has(name)) return scope.names.get(name);
+      if (scope.captures?.has(name)) return scope.captures.get(name);
+      if (truthPosition && scope.declared?.has(name)) return false;
+      if (truthPosition && scope.shared) return false;
+      return this.fail(`the capture $${name} is not bound here`, node, scope);
+    }
+
+    /**
+     * @param {any} entries
+     * @param {any} scope
+     */
+    bag(entries, scope, bag = new Bag()) {
+      for (const entry of entries) {
+        if (!entry.gates.every((/** @type {any} */ gate) => this.stage.features.has(gate.feature) !== gate.negated)) continue;
+        const guard = entry.guard ? () => this.truth(entry.guard, scope) : null;
+        switch (entry.kind) {
+          case "bare":
+            bag.write([entry.key], BARE, guard);
+            break;
+          case "write":
+            bag.write(entry.keys, valued(new Deferred(() => this.payload(entry.value, scope))), guard);
+            break;
+          case "copy":
+            bag.copy(entry.key, () => this.bagOf(this.evaluate(entry.source, scope), entry, scope), guard);
+            break;
+          case "splat":
+            bag.splat(() => this.bagOf(this.evaluate(entry.value, scope), entry, scope), guard);
+            break;
+          case "delete":
+            bag.delete(entry.key, guard);
+            break;
+          default:
+            this.fail(`unknown entry ${entry.kind}`, entry, scope);
+        }
+      }
+      return bag;
+    }
+
+    /**
+     * @param {any} node
+     * @param {any} scope
+     */
+    payload(node, scope) {
+      const value = this.evaluate(node, scope);
+      if (!isPayload(value)) this.fail(`${describe(value)} cannot be the value of a key`, node, scope);
+      return value;
+    }
+
+    /**
+     * @param {any} value
+     * @param {any} node
+     * @param {any} scope
+     */
+    bagOf(value, node, scope) {
+      if (value instanceof Bag) return value;
+      if (value instanceof Occurrence) return value.bag();
+      return this.fail(`${describe(value)} has no entries to copy`, node, scope);
+    }
+
+    /**
+     * @param {any} items
+     * @param {any} scope
+     * @returns {any}
+     */
+    list(items, scope) {
+      const list = [];
+      for (const item of items) {
+        if (!item.gates.every((/** @type {any} */ gate) => this.stage.features.has(gate.feature) !== gate.negated)) continue;
+        if (item.guard && !this.truth(item.guard, scope)) continue;
+        /** @type {any} */
+        const value = this.evaluate(item.value, scope);
+        if (item.kind === "splat") {
+          if (!Array.isArray(value)) this.fail("only a list can be spread in a list", item, scope);
+          for (const element of value) list.push(element);
+        } else list.push(value);
+      }
+      return list;
+    }
+
+    /**
+     * @param {any} node
+     * @param {any} scope
+     * @returns {any}
+     */
+    string(node, scope) {
+      /** @type {any} */
+      const value = this.evaluate(node, scope);
+      if (typeof value !== "string") this.fail(`${describe(value)} is not a string`, node, scope);
+      return value;
+    }
+
+    /**
+     * @param {any} node
+     * @param {any} scope
+     * @returns {any}
+     */
+    comparison(node, scope) {
+      /** @type {any} */
+      const left = this.evaluate(node.left, scope);
+      /** @type {any} */
+      const right = this.evaluate(node.right, scope);
+      switch (node.op) {
+        case "=": return equal(left, right);
+        case "≠": return !equal(left, right);
+        case "<": return left < right;
+        case "≤": return left <= right;
+        case ">": return left > right;
+        case "≥": return left >= right;
+        case "∈": return Array.isArray(right) ? right.some(item => equal(left, item)) : this.fail("∈ needs a list", node, scope);
+        case "∉": return Array.isArray(right) ? !right.some(item => equal(left, item)) : this.fail("∉ needs a list", node, scope);
+        case "⊆": return this.keys(left, node, scope).every((/** @type {any} */ key) => right.has(key));
+        case "⊈": return !this.keys(left, node, scope).every((/** @type {any} */ key) => right.has(key));
+        case "+": return left + right;
+        default: return this.fail(`the comparison ${node.op} cannot run after the choice of a parse`, node, scope);
+      }
+    }
+
+    /**
+     * @param {any} value
+     * @param {any} node
+     * @param {any} scope
+     */
+    keys(value, node, scope) {
+      if (!(value instanceof Bag)) this.fail(`${describe(value)} is not a key set`, node, scope);
+      return value.keys();
+    }
+
+    /**
+     * @param {any} kind
+     * @param {any} operands
+     * @param {any} scope
+     * @param {any} node
+     */
+    setOperation(kind, operands, scope, node) {
+      const sets = operands.map((/** @type {any} */ item) => this.keys(this.evaluate(item, scope), node, scope));
+      if (kind === "union") return keySet(sets.flat());
+      return keySet(sets[0].filter((/** @type {any} */ key) => sets.slice(1).every((/** @type {any} */ set) => set.includes(key))));
+    }
+
+    /**
+     * @param {any} node
+     * @param {any} scope
+     * @returns {any}
+     */
+    difference(node, scope) {
+      const [leftNode, rightNode] = node.difference;
+      /** @type {any} */
+      const left = this.evaluate(leftNode, scope);
+      /** @type {any} */
+      const right = this.evaluate(rightNode, scope);
+      if (Array.isArray(left)) {
+        /** @type {any} */
+        const exclusions = Array.isArray(right) ? right : [right];
+        return left.filter(item => !exclusions.some((/** @type {any} */ other) => equal(item, other)));
+      }
+      const remove = new Set(this.keys(right, node, scope));
+      return keySet(this.keys(left, node, scope).filter((/** @type {any} */ key) => !remove.has(key)));
+    }
+
+    /**
+     * @param {any} receiver
+     * @param {any} key
+     * @param {any} node
+     * @param {any} scope
+     */
+    property(receiver, key, node, scope) {
+      const bag = receiver instanceof Occurrence ? receiver.bag() : receiver;
+      if (!(bag instanceof Bag)) this.fail(`${describe(receiver)} has no key '${key}`, node, scope);
+      const entry = bag.entry(key);
+      if (entry === null) return false;
+      if (entry === BARE) return true;
+      return entry.deferred.force();
+    }
+
+    /**
+     * @param {any} node
+     * @param {any} scope
+     * @returns {any}
+     */
+    map(node, scope) {
+      /** @type {any} */
+      const list = this.evaluate(node.map, scope);
+      if (!Array.isArray(list)) this.fail(`${describe(list)} is not a list to map`, node, scope);
+      const by = node.by;
+      if (by.property !== undefined && by.receiver === undefined) return list.map((/** @type {any} */ item) => this.property(item, by.property, by, scope));
+      if (by.method !== undefined && by.receiver === undefined) return list.map((/** @type {any} */ item) => this.method(item, by, scope));
+      const fn = this.predicate(by, scope);
+      return list.map((/** @type {any} */ item) => this.applyFunction(fn, item, node));
+    }
+
+    /**
+     * @param {any} receiver
+     * @param {any} node
+     * @param {any} scope
+     * @returns {any}
+     */
+    method(receiver, node, scope) {
+      const name = node.method;
+      const args = node.args;
+      if (receiver instanceof Occurrence) {
+        switch (name) {
+          case "span": return new Span(this.stage, receiver.span[0], receiver.span[1]);
+          case "children": return receiver.workingChildren();
+          case "present": return true;
+          case "keys": case "flags": case "classes": case "select": case "has": case "has-value":
+            return this.bagMethod(receiver.bag(), node, scope);
+          default:
+            return this.spanMethod(new Span(this.stage, receiver.span[0], receiver.span[1]), node, scope);
+        }
+      }
+      if (receiver instanceof Span) return this.spanMethod(receiver, node, scope);
+      if (receiver instanceof Bag) return this.bagMethod(receiver, node, scope);
+      if (Array.isArray(receiver)) {
+        switch (name) {
+          case "present": return receiver.length > 0;
+          case "all": {
+            /** @type {any} */
+            const fn = this.predicate(args[0], scope);
+            return receiver.every(item => this.toTruth(this.applyFunction(fn, item, node), node, scope));
+          }
+          case "any": {
+            if (!args.length) return receiver.length > 0;
+            /** @type {any} */
+            const fn = this.predicate(args[0], scope);
+            return receiver.some(/** @returns {any} */ item => this.toTruth(this.applyFunction(fn, item, node), node, scope));
+          }
+          case "join": {
+            /** @type {any} */
+            const separator = args.length ? this.string(args[0], scope) : "";
+            if (!receiver.every(item => typeof item === "string")) this.fail(".join() needs a list of strings", node, scope);
+            return concatenate(receiver, separator);
+          }
+          case "union": return keySet(receiver.flatMap(item => this.keys(item, node, scope)));
+          default: break;
+        }
+      }
+      if (typeof receiver === "string") {
+        if (name === "split") {
+          /** @type {any} */
+          const delimiter = this.string(args[0], scope);
+          if (delimiter === "") this.fail(".split() has an empty delimiter", node, scope);
+          return receiver.split(delimiter).filter(piece => piece !== "");
+        }
+        if (name === "ngrams") {
+          const width = Number(args[0].integer);
+          const scalars = [...receiver];
+          const result = [];
+          for (let index = 0; index + width <= scalars.length; index++) result.push(scalars.slice(index, index + width).join(""));
+          return result;
+        }
+      }
+      if (typeof receiver === "number" && name === "at-most") return Math.min(receiver, Number(args[0].integer));
+      return this.fail(`${describe(receiver)} has no method .${name}`, node, scope);
+    }
+
+    /**
+     * @param {any} bag
+     * @param {any} node
+     * @param {any} scope
+     * @returns {any}
+     */
+    bagMethod(bag, node, scope) {
+      const name = node.method;
+      switch (name) {
+        case "keys": return keySet(bag.keys());
+        case "flags": return keySet(bag.keys().filter((/** @type {any} */ key) => /^[A-Z_]/.test(key)));
+        case "classes": return keySet(bag.keys().filter((/** @type {any} */ key) => CLASS_KEY.test(key)));
+        case "has": return bag.has(node.args[0].key);
+        case "has-value": return bag.hasValue(node.args[0].key);
+        case "select": {
+          const mask = new Set(this.keys(this.evaluate(node.args[0], scope), node, scope));
+          return Bag.from(bag.keys().filter((/** @type {any} */ key) => mask.has(key)).map((/** @type {any} */ key) => [key, bag.entry(key)]));
+        }
+        case "overlaps": {
+          const other = this.evaluate(node.args[0], scope);
+          return bag.keys().some((/** @type {any} */ key) => other.has(key));
+        }
+        case "classify": return classify(bag, this.string(node.args[0], scope));
+        default: return this.fail(`a bag has no method .${name}`, node, scope);
+      }
+    }
+
+    /**
+     * @param {any} span
+     * @param {any} node
+     * @param {any} scope
+     */
+    spanMethod(span, node, scope) {
+      const stage = this.stage;
+      const count = stage.tokens.length;
+      const name = node.method;
+      switch (name) {
+        case "tokens": {
+          const leaves = [];
+          for (let index = span.start; index < span.end; index++) leaves.push(stage.leaf(stage.tokens[index], index));
+          return leaves;
+        }
+        case "flags": case "classes": {
+          const keys = [];
+          for (let index = span.start; index < span.end; index++) for (const key of stage.leaf(stage.tokens[index], index).bag().keys()) keys.push(key);
+          const pattern = name === "flags" ? /^[A-Z_]/ : CLASS_KEY;
+          return keySet(keys.filter(key => pattern.test(key)));
+        }
+        case "first-token": return new Span(stage, span.start, Math.min(span.end, span.start + 1));
+        case "last-token": return new Span(stage, Math.max(span.start, span.end - 1), span.end);
+        case "tokens-after-first": return new Span(stage, Math.min(span.end, span.start + 1), span.end);
+        case "onward": return new Span(stage, span.start, count);
+        case "following-tokens": return new Span(stage, span.end, count);
+        case "preceding-tokens": return new Span(stage, 0, span.start);
+        case "starts-input": return span.start === 0;
+        case "ends-input": return span.end === count;
+        case "source-text": case "verbatim-text": return sourceText(stage, span);
+        case "decomposed-source-text": return sourceText(stage, span).normalize("NFD");
+        default: return this.fail(`.${name} cannot run after the choice of a parse`, node, scope);
+      }
+    }
+  }
+
+  /**
+   * @param {any} stage
+   * @param {any} span
+   */
+  function sourceText(stage, span) {
+    if (span.start >= span.end) return "";
+    let start = Infinity;
+    let end = -Infinity;
+    for (let index = span.start; index < span.end; index++) {
+      const [from, to] = stage.tokens[index].source;
+      start = Math.min(start, from);
+      end = Math.max(end, to);
+    }
+    return stage.sourceText.slice(start, end).join("");
+  }
+
+  /**
+   * The classes of a lexicon that hold a string (engine §2): the keys whose
+   * string or list holds it, and the keys whose key set names a class found.
+   * @param {Bag} lexicon
+   * @param {string} spelling
+   */
+  function classify(lexicon, spelling) {
+    const found = new Set();
+    const referrers = new Map();
+    for (const key of lexicon.keys()) {
+      const value = lexicon.value(key);
+      if (value === undefined) throw new GencmuError("grammar", `the class ${key} has no value`);
+      if (typeof value === "string") {
+        if (value === spelling) found.add(key);
+      } else if (Array.isArray(value)) {
+        if (value.includes(spelling)) found.add(key);
+      } else if (value instanceof Bag) {
+        for (const target of value.keys()) {
+          if (!referrers.has(target)) referrers.set(target, []);
+          referrers.get(target).push(key);
+        }
+      }
+    }
+    const pending = [...found];
+    while (pending.length) {
+      const key = pending.pop();
+      for (const referrer of referrers.get(key) ?? []) {
+        if (found.has(referrer)) continue;
+        found.add(referrer);
+        pending.push(referrer);
+      }
+    }
+    return keySet([...found].sort(compareCodePoints));
+  }
+
+  /** @param {any} value */
+  function isPayload(value) {
+    if (typeof value === "string") return true;
+    if (typeof value === "number") return Number.isInteger(value) && value >= 0 && value <= 255;
+    if (value instanceof Bag) return true;
+    return Array.isArray(value) && value.every(isPayload);
+  }
+
+  /**
+   * Equality of strings, numbers, truths, key sets and lists of those.
+   * @param {any} left
+   * @param {any} right
+   * @returns {any}
+   */
+  function equal(left, right) {
+    if (Array.isArray(left) && Array.isArray(right)) {
+      return left.length === right.length && left.every((item, index) => equal(item, right[index]));
+    }
+    if (left instanceof Bag && right instanceof Bag) {
+      const a = left.keys();
+      const b = right.keys();
+      return a.length === b.length && a.every((key, index) => key === b[index]);
+    }
+    return left === right;
+  }
+
+  /** @param {any} value */
+  function describe(value) {
+    if (typeof value === "string") return "a string";
+    if (typeof value === "number") return "a number";
+    if (typeof value === "boolean") return "a truth value";
+    if (value instanceof Fn) return "a function";
+    if (value instanceof Span) return "a span";
+    if (value instanceof Bag) return "a bag";
+    if (value instanceof Occurrence) return "a node";
+    if (Array.isArray(value)) return "a list";
+    return "a value";
+  }
+
+  /**
+   * One occurrence of a chosen tree, a projection or an insertion (engine §1).
+   */
+  class Occurrence {
+    /**
+     * @param {any} kind
+     * @param {any} fields
+     */
+    constructor(kind, fields) {
+      this.kind = kind;
+      // The fields of each kind of node (engine §1). A kind leaves out the
+      // fields that it does not have.
+      /** @type {any} */ this.rule = undefined;
+      /** @type {any} */ this.origin = undefined;
+      /** @type {any} */ this.derivation = undefined;
+      /** @type {any} */ this.span = undefined;
+      /** @type {any} */ this.source = undefined;
+      /** @type {any} */ this.terminal = undefined;
+      /** @type {any} */ this.token = undefined;
+      /** @type {any} */ this.input = undefined;
+      /** @type {any} */ this.erased = undefined;
+      /** @type {any} */ this.producer = undefined;
+      /** @type {any} */ this.part = undefined;
+      /** @type {any} */ this.item = undefined;
+      /** @type {Map<string, any> | undefined} */ this.captures = undefined;
+      /** @type {Occurrence | null | undefined} */ this.primary = undefined;
+      /** @type {() => Bag} */ this.makeBag = () => { throw new Error(`a node of kind ${kind} has no bag`); };
+      this.computing = false;
+      /** @type {Occurrence[]} */ this.children = [];
+      Object.assign(this, fields);
+      this.children ??= [];
+      this.bagCache = null;
+    }
+
+    /** @returns {Bag} */
+    bag() {
+      if (this.bagCache === null) {
+        if (this.computing) throw new GencmuError("grammar", `the bag of ${this.rule ?? "a node"} reads itself`);
+        this.computing = true;
+        try {
+          this.bagCache = this.makeBag();
+        } finally {
+          this.computing = false;
+        }
+      }
+      return this.bagCache;
+    }
+
+    /** The children that a term reads through `.children`. */
+    workingChildren() {
+      return this.children;
+    }
+  }
+
+  // ---- format50/bridge.js
+  // The format 50 loader recognizes a stage with the format 49 recognizer.
+  // This module lowers one DOM 50 document to the records that the recognizer
+  // reads. Recognition sees the visible keys of a bag as tags, the certified
+  // rule values as strings, and the conditions as format 49 conditions. Bags,
+  // emission and results stay in the format 50 modules.
+
+
+
+
+  // A condition that never holds, in a form that the recognizer reads in a
+  // written document.
+  const NEVER = Object.freeze({ not: { op: "=", left: { string: "" }, right: { string: "" } } });
+
+  /**
+   * The capture name that marks a primary without a written label. The
+   * bridge adds underscores until no capture of the rule has the name.
+   */
+  const PRIMARY_CAPTURE = "primary_";
+
+  const STAGE_CONSTANTS = new Set(["INPUTS", "OUTPUTS", "DEFAULTS"]);
+  const SYMBOL_KEYS = ["ref", "call", "param", "literal", "range", "wildcard", "splice", "test"];
+  const SPAN_READS = new Set([
+    "first-token", "last-token", "tokens-after-first", "onward", "following-tokens", "preceding-tokens",
+    "starts-input", "ends-input", "source-text", "decomposed-source-text", "verbatim-text",
+    "without-elision", "without-elision-except", "followed-by", "preceded-by", "parse", "error-free",
+  ]);
+
+  /**
+   * A visible key: a capitalized key or an engine key.
+   * @param {any} key
+   */
+  function isVisibleKey(key) {
+    return /^[A-Z_]/.test(key);
+  }
+
+  /**
+   * The format 49 records of one DOM 50 document, for recognition.
+   * @param {any} dom a valid DOM 50
+   * @param {string} path the document
+   * @returns {any} a DOM 49 with the extra members `format50` and `origins`
+   * @param {any} origins
+   */
+  function bridgeDocument(dom, path, origins) {
+    return new Bridge(dom, path, origins).document();
+  }
+
+  class Bridge {
+    /**
+     * @param {any} dom
+     * @param {any} path
+     * @param {any} origins
+     */
+    constructor(dom, path, origins) {
+      this.dom = dom;
+      this.path = path;
+      this.origins = origins;
+      /** @type {any[]} */
+      this.classifiers = [];
+      /** @type {{demanded: Set<string>, domains: Map<string, any[]>}} the hidden keys that recognizer tests read */
+      this.hidden = { demanded: new Set(), domains: new Map() };
+      /** @type {Map<string, GencmuError>} the rules whose keys have no tag term */
+      this.untranslated = new Map();
+      /** @type {GencmuError[]} the conditions that the recognizer cannot test */
+      this.deferred = [];
+      /** @type {Set<string>} the rules whose keys a recognizer test reads */
+      this.keyReaders = new Set();
+      /** @type {Map<string, string>} the symbol of each capture of the rule in hand */
+      this.captureSymbols = new Map();
+    }
+
+    // The written calls by their site, for the names of their instances.
+    /** @param {any} call */
+    registerCall(call) {
+      if (call.at) this.origins.set(`call:${this.path}#${call.at[0]}:${call.at[1]}`, call);
+    }
+
+    // Each bridged record names its format 50 record, so that the stage can
+    // find it after stitching copies the record.
+    /** @param {any} record */
+    origin(record) {
+      const id = `${this.path}#${this.origins.size}`;
+      this.origins.set(id, { ...record, document: this.path });
+      return id;
+    }
+
+    /**
+     * @param {any} description
+     * @param {any} at
+     * @returns {never}
+     */
+    fail(description, at) {
+      throw new GencmuError("grammar", `the format 50 recognizer cannot yet ${description}`,
+        { document: this.path, ...(at ? { line: at[0], column: at[1] } : {}) });
+    }
+
+    document() {
+      this.hidden = hiddenKeys(this.dom);
+      const constants = [];
+      // The stage reads each constant through its format 50 record. The
+      // recognizer gets a placeholder for each one, with its value where a
+      // condition or a filter reads it.
+      // Each version of a constant in this document gets a placeholder of
+      // one kind, so that the recognizer sees no change of type.
+      const kinds = new Map();
+      for (const constant of this.dom.constants) {
+        const placeholder = JSON.stringify(Object.keys(this.data(constant.value))[0]);
+        kinds.set(constant.name, kinds.has(constant.name) && kinds.get(constant.name) !== placeholder ? "mixed" : placeholder);
+      }
+      for (const constant of this.dom.constants) {
+        if (constant.name === "INPUTS") throw new GencmuError("grammar", "a grammar cannot define $INPUTS", { document: this.path, line: constant.at[0], column: constant.at[1] });
+        const origin50 = this.origin({ constant });
+        if (!STAGE_CONSTANTS.has(constant.name) && constant.value.bag && this.isClassifier(constant.value)) {
+          this.classifiers.push(this.classifier(constant));
+        }
+        const value = kinds.get(constant.name) === "mixed" ? { string: "" } : this.data(constant.value);
+        constants.push({ name: constant.name, op: constant.op, value, at: constant.at, origin50 });
+      }
+      return {
+        format: 49,
+        rules: this.dom.rules.map((/** @type {any} */ rule) => this.rule(rule)),
+        directives: this.dom.directives.map((/** @type {any} */ directive) => this.directive(directive)),
+        constants,
+        classifiers: this.classifiers,
+        implications: [],
+        untranslated: this.untranslated,
+        deferred: this.deferred,
+        keyReaders: this.keyReaders,
+      };
+    }
+
+    /** @param {any} value */
+    isClassifier(value) {
+      return value.bag.every((/** @type {any} */ entry) => entry.kind === "write" && classValue(entry.value) !== null);
+    }
+
+    // A classifier for the recognizer. A class that names other classes gets
+    // their strings, with the gates on the path to each string.
+    /** @param {any} constant */
+    classifier(constant) {
+      const classes = new Map();
+      for (const entry of constant.value.bag) {
+        for (const key of entry.keys) {
+          if (!classes.has(key)) classes.set(key, []);
+          classes.get(key).push({ gates: entry.gates, value: classValue(entry.value), at: entry.at });
+        }
+      }
+      /** @type {any[]} */
+      const entries = [];
+      /**
+       * @param {any} key
+       * @param {any} gates
+       * @param {any} at
+       * @param {any} path
+       */
+      const expand = (key, gates, at, path) => {
+        for (const row of classes.get(key) ?? []) {
+          const combined = [...gates, ...row.gates];
+          if (row.value.strings) {
+            if (row.value.strings.length) entries.push({ gates: combined, keys: row.value.strings.map((/** @type {any} */ string) => ({ string })), op: "∈", class: path[0], at });
+          } else {
+            for (const target of row.value.references) if (!path.includes(target)) expand(target, combined, at, [...path, target]);
+          }
+        }
+      };
+      for (const [key, rows] of classes) expand(key, [], rows[0].at, [key]);
+      return { name: classifierName(constant.name), entries, at: constant.at };
+    }
+
+    /** @param {any} value */
+    data(value) {
+      if (value.string !== undefined) return { string: value.string };
+      if (value.list?.length && value.list.every((/** @type {any} */ item) => item.value.string !== undefined)) return { union: value.list.map((/** @type {any} */ item) => this.data(item.value)) };
+      // A pattern constant holds its pattern.
+      if (value.pattern !== undefined) return { pattern: this.pattern(value.pattern) };
+      // A key set of visible keys holds its tags.
+      const keys = keySetKeys(value, this.dom.constants);
+      if (keys?.length) return keys.length === 1 ? { tag: keys[0] } : { union: keys.map((/** @type {any} */ key) => ({ tag: key })) };
+      // The recognizer reads only strings and lists of strings from a
+      // constant. Any other constant gets a string that nothing reads.
+      return { string: "" };
+    }
+
+    /** @param {any} directive */
+    directive(directive) {
+      const copy = { ...directive };
+      // The pipeline evaluates the conditions of %features itself, so the
+      // recognizer gets the directive with no conditions. The format 49
+      // reader ignores the extra member.
+      if (directive.conditions) {
+        copy.conditions = [];
+        copy.conditions50 = directive.conditions;
+      }
+      if (directive.steps) copy.steps = directive.steps.map((/** @type {any} */ step) => step.pattern ? { ...step, pattern: this.pattern(step.pattern) } : step);
+      return copy;
+    }
+
+    /** @param {any} rule */
+    rule(rule) {
+      if (rule.instance) {
+        this.registerCall(rule.instance);
+        return { ...rule, instance: { ...rule.instance, args: rule.instance.args.map((/** @type {any} */ arg) => this.argument(arg)) } };
+      }
+      /** @type {any} */
+      const copy = { name: rule.name, op: rule.op };
+      if (rule.params) copy.params = rule.params;
+      if (rule.args) copy.args = rule.args.map((/** @type {any} */ arg) => this.argument(arg));
+      copy.alternatives = rule.alternatives.map((/** @type {any} */ alternative) => this.alternative(alternative, rule));
+      this.captureSymbols = new Map();
+      this.currentRule = rule.name;
+      // The captures that bind at most one node on every route of the rule.
+      this.atMostOne = new Set();
+      const counts = new Map();
+      for (const alternative of rule.alternatives) {
+        for (const [name, count] of maxBindings(alternative.expr)) counts.set(name, Math.max(counts.get(name) ?? 0, count));
+      }
+      for (const [name, count] of counts) if (count <= 1) this.atMostOne.add(name);
+      this.repeated = new Set([...counts].filter(([, count]) => count > 1).map(([name]) => name));
+      for (const alternative of rule.alternatives) collectCaptureSymbols(alternative.expr, this.captureSymbols);
+      try {
+        copy.conditions = rule.conditions.flatMap((/** @type {any} */ node) => this.clauses(node));
+        // The recognizer evaluates the tags of an emission item only when it
+        // emits, which the format 50 stage does itself. So one item carries
+        // the late queries to lowering, and recognition never runs them.
+        const carriers = rule.erased ? [] : this.queryCarriers(rule);
+        if (carriers.length) {
+          const tags = carriers.map(query => ({ if: query, then: { emptySet: true } }));
+          copy.emit = { items: [{ capture: "", tags: tags.length === 1 ? tags[0] : { union: tags } }] };
+        }
+      } catch (error) {
+        if (!(error instanceof GencmuError)) throw error;
+        // The stage checks report their own errors before this one.
+        this.deferred.push(error);
+        copy.conditions = [];
+      }
+      if (rule.error) copy.error = this.message(rule.error);
+      if (rule.warning) copy.warning = this.message(rule.warning);
+      if (rule.suppressWarnings) copy.suppressWarnings = rule.suppressWarnings;
+      if (rule.erased) copy.erased = true;
+      copy.at = rule.at;
+      return copy;
+    }
+
+    /**
+     * @param {any} alternative
+     * @param {any} rule
+     */
+    alternative(alternative, rule) {
+      const used = new Map();
+      for (const each of rule.alternatives) collectCaptureSymbols(each.expr, used);
+      let synthetic = PRIMARY_CAPTURE;
+      while ([...used.keys()].includes(synthetic)) synthetic += "_";
+      const primary = { name: null, synthetic };
+      const expr = this.body(alternative.expr, primary);
+      const record = { rule, alternative, ...(primary.name !== null ? { primary: primary.name, primarySynthetic: primary.name === synthetic } : {}) };
+      // The recognizer validates instance definitions strictly, so the
+      // alternatives of a template name no origin. The stage finds them by
+      // the template's name and the index of the alternative.
+      /** @type {any} */
+      let copy;
+      if (rule.params) {
+        this.origins.set(`template:${rule.name}#${rule.alternatives.indexOf(alternative)}`, { ...record, document: this.path });
+        copy = { gates: alternative.gates, expr };
+      } else {
+        this.origins.set(alternativeKey(this.path, rule.at, rule.alternatives.indexOf(alternative)), { ...record, document: this.path });
+        copy = { gates: alternative.gates, expr };
+      }
+      let tags;
+      try {
+        tags = this.alternativeTags(alternative, rule, primary.name);
+      } catch (error) {
+        if (!(error instanceof GencmuError)) throw error;
+        // The keys of this bag cannot become a tag term. That is a problem
+        // only where a recognizer test reads the keys of the rule.
+        this.untranslated.set(rule.name, error);
+        tags = { emptySet: true };
+      }
+      if (tags !== undefined) copy.tags = tags;
+      return copy;
+    }
+
+    // The visible keys of the bag of an alternative, as a tag term. The
+    // sources apply in their order: the primary or the sole symbol, the
+    // statement term, then the alternative term. A plain sole symbol keeps
+    // the singleton inheritance of the recognizer, which gives the same keys.
+    /**
+     * @param {any} alternative
+     * @param {any} rule
+     * @param {any} primary
+     */
+    alternativeTags(alternative, rule, primary) {
+      return this.writtenTags(alternative, rule, primary);
+    }
+
+    /**
+     * @param {any} alternative
+     * @param {any} rule
+     * @param {any} primary
+     */
+    writtenTags(alternative, rule, primary) {
+      const terms = [rule.term, alternative.term].filter(Boolean);
+      let tags = null;
+      if (primary !== null) tags = { method: "tags", receiver: { capture: primary }, args: [] };
+      else if (!terms.length) return isSingleSymbol(alternative.expr) ? undefined : { emptySet: true };
+      for (const term of terms) tags = this.bagTags(term, tags);
+      return tags ?? { emptySet: true };
+    }
+
+    /**
+     * @param {any} term
+     * @param {any} tags
+     */
+    bagTags(term, tags) {
+      /**
+       * @param {any} left
+       * @param {any} right
+       */
+      const union = (left, right) => left === null ? right : right === null ? left : { union: [left, right] };
+      /**
+       * @param {any} left
+       * @param {any} right
+       */
+      const minus = (left, right) => left === null || right === null ? left : { difference: [left, right] };
+      for (const entry of this.inlined(term.bag)) {
+        // Each entry removes the earlier tags of the keys that it writes and
+        // adds its own. A guard keeps the earlier tags where it is false.
+        let written = null;
+        let deleted = null;
+        let condition = null;
+        /** @param {any} key */
+        const hidden = key => !isVisibleKey(key) && this.hidden.demanded.has(key);
+        switch (entry.kind) {
+          case "bare":
+            if (isVisibleKey(entry.key)) written = { tag: entry.key };
+            else if (hidden(entry.key)) {
+              deleted = this.hiddenAll(entry.key);
+              written = { tag: presentTag(entry.key) };
+            }
+            break;
+          case "write":
+            for (const key of entry.keys) {
+              if (isVisibleKey(key)) written = union(written, { tag: key });
+              else if (hidden(key)) {
+                deleted = union(deleted, this.hiddenAll(key));
+                written = union(written, this.hiddenWrite(key, entry.value, entry.guard));
+              }
+            }
+            break;
+          case "copy":
+            if (isVisibleKey(entry.key)) {
+              written = { intersection: [this.tagsOf(entry.source, entry.at), { tag: entry.key }] };
+            } else if (hidden(entry.key)) {
+              const source = this.tagsOf(entry.source, entry.at);
+              deleted = this.hiddenAll(entry.key);
+              written = { intersection: [source, this.hiddenAll(entry.key)] };
+              // A copy from a source without the key writes nothing.
+              condition = { op: "⊆", left: { tag: presentTag(entry.key) }, right: source };
+            }
+            break;
+          case "splat":
+            written = this.tagsOf(entry.value, entry.at);
+            break;
+          case "delete":
+            if (isVisibleKey(entry.key)) deleted = { tag: entry.key };
+            else if (hidden(entry.key)) deleted = this.hiddenAll(entry.key);
+            break;
+          default:
+            this.fail(`read the entry ${entry.kind}`, entry.at);
+        }
+        if (written === null && deleted === null) continue;
+        if (entry.gates.length) this.fail("gate an entry of a bag", entry.at);
+        const guards = [entry.guard ? this.truth(entry.guard) : null, condition].filter(Boolean);
+        const changed = union(minus(tags, deleted), written);
+        if (!guards.length) {
+          tags = changed;
+          continue;
+        }
+        const test = guards.length === 1 ? guards[0] : { all: guards };
+        const kept = tags === null ? null : { if: { not: test }, then: tags };
+        tags = union(changed === null ? null : { if: test, then: changed }, kept);
+      }
+      return tags;
+    }
+
+    /**
+     * The recognizer lowers only the queries that its conditions and terms
+     * name. A query that only a bag term or an emission term reads after the
+     * choice of a parse gets a condition that always holds, `q ∨ ¬q`, so that
+     * the recognizer lowers it.
+     * @param {any} rule
+     */
+    queryCarriers(rule) {
+      /** @type {any[]} */
+      const queries = [];
+      /** @param {any} node */
+      const visit = node => {
+        if (!node || typeof node !== "object") return;
+        if (Array.isArray(node)) return node.forEach(visit);
+        if (node.method === "parse" || node.method === "error-free") {
+          queries.push(node);
+          return;
+        }
+        for (const value of Object.values(node)) if (value && typeof value === "object") visit(value);
+      };
+      visit([rule.term, rule.alternatives.map((/** @type {any} */ alternative) => alternative.term), rule.emit?.items.map((/** @type {any} */ item) => item.term)]);
+      const carriers = [];
+      for (const query of queries) {
+        let base = query;
+        while (base.receiver) base = base.receiver;
+        if (base.capture === undefined) continue;
+        try {
+          carriers.push(this.expression(query));
+        } catch (error) {
+          if (!(error instanceof GencmuError)) throw error;
+        }
+      }
+      return carriers;
+    }
+
+    // The entries of a bag with each splat of a bag function of this
+    // document, applied to a capture, replaced by the function's entries.
+    /**
+     * @param {any} entries
+     * @returns {any}
+     */
+    inlined(entries) {
+      const result = [];
+      for (const entry of entries) {
+        const body = entry.kind === "splat" ? inlineFunction(entry.value, this.dom.constants) : null;
+        if (!body) {
+          result.push(entry);
+          continue;
+        }
+        if (entry.gates.length || entry.guard) this.fail("guard a splat of a function", entry.at);
+        for (const inner of this.inlined(body.bag)) result.push(inner);
+      }
+      return result;
+    }
+
+    // Every hidden tag of a key: its presence, its value, and each value of
+    // its domain.
+    /** @param {any} key */
+    hiddenAll(key) {
+      const values = this.hidden.domains.get(key) ?? [];
+      return { union: [{ tag: presentTag(key) }, { tag: payloadTag(key) }, ...values.map(value => ({ tag: payloadTag(key, value) }))] };
+    }
+
+    // The hidden tags that a write of an expression gives a key.
+    /**
+     * @param {any} key
+     * @param {any} value
+     * @param {any} guard
+     */
+    hiddenWrite(key, value, guard) {
+      /** @type {any[]} */
+      const parts = [{ tag: presentTag(key) }, { tag: payloadTag(key) }];
+      const domain = this.hidden.domains.get(key);
+      if (!domain) return { union: parts };
+      for (const candidate of domain) {
+        const test = this.valueTest(value, candidate, guard);
+        if (test === false) continue;
+        parts.push(test === true ? { tag: payloadTag(key, candidate) } : { if: test, then: { tag: payloadTag(key, candidate) } });
+      }
+      return { union: parts };
+    }
+
+    /**
+     * A recognizer condition that holds where an expression has one value:
+     * true, false, or a condition record.
+     * @param {any} node
+     * @param {any} value
+     * @param {any} [guard]
+     * @returns {any}
+     */
+    valueTest(node, value, guard) {
+      const literal = literalPayload(node);
+      if (literal !== undefined) return literal === value;
+      if (node.property !== undefined && node.receiver?.capture !== undefined) {
+        if (node.property === "value" || node.property === "image") {
+          if (typeof value !== "string") return false;
+          return { op: "=", left: this.string(node), right: { string: value } };
+        }
+        if (!this.hidden.domains.get(node.property)?.some(item => item === value)) return false;
+        return { op: "⊆", left: { tag: payloadTag(node.property, value) }, right: { method: "tags", receiver: { capture: node.receiver.capture }, args: [] } };
+      }
+      if (node.if !== undefined && node.else !== undefined) {
+        const test = this.truth(node.if);
+        /** @type {any} */
+        const sides = [[test, this.valueTest(node.then, value)], [{ not: test }, this.valueTest(node.else, value)]]
+          .filter(([, branch]) => branch !== false).map(([condition, branch]) => branch === true ? condition : { all: [condition, branch] });
+        return sides.length === 0 ? false : sides.length === 1 ? sides[0] : { any: sides };
+      }
+      const sum = node.op === "+" ? [node.left, node.right] : null;
+      const cap = node.method === "at-most" ? Number(node.args[0].integer) : null;
+      if (sum || cap !== null) {
+        const operands = sum ?? [node.receiver];
+        const domains = operands.map(operand => valuesOf(operand, this.hidden.domains));
+        if (domains.some(domain => domain === null)) return this.fail("compute this number", node.at);
+        /** @type {any[]} */
+        const options = [];
+        /**
+         * @param {any} index
+         * @param {any} chosen
+         */
+        const combine = (index, chosen) => {
+          if (index === operands.length) {
+            const total = sum ? chosen[0] + chosen[1] : Math.min(chosen[0], /** @type {number} */ (cap));
+            if (total === value) options.push(chosen);
+            return;
+          }
+          for (const item of domains[index]) combine(index + 1, [...chosen, item]);
+        };
+        combine(0, []);
+        const tests = options.map(chosen => {
+          const parts = chosen.map((/** @type {any} */ item, /** @type {any} */ index) => this.valueTest(operands[index], item)).filter((/** @type {any} */ part) => part !== true);
+          if (parts.includes(false)) return false;
+          return parts.length === 0 ? true : parts.length === 1 ? parts[0] : { all: parts };
+        }).filter(test => test !== false);
+        if (tests.includes(true)) return true;
+        return tests.length === 0 ? false : tests.length === 1 ? tests[0] : { any: tests };
+      }
+      void guard;
+      return this.fail("compute this payload in recognition", node.at);
+    }
+
+    // The visible keys of a bag or a node, as a tag term.
+    // The visible keys of a bag, a node, a span or a forest, as a tag term.
+    /**
+     * @param {any} node
+     * @param {any} [at]
+     * @returns {any}
+     */
+    tagsOf(node, at) {
+      const inlined = this.inline(node);
+      if (inlined) return this.tagsOf(inlined, at);
+      if (node.capture !== undefined) return { method: "tags", receiver: { capture: node.capture }, args: [] };
+      if (node.param !== undefined) return { param: node.param, ...(node.at ? { at: node.at } : {}) };
+      if (node.const !== undefined) {
+        // Only a key set of visible keys in this document has a tag term.
+        const versions = this.dom.constants.filter((/** @type {any} */ constant) => constant.name === node.const);
+        if (!versions.length || !versions.every((/** @type {any} */ constant) => keySetKeys(constant.value, this.dom.constants)?.length)) {
+          return this.fail("read the keys of the constant " + node.const, node.at ?? at);
+        }
+        return { const: node.const, ...(node.at ? { at: node.at } : {}) };
+      }
+      if (node.bag?.every((/** @type {any} */ entry) => (entry.kind === "bare" || entry.kind === "splat") && !entry.gates.length && !entry.guard)) {
+        const parts = node.bag.map((/** @type {any} */ entry) => entry.kind === "bare" ? (isVisibleKey(entry.key) ? { tag: entry.key } : null) : this.tagsOf(entry.value, entry.at))
+          .filter(Boolean);
+        return parts.length === 0 ? { emptySet: true } : parts.length === 1 ? parts[0] : { union: parts };
+      }
+      if (node.intersection) return { intersection: node.intersection.map((/** @type {any} */ item) => this.tagsOf(item, at)) };
+      if (node.union) return { union: node.union.map((/** @type {any} */ item) => this.tagsOf(item, at)) };
+      if (node.difference) return { difference: node.difference.map((/** @type {any} */ item) => this.tagsOf(item, at)) };
+      if (node.method === "flags" || node.method === "keys" || node.method === "classes") {
+        const receiver = node.receiver;
+        const method = node.method === "classes" ? "classes" : "tags";
+        // A list of optional or repeated nodes has the union of their keys.
+        if (receiver?.method === "union" && receiver.receiver?.map?.capture !== undefined &&
+            receiver.receiver.by?.method === node.method) {
+          const capture = receiver.receiver.map.capture;
+          return { if: { captured: capture }, then: { method, receiver: { capture }, args: [] } };
+        }
+        if (receiver?.capture !== undefined) return { method, receiver: { capture: receiver.capture }, args: [] };
+        if (receiver?.method === "parse" || receiver?.method === "error-free") return { method, receiver: this.expression(receiver), args: [] };
+        // The keys of a span are those of its input tokens.
+        if (receiver?.method !== undefined) return { method, receiver: this.expression(receiver), args: [] };
+        return this.fail("read the keys of this expression", node.at ?? at);
+      }
+      // A list of optional or repeated nodes has the union of their keys.
+      if (node.method === "union" && node.receiver?.map?.capture !== undefined && ["flags", "keys", "classes"].includes(node.receiver.by?.method)) {
+        const capture = node.receiver.map.capture;
+        const method = node.receiver.by.method === "classes" ? "classes" : "tags";
+        return { if: { captured: capture }, then: { method, receiver: { capture }, args: [] } };
+      }
+      if (node.method === "select") {
+        return { intersection: [this.tagsOf(node.receiver, at), this.tagsOf(node.args[0], at)] };
+      }
+      if (node.method === "classify" && node.receiver.const !== undefined) {
+        return { method: "classify", receiver: this.string(node.args[0]), args: [{ classifier: classifierName(node.receiver.const) }] };
+      }
+      if (node.method === "parse") return { method: "tags", receiver: this.expression(node), args: [] };
+      return this.fail("read the keys of this expression", node.at ?? at);
+    }
+
+    // A message is a concatenation for the recognizer, also of one part.
+    /** @param {any} node */
+    message(node) {
+      const string = this.string(node);
+      return string.concat ? string : { concat: [string] };
+    }
+
+    // A template argument. An expression argument becomes the recognizer's
+    // term for it, and keeps its format 50 record for the stage to evaluate.
+    /** @param {any} arg */
+    argument(arg) {
+      if (arg.expression) {
+        const term = argumentTerm(arg.expression) ?? foldedArgument(arg.expression);
+        if (term === null) this.fail("pass this expression to a template", arg.at);
+        return term;
+      }
+      // The recognizer's argument records carry no position. The format 50
+      // records keep it for the stage checks.
+      const { at, ...rest } = arg;
+      void at;
+      if (rest.literal !== undefined && Object.keys(rest).length === 1) return this.stringOperand(rest.literal);
+      if (rest.body) return { ...rest, body: this.body(rest.body, { name: null }) };
+      if (rest.call !== undefined) return { ...rest, args: rest.args.map((/** @type {any} */ item) => this.argument(item)) };
+      if (rest.test !== undefined || rest.capture !== undefined || rest.splice !== undefined) return this.body(rest, { name: null });
+      return rest;
+    }
+
+    // A body record of format 50 is a body record of format 49, with a mark
+    // for the primary and positions on tests.
+    /**
+     * @param {any} node
+     * @param {any} primary
+     * @returns {any}
+     */
+    body(node, primary) {
+      if (node === null || typeof node !== "object") return node;
+      if (Array.isArray(node)) return node.map(/** @returns {any} */ item => this.body(item, primary));
+      if (node.primary) {
+        const inner = node.primary;
+        if (inner.capture !== undefined) {
+          primary.name = inner.capture;
+          return this.body(inner, primary);
+        }
+        primary.name = primary.synthetic ?? PRIMARY_CAPTURE;
+        return { capture: primary.name, expr: this.body(inner, primary) };
+      }
+      if (node.test !== undefined) {
+        if (node.test === "tags") {
+          let base = node.expr;
+          while (base.capture !== undefined || base.test !== undefined) base = base.expr;
+          if (base.ref !== undefined && /^[a-z]/.test(base.ref)) this.keyReaders.add(base.ref);
+        }
+        /** @type {any} */
+        const copy = { test: node.test };
+        if (node.requirements) copy.requirements = node.requirements.map((/** @type {any} */ item) => ({ negated: item.negated, value: this.requirement(item.value) }));
+        if (node.value) copy.value = this.stringOperand(node.value);
+        copy.expr = this.body(node.expr, primary);
+        return copy;
+      }
+      if (node.literal) return { literal: this.stringOperand(node.literal) };
+      if (node.range) return { range: node.range.map((/** @type {any} */ item) => this.stringOperand(item)) };
+      // The recognizer spells the omitted-only head [+T<_Elided>] as the
+      // value test T="", which a written token of T never passes.
+      if (node.optional && node.elidable) {
+        const rewritten = omittedOnlyHead(node.optional);
+        if (rewritten !== node.optional) {
+          /** @type {any} */
+          const copy = { ...node, optional: this.body(rewritten, primary) };
+          if (node.default) copy.default = this.stringOperand(node.default);
+          return copy;
+        }
+      }
+      if (node.optional && node.default) return { ...node, optional: this.body(node.optional, primary), default: this.stringOperand(node.default) };
+      if (node.call !== undefined && Array.isArray(node.args)) {
+        this.registerCall(node);
+        return { ...node, args: node.args.map((/** @type {any} */ arg) => this.argument(arg)) };
+      }
+      /** @type {Record<string, any>} */
+      const copy = {};
+      for (const [key, value] of Object.entries(node)) copy[key] = this.body(value, primary);
+      return copy;
+    }
+
+    /** @param {any} value */
+    requirement(value) {
+      if (value.tag !== undefined || value.param !== undefined) return { ...value };
+      if (value.const !== undefined) return { const: value.const, ...(value.at ? { at: value.at } : {}) };
+      return this.fail("read this requirement", value.at);
+    }
+
+    /** @param {any} node */
+    stringOperand(node) {
+      if (node.string !== undefined) return { string: node.string };
+      if (node.const !== undefined) return { const: node.const, ...(node.at ? { at: node.at } : {}) };
+      if (node.param !== undefined) return { ...node };
+      return this.fail("read this string operand", node.at);
+    }
+
+    /** @param {any} node */
+    pattern(node) {
+      return node;
+    }
+
+    /**
+     * The recognizer clauses of one written clause. A conjunction becomes
+     * one clause for each operand. A universal predicate on a capture inside
+     * a repetition becomes the predicate on the capture: the recognizer
+     * checks a clause that names such a capture on each of its items, and an
+     * empty list has none, as `.all` requires (part 1 §9).
+     * @param {any} node
+     */
+    clauses(node) {
+      if (Array.isArray(node.all)) return node.all.flatMap((/** @type {any} */ item) => this.clauses(item));
+      if (node.method === "all" && node.receiver?.capture && !this.atMostOne?.has(node.receiver.capture) &&
+          this.repeated?.has(node.receiver.capture) && node.args[0]?.lambda !== undefined) {
+        return [this.truth(itemAsCapture(node.args[0], node.receiver.capture))];
+      }
+      return [this.truth(node)];
+    }
+
+    // A function constant of this document applied to a capture, with the
+    // capture in place of its parameter, or null.
+    /** @param {any} node */
+    inline(node) {
+      return node?.apply !== undefined ? inlineFunction(node, this.dom.constants, false) : null;
+    }
+
+    // A condition: an expression in a truth position.
+    /**
+     * @param {any} node
+     * @returns {any}
+     */
+    truth(node) {
+      const inlined = this.inline(node);
+      if (inlined) return this.truth(inlined);
+      // A closed expression reads only constants and literals. The stage
+      // evaluates it for its features and input, before recognition.
+      if (isClosed(node)) {
+        this.hasClosed = true;
+        return { closed50: this.origin({ closed: node }) };
+      }
+      // A span is true where its input window holds a token.
+      if (isSpan(node)) {
+        return { method: "parse", receiver: this.expression(node), args: [{ body: { seq: [{ wildcard: true }, { remainder: true }] } }] };
+      }
+      if (node.capture !== undefined) return node.capture === "" ? { emptySet: false } : { captured: node.capture };
+      if (node.not) return { not: this.truth(node.not) };
+      if (node.all) return { all: node.all.map((/** @type {any} */ item) => this.truth(item)) };
+      if (node.any) return { any: node.any.map((/** @type {any} */ item) => this.truth(item)) };
+      if (node.if !== undefined && node.else === undefined) return { if: this.truth(node.if), then: this.truth(node.then) };
+      if (node.method === "classify" && node.receiver.const !== undefined) {
+        return { op: "≠", left: this.tagsOf(node), right: { emptySet: true } };
+      }
+      if (node.method === "parse" || node.method === "starts-input" || node.method === "ends-input" ||
+          node.method === "followed-by" || node.method === "preceded-by") return this.expression(node);
+      // A predicate on a capture that binds at most one node: .all(P) holds
+      // where the capture is absent or P holds of it, .any(P) where it is
+      // present and P holds of it.
+      if ((node.method === "all" || node.method === "any") && node.receiver?.capture && node.args[0]?.lambda !== undefined &&
+          (this.atMostOne?.has(node.receiver.capture))) {
+        /** @type {any} */
+        const test = this.truth(itemAsCapture(node.args[0], node.receiver.capture));
+        return node.method === "all" ? { if: { captured: node.receiver.capture }, then: test } : { all: [{ captured: node.receiver.capture }, test] };
+      }
+      // A presence or payload test of a key that is not visible, and a
+      // comparison of a payload, read the hidden tags of the key.
+      if ((node.method === "has" || node.method === "has-value") && node.args[0]?.key !== undefined && !isVisibleKey(node.args[0].key)) {
+        const tag = node.method === "has" ? presentTag(node.args[0].key) : payloadTag(node.args[0].key);
+        return { op: "⊆", left: { tag }, right: this.receiverTags(node.receiver) };
+      }
+      const payload = this.payloadComparison(node);
+      if (payload) return payload;
+      // A predicate on a forest tests the keys of its roots, where each
+      // disjunct of the predicate tests one key of the root.
+      if ((node.method === "any" || node.method === "all") && (node.receiver?.method === "parse" || node.receiver?.method === "error-free")) {
+        const forest = this.forestPredicate(node);
+        if (forest) return forest;
+      }
+      // A predicate on each n-gram of a string reads the set of n-grams. A
+      // list of n-grams and its set give the same answer to .all and .any.
+      if ((node.method === "all" || node.method === "any") && node.receiver?.method === "ngrams") {
+        const grams = { method: "ngrams", receiver: this.string(node.receiver.receiver), args: [{ integer: node.receiver.args[0].integer }] };
+        const test = ngramPredicate(node.args[0]);
+        if (test) {
+          const set = test.op === "∈" ? this.strings(test.right) : { union: [this.string(test.right)] };
+          const inside = test.op === "∈" || test.op === "=";
+          if (node.method === "all") return { op: inside ? "⊆" : "=", left: inside ? grams : { intersection: [grams, set] }, right: inside ? set : { emptySet: true } };
+          return { op: "≠", left: inside ? { intersection: [grams, set] } : { difference: [grams, set] }, right: { emptySet: true } };
+        }
+      }
+      // A forest has a root with a visible key where the union of the keys
+      // of its roots has that key.
+      if (node.method === "any" && (node.receiver?.method === "parse" || node.receiver?.method === "error-free") &&
+          node.args[0]?.lambda === "" && node.args[0].body?.property !== undefined && node.args[0].body.receiver?.item &&
+          isVisibleKey(node.args[0].body.property)) {
+        return { op: "⊆", left: { tag: node.args[0].body.property }, right: { method: "tags", receiver: this.expression(node.receiver), args: [] } };
+      }
+      // An overlap of two key sets is a nonempty intersection.
+      if (node.method === "overlaps") {
+        return { op: "≠", left: { intersection: [this.keySet(node.receiver), this.keySet(node.args[0])] }, right: { emptySet: true } };
+      }
+      if (node.op !== undefined) return this.comparison(node);
+      // A read of a visible key with no value is a flag test. So is .has(k).
+      const flag = node.property !== undefined && node.receiver ? node.property :
+        node.method === "has" && node.args[0]?.key !== undefined ? node.args[0].key : undefined;
+      if (flag !== undefined && isVisibleKey(flag) && flag !== "_Elided" && this.forestRoot &&
+          (node.receiver?.item || node.receiver?.capture === this.forestRoot)) {
+        return { op: "⊆", left: { tag: flag }, right: { forestRoot: true } };
+      }
+      if (flag !== undefined && isVisibleKey(flag) && flag !== "_Elided" && node.receiver?.capture !== undefined) {
+        const symbol = this.captureSymbols.get(node.receiver.capture);
+        // A leaf that a terminal reads has the key of that terminal, also
+        // where it is omitted.
+        if (symbol === flag) return { captured: node.receiver.capture };
+        if (node.receiver.capture === "" || (symbol !== undefined && /^[a-z]/.test(symbol))) {
+          this.keyReaders.add(node.receiver.capture === "" ? this.currentRule : symbol);
+        }
+        return { op: "⊆", left: { tag: flag }, right: { method: "tags", receiver: { capture: node.receiver.capture }, args: [] } };
+      }
+      // A key set is true where it is not empty (part 3 §3).
+      if (isKeySetRecord(node) && node.method !== "classify") {
+        return { op: "≠", left: this.tagsOf(node, node.at), right: { emptySet: true } };
+      }
+      // A key read on a key set, as in $x.flags'K, tests that set.
+      if (flag !== undefined && isVisibleKey(flag) && flag !== "_Elided" && node.receiver && isKeySetRecord(node.receiver)) {
+        return { op: "⊆", left: { tag: flag }, right: this.tagsOf(node.receiver, node.at) };
+      }
+      return this.fail("test this expression", node.at);
+    }
+
+    // The tags of the receiver of a key read: a capture, the rule, or the
+    // root of a forest predicate.
+    /** @param {any} receiver */
+    receiverTags(receiver) {
+      if (receiver?.capture !== undefined && this.forestRoot && receiver.capture === this.forestRoot) return { forestRoot: true };
+      if (receiver?.item && this.forestRoot) return { forestRoot: true };
+      if (receiver?.capture !== undefined) return { method: "tags", receiver: { capture: receiver.capture }, args: [] };
+      return this.fail("read the keys of this receiver", receiver?.at);
+    }
+
+    // A comparison of a payload that is not visible with a literal or with
+    // another payload, through hidden tags. Null for any other comparison.
+    /** @param {any} node */
+    payloadComparison(node) {
+      if (!["=", "≠", "<", "≤", ">", "≥"].includes(node.op)) return null;
+      /** @param {any} side */
+      const read = side => side?.property !== undefined && !isVisibleKey(side.property) && side.property !== "value" &&
+        side.property !== "image" && (side.receiver?.capture !== undefined || side.receiver?.item) ? side : null;
+      const [left, right] = [read(node.left), read(node.right)];
+      if (!left && !right) return null;
+      /**
+       * @param {any} a
+       * @param {any} b
+       */
+      const holds = (a, b) => /** @type {Record<string, boolean>} */ ({ "=": a === b, "≠": a !== b, "<": a < b, "≤": a <= b, ">": a > b, "≥": a >= b })[node.op];
+      /**
+       * @param {any} side
+       * @param {any} value
+       */
+      const tagTest = (side, value) => ({ op: "⊆", left: { tag: payloadTag(side.property, value) }, right: this.receiverTags(side.receiver) });
+      /**
+       * @param {any} side
+       * @returns {any[]}
+       */
+      const domain = side => {
+        const values = this.hidden.domains.get(side.property);
+        if (!values) this.fail(`compare the payload ${side.property}, whose values are not known`, side.at);
+        return values;
+      };
+      let tests;
+      if (left && right) {
+        tests = domain(left).flatMap(a => domain(right).filter(b => holds(a, b)).map(b => ({ all: [tagTest(left, a), tagTest(right, b)] })));
+      } else {
+        const side = left ?? right;
+        const other = literalPayload(left ? node.right : node.left);
+        if (other === undefined) return this.fail("compare a payload with this expression", node.at);
+        if (node.op === "=" && !left !== !right) return tagTest(side, other);
+        tests = domain(side).filter(value => left ? holds(value, other) : holds(other, value)).map(value => tagTest(side, value));
+      }
+      return tests.length === 0 ? NEVER : tests.length === 1 ? tests[0] : { any: tests };
+    }
+
+    // A predicate on a forest. Each disjunct of its normal form may test one
+    // key of the root, beside tests that do not read the root. Then a root
+    // passes the predicate exactly where the union of the root keys passes.
+    /**
+     * @param {any} node
+     * @returns {any}
+     */
+    forestPredicate(node) {
+      const predicate = node.args[0];
+      if (!predicate || predicate.lambda === undefined) return null;
+      const forest = { method: "tags", receiver: this.expression(node.receiver), args: [] };
+      /** @type {any} */
+      const saved = this.forestRoot;
+      this.forestRoot = predicate.lambda || " item";
+      let body;
+      try {
+        body = this.truth(predicate.body);
+      } finally {
+        this.forestRoot = saved;
+      }
+      const disjuncts = normalForm(body);
+      if (disjuncts === null) return null;
+      for (const conjuncts of disjuncts) {
+        const root = conjuncts.filter((/** @type {any} */ atom) => mentionsRoot(atom));
+        // A presence test of a key beside a value test of that key on the
+        // root adds nothing.
+        const values = root.filter((/** @type {any} */ atom) => atom.left?.tag?.split("_").length === 3);
+        /** @param {any} atom */
+        const keyOf = atom => atom.left?.tag?.split("_")[1];
+        const kept = root.filter((/** @type {any} */ atom) => values.includes(atom) || !values.some((/** @type {any} */ value) => keyOf(value) === keyOf(atom)));
+        if (kept.length > 1 || kept.some((/** @type {any} */ atom) => atom.not)) return null;
+        for (let index = conjuncts.length - 1; index >= 0; index--) if (root.includes(conjuncts[index]) && !kept.includes(conjuncts[index])) conjuncts.splice(index, 1);
+      }
+      /**
+       * @param {any} value
+       * @returns {any}
+       */
+      const replace = value => {
+        if (Array.isArray(value)) return value.map(replace);
+        if (!value || typeof value !== "object") return value;
+        if (value.forestRoot) return forest;
+        return Object.fromEntries(Object.entries(value).map(/** @returns {any} */ ([key, item]) => [key, replace(item)]));
+      };
+      const any = replace({ any: disjuncts.map((/** @type {any} */ conjuncts) => conjuncts.length === 1 ? conjuncts[0] : { all: conjuncts }) });
+      if (node.method === "any") return any.any.length === 1 ? any.any[0] : any;
+      return null;
+    }
+
+    /** @param {any} node */
+    comparison(node) {
+      const op = node.op;
+      // Structural comparisons keep the pattern records of the recognizer.
+      if ((op === "≅" || op === "≇") && (node.left.capture !== undefined || node.left.item)) {
+        const right = node.right.pattern !== undefined ? { pattern: this.pattern(node.right.pattern) } :
+          node.right.capture !== undefined ? { capture: node.right.capture } :
+          node.right.const !== undefined ? { const: node.right.const, at: node.right.at } : null;
+        if (right && node.left.capture !== undefined) return { op, left: { capture: node.left.capture }, right };
+      }
+      if (op === "∈" || op === "∉") {
+        return { op, left: this.string(node.left), right: this.strings(node.right) };
+      }
+      if (op === "⊆" || op === "⊈") return { op, left: this.keySet(node.left), right: this.keySet(node.right) };
+      if ((op === "=" || op === "≠") && (isKeySetRecord(node.left) || isKeySetRecord(node.right))) {
+        return { op, left: this.keySet(node.left), right: this.keySet(node.right) };
+      }
+      if (op === "=" || op === "≠") return { op, left: this.string(node.left), right: this.string(node.right) };
+      return this.fail(`compare with ${op}`, node.at);
+    }
+
+    /** @param {any} node */
+    strings(node) {
+      if (node.list) return { union: node.list.map((/** @type {any} */ item) => this.string(item.value)) };
+      if (node.method === "split") return { method: "split", receiver: this.string(node.receiver), args: [this.string(node.args[0])] };
+      if (node.const !== undefined) return { const: node.const, at: node.at };
+      return this.fail("read this list", node.at);
+    }
+
+    // A key set of visible keys, as a tag term.
+    /** @param {any} node */
+    keySet(node) {
+      return this.tagsOf(node, node.at);
+    }
+
+    // An expression with a string value.
+    /**
+     * @param {any} node
+     * @returns {any}
+     */
+    string(node) {
+      const inlined = this.inline(node);
+      if (inlined) return this.string(inlined);
+      if (node.string !== undefined) return { string: node.string };
+      if (node.const !== undefined) return { const: node.const, at: node.at };
+      if (node.concat) return { concat: node.concat.map((/** @type {any} */ item) => this.string(item)) };
+      // A leaf bound under T="s" has the value s, written or omitted.
+      if (node.property === "value" && node.receiver?.capture !== undefined && this.captureSymbols.has(`${node.receiver.capture}=`)) {
+        return { string: this.captureSymbols.get(`${node.receiver.capture}=`) };
+      }
+      if (node.property === "value" && node.receiver) return { method: "value", receiver: this.expression(node.receiver), args: [] };
+      if (node.property === "image" && node.receiver) return { method: "image", receiver: this.expression(node.receiver), args: [] };
+      // The join of the input values of a span is the value of that span.
+      if (node.method === "join" && !node.args.length && node.receiver.map &&
+          node.receiver.by.property === "value" && node.receiver.map.method === "tokens") {
+        return { method: "value", receiver: this.expression(node.receiver.map.receiver), args: [] };
+      }
+      if (node.method === "source-text" || node.method === "decomposed-source-text" || node.method === "verbatim-text") {
+        return this.expression(node);
+      }
+      return this.fail("compute this string", node.at);
+    }
+
+    // A node or a span.
+    /**
+     * @param {any} node
+     * @returns {any}
+     */
+    expression(node) {
+      if (node.capture !== undefined) return { capture: node.capture };
+      if (node.method === "span") return this.expression(node.receiver);
+      if (node.method !== undefined && SPAN_READS.has(node.method)) {
+        const args = node.args.map((/** @type {any} */ arg) => {
+          if (arg.body) return { body: this.body(arg.body, { name: null }) };
+          if (arg.rule !== undefined || arg.terminal !== undefined || arg.call !== undefined || arg.param !== undefined) return { ...arg };
+          return this.fail(`pass this argument to .${node.method}`, node.at);
+        });
+        return { method: node.method, receiver: this.expression(node.receiver), args };
+      }
+      return this.fail("read this expression", node.at);
+    }
+  }
+
+  // The head of an elidable optional with its positive _Elided requirement
+  // replaced by the value test of the empty string.
+  /**
+   * @param {any} head
+   * @returns {any}
+   */
+  function omittedOnlyHead(head) {
+    if (head.seq) {
+      /** @type {any} */
+      const first = omittedOnlyHead(head.seq[0]);
+      return first === head.seq[0] ? head : { ...head, seq: [first, ...head.seq.slice(1)] };
+    }
+    if (head.capture !== undefined && head.expr) {
+      /** @type {any} */
+      const inner = omittedOnlyHead(head.expr);
+      return inner === head.expr ? head : { ...head, expr: inner };
+    }
+    if (head.test !== "tags") return head;
+    const origin = head.requirements.findIndex((/** @type {any} */ item) => !item.negated && item.value.tag === "_Elided");
+    if (origin < 0) return head;
+    // Every written token carries the hidden key WRITTEN, and the omitted
+    // leaf does not. So only the omitted leaf passes the head, and a written
+    // token with an empty value stays written (engine §3.8).
+    const requirements = head.requirements.map((/** @type {any} */ item, /** @type {any} */ index) => index === origin ? { negated: true, value: { tag: WRITTEN } } : item);
+    return { ...head, requirements };
+  }
+
+  /**
+   * Whether a recognizer key is one that the bridge adds.
+   * @param {any} key
+   */
+  function isHiddenKey(key) {
+    return key === WRITTEN || key.startsWith("Payload_") || key.startsWith("Present_");
+  }
+
+  /** The hidden recognizer key of every written token. */
+  const WRITTEN = "Written_token";
+
+  /**
+   * The hidden recognizer key for a payload of a key, or for one value.
+   * @param {any} key
+   * @param {any} [value]
+   */
+  function payloadTag(key, value) {
+    return value === undefined ? `Payload_${hex(key)}` : `Payload_${hex(key)}_${hex(JSON.stringify(value))}`;
+  }
+
+  /**
+   * The hidden recognizer key for the presence of a key, bare or valued.
+   * @param {any} key
+   */
+  function presentTag(key) {
+    return `Present_${hex(key)}`;
+  }
+
+  /** @param {any} text */
+  function hex(text) {
+    return [...new TextEncoder().encode(text)].map(byte => byte.toString(16).padStart(2, "0")).join("");
+  }
+
+  /** @param {any} node */
+  function literalPayload(node) {
+    if (node?.string !== undefined) return node.string;
+    if (node?.integer !== undefined) return Number(node.integer);
+    return undefined;
+  }
+
+  const MAX_DOMAIN = 64;
+
+  /**
+   * The bag of a function constant applied to a capture, with the capture in
+   * place of the parameter, or null. Only a function whose body is a bag
+   * constructor qualifies.
+   * @param {any} node
+   * @param {any} constants
+   * @returns {any}
+   */
+  function inlineFunction(node, constants, bagsOnly = true) {
+    if (node?.apply === undefined || node.arg?.capture === undefined) return null;
+    const versions = constants.filter((/** @type {any} */ constant) => constant.name === node.apply);
+    if (versions.length !== 1) return null;
+    const value = versions[0].value;
+    if (value.lambda === undefined || bagsOnly && !value.body?.bag) return null;
+    /**
+     * @param {any} item
+     * @returns {any}
+     */
+    const substitute = item => {
+      if (Array.isArray(item)) return item.map(substitute);
+      if (!item || typeof item !== "object") return item;
+      if (item.capture === value.lambda && !item.expr) return { ...node.arg };
+      if (item.lambda !== undefined && item.lambda === value.lambda) return item;
+      return Object.fromEntries(Object.entries(item).map(/** @returns {any} */ ([key, child]) => [key, substitute(child)]));
+    };
+    return substitute(value.body);
+  }
+
+  /**
+   * The keys that are not visible and that a recognizer test reads, with
+   * the finite set of values that the document can give each one. A key
+   * whose values are not known has no domain.
+   * @param {any} dom
+   */
+  function hiddenKeys(dom) {
+    const demanded = new Set();
+    /** @param {any} node */
+    const reads = node => {
+      if (!node || typeof node !== "object") return;
+      if (Array.isArray(node)) return node.forEach(reads);
+      if (node.property !== undefined && !isVisibleKey(node.property) && node.property !== "value" && node.property !== "image") demanded.add(node.property);
+      if ((node.method === "has" || node.method === "has-value") && node.args?.[0]?.key !== undefined && !isVisibleKey(node.args[0].key)) demanded.add(node.args[0].key);
+      for (const value of Object.values(node)) if (value && typeof value === "object") reads(value);
+    };
+    const entries = [];
+    for (const constant of dom.constants) {
+      if (constant.value.lambda !== undefined && constant.value.body?.bag) {
+        for (const entry of constant.value.body.bag) {
+          reads(entry.guard);
+          entries.push(entry);
+        }
+      }
+    }
+    for (const rule of dom.rules) {
+      reads(rule.conditions);
+      for (const term of [rule.term, ...(rule.alternatives ?? []).map((/** @type {any} */ alternative) => alternative.term)].filter(Boolean)) {
+        for (const entry of term.bag) {
+          reads(entry.guard);
+          entries.push(entry);
+        }
+      }
+    }
+    // The keys that the writers of a demanded key read are demanded too.
+    for (let size = -1; size !== demanded.size;) {
+      size = demanded.size;
+      for (const entry of entries) if (entry.kind === "write" && entry.keys.some((/** @type {any} */ key) => demanded.has(key))) reads(entry.value);
+    }
+    /** @type {Map<string, any[]>} */
+    const domains = new Map([...demanded].map(key => [key, []]));
+    const unknown = new Set();
+    for (let changed = true; changed;) {
+      changed = false;
+      for (const entry of entries) {
+        if (entry.kind !== "write") continue;
+        for (const key of entry.keys.filter((/** @type {any} */ item) => demanded.has(item) && !unknown.has(item))) {
+          let values = valuesOf(entry.value, domains, unknown);
+          const allowed = guardValues(entry.guard, entry.value, dom.constants);
+          if (allowed) values = values === null ? allowed : values.filter((/** @type {any} */ value) => allowed.includes(value));
+          if (values === null) {
+            unknown.add(key);
+            domains.delete(key);
+            changed = true;
+            continue;
+          }
+          const domain = /** @type {any[]} */ (domains.get(key));
+          for (const value of values) if (!domain.includes(value)) {
+            domain.push(value);
+            changed = true;
+          }
+          if (domain.length > MAX_DOMAIN) {
+            unknown.add(key);
+            domains.delete(key);
+          }
+        }
+      }
+    }
+    for (const domain of domains.values()) domain.sort((a, b) => typeof a === typeof b ? (a < b ? -1 : a > b ? 1 : 0) : typeof a === "number" ? -1 : 1);
+    return { demanded, domains };
+  }
+
+  // The values that an expression can have, or null where they are not known.
+  /**
+   * @param {any} node
+   * @param {any} domains
+   * @returns {any}
+   */
+  function valuesOf(node, domains, unknown = new Set()) {
+    const literal = literalPayload(node);
+    if (literal !== undefined) return [literal];
+    if (node.property !== undefined && node.receiver?.capture !== undefined && !unknown.has(node.property)) {
+      return domains.get(node.property) ?? null;
+    }
+    if (node.if !== undefined && node.else !== undefined) {
+      /** @type {any} */
+      const sides = [valuesOf(node.then, domains, unknown), valuesOf(node.else, domains, unknown)];
+      return sides.includes(null) ? null : [...new Set(sides.flat())];
+    }
+    if (node.op === "+") {
+      /** @type {any} */
+      const [left, right] = [valuesOf(node.left, domains, unknown), valuesOf(node.right, domains, unknown)];
+      if (left === null || right === null) return null;
+      return [...new Set(left.flatMap((/** @type {any} */ a) => right.map((/** @type {any} */ b) => a + b)))];
+    }
+    if (node.method === "at-most") {
+      /** @type {any} */
+      const values = valuesOf(node.receiver, domains, unknown);
+      return values === null ? null : [...new Set(values.map((/** @type {any} */ value) => Math.min(value, Number(node.args[0].integer))))];
+    }
+    return null;
+  }
+
+  // The literal values that a guard allows its entry's value expression,
+  // as in `$y'value ∈ ["a", "b"]? key: $y'value`, or null.
+  /**
+   * @param {any} guard
+   * @param {any} value
+   * @param {any} constants
+   */
+  function guardValues(guard, value, constants = []) {
+    if (!guard) return null;
+    // A constant list of literals in this document stands for its items.
+    /** @param {any} node */
+    const literals = node => {
+      if (node.list) return node.list;
+      if (node.const !== undefined) {
+        const versions = constants.filter((/** @type {any} */ constant) => constant.name === node.const);
+        return versions.length === 1 ? versions[0].value.list ?? null : null;
+      }
+      return null;
+    };
+    /**
+     * @param {any} a
+     * @param {any} b
+     */
+    const same = (a, b) => JSON.stringify(withoutPositions(a)) === JSON.stringify(withoutPositions(b));
+    const conjuncts = guard.all ?? [guard];
+    for (const conjunct of conjuncts) {
+      const items = conjunct.op === "∈" ? literals(conjunct.right) : null;
+      if (items && same(conjunct.left, value) && items.every((/** @type {any} */ item) => literalPayload(item.value) !== undefined)) {
+        return items.map((/** @type {any} */ item) => literalPayload(item.value));
+      }
+      if (conjunct.op === "=" && same(conjunct.left, value) && literalPayload(conjunct.right) !== undefined) return [literalPayload(conjunct.right)];
+    }
+    return null;
+  }
+
+  // The disjunctive normal form of a recognizer condition: a list of lists
+  // of atoms. Null where it grows beyond a small bound.
+  /** @param {any} node */
+  function normalForm(node) {
+    if (node.any) {
+      const parts = node.any.map(normalForm);
+      return parts.includes(null) ? null : parts.flat();
+    }
+    if (node.all) {
+      let product = [[]];
+      for (const part of node.all.map(normalForm)) {
+        if (part === null) return null;
+        product = product.flatMap(left => part.map((/** @type {any} */ right) => [...left, ...right]));
+        if (product.length > 64) return null;
+      }
+      return product;
+    }
+    return [[node]];
+  }
+
+  /**
+   * @param {any} node
+   * @returns {any}
+   */
+  function mentionsRoot(node) {
+    if (!node || typeof node !== "object") return false;
+    if (node.forestRoot) return true;
+    return Object.values(node).some(/** @returns {any} */ value => value && typeof value === "object" && mentionsRoot(value));
+  }
+
+  // The visible keys of a constant key set, or null for any other value. A
+  // key set can combine other key-set constants of the same document.
+  /**
+   * @param {any} value
+   * @param {any} constants
+   */
+  function keySetKeys(value, constants = [], active = new Set()) {
+    if (!value || typeof value !== "object") return null;
+    if (value.bag) {
+      if (!value.bag.every((/** @type {any} */ entry) => entry.kind === "bare" && !entry.gates.length && !entry.guard && isVisibleKey(entry.key))) return null;
+      return value.bag.map((/** @type {any} */ entry) => entry.key);
+    }
+    if (value.const !== undefined) {
+      const versions = constants.filter((/** @type {any} */ constant) => constant.name === value.const);
+      if (versions.length !== 1 || active.has(value.const)) return null;
+      return keySetKeys(versions[0].value, constants, new Set([...active, value.const]));
+    }
+    const parts = value.union ?? value.intersection ?? value.difference;
+    if (!parts) return null;
+    const sets = parts.map((/** @type {any} */ part) => keySetKeys(part, constants, active));
+    if (sets.some((/** @type {any} */ set) => set === null)) return null;
+    if (value.union) return [...new Set(sets.flat())];
+    if (value.intersection) return sets[0].filter((/** @type {any} */ key) => sets.slice(1).every((/** @type {any} */ set) => set.includes(key)));
+    return sets[0].filter((/** @type {any} */ key) => !sets[1].includes(key));
+  }
+
+  /**
+   * The name of a classifier for the recognizer, which needs a lowercase name.
+   * @param {any} name
+   */
+  function classifierName(name) {
+    return `classifier-${name.toLowerCase()}`;
+  }
+
+  // Whether a record is a key set by its form.
+  /** @param {any} node */
+  function isKeySetRecord(node) {
+    return !!node && (node.bag !== undefined || ["flags", "keys", "classes", "select", "classify", "union"].includes(node.method) ||
+      node.intersection !== undefined || node.union !== undefined);
+  }
+
+  // The test of an implicit predicate ' ∈ S, ' ∉ S, ' = s or ' ≠ s, or null.
+  /** @param {any} node */
+  function ngramPredicate(node) {
+    const body = node?.lambda === "" ? node.body : null;
+    if (!body || body.left?.item !== true) return null;
+    if (body.op === "∉") return { op: "∉", right: body.right };
+    if (["∈", "=", "≠"].includes(body.op)) return { op: body.op, right: body.right };
+    return null;
+  }
+
+
+  /**
+   * The key of an alternative in the origin table: its document, the
+   * position of its definition and its index there.
+   * @param {any} document
+   * @param {any} at
+   * @param {any} index
+   */
+  function alternativeKey(document, at, index) {
+    return `${document}#${at[0]}:${at[1]}#${index}`;
+  }
+
+  /**
+   * The format 50 expression of an argument as the recognizer stores it in
+   * an instance: the inverse of argumentTerm. Other arguments stay as they are.
+   * @param {any} arg
+   */
+  function argumentExpression(arg) {
+    /** @param {any} key */
+    const bare = key => ({ kind: "bare", key, gates: [] });
+    if (!arg || typeof arg !== "object") return arg;
+    if (arg.tag !== undefined && Object.keys(arg).length === 1) return { bag: [bare(arg.tag)] };
+    if (arg.emptySet) return { bag: [] };
+    if (arg.union?.every((/** @type {any} */ item) => item.tag !== undefined)) return { bag: arg.union.map((/** @type {any} */ item) => bare(item.tag)) };
+    return arg;
+  }
+
+  /**
+   * The recognizer's term for a closed argument that reads no constant: its
+   * value, computed now. Null for any other argument.
+   * @param {any} node
+   */
+  function foldedArgument(node) {
+    if (!isClosed(node) || JSON.stringify(node).includes('"const"') || JSON.stringify(node).includes('"apply"')) return null;
+    let value;
+    try {
+      value = new Evaluator({ tokens: [], sourceText: [], features: new Set(), constants: new Map(), leaf: () => null }).evaluate(node, { items: [], names: new Map() });
+    } catch (error) {
+      if (error instanceof GencmuError) return null;
+      throw error;
+    }
+    if (typeof value === "string") return { string: value };
+    if (typeof value === "number") return { integer: String(value) };
+    if (value instanceof Bag && value.keys().every(key => !value.hasValue(key))) {
+      const tags = value.keys().map(tag => ({ tag }));
+      return tags.length === 0 ? { emptySet: true } : tags.length === 1 ? tags[0] : { union: tags };
+    }
+    return null;
+  }
+
+  // The recognizer's term for an expression argument of a template, or null.
+  /** @param {any} node */
+  function argumentTerm(node) {
+    if (node.string !== undefined) return { string: node.string };
+    if (node.integer !== undefined) return { integer: node.integer };
+    if (node.const !== undefined) return { const: node.const, ...(node.at ? { at: node.at } : {}) };
+    if (node.param !== undefined) return { param: node.param, ...(node.at ? { at: node.at } : {}) };
+    if (node.bag?.every((/** @type {any} */ entry) => entry.kind === "bare" && !entry.gates.length && !entry.guard)) {
+      const tags = node.bag.map((/** @type {any} */ entry) => ({ tag: entry.key }));
+      return tags.length === 0 ? { emptySet: true } : tags.length === 1 ? tags[0] : { union: tags };
+    }
+    return null;
+  }
+
+  /**
+   * @param {any} node
+   * @returns {any}
+   */
+  function withoutPositions(node) {
+    if (Array.isArray(node)) return node.map(withoutPositions);
+    if (!node || typeof node !== "object") return node;
+    return Object.fromEntries(Object.entries(node).filter(([key]) => key !== "at").map(/** @returns {any} */ ([key, value]) => [key, withoutPositions(value)]));
+  }
+
+  // The strings or the class references of a classifier entry, or null.
+  /** @param {any} value */
+  function classValue(value) {
+    if (value.string !== undefined) return { strings: [value.string] };
+    if (value.list?.every((/** @type {any} */ item) => item.kind === "item" && !item.gates.length && !item.guard && item.value.string !== undefined)) {
+      return { strings: value.list.map((/** @type {any} */ item) => item.value.string) };
+    }
+    if (value.bag?.every((/** @type {any} */ entry) => entry.kind === "bare" && !entry.gates.length && !entry.guard)) {
+      return { references: value.bag.map((/** @type {any} */ entry) => entry.key) };
+    }
+    return null;
+  }
+
+  const SPAN_RESULTS = new Set(["span", "first-token", "last-token", "tokens-after-first", "onward", "following-tokens", "preceding-tokens"]);
+
+  /** @param {any} node */
+  function isSpan(node) {
+    return node.method !== undefined && SPAN_RESULTS.has(node.method);
+  }
+
+  // Whether an expression reads no capture, no item, no parameter and no
+  // occurrence, outside the functions that it holds.
+  /**
+   * @param {any} node
+   * @returns {any}
+   */
+  function isClosed(node, bound = new Set()) {
+    if (node === null || typeof node !== "object") return true;
+    if (Array.isArray(node)) return node.every(item => isClosed(item, bound));
+    if (node.capture !== undefined) return node.capture !== "" && bound.has(node.capture);
+    if (node.item || node.param !== undefined || node.body !== undefined && node.lambda === undefined) return false;
+    if (node.lambda !== undefined) {
+      if (node.lambda === "") return false;
+      return isClosed(node.body, new Set([...bound, node.lambda]));
+    }
+    if (node.pattern !== undefined) return false;
+    return Object.entries(node).every(([key, value]) => key === "at" || isClosed(value, bound));
+  }
+
+  // The body of a predicate with its item replaced by a capture.
+  /**
+   * @param {any} predicate
+   * @param {any} name
+   * @returns {any}
+   */
+  function itemAsCapture(predicate, name) {
+    const capture = { capture: name };
+    /**
+     * @param {any} item
+     * @returns {any}
+     */
+    const replace = item => {
+      if (Array.isArray(item)) return item.map(replace);
+      if (!item || typeof item !== "object") return item;
+      if (item.item || predicate.lambda && item.capture === predicate.lambda && !item.expr) return capture;
+      if (item.lambda !== undefined) return item;
+      // A bare method or key of the item reads the capture.
+      if ((item.method !== undefined || item.property !== undefined) && !item.receiver) return { ...replaceInner(item), receiver: capture };
+      return replaceInner(item);
+    };
+    /** @param {any} item */
+    const replaceInner = item => Object.fromEntries(Object.entries(item).map(/** @returns {any} */ ([key, value]) => [key, replace(value)]));
+    return replace(predicate.body);
+  }
+
+  // The most nodes that one route binds to each capture of a body, with 2
+  // for any number above one.
+  /**
+   * @param {any} node
+   * @returns {any}
+   */
+  function maxBindings(node) {
+    const result = new Map();
+    /**
+     * @param {any} map
+     * @param {any} name
+     * @param {any} count
+     */
+    const add = (map, name, count) => map.set(name, Math.min(2, (map.get(name) ?? 0) + count));
+    if (!node || typeof node !== "object") return result;
+    if (node.capture !== undefined && node.expr) {
+      /** @type {any} */
+      const inner = maxBindings(node.expr);
+      add(inner, node.capture, 1);
+      return inner;
+    }
+    if (node.primary) return maxBindings(node.primary);
+    if (node.test !== undefined) return maxBindings(node.expr);
+    if (node.seq || node.and) {
+      for (const part of node.seq ?? node.and) for (const [name, count] of maxBindings(part)) add(result, name, count);
+      return result;
+    }
+    if (node.choice || node.ranked) {
+      for (const part of node.choice ?? node.ranked) for (const [name, count] of maxBindings(part)) result.set(name, Math.max(result.get(name) ?? 0, count));
+      return result;
+    }
+    if (node.optional) return maxBindings(node.optional);
+    if (node.repeat) {
+      for (const part of [node.repeat, node.separator]) for (const name of maxBindings(part).keys()) result.set(name, 2);
+      return result;
+    }
+    return result;
+  }
+
+  // The rule or terminal that each capture of a body names.
+  /**
+   * @param {any} node
+   * @param {any} symbols
+   */
+  function collectCaptureSymbols(node, symbols) {
+    if (!node || typeof node !== "object") return;
+    if (Array.isArray(node)) {
+      for (const item of node) collectCaptureSymbols(item, symbols);
+      return;
+    }
+    if (node.capture !== undefined && node.expr) {
+      let base = node.expr;
+      let equals;
+      while (base.test !== undefined || base.primary) {
+        if (base.test === "=" && base.value?.string !== undefined) equals = base.value.string;
+        base = base.expr ?? base.primary;
+      }
+      // A name with different symbols on different alternatives has none.
+      const found = base.ref !== undefined ? base.ref : null;
+      if (symbols.has(node.capture) && symbols.get(node.capture) !== found) symbols.set(node.capture, null);
+      else symbols.set(node.capture, found);
+      if (equals !== undefined && found !== null && /^[A-Z]/.test(found)) symbols.set(`${node.capture}=`, equals);
+    }
+    for (const value of Object.values(node)) if (value && typeof value === "object") collectCaptureSymbols(value, symbols);
+  }
+
+  /** @param {any} node */
+  function isSingleSymbol(node) {
+    if (node.capture !== undefined) return isSingleSymbol(node.expr);
+    if (node.choice) return node.choice.every(isSingleSymbol);
+    return SYMBOL_KEYS.some(key => Object.hasOwn(node, key)) && !node.optional && !node.repeat;
+  }
+
+  // ---- format50/signatures.js
+
+
+  // Method arities from Engine §10, including short map selectors.
+  const zero = [
+    "span", "children", "present", "without-elision", "tokens", "flags", "classes",
+    "first-token", "last-token", "tokens-after-first", "onward", "following-tokens",
+    "preceding-tokens", "starts-input", "ends-input", "source-text",
+    "decomposed-source-text", "verbatim-text", "keys", "union", "error-free",
+  ];
+  const unary = [
+    "without-elision-except", "parse", "has", "has-value", "select", "overlaps",
+    "classify", "all", "split", "ngrams", "at-most",
+  ];
+
+  /**
+   * The arity of each of these methods.
+   * @param {string[]} names
+   * @param {number} min
+   * @param {number} max
+   * @returns {[string, {min: number, max: number}][]}
+   */
+  const arity = (names, min, max) => names.map(name => [name, { min, max }]);
+
+  const methods50 = new Map([
+    ...arity(zero, 0, 0),
+    ...arity(unary, 1, 1),
+    ...arity(["any", "join"], 0, 1),
+    ...arity(["followed-by", "preceded-by"], 1, Infinity),
+  ]);
+
+  /**
+   * @param {any} name
+   * @param {any} unicode
+   */
+  function validProperty50(name, unicode) {
+    return typeof name === "string" && (/^(?!.*--)[a-zA-Z][a-zA-Z0-9_-]*$/.test(name) ||
+      (name !== "_Elided" && (unicode ? unicode.canonicalTag(name) === name :
+        Object.hasOwn(PROPERTY_CATALOG.tags, name))));
+  }
+
+  // ---- format50/print.js
+  // The canonical spelling of a template call of format 50 (engine §2.3,
+  // "Identity and names"). A marked expression argument prints `= ` and its
+  // normalized expression, with the parentheses that recover its tree
+  // (part 3 §2). Other arguments keep the spellings of format 49.
+
+
+
+
+
+  // Binding strength, strongest first (part 3 §2).
+  const LEVEL = { atom: 0, post: 1, sum: 2, inter: 3, union: 4, comparison: 5, neg: 6, conj: 7, disj: 8, implication: 9 };
+
+  /** @param {any} node */
+  function levelOf(node) {
+    if (node.concat || node.op === "+") return LEVEL.sum;
+    if (node.intersection) return LEVEL.inter;
+    if (node.union || node.difference) return LEVEL.union;
+    if (node.op !== undefined) return LEVEL.comparison;
+    if (node.not !== undefined) return LEVEL.neg;
+    if (node.all) return LEVEL.conj;
+    if (node.any) return LEVEL.disj;
+    if (node.if !== undefined && node.else === undefined) return LEVEL.implication;
+    if (node.lambda !== undefined && node.lambda !== "") return LEVEL.implication;
+    if (node.property !== undefined || node.method !== undefined || node.map !== undefined || node.flatten !== undefined) return LEVEL.post;
+    return LEVEL.atom;
+  }
+
+  /**
+   * The canonical spelling of an expression.
+   * @param {any} node
+   * @param {any} unicode
+   * @returns {any}
+   */
+  function printExpression(node, unicode) {
+    /** @param {any} item */
+    const print = item => printExpression(item, unicode);
+    // An operand that binds more weakly than its place takes parentheses.
+    /**
+     * @param {any} item
+     * @param {any} limit
+     */
+    const operand = (item, limit) => levelOf(item) > limit ? `(${print(item)})` : print(item);
+    if (node.string !== undefined) return stringName(node.string, unicode);
+    if (node.integer !== undefined) return node.integer;
+    if (node.capture !== undefined) return `$${node.capture}`;
+    if (node.const !== undefined) return `$${node.const}`;
+    if (node.apply !== undefined) return `$${node.apply}(${print(node.arg)})`;
+    if (node.param !== undefined) return `@${node.param}`;
+    if (node.item) return "'";
+    if (node.pattern !== undefined) return canonicalArgument({ pattern: node.pattern }, unicode);
+    if (node.emptySet) return "∅";
+    if (node.bag) return `{${node.bag.map((/** @type {any} */ entry) => printEntry(entry, unicode)).join(", ")}}`;
+    if (node.list) return `[${node.list.map((/** @type {any} */ item) => prefix(item, unicode) + (item.kind === "splat" ? "*" : "") + print(item.value)).join(", ")}]`;
+    if (node.if !== undefined && node.else !== undefined) return `(${print(node.if)} ? ${print(node.then)} | ${print(node.else)})`;
+    if (node.if !== undefined) return `${operand(node.if, LEVEL.implication - 1)} ⟹ ${operand(node.then, LEVEL.implication)}`;
+    if (node.lambda !== undefined) return node.lambda === "" ? print(node.body) : `$${node.lambda} ↦ ${print(node.body)}`;
+    if (node.any) return node.any.map((/** @type {any} */ item) => operand(item, LEVEL.disj - 1)).join(" ∨ ");
+    if (node.all) return node.all.map((/** @type {any} */ item) => operand(item, LEVEL.conj - 1)).join(" ∧ ");
+    if (node.not !== undefined) return `¬${operand(node.not, LEVEL.neg)}`;
+    if (node.op === "+") return `${operand(node.left, LEVEL.sum)} + ${operand(node.right, LEVEL.sum - 1)}`;
+    if (node.op !== undefined) return `${operand(node.left, LEVEL.comparison - 1)} ${node.op} ${operand(node.right, LEVEL.comparison - 1)}`;
+    if (node.concat) return node.concat.map((/** @type {any} */ item, /** @type {any} */ index) => operand(item, index ? LEVEL.sum - 1 : LEVEL.sum)).join(" ++ ");
+    if (node.intersection) return node.intersection.map((/** @type {any} */ item, /** @type {any} */ index) => operand(item, index ? LEVEL.inter - 1 : LEVEL.inter)).join(" ∩ ");
+    // A union is flat. A difference after its first operand takes parentheses.
+    if (node.union) return node.union.map((/** @type {any} */ item, /** @type {any} */ index) => operand(item, index ? LEVEL.union - 1 : LEVEL.union)).join(" ∪ ");
+    if (node.difference) return `${operand(node.difference[0], LEVEL.union)} ∖ ${operand(node.difference[1], LEVEL.union - 1)}`;
+    const receiver = node.receiver ? operand(node.receiver, LEVEL.post) : "";
+    if (node.property !== undefined) return `${receiver}'${node.property}`;
+    if (node.flatten !== undefined) return `${operand(node.flatten, LEVEL.post)}↓`;
+    if (node.map !== undefined) {
+      const by = node.by;
+      const selector = by.property !== undefined && !by.receiver ? `'${by.property}`
+        : by.method !== undefined && !by.receiver ? `.${method(by, unicode)}` : `(${print(by)})`;
+      return `${operand(node.map, LEVEL.post)}!${selector}`;
+    }
+    if (node.method !== undefined) return `${receiver}.${method(node, unicode)}`;
+    return JSON.stringify(node);
+  }
+
+  /**
+   * @param {any} node
+   * @param {any} unicode
+   */
+  function method(node, unicode) {
+    const takes = (methods50.get(node.method)?.max ?? 0) > 0;
+    if (!takes) return node.method;
+    const args = node.args.map((/** @type {any} */ arg) => {
+      if (arg.key !== undefined) return arg.key;
+      if (arg.body !== undefined) return templateBodyText(arg.body, unicode);
+      if (arg.rule !== undefined || arg.terminal !== undefined || arg.call !== undefined) return canonicalArgument(arg, unicode);
+      return printExpression(arg, unicode);
+    });
+    const separator = node.method === "followed-by" || node.method === "preceded-by" ? " | " : ", ";
+    return `${node.method}(${args.join(separator)})`;
+  }
+
+  /**
+   * @param {any} item
+   * @param {any} unicode
+   */
+  function prefix(item, unicode) {
+    const gates = (item.gates ?? []).map((/** @type {any} */ gate) => `${gate.negated ? "¬" : ""}${gate.feature}? `).join("");
+    return gates + (item.guard ? `${printExpression(item.guard, unicode)}? ` : "");
+  }
+
+  /**
+   * @param {any} entry
+   * @param {any} unicode
+   */
+  function printEntry(entry, unicode) {
+    const head = prefix(entry, unicode);
+    switch (entry.kind) {
+      case "bare": return head + entry.key;
+      case "write": return head + entry.keys.map((/** @type {any} */ key) => `${key}: `).join("") + printExpression(entry.value, unicode);
+      case "copy": return head + `${printExpression(entry.source, unicode)}'${entry.key}`;
+      case "splat": return head + `*${printExpression(entry.value, unicode)}`;
+      case "delete": return head + `¬${entry.key}`;
+      default: return head + JSON.stringify(entry);
+    }
+  }
+
+  /**
+   * The canonical spelling of a template call of format 50.
+   * @param {any} call a call record of a DOM 50
+   * @param {any} unicode
+   */
+  function printCall(call, unicode) {
+    const args = call.args.map((/** @type {any} */ arg) => {
+      if (arg.expression) return `= ${printExpression(arg.expression, unicode)}`;
+      if (arg.call !== undefined) return printCall(arg, unicode);
+      const { at, ...rest } = arg;
+      void at;
+      return canonicalArgument(rest, unicode);
+    });
+    return `${call.call}(${args.join(", ")})`;
+  }
+
+  // ---- format50/stage.js
+  // One stage of a format 50 pipeline. The format 49 recognizer finds and
+  // ranks the derivations. This module builds the chosen tree of
+  // occurrences, gives each rule node its bag (engine §3.7) and publishes
+  // the selected nodes as tokens (engine §5).
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  /**
+   * The ranker of a chart, configured as the format 49 stage configures it.
+   * @param {any} chart
+   * @param {any[]} tokens
+   * @param {any[]} steps
+   * @param {any} lean
+   */
+  function rankerOf(chart, tokens, steps, lean) {
+    const ranker = new Ranker(tokens, steps, lean, null);
+    ranker.erasures.closes = chart.context.closes;
+    ranker.restorationForest = restorationForest(chart);
+    if (ranker.restorationForest) chart = ranker.restorationForest.chart;
+    ranker.profiles ||= canCountProfiles(chart.context.lowered) && !(chart.context.mode === "reconstruction" &&
+      !chart.context.lowered.productions.some((/** @type {any} */ p) => p.error) && steps.every(step => requiresElided(step.pattern)));
+    ranker.configured = true;
+    ranker.interner = chart.context.interner;
+    ranker.space.interner = chart.context.interner;
+    ranker.space.tokens = chart.context.recon && !chart.context.recon.raw ? chart.context.recon.observed.tokens : tokens;
+    if (chart.context.lowered.ranked?.groups.length) ranker.admission = new RankedAdmission(chart, chart.context.lowered.ranked);
+    return ranker;
+  }
+
+  /** A token that a stage hands on, or a token of the origin table. */
+  class Token50 {
+    /**
+     * @param {object} fields
+     * @param {string} fields.text
+     * @param {Bag} fields.props the public bag, with `value` and `image`
+     * @param {[number, number]} fields.span
+     * @param {[number, number]} fields.source
+     * @param {Occurrence | null} [fields.node] the node that the token publishes
+     * @param {string} [fields.insertedBy]
+     */
+    constructor({ text, props, span, source, node = null, insertedBy }) {
+      this.text = text;
+      this.props = props;
+      this.span = span;
+      this.source = source;
+      this.node = node;
+      if (insertedBy !== undefined) this.insertedBy = insertedBy;
+      this.value = props.value("value");
+      this.image = props.value("image");
+    }
+
+    /** The token as the recognizer reads it: its visible keys and its value. */
+    recognizerToken() {
+      const tags = new Set(this.props.keys().filter(isVisibleKey));
+      tags.add(WRITTEN);
+      // A recognizer test reads a literal payload of an input token through
+      // hidden keys, as it reads the payloads of rules.
+      for (const key of this.props.keys()) {
+        if (!this.props.hasValue(key) || key === "value" || key === "image") continue;
+        const value = this.props.value(key);
+        tags.add(payloadTag(key));
+        if (typeof value === "string" || typeof value === "number") tags.add(payloadTag(key, value));
+      }
+      return new Token(tags, this.span, this.source, this.text, this.value, this.insertedBy, this.image);
+    }
+  }
+
+  /**
+   * The capture slots of an alternative: whether each capture is one node or
+   * a list of nodes (engine §3.5).
+   * @param {any} body
+   * @returns {Map<string, "one" | "list">}
+   */
+  function captureKinds(body) {
+    /** @type {Map<string, "one" | "list">} */
+    const kinds = new Map();
+    // Each route binds each name some number of times. A name bound once on
+    // every route is one node. Any other name is a list.
+    /**
+     * @param {any} node
+     * @returns {Map<string, number>}
+     */
+    const counts = node => {
+      if (!node || typeof node !== "object") return new Map();
+      if (node.capture !== undefined && node.expr) {
+        /** @type {any} */
+        const inner = counts(node.expr);
+        inner.set(node.capture, (inner.get(node.capture) ?? 0) + 1);
+        return inner;
+      }
+      if (node.primary) return counts(node.primary);
+      if (node.seq || node.and) {
+        const total = new Map();
+        for (const part of node.seq ?? node.and) for (const [name, count] of counts(part)) total.set(name, (total.get(name) ?? 0) + count);
+        return total;
+      }
+      if (node.choice || node.ranked) {
+        const branches = (node.choice ?? node.ranked).map(counts);
+        const names = new Set(branches.flatMap((/** @type {any} */ branch) => [...branch.keys()]));
+        const total = new Map();
+        for (const name of names) {
+          const values = branches.map((/** @type {any} */ branch) => branch.get(name) ?? 0);
+          total.set(name, values.every((/** @type {any} */ value) => value === 1) ? 1 : 2);
+        }
+        return total;
+      }
+      if (node.optional || node.repeat) {
+        const total = new Map();
+        for (const part of [node.optional ?? node.repeat, node.separator]) {
+          for (const name of counts(part).keys()) total.set(name, 2);
+        }
+        return total;
+      }
+      if (node.test !== undefined) return counts(node.expr);
+      return new Map();
+    };
+    for (const [name, count] of counts(body)) kinds.set(name, count === 1 ? "one" : "list");
+    return kinds;
+  }
+
+  /**
+   * Whether an alternative is one plain symbol (part 1 §5).
+   * @param {any} node
+   */
+  function isPlainSymbol(node) {
+    if (node.capture !== undefined && node.expr) return isPlainSymbol(node.expr);
+    if (node.choice) return node.choice.every(isPlainSymbol);
+    if (node.test !== undefined) return isPlainSymbol(node.expr);
+    return SYMBOL_KEYS.some(key => Object.hasOwn(node, key));
+  }
+
+  class Stage50 {
+    /**
+     * @param {string} name
+     * @param {any} runs the bridged runs of the stage
+     * @param {Map<string, any>} origins the format 50 records of each bridged alternative
+     * @param {Map<string, any[]>} constants the versions of each constant of the stage
+     * @param {any} makeGrammar
+     */
+    constructor(name, runs, origins, constants, makeGrammar) {
+      this.name = name;
+      this.runs = runs;
+      this.origins = origins;
+      this.constants = constants;
+      this.makeGrammar = makeGrammar;
+      this.publishes = constants.has("OUTPUTS");
+      /** @type {Map<string, any>} the recognizer grammar for each outcome of the closed conditions */
+      this.grammars = new Map();
+      /** @type {any[]} */
+      this.closed = [];
+      /** @type {any[] | undefined} the %features directives, with their documents */
+      this.featureDeclarations = undefined;
+      /** @type {any[] | undefined} the errors of bridging, which a parse reports */
+      this.loweringErrors = undefined;
+      /** @param {any} node */
+      const visit = node => {
+        if (!node || typeof node !== "object") return;
+        if (node.closed50 !== undefined) this.closed.push(node.closed50);
+        for (const value of Object.values(node)) if (value && typeof value === "object") visit(value);
+      };
+      for (const run of runs) {
+        for (const rule of run.dom.rules) visit([rule.conditions, (rule.alternatives ?? []).map((/** @type {any} */ alternative) => alternative.tags)]);
+        for (const directive of run.dom.directives) visit(directive.conditions);
+      }
+      // Stitching errors belong to loading, so the grammar is built now. The
+      // outcome of a closed condition does not change the stitched grammar.
+      const probe = makeGrammar(this.folded(() => true));
+      if (!this.closed.length) this.grammars.set("", probe);
+    }
+
+    /**
+     * The runs with each closed condition replaced by its truth.
+     * @param {any} truth
+     * @returns {any}
+     */
+    folded(truth) {
+      if (!this.closed.length) return this.runs;
+      /**
+       * @param {any} node
+       * @returns {any}
+       */
+      const replace = node => {
+        if (Array.isArray(node)) return node.map(replace);
+        if (!node || typeof node !== "object") return node;
+        if (node.closed50 !== undefined) return truth(node.closed50) ? DOM_TRUE : DOM_FALSE;
+        return Object.fromEntries(Object.entries(node).map(/** @returns {any} */ ([name, value]) => [name, replace(value)]));
+      };
+      return this.runs.map((/** @type {any} */ run) => ({ ...run, dom: { ...run.dom,
+        rules: run.dom.rules.map((/** @type {any} */ rule) => ({ ...rule, conditions: replace(rule.conditions),
+          ...(rule.alternatives ? { alternatives: rule.alternatives.map((/** @type {any} */ alternative) => alternative.tags ? { ...alternative, tags: replace(alternative.tags) } : alternative) } : {}) })),
+        directives: run.dom.directives.map((/** @type {any} */ directive) => directive.conditions ? { ...directive, conditions: replace(directive.conditions) } : directive) } }));
+    }
+
+    /**
+     * The stage-local %features declarations, in their order (engine §13).
+     * A declaration with conditions turns its features on where every
+     * condition holds on the input span. A declaration without conditions
+     * turns them on always. Returns a failed report on a conflict with a
+     * feature that the caller turns off.
+     * @param {any} tokens
+     * @param {any} sourceText
+     * @param {any} features
+     * @param {any} off
+     * @param {any} inputKeys
+     */
+    declareFeatures(tokens, sourceText, features, off, inputKeys) {
+      for (const { directive, document } of this.featureDeclarations ?? []) {
+        const conditions = directive.conditions50;
+        let holds = true;
+        if (conditions?.length) {
+          try {
+            const data = this.stageData(tokens, sourceText, { features, inputKeys });
+            const scope = { node: new Span(data, 0, tokens.length), items: [], names: new Map(), document };
+            holds = conditions.every((/** @type {any} */ condition) => data.evaluator.truth(condition, scope));
+          } catch (error) {
+            if (!(error instanceof GencmuError)) throw error;
+            return { name: this.name, verdict: null, root: null, output: null, errors: [], warnings: [], input: tokens,
+              error: runtimeGrammarError(error.withLocation({ stage: undefined }), this.name) };
+          }
+        }
+        if (!holds) continue;
+        for (const feature of directive.args) {
+          if (off.has(feature)) {
+            if (conditions?.length) {
+              return { name: this.name, verdict: null, root: null, output: null, errors: [], warnings: [], input: tokens,
+                error: { kind: "feature-conflict", stage: this.name, feature, message: `the ${this.name} stage requires disabled feature ${feature}` } };
+            }
+          } else features.add(feature);
+        }
+      }
+      return null;
+    }
+
+    /**
+     * The recognizer grammar, with each closed condition replaced by its
+     * truth for these features and this input interface.
+     * @param {any} data
+     */
+    grammarFor(data) {
+      const values = new Map();
+      for (const id of this.closed) {
+        const { closed, document } = this.origins.get(id);
+        values.set(id, data.evaluator.truth(closed, { items: [], names: new Map(), document }));
+      }
+      const key = [...values.values()].map(value => value ? "1" : "0").join("");
+      if (!this.grammars.has(key)) this.grammars.set(key, this.makeGrammar(this.folded((/** @type {any} */ id) => values.get(id))));
+      return this.grammars.get(key);
+    }
+
+    /**
+     * Runs the stage over its input tokens.
+     * @param {Token50[]} tokens
+     * @param {string[]} sourceText
+     * @param {any} unicode
+     * @param {{features: Set<string>, inputKeys: Set<string>}} options
+     */
+    run(tokens, sourceText, unicode, options) {
+      /** @type {any} */
+      const report = { name: this.name, verdict: null, witness: null, root: null, output: null, error: null, errors: [], warnings: [] };
+      /** @type {any} */
+      let data;
+      let lowered, context, chart, roots;
+      const recognizerTokens = tokens.map(token => token.recognizerToken());
+      try {
+        if (this.loweringErrors?.length) throw this.loweringErrors[0];
+        data = this.stageData(tokens, sourceText, { ...options, unicode });
+        data.grammar = this.grammarFor(data);
+        lowered = data.grammar.lower(options.features);
+        context = new ParseContext(lowered, recognizerTokens, sourceText, unicode);
+        chart = recognize(context, "text", 0, recognizerTokens.length);
+        roots = rootItems(chart, "text");
+        data.context = context;
+      } catch (error) {
+        if (error instanceof GencmuError) {
+          report.error = runtimeGrammarError(error.withLocation({ stage: undefined }), this.name);
+          return report;
+        }
+        throw error;
+      }
+      const resolution = lowered.resolution;
+      const ranking = roots.length === 0 ? null : rankerOf(chart, recognizerTokens, resolution.steps, resolution.lean).rank(roots);
+      if (ranking === null) {
+        const rejection = rejectionOf(chart);
+        // The recognizer spells the origin test of a head with a hidden key.
+        rejection.expected = rejection.expected.map(item => ({ ...item, terminal: item.terminal.replaceAll(`¬${WRITTEN}`, "_Elided") }));
+        report.error = {
+          kind: "rejected", stage: this.name, token: rejection.position,
+          expected: rejection.expected,
+          message: `the ${this.name} stage could not continue at token ${rejection.position}` +
+            (rejection.expected.length ? `; expected ${rejection.expected.map(item => item.terminal).join(", ")}` : ""),
+        };
+        return report;
+      }
+      if (ranking.verdict === "tie") {
+        report.verdict = "tie";
+        report.readings = [ranking.first, ranking.second].map(rope => this.tree(derivationTree(/** @type {any} */ (rope)), data, context));
+        report.witness = /** @type {any[]} */ (ranking.witness).map(wireAction);
+        report.error = { kind: "ambiguous", stage: this.name, reason: "tie", message: `the ${this.name} stage's text has two best readings, a tie` };
+        return report;
+      }
+      report.verdict = ranking.verdict;
+      const derivation = derivationTree(ranking.first);
+      const root = this.tree(derivation, data, context);
+      report.root = root;
+      let own;
+      try {
+        own = this.diagnostics(root, data);
+      } catch (error) {
+        if (!(error instanceof GencmuError)) throw error;
+        report.error = runtimeGrammarError(error.withLocation({ stage: undefined }), this.name);
+        return report;
+      }
+      report.own = own;
+      if (this.publishes) {
+        try {
+          report.output = this.publish(root, data);
+          this.assignDiagnostics(report, root, data);
+          report.outputKeys = data.outputKeys;
+        } catch (error) {
+          if (!(error instanceof GencmuError)) throw error;
+          report.output = null;
+          report.error = runtimeGrammarError(error.withLocation({ stage: undefined }), this.name);
+          return report;
+        }
+      }
+      this.elisionOnly(report, derivation, root, context, lowered, options);
+      return report;
+    }
+
+    /**
+     * The check of elision-only (engine §7), run by the format 49 checker on
+     * the chosen derivation. Its readings become occurrence trees.
+     * @param {any} report
+     * @param {any} derivation
+     * @param {any} root
+     * @param {any} context
+     * @param {any} lowered
+     * @param {any} options
+     */
+    elisionOnly(report, derivation, root, context, lowered, options) {
+      const on = options.elisionOnly ?? lowered.resolution.elisionOnly;
+      if (!on || options.pendingErrors) return;
+      const elided = treeHasElided(root);
+      if (!(report.verdict === "resolved" || report.verdict === "unique" && elided)) return;
+      let check;
+      try {
+        check = Stage.prototype.elisionCheck.call(null, derivation, root, context, options.features);
+      } catch (error) {
+        if (!(error instanceof GencmuError)) throw error;
+        report.output = null;
+        report.error = runtimeGrammarError(error.withLocation({ stage: undefined }), this.name);
+        return;
+      }
+      if (check.kind === "lost") {
+        report.output = null;
+        report.error = { kind: "grammar", stage: this.name, code: "elision-witness-lost",
+          message: `the ${this.name} stage could not reconstruct its chosen derivation for elision-only`, completion: check.completion };
+      } else if (check.kind === "ambiguous") {
+        report.readings = check.readings.map(fromResultTree);
+        report.error = { kind: "ambiguous", stage: this.name, reason: "elision-only",
+          ...(check.witness ? { witness: check.witness.map(wireWitness) } : {}),
+          message: `the ${this.name} stage's text is ambiguous with every elided terminator written out` };
+      }
+    }
+
+    /**
+     * A query after the choice of a parse: its truth or its keys, by the
+     * recognizer's evaluator on the derivation of the occurrence that the
+     * query reads. The query's receiver starts at a capture or at `$`.
+     * @param {any} data
+     * @param {any} kind
+     * @param {any} node
+     * @param {any} scope
+     * @returns {any}
+     */
+    lateQuery(data, kind, node, scope) {
+      let base = node;
+      while (base.receiver) base = base.receiver;
+      if (base.capture === undefined) throw evaluationError("this query has no occurrence to read", node.at, scope.document);
+      const target = base.capture === "" ? scope.node : data.evaluator.capture(base, scope, false);
+      const occurrence = Array.isArray(target) ? (target.length === 1 ? target[0] : null) : target;
+      if (!occurrence?.derivation || !data.context) {
+        throw evaluationError("the format 50 engine cannot yet run this query after the choice of a parse", node.at, scope.document);
+      }
+      /**
+       * @param {any} item
+       * @returns {any}
+       */
+      const rebase = item => item === base ? { capture: "" } : item.receiver ? { ...item, receiver: rebase(item.receiver) } : item;
+      const bridge = new Bridge({ rules: [], directives: [], constants: [] }, scope.document ?? "", new Map());
+      bridge.hidden = { demanded: new Set(), domains: new Map() };
+      // The recognizer reads a late scope as it reads a scope of its chart.
+      const recognizerScope = /** @type {any} */ (new LateScope(occurrence.derivation, data.context));
+      if (kind === "keys") {
+        const term = bridge.tagsOf(rebase(node), node.at);
+        return keySet([...asSet(settled(() => evaluate(data.context, term, recognizerScope)))].filter(key => !isHiddenKey(key)));
+      }
+      const condition = bridge.truth(rebase(node));
+      return settled(() => holds(data.context, condition, recognizerScope));
+    }
+
+    /**
+     * The messages of the chosen tree (engine §6): each %error, and each
+     * %warning whose code is on and not suppressed, in preorder. Erased
+     * subtrees evaluate no message.
+     * @param {any} root
+     * @param {any} data
+     */
+    diagnostics(root, data) {
+      const found = [];
+      const stack = [{ node: root, suppressed: new Set() }];
+      while (stack.length) {
+        const { node, suppressed: inherited } = /** @type {{node: any, suppressed: Set<any>}} */ (stack.pop());
+        if ((node.kind !== "rule" && node.kind !== "splice") || node.erased) continue;
+        const rule = node.origin?.rule;
+        const suppressed = rule?.suppressWarnings?.length ? new Set([...inherited, ...rule.suppressWarnings]) : inherited;
+        const code = node.rule;
+        const kind = rule?.error ? "errors" : rule?.warning && data.features.has(code) && !suppressed.has("_") && !suppressed.has(code) ? "warnings" : null;
+        if (kind) {
+          const scope = { node, captures: present(node.captures), declared: new Set(node.captures.keys()), items: [], names: new Map(), document: node.origin.document };
+          const message = data.evaluator.string(kind === "errors" ? rule.error : rule.warning, scope);
+          found.push({ kind, node, diagnostic: { stage: this.name, code, rule: code, span: [...node.span], source: [...node.source], message } });
+        }
+        for (let index = node.children.length - 1; index >= 0; index--) stack.push({ node: node.children[index], suppressed });
+      }
+      return found;
+    }
+
+    /**
+     * Gives each report an owner among the output tokens (engine §6): the
+     * first token whose input meets the report's input, else the first token
+     * that starts at or after it, else the last token. An input token's
+     * carried reports pass to the output token that covers it. A report with
+     * no output token stays on the stage.
+     * @param {any} report
+     * @param {any} root
+     * @param {any} data
+     */
+    assignDiagnostics(report, root, data) {
+      const tokens = report.output;
+      /** @type {Record<string, any[]>} */
+      const unowned = { errors: [], warnings: [] };
+      /**
+       * @param {any} start
+       * @param {any} end
+       */
+      const owner = (start, end) => tokens.find((/** @type {any} */ token) => token.span[1] > start && token.span[0] < end) ??
+        tokens.find((/** @type {any} */ token) => token.span[0] >= start) ?? tokens.at(-1);
+      /**
+       * @param {any} token
+       * @param {any} kind
+       * @param {any} diagnostic
+       */
+      const add = (token, kind, diagnostic) => {
+        if (!token) {
+          unowned[kind].push(diagnostic);
+          return;
+        }
+        if (!Object.hasOwn(token, kind)) token[kind] = [];
+        token[kind].push(diagnostic);
+      };
+      // Carried reports of the input tokens that live leaves read.
+      const live = new Set();
+      const stack = [root];
+      while (stack.length) {
+        const node = stack.pop();
+        if (node.erased) continue;
+        if (node.kind === "token") live.add(node.token);
+        for (const child of node.children) stack.push(child);
+      }
+      for (const index of [...live].sort((a, b) => a - b)) {
+        const input = data.tokens[index];
+        for (const kind of ["errors", "warnings"]) {
+          for (const diagnostic of input[kind] ?? []) add(owner(index, index + 1), kind, diagnostic);
+        }
+      }
+      for (const { kind, node, diagnostic } of report.own) add(owner(node.span[0], Math.max(node.span[1], node.span[0] + 1)), kind, diagnostic);
+      report.errors = unowned.errors;
+      report.warnings = unowned.warnings;
+    }
+
+    /**
+     * @param {any} tokens
+     * @param {any} sourceText
+     * @param {any} options
+     */
+    stageData(tokens, sourceText, options) {
+      const leaves = new Map();
+      /** @type {any} */
+      const data = {
+        tokens, sourceText, unicode: options.unicode, features: options.features, constants: this.constants, inputKeys: options.inputKeys,
+        /**
+         * @param {any} token
+         * @param {any} index
+         */
+        leaf: (token, index) => {
+          if (!leaves.has(index)) {
+            leaves.set(index, new Occurrence("token", {
+              terminal: null, token: index, span: [index, index + 1], source: token.source, input: token,
+              makeBag: () => token.props,
+            }));
+          }
+          return leaves.get(index);
+        },
+      };
+      data.lateQuery = (/** @type {any} */ kind, /** @type {any} */ node, /** @type {any} */ scope) => this.lateQuery(data, kind, node, scope);
+      data.evaluator = new Evaluator(data);
+      data.evaluator.inputs = () => this.inputKeySet(data);
+      const inputs = data.constants.get("INPUTS");
+      if (inputs) throw new GencmuError("grammar", "a grammar cannot define $INPUTS");
+      data.constants = new Map(data.constants);
+      data.constants.set("INPUTS", [{ record: { value: { inputs: true } }, document: undefined }]);
+      return data;
+    }
+
+    /** @param {any} data */
+    inputKeySet(data) {
+      return Bag.from([...data.inputKeys].sort(compareCodePoints).map(key => [key, BARE]));
+    }
+
+    /**
+     * The occurrence tree of a derivation.
+     * @param {any} root
+     * @param {any} data
+     * @param {any} context
+     */
+    tree(root, data, context) {
+      // A left-recursive rule makes a tree as deep as its text, so the build
+      // uses its own stack and visits each node after its children.
+      const made = new Map();
+      /** @type {[any, boolean][]} */
+      const stack = [[root, false]];
+      while (stack.length) {
+        const [derivation, expanded] = /** @type {[any, boolean]} */ (stack.pop());
+        if ("read" in derivation || isOmission(derivation)) {
+          made.set(derivation, this.leaf(derivation, data));
+          continue;
+        }
+        const parts = expandHelpers(derivation);
+        if (!expanded) {
+          stack.push([derivation, true]);
+          for (let index = parts.items.length - 1; index >= 0; index--) stack.push([parts.items[index], false]);
+          continue;
+        }
+        made.set(derivation, this.ruleOccurrence(derivation, parts, made, data));
+      }
+      return made.get(root);
+    }
+
+    /**
+     * The effective name of a rule: an unnamed instance takes the canonical
+     * spelling of its format 50 call (engine §2.3). A call whose arguments
+     * still hold parameters keeps the recognizer's spelling.
+     * @param {any} name
+     * @param {any} data
+     */
+    effectiveName(name, data) {
+      const grammar = data.grammar;
+      if (!grammar?.instances?.length) return name;
+      if (!this.instanceNames || this.instanceNames.grammar !== grammar) {
+        const names = new Map();
+        for (const item of grammar.instances) {
+          if (item.name) continue;
+          const at = Array.isArray(item.origin?.at) ? item.origin.at : [item.origin?.at?.line, item.origin?.at?.column];
+          const call = this.origins.get(`call:${item.origin?.document}#${at[0]}:${at[1]}`);
+          if (!call || JSON.stringify(call.args).includes('"param"')) continue;
+          names.set(item.canonical, printCall(call, data.unicode));
+        }
+        this.instanceNames = { grammar, names };
+      }
+      return this.instanceNames.names.get(name) ?? name;
+    }
+
+    /**
+     * The records of a written alternative, by its definition and index.
+     * @param {any} production
+     * @param {any} source
+     * @param {any} data
+     */
+    writtenOrigin(production, source, data) {
+      if (!source?.document || !source.at) return undefined;
+      const rule = data.grammar?.rules.get(production.spliceOf ?? production.lhs);
+      const same = rule ? rule.alternatives.filter((/** @type {any} */ item) => item.document === source.document &&
+        item.at.line === source.at.line && item.at.column === source.at.column) : [];
+      const index = same.indexOf(source);
+      if (index < 0) return undefined;
+      return this.origins.get(alternativeKey(source.document, [source.at.line, source.at.column], index));
+    }
+
+    /**
+     * The records of an alternative of a template instance: the template's
+     * records with each parameter replaced by its argument.
+     * @param {any} production
+     * @param {any} source
+     * @param {any} data
+     * @returns {any}
+     */
+    instanceOrigin(production, source, data) {
+      const grammar = data.grammar;
+      const instance = grammar?.instances?.find((/** @type {any} */ item) => (item.name ?? item.canonical) === production.lhs);
+      if (!instance) return undefined;
+      const rule = grammar.rules.get(production.lhs);
+      const index = rule ? rule.alternatives.indexOf(source) : -1;
+      const template = this.origins.get(`template:${instance.call.call}#${index}`);
+      if (!template) return undefined;
+      const env = new Map(template.rule.params.map((/** @type {any} */ param, /** @type {any} */ position) => {
+        const arg = instance.call.args[position];
+        return [param, argumentExpression(arg)];
+      }));
+      /**
+       * @param {any} node
+       * @returns {any}
+       */
+      const substitute = node => {
+        if (Array.isArray(node)) return node.map(substitute);
+        if (!node || typeof node !== "object") return node;
+        if (node.param !== undefined && env.has(node.param)) return env.get(node.param);
+        return Object.fromEntries(Object.entries(node).map(/** @returns {any} */ ([key, value]) => [key, substitute(value)]));
+      };
+      return {
+        ...template,
+        rule: substitute(template.rule),
+        alternative: substitute(template.alternative),
+      };
+    }
+
+    /**
+     * @param {any} derivation
+     * @param {any} data
+     */
+    leaf(derivation, data) {
+      if ("read" in derivation) {
+        const index = derivation.read.token;
+        const token = data.tokens[index];
+        return new Occurrence("token", {
+          terminal: derivation.read.terminal, token: index, span: [derivation.start, derivation.end],
+          source: token.source, input: token, makeBag: () => token.props,
+        });
+      }
+      const production = derivation.production;
+      const at = this.emptySource(data.tokens, derivation.start);
+      const value = production.elidedValue ?? "";
+      const occurrence = new Occurrence("elided", {
+        terminal: production.elided, span: [derivation.start, derivation.start], source: [at, at],
+        ...(production.elidedValue !== undefined ? { default: production.elidedValue, value: production.elidedValue } : {}),
+      });
+      /** @type {[string, import("./bag.js").Entry][]} */
+      const entries = [[production.elided, BARE], ["image", valued("")], ["value", valued(value)]];
+      occurrence.makeBag = () => Bag.from(entries.sort((a, b) => compareCodePoints(a[0], b[0])));
+      return occurrence;
+    }
+
+    /**
+     * @param {any} derivation
+     * @param {any} parts
+     * @param {any} made
+     * @param {any} data
+     */
+    ruleOccurrence(derivation, parts, made, data) {
+      const production = derivation.production;
+      const source = production.logicalSource ?? production.source;
+      const origin = this.writtenOrigin(production, source, data) ?? this.instanceOrigin(production, source, data);
+      const children = parts.items.map((/** @type {any} */ item) => made.get(item));
+      // A spliced call is an occurrence of its own, named by its rule.
+      const occurrence = new Occurrence(production.spliceOf ? "splice" : "rule", {
+        rule: this.effectiveName(production.spliceOf ?? production.lhs, data), span: [derivation.start, derivation.end],
+        source: this.sourceOf(data.tokens, derivation.start, derivation.end),
+        erased: production.erased, origin, children, derivation,
+      });
+      const kinds = origin ? captureKinds(origin.alternative.expr) : new Map();
+      const captures = new Map();
+      for (const [name, kind] of kinds) captures.set(name, kind === "one" ? null : []);
+      let primary = null;
+      for (const { name, start, end } of parts.bindings) {
+        const nodes = children.slice(start, end);
+        if (name === origin?.primary) primary = nodes[0] ?? null;
+        if (name === origin?.primary && origin.primarySynthetic) continue;
+        if (kinds.get(name) === "list") for (const each of nodes) captures.get(name).push(each);
+        else captures.set(name, nodes[0] ?? null);
+      }
+      occurrence.captures = captures;
+      occurrence.primary = origin?.primary !== undefined ? primary : null;
+      occurrence.makeBag = () => this.ruleBag(occurrence, data);
+      return occurrence;
+    }
+
+    /**
+     * @param {any} occurrence
+     * @param {any} data
+     */
+    ruleBag(occurrence, data) {
+      const bag = new Bag();
+      const origin = occurrence.origin;
+      const evaluator = data.evaluator;
+      if (!origin) return bag;
+      const document = origin.document;
+      if (!occurrence.erased && data.constants.has("DEFAULTS")) {
+        bag.splat(() => {
+          const fn = evaluator.constantReference("DEFAULTS", origin.rule, { items: [], names: new Map(), document });
+          return evaluator.bagOf(evaluator.applyFunction(fn, occurrence, origin.rule), origin.rule, { document });
+        }, null);
+      }
+      const terms = [origin.rule.term, origin.alternative.term].filter(Boolean);
+      if (occurrence.primary) bag.splat(() => occurrence.primary.bag(), null);
+      else if (!terms.length && isPlainSymbol(origin.alternative.expr) && occurrence.children.length === 1) {
+        const sole = occurrence.children[0];
+        bag.splat(() => sole.bag(), null);
+      }
+      const declared = new Set(occurrence.captures.keys());
+      for (const [index, term] of terms.entries()) {
+        const shared = index === 0 && origin.rule.term === term;
+        evaluator.bag(term.bag, { node: occurrence, captures: present(occurrence.captures), declared, shared, items: [], names: new Map(), document }, bag);
+      }
+      if (occurrence.erased) bag.write(["image", "value"], valued(""), null);
+      return bag;
+    }
+
+    /**
+     * @param {any} tokens
+     * @param {any} start
+     * @param {any} end
+     */
+    sourceOf(tokens, start, end) {
+      if (start === end) {
+        const at = this.emptySource(tokens, start);
+        return [at, at];
+      }
+      const table = sourceRanges(tokens);
+      // Two blocks of a power of two cover the span (a sparse table), so a
+      // deep tree does not scan its text once for each node.
+      const level = 31 - Math.clz32(end - start);
+      const width = 1 << level;
+      const [from, to] = [table.from[level], table.to[level]];
+      return [Math.min(from[start], from[end - width]), Math.max(to[start], to[end - width])];
+    }
+
+    /**
+     * @param {any} tokens
+     * @param {any} at
+     */
+    emptySource(tokens, at) {
+      if (at > 0) return tokens[at - 1].source[1];
+      return tokens.length ? tokens[0].source[0] : 0;
+    }
+
+    /**
+     * The tokens that the root hands on (part 1 §10).
+     * @param {any} root
+     * @param {any} data
+     */
+    publish(root, data) {
+      const mask = this.outputMask(data);
+      data.outputKeys = mask;
+      const tokens = [];
+      /** @type {any[]} */
+      const synthetic = [];
+      // A rule with no %emit hands on what its children hand on. Such chains
+      // can be as deep as the text, so the walk uses its own stack.
+      /** @param {any} start */
+      const outputs = (start) => {
+        const result = [];
+        const stack = [start];
+        while (stack.length) {
+          const node = stack.pop();
+          if ((node.kind !== "rule" && node.kind !== "splice") || node.erased) continue;
+          if (!node.origin?.rule.emit) {
+            for (let index = node.children.length - 1; index >= 0; index--) stack.push(node.children[index]);
+            continue;
+          }
+          for (const entry of emitted(node)) result.push(entry);
+        }
+        return result;
+      };
+      /** @param {any} node */
+      const emitted = (node) => {
+        const emit = node.origin.rule.emit;
+        if (!emit.items.length) {
+          if (node.kind !== "splice") return [{ node, token: this.token(node, node, data, mask) }];
+          // A splice has no node to publish, so bare emission makes one at
+          // the place of the call, with the whole bag of the call.
+          const projection = new Occurrence("projection", { producer: node, part: node, item: 0, span: node.span, source: node.source });
+          projection.makeBag = () => node.bag();
+          synthetic.push(projection);
+          return [{ node: projection, token: this.token(projection, node, data, mask) }];
+        }
+        const list = [];
+        const scope = { node, captures: present(node.captures), declared: new Set(node.captures.keys()), items: [], names: new Map(), document: node.origin.document };
+        emit.items.forEach((/** @type {any} */ item, /** @type {any} */ itemIndex) => {
+          if (!item.gates.every((/** @type {any} */ gate) => data.features.has(gate.feature) !== gate.negated)) return;
+          if (item.guard && !data.evaluator.truth(item.guard, scope)) return;
+          if (item.insert) {
+            const inserted = new Occurrence("insertion", { producer: node, item: itemIndex, span: null, source: null });
+            inserted.makeBag = () => data.evaluator.bag(item.term.bag, scope);
+            synthetic.push(inserted);
+            list.push({ insertion: inserted });
+            return;
+          }
+          const part = item.capture === "" ? node : scope.captures.get(item.capture);
+          if (item.term === undefined) {
+            const parts = Array.isArray(part) ? part : part ? [part] : [];
+            for (const each of parts) for (const entry of outputs(each)) list.push(entry);
+            return;
+          }
+          if (Array.isArray(part)) throw evaluationError("a braced item needs one node as its part", item.at, node.origin.document);
+          const projection = new Occurrence("projection", { producer: node, part, item: itemIndex, span: part.span, source: part.source });
+          projection.makeBag = () => {
+            const bag = new Bag();
+            bag.copy("value", () => part.bag(), null);
+            bag.copy("image", () => part.bag(), null);
+            return data.evaluator.bag(item.term.bag, scope, bag);
+          };
+          synthetic.push(projection);
+          list.push({ node: projection, token: this.token(projection, part, data, mask) });
+        });
+        // An insertion stands at the start of the first token that the items
+        // after it hand on, or at the end of the node.
+        for (let index = list.length - 1, anchor = null; index >= 0; index--) {
+          /** @type {any} */
+          const entry = list[index];
+          if (entry.insertion) {
+            /** @type {any} */
+            const inserted = entry.insertion;
+            const at = anchor ? anchor.span[0] : node.span[1];
+            const point = anchor ? anchor.source[0] : this.sourceOf(data.tokens, node.span[0], node.span[1])[1];
+            const source = anchor ? [point, point] : (node.span[1] > node.span[0] ? [data.tokens[node.span[1] - 1].source[1], data.tokens[node.span[1] - 1].source[1]] : [point, point]);
+            inserted.span = [at, at];
+            inserted.source = source;
+            list[index] = { node: inserted, token: this.token(inserted, inserted, data, mask, node.rule) };
+          } else anchor = entry.token;
+        }
+        return list;
+      };
+      for (const { node, token } of outputs(root)) tokens.push(Object.assign(token, { node }));
+      root.synthetic = synthetic;
+      for (let index = 1; index < tokens.length; index++) {
+        const previous = tokens[index - 1], current = tokens[index];
+        if (current.span[0] < previous.span[1] && previous.span[0] < previous.span[1] && current.span[0] < current.span[1] ||
+            current.span[0] < previous.span[0]) {
+          throw new GencmuError("grammar", "two tokens have places that overlap or stand out of order");
+        }
+      }
+      return tokens;
+    }
+
+    /** @param {any} data */
+    outputMask(data) {
+      const value = data.evaluator.constantReference("OUTPUTS", null, { items: [], names: new Map() });
+      if (!(value instanceof Bag)) throw new GencmuError("grammar", "$OUTPUTS must be a key set");
+      return new Set([...value.keys(), "value", "image"]);
+    }
+
+    /**
+     * @param {any} node
+     * @param {any} place
+     * @param {any} data
+     * @param {any} mask
+     * @param {any} [insertedBy]
+     */
+    token(node, place, data, mask, insertedBy) {
+      const bag = node.bag();
+      /** @type {[string, import("./bag.js").Entry][]} */
+      const entries = [];
+      for (const key of bag.keys()) {
+        if (!mask.has(key)) continue;
+        const entry = bag.entry(key);
+        entries.push([key, entry === BARE ? BARE : valued(entry.deferred.force())]);
+      }
+      for (const key of ["value", "image"]) {
+        const value = bag.value(key);
+        if (typeof value !== "string") {
+          throw new GencmuError("grammar", `the token of ${node.rule ?? node.producer?.rule ?? "a node"} has no ${key}`);
+        }
+      }
+      const props = Bag.from(entries);
+      const text = data.sourceText.slice(place.source[0], place.source[1]).join("");
+      return new Token50({ text, props, span: place.span, source: place.source, insertedBy });
+    }
+  }
+
+  /**
+   * The scope of the recognizer's evaluator on a chosen derivation, as the
+   * format 49 stage builds it for emission.
+   */
+  class LateScope {
+    /**
+     * @param {any} node
+     * @param {any} context
+     */
+    constructor(node, context) {
+      this.node = node;
+      this.context = context;
+    }
+
+    /** @param {any} name */
+    treeIdentityOf(name) {
+      if (name === "") return derivationIdentity(this.context, this.node, true);
+      return derivationIdentity(this.context, capturedNode(this.node, name));
+    }
+
+    boundary() {
+      throw new GencmuError("grammar", "the format 50 engine cannot yet test a neighbor after the choice of a parse");
+    }
+
+    /** @param {any} name */
+    capture(name) {
+      /** @param {any} node */
+      const tagsOf = node => "read" in node ? this.context.tokens[node.read.token].tags : this.context.interner.get(node.item.tagId);
+      if (name === "") {
+        return { observation: this.node.item.observation, structure: workingStructure(this.context, this.node.item),
+          patterns: this.context.patterns, start: this.node.start, end: this.node.end, tags: tagsOf(this.node) };
+      }
+      const production = this.node.production;
+      const child = capturedNode(this.node, name);
+      let captured = this.node.item.slots;
+      while (captured && captured.index !== production.captureSlot.get(name)) captured = captured.parent;
+      const observation = captured?.observation ?? ("read" in child
+        ? terminalObservation(this.context, child.read.terminal, child.start)
+        : child.item.observation);
+      return { observation, structure: captured?.structure ?? ("read" in child ? structuralRead(this.context, child.read.terminal, child.start) : child.item.structure),
+        patterns: this.context.patterns, start: child.start, end: child.end, tags: tagsOf(child) };
+    }
+  }
+
+  /** @param {any} root */
+  function treeHasElided(root) {
+    const stack = [root];
+    while (stack.length) {
+      const node = stack.pop();
+      if (node.kind === "elided") return true;
+      for (const child of node.children) stack.push(child);
+    }
+    return false;
+  }
+
+  // A tree of the format 49 result as occurrences, for a displayed reading.
+  /** @param {any} root */
+  function fromResultTree(root) {
+    /** @param {any} node */
+    const build = node => {
+      if (node.kind === "token") return new Occurrence("token", { terminal: node.terminal, token: node.token, span: node.span, source: node.source });
+      if (node.kind === "elided") {
+        return new Occurrence("elided", { terminal: node.terminal, span: node.span, source: node.source,
+          ...(node.value !== undefined ? { default: node.value } : {}) });
+      }
+      return new Occurrence("rule", { rule: node.rule, span: node.span, source: node.source, children: node.children.map(build) });
+    };
+    return build(root);
+  }
+
+  // A ranking action as the wire spells it in a witness.
+  /** @param {any} action */
+  function wireAction(action) {
+    if (action.kind === "read") return { read: { token: action.token, terminal: action.terminal } };
+    const { production, origin, end } = action.item;
+    return { close: { rule: production.owner, production: production.sourceId ?? production.id, span: [origin, end] } };
+  }
+
+  /** @param {any} action */
+  function wireWitness(action) {
+    if (action.kind === "read") return { read: { token: action.token, terminal: action.terminal } };
+    if (action.kind === "elided") return { elided: { at: action.at, terminal: action.terminal } };
+    return { close: { rule: action.rule, production: action.production, span: action.span } };
+  }
+
+  /** @param {any} captures */
+  function present(captures) {
+    const map = new Map();
+    for (const [name, value] of captures) if (value !== null) map.set(name, value);
+    return map;
+  }
+
+  /** @param {any} derivation */
+  function isOmission(derivation) {
+    const production = derivation.production;
+    return production.helper && production.elided && derivation.children.length === 0;
+  }
+
+  /**
+   * The children of a rule derivation with its helpers expanded in place,
+   * and the range of children that each capture binds.
+   * @param {any} derivation
+   */
+  function expandHelpers(derivation) {
+    const items = [];
+    const bindings = [];
+    /** @type {{node: any, index: number, closing?: any[]}[]} */
+    const stack = [{ node: derivation, index: 0 }];
+    while (stack.length) {
+      const frame = /** @type {{node: any, index: number, closing?: any[]}} */ (stack.at(-1));
+      if (frame.index >= frame.node.children.length) {
+        stack.pop();
+        for (const binding of frame.closing ?? []) binding.end = items.length;
+        continue;
+      }
+      const index = frame.index++;
+      const child = frame.node.children[index];
+      const names = frame.node.production.captures.filter((/** @type {any} */ capture) => capture.index === index).map((/** @type {any} */ capture) => capture.name);
+      if (!("read" in child) && child.production.helper && !child.production.spliceOf && !isOmission(child)) {
+        const opened = names.map((/** @type {any} */ name) => ({ name, start: items.length, end: items.length }));
+        for (const binding of opened) bindings.push(binding);
+        stack.push({ node: child, index: 0, closing: opened });
+        continue;
+      }
+      items.push(child);
+      for (const name of names) bindings.push({ name, start: items.length - 1, end: items.length });
+    }
+    return { items, bindings };
+  }
+
+  /** @type {WeakMap<any[], {from: number[][], to: number[][]}>} */
+  const sourceRangeTables = new WeakMap();
+
+  /**
+   * The least start and the greatest end of the source of each block of
+   * tokens whose length is a power of two.
+   * @param {any[]} tokens
+   */
+  function sourceRanges(tokens) {
+    let table = sourceRangeTables.get(tokens);
+    if (table) return table;
+    const from = [tokens.map(token => token.source[0])];
+    const to = [tokens.map(token => token.source[1])];
+    for (let width = 1; width * 2 <= tokens.length; width *= 2) {
+      const [lastFrom, lastTo] = [/** @type {number[]} */ (from.at(-1)), /** @type {number[]} */ (to.at(-1))];
+      const count = tokens.length - width * 2 + 1;
+      from.push(Array.from({ length: count }, (_, index) => Math.min(lastFrom[index], lastFrom[index + width])));
+      to.push(Array.from({ length: count }, (_, index) => Math.max(lastTo[index], lastTo[index + width])));
+    }
+    table = { from, to };
+    sourceRangeTables.set(tokens, table);
+    return table;
+  }
+
+  // ---- format50/validate.js
+
+
+
+
+
+  const argumentsError = "an argument cannot read or declare captures";
+
+  // DOM member order is for serialization. Walk every record's children in
+  // semantic order, including a guard before its payload and a test's symbol
+  // before its requirements or value. Arrays keep their written order.
+  const operandKeys50 = [
+    "rules", "directives", "constants",
+    "gates", "guard", "receiver", "args", "instance", "steps",
+    "expr", "term", "alternatives", "conditions", "error", "warning", "emit", "items",
+    "if", "then", "else", "left", "right", "map", "by",
+    "all", "any", "not", "union", "intersection", "difference", "concat", "flatten", "arg",
+    "bag", "list", "source", "value", "requirements", "targets", "body", "expression",
+    "primary", "splice", "seq", "choice", "ranked", "and", "optional", "default", "repeat", "separator",
+    "literal", "range", "pattern", "children", "child",
+  ];
+
+  /**
+   * @internal
+   * @param {any} node
+   */
+  function operandFields50(node) {
+    if (Array.isArray(node)) return Array.from(node.entries(), ([index, child]) => [String(index), child]);
+    const fields = [];
+    for (const key of operandKeys50) {
+      const child = node[key];
+      if (child && typeof child === "object" && Object.hasOwn(node, key)) fields.push([key, child]);
+    }
+    return fields;
+  }
+
+  /** @param {any} node */
+  const baseSymbol = node => ["ref", "call", "param", "literal", "range", "wildcard", "splice", "test"]
+    .some(key => Object.hasOwn(node, key));
+  const ruleName50 = /^(?!.*--)[a-z][A-Za-z0-9_-]*$/;
+  const featureName = /^(?!.*--)[A-Za-z][A-Za-z0-9-]*$/;
+  const terminalName = /^[A-Z_]/;
+  const userTag = /^(?!.*--)[A-Z][A-Za-z0-9_-]*$/;
+  const parameterName = /^(?!.*--)[A-Za-z][A-Za-z0-9_-]*$/;
+  // A custom Unicode table can grant an emoji name to any permitted scalar.
+  /**
+   * @param {any} name
+   * @param {any} unicode
+   */
+  const validRule = (name, unicode) => ruleName50.test(name) ||
+    typeof name === "string" && (unicode ? unicode.isEmojiName(name) :
+      name !== "#" && name !== "@" && [...name].length === 1 && !/^[\uD800-\uDFFF]$/.test(name));
+  /**
+   * @param {any} name
+   * @param {any} unicode
+   */
+  const validTag = (name, unicode) => userTag.test(name) || name.startsWith("_") && validProperty50(name, unicode);
+  /** @typedef {{ document?: string, unicode?: import("../unicode.js").UnicodeTable }} DocumentValidation */
+
+  /** @param {any} node */
+  const atomOf = node => {
+    while (node.test) node = node.expr;
+    return node;
+  };
+
+  /**
+   * @param {any} node
+   * @param {any} fail
+   * @param {any} pattern
+   */
+  function validateOrigin50(node, fail, pattern) {
+    if (!node.requirements || !node.test) return;
+    const atom = atomOf(node);
+    const rule = atom.name || atom.call || atom.splice || atom.ref && !terminalName.test(atom.ref);
+    if (rule && node.requirements.some((/** @type {any} */ req) => req.value.tag === "_Elided" && (!pattern || !req.negated))) {
+      fail(node, "the _Elided origin test applies only to a terminal");
+    }
+  }
+
+  /**
+   * @param {any} node
+   * @param {any} fail
+   */
+  function validatePatternChildren50(node, fail) {
+    if (node.test || !node.any && !node.name && !node.call && !node.param) {
+      fail(node, "only an untested rule atom, call or parameter can have a child list");
+    }
+  }
+
+  /** @param {any} document */
+  function documentFault50(document) {
+    return (/** @type {any} */ node, /** @type {any} */ description) => {
+      const [line, column] = Array.isArray(node?.at) ? node.at : [];
+      throw new GencmuError("grammar", description, { document, line, column });
+    };
+  }
+
+  /**
+   * @param {any} root
+   * @param {any} fail
+   * @param {any} owner
+   */
+  function withOwner50(root, fail, owner) {
+    const sites = new WeakMap();
+    const pending = [[root, owner]];
+    while (pending.length) {
+      const [node, parent] = /** @type {any[]} */ (pending.pop());
+      if (!node || typeof node !== "object") continue;
+      const site = Array.isArray(node.at) ? node : parent;
+      sites.set(node, site);
+      for (const [, child] of operandFields50(node)) pending.push([child, site]);
+    }
+    return (/** @type {any} */ node, /** @type {any} */ message) => fail(Array.isArray(node?.at) ? node : sites.get(node) ?? owner, message);
+  }
+
+  /**
+   * @param {{ closed?: boolean, query?: boolean, bindings?: Iterable<string> }} [configuration]
+   * @param {any} root
+   * @param {any} fail
+   */
+  function validateBindings50(root, fail, configuration = {}) {
+    const { closed = false, query = false, bindings = [] } = configuration;
+    const pending = [[root, new Set(bindings), false]];
+    while (pending.length) {
+      const [node, scope, implicit] = /** @type {any[]} */ (pending.pop());
+      if (!node || typeof node !== "object") continue;
+      if (node.lambda !== undefined) {
+        const name = node.lambda;
+        if (name && scope.has(name)) fail(node, "a function binder cannot hide a live name");
+        pending.push([node.body, name ? new Set([...scope, name]) : scope, true]);
+        continue;
+      }
+      if (node.capture !== undefined) {
+        if (node.expr && (closed || query)) {
+          fail(node, query ? "a query cannot declare captures" : argumentsError);
+        }
+        if (closed && !scope.has(node.capture)) fail(node, argumentsError);
+      }
+      if (node.item && !implicit) fail(node, "an implicit receiver needs a function binding");
+      const children = operandFields50(node);
+      for (let i = children.length - 1; i >= 0; i--) pending.push([children[i][1], scope, implicit]);
+    }
+  }
+
+  /**
+   * @param {any} argument
+   * @param {any} fail
+   */
+  function validateArgument50(argument, fail) {
+    validateBindings50(argument, fail, { closed: true });
+    if (argument.body) validateBody50(argument.body, fail);
+  }
+
+  /**
+   * @param {any} method
+   * @param {any} fail
+   */
+  function validateQuery50(method, fail) {
+    const body = method.args[0]?.body;
+    if (!body) return fail(method, "a query needs a body");
+    const items = body.seq ?? [body];
+    const first = Number(Boolean(items[0]?.remainder));
+    const end = items.length - Number(Boolean(items.at(-1)?.remainder));
+    const parts = items.slice(first, end);
+    if (!parts.length) fail(method, "a query needs a body");
+    const pending = parts.slice().reverse();
+    while (pending.length) {
+      const node = pending.pop();
+      if (!node || typeof node !== "object") continue;
+      if (node.remainder) fail(method, "a query permits a remainder only at each outer edge");
+      if (node.chain) fail(method, "a chain cannot be the query target");
+      const children = node.seq ?? node.choice ?? node.ranked ?? node.and ??
+        [node.optional, node.repeat, node.separator, node.primary, node.expr];
+      for (let i = children.length - 1; i >= 0; i--) pending.push(children[i]);
+    }
+    validateBindings50(body, fail, { query: true });
+    validateBody50(parts.length === 1 ? parts[0] : { seq: parts }, fail);
+  }
+
+  const elidableForm50 = "an elidable optional starts with an ungrouped user terminal or parameter and can bind only its sole terminator";
+
+  /**
+   * @param {any} size
+   * @param {any} node
+   * @param {any} fail
+   */
+  function validateSubsetSize50(size, node, fail) {
+    if (size > 16) fail(node, "an ordered subset takes at most sixteen operands");
+  }
+
+  /** @param {any} optional */
+  function elidableHead50(optional) {
+    const start = optional.seq?.[0] ?? optional;
+    let head = start.capture !== undefined ? start.expr : start;
+    const tests = [];
+    while (head?.test) {
+      tests.push(head);
+      head = head.expr;
+    }
+    return { start, head, tests };
+  }
+
+  /** @param {any} node */
+  function omissionAllowed50(node) {
+    const { head, tests } = elidableHead50(node.optional);
+    const fallback = tests.find(test => test.test === "=")?.value;
+    const value = (node.default ?? fallback ?? { string: "" }).string;
+    let known = true;
+    for (const test of tests) {
+      if (test.requirements) {
+        for (const { negated, value: requirement } of test.requirements) {
+          const tag = requirement.tag;
+          if (!tag || !head.ref && tag !== "_Elided") known = false;
+          else if ((tag === "_Elided" || tag === head.ref) === negated) return false;
+        }
+      } else if (!node.default && test.test === "=" && test.value === fallback) {
+        continue;
+      } else if (value === undefined || test.value?.string === undefined) {
+        known = false;
+      } else if ((test.value.string === value) !== (test.test === "=")) {
+        return false;
+      }
+    }
+    return known ? true : undefined;
+  }
+
+  /**
+   * @param {any} node
+   * @param {any} fail
+   */
+  function validateOmission(node, fail) {
+    if (!node.elidable) return;
+    const optional = node.optional;
+    const { start, head } = elidableHead50(optional);
+    if (!head?.param && !/^[A-Z]/.test(head?.ref ?? "") ||
+        start.capture !== undefined && optional.seq || optional.seq?.slice(1).some((/** @type {any} */ part) => captureSlots50(part).size)) {
+      fail(node, elidableForm50);
+    }
+    if (node.default?.string !== undefined && omissionAllowed50(node) === false) {
+      fail(node.default, "the default does not pass the omission predicate");
+    }
+  }
+
+  // Each slot is a node if the alternative binds it once on every route.
+  /** @param {any} body */
+  function captureSlots50(body) {
+    return run(bindingSlots(body, false));
+  }
+
+  /**
+   * @param {any} body
+   * @param {any} list
+   * @returns {Generator<any, any, any>}
+   */
+  function* bindingSlots(body, list) {
+    if (body.capture !== undefined) return new Map([[body.capture, list]]);
+    if (body.primary) return yield bindingSlots(body.primary, list);
+    if (body.optional) return yield bindingSlots(body.optional, true);
+    const routes = body.choice ?? body.ranked;
+    const children = routes ?? body.seq ?? body.and ??
+      (body.repeat ? [body.repeat, ...(body.separator ? [body.separator] : [])] : []);
+    const slots = [];
+    for (const child of children) slots.push(yield bindingSlots(child, list || !!body.repeat || body.and?.length > 1));
+    const result = new Map();
+    for (const child of slots) for (const [name, childList] of child) {
+      result.set(name, !!result.get(name) || childList || !!body.choice && slots.some(slot => !slot.has(name)));
+    }
+    return result;
+  }
+
+  /**
+   * @param {any} body
+   * @param {any} fail
+   */
+  function validateBody50(body, fail) {
+    const zero = () => ({ names: new Map(), min: 0, max: 0 });
+    /**
+     * @param {any} node
+     * @returns {Generator<any, any, any>}
+     */
+    function* visit(node, blocked = false, chain = false, whole = true) {
+      if (node.primary) {
+        const symbol = node.primary.expr && node.primary.capture !== undefined ? node.primary.expr : node.primary;
+        const base = atomOf(symbol);
+        if (!baseSymbol(base)) fail(node, "a primary marks one symbol or capture");
+        if (blocked || base.splice) fail(node, "a primary must mark a mandatory child that is not a splice");
+        /** @type {any} */
+        const route = yield visit(node.primary, blocked, chain, false);
+        route.min++;
+        route.max++;
+        return route;
+      }
+      if (node.capture !== undefined && node.expr) {
+        if (chain) fail(node, "a chain item or separator cannot bind a capture directly");
+        if (!CAPTURE_NAME.test(node.capture)) fail(node, "a capture name must use lowercase letters, digits, hyphens or underscores");
+        if (!baseSymbol(node.expr)) fail(node, "a capture wraps one symbol");
+        /** @type {any} */
+        const route = yield visit(node.expr, blocked, chain, false);
+        if (route.names.has(node.capture)) fail(route.names.get(node.capture), "a route binds a capture twice");
+        route.names.set(node.capture, node);
+        return route;
+      }
+      if (node.optional) {
+        do {
+          validateOmission(node, fail);
+          node = node.optional;
+        } while (node.optional);
+        /** @type {any} */
+        const route = yield visit(node, true, chain, false);
+        route.min = 0;
+        return route;
+      }
+      const children = node.seq ?? node.and ?? node.choice ?? node.ranked ??
+        (node.repeat && [node.repeat, ...(node.separator ? [node.separator] : [])]);
+      if (!children) return zero();
+      if (node.chain && !whole) fail(node, "a chain must occupy a whole alternative");
+      if (node.and) validateSubsetSize50(node.and.length, node, fail);
+      const exclusive = !!(node.choice || node.ranked);
+      const route = zero();
+      for (const [index, child] of children.entries()) {
+        const next = yield visit(child, blocked || !!(node.ranked || node.repeat), node.repeat ? !!node.chain : chain, false);
+        for (const [name, binder] of next.names) {
+          if (!exclusive && route.names.has(name)) fail(binder, `a route binds $${name} twice`);
+          if (!route.names.has(name)) route.names.set(name, binder);
+        }
+        if (exclusive) {
+          route.min = index ? Math.min(route.min, next.min) : next.min;
+          route.max = Math.max(route.max, next.max);
+        } else {
+          route.min = node.and && index ? Math.min(route.min, next.min) : route.min + next.min;
+          route.max += next.max;
+          if (route.max > 1) fail(child, "a route has more than one primary");
+        }
+      }
+      return route;
+    }
+    const route = run(visit(body));
+    if (route.min !== route.max || route.max > 1) fail(body, "each route must have one primary or every route must have none");
+  }
+
+  /**
+   * @param {any} pattern
+   * @param {any} fail
+   */
+  function validateExactPattern50(pattern, fail, { origin = true } = {}) {
+    if (pattern.const || pattern.constant) return;
+    if (pattern.union || pattern.intersection || pattern.difference) {
+      for (const part of pattern.union ?? pattern.intersection ?? pattern.difference) {
+        validateExactPattern50(part, fail, { origin });
+      }
+      return;
+    }
+    if (!pattern.exact || pattern.path || pattern.children || pattern.any) fail(pattern, "a key step needs an exact local pattern");
+    let atom = pattern;
+    while (atom.test) {
+      if (!origin && atom.requirements?.some((/** @type {any} */ item) => !item.negated && item.value.tag === "_Elided")) {
+        fail(atom, "a leftmost-longest pattern cannot require _Elided");
+      }
+      atom = atom.expr;
+    }
+  }
+
+  /**
+   * @param {any} entries
+   * @param {any} fail
+   */
+  function validateBag50(entries, fail) {
+    const unconditional = new Set();
+    for (const entry of entries) {
+      const keys = entry.kind === "write" ? entry.keys : ["copy", "bare"].includes(entry.kind) ? [entry.key] : [];
+      const chain = new Set();
+      for (const key of keys) {
+        const direct = !entry.guard && !entry.gates.length;
+        if (chain.has(key) || direct && unconditional.has(key)) fail(entry, `duplicate direct write for ${key}`);
+        chain.add(key);
+        if (direct) unconditional.add(key);
+      }
+    }
+  }
+
+  /**
+   * @param {any} range
+   * @param {any} site
+   * @param {any} fail
+   */
+  function validateRange(range, site, fail) {
+    for (const endpoint of range) {
+      if (endpoint.string !== undefined && [...endpoint.string].length !== 1) {
+        fail(site, "a range endpoint must be one scalar");
+      }
+    }
+    const [left, right] = range;
+    if (left.string !== undefined && right.string !== undefined &&
+        left.string.codePointAt(0) > right.string.codePointAt(0)) {
+      fail(site, "a range starts above its end");
+    }
+  }
+
+  // A name that the definition never binds is an error even behind a guard.
+  /**
+   * @param {any} rule
+   * @param {any} slots
+   * @param {any} fail
+   */
+  function validateDefinitionNames50(rule, slots, fail) {
+    const bindings = new Set(["", ...slots.flatMap((/** @type {any} */ slot) => [...slot.keys()])]);
+    const roots = [rule.term, ...rule.conditions ?? [],
+      rule.error, rule.warning, ...rule.emit?.items ?? []];
+    const terms = rule.alternatives.map((/** @type {any} */ alt, /** @type {any} */ index) => [alt.term, new Set(["", ...slots[index].keys()]), false]);
+    const pending = [[rule.term, bindings, false], ...terms,
+      ...roots.slice(1).map(root => [root, bindings, false])].reverse();
+    while (pending.length) {
+      const [part, scope, implicit] = /** @type {any[]} */ (pending.pop());
+      if (!part || typeof part !== "object") continue;
+      if (part.lambda !== undefined) {
+        if (part.lambda && scope.has(part.lambda)) fail(part, "a function binder cannot hide a live name");
+        pending.push([part.body, part.lambda ? new Set([...scope, part.lambda]) : scope, true]);
+        continue;
+      }
+      if (!implicit && part.item) fail(part, "an implicit receiver needs a function binding");
+      if (part.capture !== undefined && !part.expr && !scope.has(part.capture) && !bindings.has(part.capture)) {
+        fail(part, `$${part.capture} is captured by no alternative of ${rule.name}`);
+      }
+      const children = operandFields50(part);
+      for (let i = children.length - 1; i >= 0; i--) pending.push([children[i][1], scope, implicit]);
+    }
+  }
+
+  // Only fold operations with closed scalar operands here. The native loader
+  // resolves constants, input properties and parameter-dependent guards.
+  /**
+   * @param {any} node
+   * @returns {Generator<any, any, any>}
+   */
+  function* closedScalar50(node) {
+    if (node.string !== undefined) return node.string;
+    if (node.integer !== undefined) return BigInt(node.integer);
+    if (node.not) {
+      /** @type {any} */
+      const operand = yield closedScalar50(node.not);
+      if (typeof operand === "boolean") return !operand;
+    }
+    if (node.all || node.any) {
+      const deciding = !!node.any;
+      for (const part of node.all ?? node.any) {
+        /** @type {any} */
+        const value = yield closedScalar50(part);
+        if (typeof value !== "boolean") return;
+        if (value === deciding) return deciding;
+      }
+      return !deciding;
+    }
+    if (node.if) {
+      /** @type {any} */
+      const condition = yield closedScalar50(node.if);
+      if (typeof condition !== "boolean") return;
+      if (!condition && !node.else) return true;
+      return yield closedScalar50(condition ? node.then : node.else);
+    }
+    if (node.concat) {
+      let result = "";
+      for (const part of node.concat) {
+        const value = yield closedScalar50(part);
+        if (typeof value !== "string") return;
+        result += value;
+      }
+      return result;
+    }
+    if (!node.op) return;
+    /** @type {any} */
+    const left = yield closedScalar50(node.left);
+    /** @type {any} */
+    const right = yield closedScalar50(node.right);
+    if (left === undefined || typeof left !== typeof right) return;
+    if (node.op === "=") return left === right;
+    if (node.op === "≠") return left !== right;
+    if (typeof left !== "bigint") return;
+    if (node.op === "+") return left + right;
+    if (node.op === "<") return left < right;
+    if (node.op === "≤") return left <= right;
+    if (node.op === ">") return left > right;
+    if (node.op === "≥") return left >= right;
+  }
+
+  /**
+   * @param {any} node
+   * @returns {Generator<any, any, any>}
+   */
+  function* closedTruth50(node) {
+    const scalar = yield closedScalar50(node);
+    if (typeof scalar === "boolean") return scalar;
+    if (node.bag) {
+      const keys = new Set();
+      for (const entry of node.bag) {
+        if (entry.gates.length || entry.guard || entry.kind === "copy" || entry.kind === "splat") return;
+        if (entry.kind === "delete") keys.delete(entry.key);
+        else for (const key of entry.keys ?? [entry.key]) keys.add(key);
+      }
+      return keys.size > 0;
+    }
+    if (node.list?.every((/** @type {any} */ entry) => !entry.gates.length && !entry.guard && entry.kind === "item")) {
+      return node.list.length > 0;
+    }
+  }
+
+  // Compare route keys in structural expansion order. The keys contain choice
+  // indices, optional routes and subset masks in the order the body reads them.
+  /**
+   * @param {any} left
+   * @param {any} right
+   */
+  function routeOrder50(left, right) {
+    for (let i = 0; i < Math.min(left.length, right.length); i++) {
+      if (left[i] !== right[i]) return left[i] - right[i];
+    }
+    return left.length - right.length;
+  }
+
+  /**
+   * @param {any} routes
+   * @param {any} state
+   * @param {any} route
+   */
+  function keepFirstRoute50(routes, state, route) {
+    const old = routes.get(state);
+    if (!old || routeOrder50(route, old) < 0) routes.set(state, route);
+  }
+
+  /**
+   * @param {any} body
+   * @param {any} required
+   * @param {any} forbidden
+   * @param {any} names
+   * @returns {Generator<any, any, any>}
+   */
+  function* captureWitness50(body, required, forbidden, names) {
+    if (!required.every((/** @type {any} */ name) => names(body).has(name))) return;
+    if (body.capture !== undefined) return forbidden.has(body.capture) ? undefined : [];
+    if (body.primary) return yield captureWitness50(body.primary, required, forbidden, names);
+    if (body.optional) {
+      if (!required.length && (!body.elidable || omissionAllowed50(body) === true)) return [0];
+      /** @type {any} */
+      const route = yield captureWitness50(body.optional, required, forbidden, names);
+      if (route) return [1, ...route];
+      return;
+    }
+    if (body.choice || body.ranked) {
+      for (const [index, child] of (body.choice ?? body.ranked).entries()) {
+        /** @type {any} */
+        const route = yield captureWitness50(child, required, forbidden, names);
+        if (route) return [index, ...route];
+      }
+      return;
+    }
+    if (body.repeat) return yield repeatWitness50(body, required, forbidden, names);
+    if (body.and) {
+      let mask = 0;
+      /** @type {any[]} */
+      let route = [];
+      for (const [index, child] of body.and.entries()) {
+        const needed = required.filter((/** @type {any} */ name) => names(child).has(name));
+        if (!needed.length && (required.length || mask)) continue;
+        /** @type {any} */
+        const childRoute = yield captureWitness50(child, needed, forbidden, names);
+        if (!childRoute) {
+          if (needed.length) return;
+          continue;
+        }
+        mask += 2 ** index;
+        route = route.concat(childRoute);
+      }
+      return mask ? [mask, ...route] : undefined;
+    }
+    if (body.seq) {
+      /** @type {any[]} */
+      let route = [];
+      for (const child of body.seq) {
+        const needed = required.filter((/** @type {any} */ name) => names(child).has(name));
+        /** @type {any} */
+        const childRoute = yield captureWitness50(child, needed, forbidden, names);
+        if (!childRoute) return;
+        route = route.concat(childRoute);
+      }
+      return route;
+    }
+    return [];
+  }
+
+  /**
+   * @param {any} body
+   * @param {any} bits
+   * @param {any} forbidden
+   * @param {any} names
+   * @returns {Generator<any, any, any>}
+   */
+  function* repeatRoutes50(body, bits, forbidden, names) {
+    const relevant = [...bits].filter(([name]) => names(body).has(name));
+    const routes = new Map();
+    const pending = [[0, 0n, [], forbidden]];
+    while (pending.length) {
+      const [index, mask, required, absent] = /** @type {any[]} */ (pending.pop());
+      const route = yield captureWitness50(body, required, absent, names);
+      if (!route) continue;
+      if (index === relevant.length) {
+        routes.set(mask, route);
+      } else {
+        const [name, bit] = relevant[index];
+        pending.push([index + 1, mask, required, new Set([...absent, name])]);
+        pending.push([index + 1, mask | bit, [...required, name], absent]);
+      }
+    }
+    return routes;
+  }
+
+  /**
+   * @param {any} body
+   * @param {any} required
+   * @param {any} forbidden
+   * @param {any} names
+   * @returns {Generator<any, any, any>}
+   */
+  function* repeatWitness50(body, required, forbidden, names) {
+    /** @type {any} */
+    const base = yield captureWitness50(body.repeat, required, forbidden, names);
+    if (base) return [0, ...base];
+    const bits = new Map(required.map((/** @type {any} */ name, /** @type {any} */ index) => [name, 1n << BigInt(index)]));
+    const all = (1n << BigInt(required.length)) - 1n;
+    const items = yield repeatRoutes50(body.repeat, bits, forbidden, names);
+    const separators = body.separator ? yield repeatRoutes50(body.separator, bits, forbidden, names) : new Map([[0n, []]]);
+    const inputs = new Map();
+    for (const [x, item] of items) for (const [y, separator] of separators) {
+      keepFirstRoute50(inputs, x | y, body.chain === "right" ? item.concat(separator) : separator.concat(item));
+    }
+    // Base productions come first. Follow the recursive productions until
+    // they supply the requested bindings, with no extra iterations.
+    let current = items;
+    const seen = new Set(current.keys());
+    let iterations = 1;
+    while (current.size) {
+      const next = new Map();
+      for (const [x, prefix] of inputs) for (const [y, prior] of current) {
+        const mask = x | y;
+        if (!seen.has(mask)) keepFirstRoute50(next, mask, prefix.concat(prior));
+      }
+      const route = next.get(all);
+      if (route) return [iterations, ...route];
+      for (const mask of next.keys()) seen.add(mask);
+      current = next;
+      iterations++;
+    }
+  }
+
+  const deferredTruth = Symbol("specialized truth");
+
+  class CapturePresence50 {
+    /** @param {any} name */
+    constructor(name) {
+      this.name = name;
+    }
+  }
+
+  /** @param {any} body */
+  function captureRoutes50(body) {
+    const slots = new WeakMap();
+    /** @param {any} node */
+    const names = node => {
+      if (!slots.has(node)) slots.set(node, captureSlots50(node));
+      return slots.get(node);
+    };
+    const routes = new WeakMap();
+    const unconstrained = new Map();
+    /** @returns {Generator<any, any, any>} */
+    return function* witness(presence = unconstrained) {
+      if (routes.has(presence)) return routes.get(presence);
+      const required = [];
+      const forbidden = new Set();
+      for (const [name, present] of presence) {
+        if (present) required.push(name);
+        else forbidden.add(name);
+      }
+      const route = yield captureWitness50(body, required, forbidden, names);
+      routes.set(presence, route);
+      return route;
+    };
+  }
+
+  /**
+   * @param {any} root
+   * @param {any} slots
+   * @param {any} witness
+   * @param {any} note
+   */
+  function checkExpansionScope(root, slots, witness, note, forwarding = false) {
+    const containsMissing = new WeakMap();
+    /**
+     * @param {any} part
+     * @returns {any}
+     */
+    function* readsMissing(part) {
+      if (!part || typeof part !== "object") return false;
+      if (containsMissing.has(part)) return containsMissing.get(part);
+      let missing = Boolean(part.capture && !slots.has(part.capture));
+      for (const [, child] of operandFields50(part)) {
+        if (missing) break;
+        missing = yield readsMissing(child);
+      }
+      containsMissing.set(part, missing);
+      return missing;
+    }
+
+    /**
+     * @param {any} node
+     * @param {any} description
+     * @param {any} presence
+     * @returns {Generator<any, any, any>}
+     */
+    function* report(node, description, presence) {
+      const route = yield witness(presence);
+      if (route) note(route, node, description);
+    }
+
+    // A separate operand check inherits its enclosing guard assignments.
+    // Assignments from one entry do not constrain another entry.
+    /**
+     * @param {any} part
+     * @param {any} bindings
+     * @param {any} outerPresence
+     * @returns {Generator<any, any, any>}
+     */
+    function* check(part, bindings, outerPresence, output = false) {
+      if (!(yield readsMissing(part))) return;
+      const choices = [outerPresence];
+      while (choices.length) {
+        const presence = choices.pop();
+        try {
+          yield expansionScope(part, slots, report, bindings, presence, check, false, output);
+        } catch (error) {
+          if (!(error instanceof CapturePresence50)) throw error;
+          for (const value of [false, true]) {
+            const next = new Map(presence);
+            next.set(error.name, value);
+            if (yield witness(next)) choices.push(next);
+          }
+        }
+      }
+    }
+    run(check(root, new Set([""]), new Map(), forwarding));
+  }
+
+  /**
+   * @param {any} root
+   * @param {any} slots
+   * @param {any} report
+   * @param {any} bindings
+   * @param {any} presence
+   * @param {any} check
+   * @returns {Generator<any, any, any>}
+   */
+  function* expansionScope(root, slots, report, bindings, presence, check, truth = false, forwarding = false) {
+    if (!root || typeof root !== "object") return;
+    /** @param {any} part */
+    const walk = (part, asTruth = false) => asTruth ?
+      expansionScope(part, slots, report, bindings, presence, check, true) : check(part, bindings, presence);
+    if (root.method === "present" && root.receiver?.capture !== undefined) {
+      return yield walk(root.receiver, true);
+    }
+    if (root.capture !== undefined && !root.expr && !forwarding) {
+      const name = root.capture;
+      if (!bindings.has(name) && !slots.has(name)) {
+        if (truth) return false;
+        yield report(root, `$${name} is absent from this expansion`, presence);
+        return;
+      }
+      if (truth && !bindings.has(name)) {
+        if (presence.has(name)) return presence.get(name);
+        throw new CapturePresence50(name);
+      }
+      return;
+    }
+    if (root.lambda !== undefined) {
+      yield check(root.body, new Set([...bindings, root.lambda]), presence);
+      return;
+    }
+    if (root.guard) {
+      const guard = yield walk(root.guard, true);
+      if (guard === false || guard === deferredTruth) return;
+    }
+    if (forwarding) {
+      if (slots.has(root.capture) || root.insert || root.capture === "") yield walk(root.term);
+      return;
+    }
+    if (root.if) {
+      const condition = yield walk(root.if, true);
+      if (condition === deferredTruth) return deferredTruth;
+      if (condition === undefined) {
+        const yes = yield walk(root.then, truth || !root.else);
+        const no = root.else ? yield walk(root.else, truth) : true;
+        return yes === no ? yes : undefined;
+      }
+      if (!condition && !root.else) return true;
+      return yield walk(condition ? root.then : root.else, truth || !root.else);
+    }
+    if (root.not) {
+      const value = yield walk(root.not, true);
+      return typeof value === "boolean" ? !value : value;
+    }
+    if (root.all || root.any) {
+      const result = !!root.any;
+      let unknown = false;
+      for (const part of root.all ?? root.any) {
+        const value = yield walk(part, true);
+        if (value === result || value === deferredTruth) return value;
+        unknown ||= value === undefined;
+      }
+      return unknown ? undefined : !result;
+    }
+    for (const [key, child] of operandFields50(root)) {
+      if (key !== "guard") yield walk(child);
+    }
+    if (!truth) return;
+    const literal = yield closedTruth50(root);
+    if (typeof literal === "boolean") return literal;
+    const pending = [root];
+    let inputDependent = false;
+    while (pending.length) {
+      const item = pending.pop();
+      if (!item || typeof item !== "object") continue;
+      if (item.const || item.param || item.apply) return deferredTruth;
+      inputDependent ||= item.capture !== undefined || item.item === true;
+      for (const [, child] of operandFields50(item)) pending.push(child);
+    }
+    return inputDependent ? undefined : deferredTruth;
+  }
+
+  // The caller supplies the expansion in grammar order. A native caller can
+  // extend each operand check with its stage types and presence witness.
+  /** @param {any} entries */
+  function directKeys(entries = []) {
+    const keys = new Set();
+    for (const entry of entries) {
+      if (entry.guard || entry.gates.length) continue;
+      if (entry.kind === "write") for (const key of entry.keys) keys.add(key);
+      if (entry.kind === "delete" || entry.kind === "bare") keys.add(entry.key);
+    }
+    return keys;
+  }
+
+  const stringFields = ["value", "image"];
+  const noFieldEdit = Symbol("no field edit");
+  const absentField = Symbol("absent field");
+  const bareField = Symbol("bare field");
+  const unknownPayload = Symbol("present field with an unresolved payload");
+
+  // Unknown edits can hide a writer. Leave its string requirement to the
+  // loader when a later supplier is unresolved.
+  /**
+   * @param {any} entry
+   * @param {any} key
+   * @returns {Generator<any, any, any>}
+   */
+  function* stringFieldEdit50(entry, key) {
+    let edit = noFieldEdit;
+    if (entry.kind === "write" && entry.keys.includes(key)) edit = entry.value;
+    if (entry.kind === "bare" && entry.key === key) edit = bareField;
+    if (entry.kind === "delete" && entry.key === key) edit = absentField;
+    if (entry.kind === "splat" || entry.kind === "copy" && entry.key === key) {
+      const source = yield bagField50(entry.value ?? entry.source, key);
+      edit = source === absentField ? noFieldEdit : source;
+    }
+    if (edit === noFieldEdit) return edit;
+    const guard = entry.guard ? yield closedTruth50(entry.guard) : true;
+    if (guard === false) return noFieldEdit;
+    if (guard !== true || entry.gates.length) return;
+    return edit;
+  }
+
+  /**
+   * @param {any} node
+   * @param {any} key
+   * @returns {Generator<any, any, any>}
+   */
+  function* bagField50(node, key) {
+    if (node?.if && node.else) {
+      const condition = yield closedTruth50(node.if);
+      if (typeof condition === "boolean") return yield bagField50(condition ? node.then : node.else, key);
+      /** @type {any} */
+      const yes = yield bagField50(node.then, key);
+      const no = yield bagField50(node.else, key);
+      if (yes === no) return yes;
+      if (yes && no && yes !== absentField && no !== absentField) return unknownPayload;
+    }
+    if (node?.method === "flags" || node?.method === "classes") return absentField;
+    if (!node?.bag) return;
+    let field = absentField;
+    for (const item of node.bag) {
+      const edit = yield stringFieldEdit50(item, key);
+      if (edit !== noFieldEdit) field = edit;
+    }
+    return field;
+  }
+
+  /** @param {any} entries */
+  function laterStringFields50(entries = []) {
+    return new Set(stringFields.filter(key => entries.some((/** @type {any} */ entry) => run(stringFieldEdit50(entry, key)) !== noFieldEdit)));
+  }
+
+  /**
+   * @param {any} rule
+   * @param {any} alternative
+   * @param {any} slots
+   * @param {any} fail
+   * @param {any} afterTerms
+   */
+  function validateDefinitionExpansion50(rule, alternative, slots, fail, check = validateClosedTypes, afterTerms) {
+    const witness = captureRoutes50(alternative.expr);
+    /** @type {any} */
+    let fault;
+    let late = false;
+    /** @type {any} */
+    let clause;
+    /** @type {any} */
+    let sites;
+    /** @param {any} node */
+    const siteOrder = node => {
+      if (!sites) {
+        sites = new WeakMap();
+        const pending = [[clause, false]];
+        let index = 0;
+        while (pending.length) {
+          const [part, ready] = /** @type {any[]} */ (pending.pop());
+          if (!part || typeof part !== "object") continue;
+          if (ready) {
+            sites.set(part, index++);
+          } else {
+            pending.push([part, true]);
+            const children = operandFields50(part);
+            for (let i = children.length - 1; i >= 0; i--) pending.push([children[i][1], false]);
+          }
+        }
+      }
+      return sites.get(node) ?? Infinity;
+    };
+    /**
+     * @param {any} route
+     * @param {any} node
+     * @param {any} description
+     */
+    const note = (route, node, description) => {
+      const order = fault ? routeOrder50(route, fault.route) : -1;
+      if (order < 0 || order === 0 && clause === fault.clause && siteOrder(node) < siteOrder(fault.node)) {
+        fault = { route, node, description, late, clause };
+      }
+    };
+    const collected = Symbol("collected type fault");
+    /**
+     * @param {any} node
+     * @param {any} description
+     */
+    const noteType = (node, description) => {
+      const route = run(witness());
+      if (route) note(route, node, description);
+      throw collected;
+    };
+    /** @param {any} node */
+    const visit = (node, forwarding = false, message = false, body = false) => {
+      if (!node) return;
+      clause = node;
+      sites = undefined;
+      try {
+        if (body) return check(node, noteType);
+        if (forwarding && node.term && slots.get(node.capture)) noteType(node, "a braced output item needs a node");
+        checkExpansionScope(node, slots, witness, note, forwarding);
+        const hiddenKeys = node === rule.term ? directKeys(alternative.term?.bag) : undefined;
+        const hiddenStrings = node === rule.term ? laterStringFields50(alternative.term?.bag) : undefined;
+        check(node, noteType, { slots, forwarding, message, nodeTerm: !message, hiddenKeys, hiddenStrings });
+      } catch (error) {
+        if (error !== collected) throw error;
+      }
+    };
+    visit(rule.term);
+    visit(alternative.expr, false, false, true);
+    visit(alternative.term);
+    late = true;
+    visit(rule.error ?? rule.warning, false, true);
+    for (const item of rule.emit?.items ?? []) visit(item, true);
+    if (!fault || fault.late) afterTerms?.();
+    if (fault) fail(fault.node, fault.description);
+  }
+
+  /** @param {any} root */
+  function boundaryFault(root) {
+    let first, fault;
+    const captures = new Set();
+    const pending = [[root, new Set()]];
+    while (pending.length) {
+      const [node, locals] = /** @type {any[]} */ (pending.pop());
+      if (!node || typeof node !== "object") continue;
+      if (node.lambda !== undefined) {
+        pending.push([node.body, new Set([...locals, node.lambda])]);
+        continue;
+      }
+      if (node.capture !== undefined && !node.expr && !locals.has(node.capture)) captures.add(node.capture);
+      if (node.method === "followed-by" || node.method === "preceded-by") {
+        if (!fault) {
+          if (node.args.some((/** @type {any} */ target) => target.terminal?.startsWith("_"))) {
+            fault = { node, message: "a boundary target must be a rule, exact instance or user tag" };
+          } else if (first) {
+            fault = { node, message: "a condition item cannot have more than one boundary atom" };
+          }
+        }
+        first ??= node;
+      }
+      const children = operandFields50(node);
+      for (let i = children.length - 1; i >= 0; i--) pending.push([children[i][1], locals]);
+    }
+    const receiver = first?.receiver?.capture;
+    if (!fault && receiver && [...captures].some(name => name !== receiver)) {
+      return { node: first, message: "a condition with a named boundary receiver cannot read another capture" };
+    }
+    return fault;
+  }
+
+  /**
+   * @param {any} rule
+   * @param {any} fail
+   */
+  function validateDefinitionBoundaries50(rule, fail) {
+    for (const condition of rule.conditions ?? []) {
+      const fault = boundaryFault(condition);
+      if (fault) fail(fault.node, fault.message);
+    }
+  }
+
+  /**
+   * @param {any} rule
+   * @param {any} slots
+   * @param {any} fail
+   */
+  function validateDefinitionConditions50(rule, slots, fail, check = validateClosedTypes) {
+    const shared = new Map();
+    for (const slot of slots) for (const [name, type] of slot) {
+      shared.set(name, !shared.has(name) || shared.get(name) === type ? type : undefined);
+    }
+    const types = new Map([...shared].filter(([, type]) => type !== undefined));
+    for (const condition of rule.conditions ?? []) {
+      const boundary = boundaryFault(condition);
+      check(condition, fail, { slots: types, truth: true, boundary });
+    }
+  }
+
+  // The native loader supplies the expanded productions in order and the
+  // structural nullability result for each one.
+  /**
+   * @param {any} productions
+   * @param {any} nullable
+   * @param {any} fail
+   */
+  function validateDefinitionNullability50(productions, nullable, fail) {
+    for (const production of productions) {
+      if (production.errorSource && nullable(production)) {
+        fail(production.errorSource, "an error production can derive an empty sequence");
+      }
+    }
+  }
+
+  const comparable = new Set(["string", "number", "truth", "keys"]);
+  /** @param {any} type */
+  const isBag = type => type === "bag" || type === "keys";
+  const emptyElement = Symbol("empty list element");
+  const incompatible = Symbol("incompatible types");
+  /** @param {any} type */
+  const kindOf = type => Array.isArray(type) ? "list" : type;
+  /** @param {any} type */
+  const elementOf = type => Array.isArray(type) ? type[0] : undefined;
+  /** @param {any} type */
+  const openType = type => type === undefined || type === emptyElement;
+
+  /**
+   * @param {any} left
+   * @param {any} right
+   * @returns {any}
+   */
+  function joinTypes(left, right, constraint = false) {
+    if (left === incompatible || right === incompatible) return incompatible;
+    if (left === emptyElement) return right;
+    if (right === emptyElement) return left;
+    if (left === undefined || right === undefined) return constraint ? left ?? right : undefined;
+    if (left === right) return left;
+    if (isBag(left) && isBag(right)) return "bag";
+    if (Array.isArray(left) && Array.isArray(right)) {
+      /** @type {any} */
+      const element = joinTypes(elementOf(left), elementOf(right), constraint);
+      return element === incompatible ? incompatible : [element];
+    }
+    return incompatible;
+  }
+
+  /** @param {any} type */
+  function comparableElement(type) {
+    while (Array.isArray(type)) type = type[0];
+    return openType(type) || comparable.has(type);
+  }
+
+  /**
+   * @param {any} left
+   * @param {any} right
+   */
+  function sameElementType(left, right) {
+    // Bags and key sets have a common storage type, but only key sets have
+    // element equality.
+    return comparableElement(left) && comparableElement(right) && joinTypes(left, right) !== incompatible;
+  }
+
+  const spanTypes = ["span", "node"];
+  const bagTypes = ["keys", "bag", "node"];
+  const predicateTypes = ["list", "forest"];
+  const methodTypes = new Map([
+    ["split", ["list", "string"]],
+    ["ngrams", ["list", "string"]],
+    ["parse", ["forest", ...spanTypes]],
+    ["span", ["span", "node"]],
+    ["children", ["list", "node"]],
+    ["tokens", ["list", ...spanTypes]],
+    ["join", ["string", "list"]],
+    ["union", ["keys", "list"]],
+    ["present", ["truth", "node", "list"]],
+    ["all", ["truth", ...predicateTypes]],
+    ["any", ["truth", ...predicateTypes]],
+    ["preceding-tokens", ["span", ...spanTypes]],
+    ["following-tokens", ["span", ...spanTypes]],
+    ["first-token", ["span", ...spanTypes]],
+    ["last-token", ["span", ...spanTypes]],
+    ["tokens-after-first", ["span", ...spanTypes]],
+    ["onward", ["span", ...spanTypes]],
+    ["starts-input", ["truth", ...spanTypes]],
+    ["ends-input", ["truth", ...spanTypes]],
+    ["source-text", ["string", ...spanTypes]],
+    ["decomposed-source-text", ["string", ...spanTypes]],
+    ["verbatim-text", ["string", ...spanTypes]],
+    ["without-elision", ["span", "node"]],
+    ["without-elision-except", ["span", "node"]],
+    ["preceded-by", ["truth", "node"]],
+    ["followed-by", ["truth", "node"]],
+    ["flags", ["keys", ...bagTypes, "span", "forest"]],
+    ["classes", ["keys", ...bagTypes, "span"]],
+    ["keys", ["keys", ...bagTypes]],
+    ["has", ["truth", ...bagTypes]],
+    ["has-value", ["truth", ...bagTypes]],
+    ["select", [undefined, ...bagTypes]],
+    ["overlaps", ["truth", "keys"]],
+    ["classify", ["keys", "keys", "bag"]],
+    ["at-most", ["number", "number"]],
+    ["error-free", ["forest", "forest"]],
+  ]);
+
+  const methodArguments = new Map([
+    ["split", "string"], ["join", "string"], ["classify", "string"],
+    ["select", "keys"], ["overlaps", "keys"], ["all", "function"], ["any", "function"],
+  ]);
+
+  // The document can check closed operand types. A reference that needs the
+  // effective stage, a template binding or an input shape stays unresolved.
+  /**
+   * @param {any} root
+   * @param {any} fail
+   * @param {any} [options]
+   */
+  function validateClosedTypes(root, fail, { closed = false, slots = new Map(), truth = false, forwarding = false,
+    message = false, nodeTerm = false, hiddenKeys = new Set(), hiddenStrings = new Set(), boundary, whole = "node" } = {}) {
+    const types = new WeakMap();
+    /** @param {any} node */
+    const type = node => node && typeof node === "object" ? types.get(node) : undefined;
+    /**
+     * @param {any} node
+     * @param {any} value
+     */
+    const remember = (node, value) => {
+      if (value !== undefined) types.set(node, value);
+    };
+    /**
+     * @param {any} value
+     * @param {any} allowed
+     */
+    const invalid = (value, allowed) => !openType(value) && !allowed.includes(kindOf(value));
+    const pending = [[root, false, new Map(), false, truth]];
+    const captureTypes = new Map([...slots].map(([name, list]) => [name, list ? ["node"] : "node"]));
+    const predicates = new WeakMap();
+    const maps = new WeakMap();
+    while (pending.length) {
+      const [node, ready, scope, implicit, needsTruth] = /** @type {any[]} */ (pending.pop());
+      if (!node || typeof node !== "object") continue;
+      if (!ready) {
+        pending.push([node, true, scope, implicit, needsTruth]);
+        if (["all", "any"].includes(node.method) && node.args[0]?.lambda !== undefined) predicates.set(node.args[0], node);
+        if (node.map && node.by) maps.set(node.by, node.map);
+        if (node.lambda !== undefined) {
+          const name = node.lambda;
+          if (name && scope.has(name)) fail(node, "a function binder cannot hide a live name");
+          const predicate = predicates.get(node);
+          const receiver = predicate ? type(predicate.receiver) ?? elementOf(type(maps.get(predicate))) : type(maps.get(node));
+          const argument = receiver === "forest" ? "node" : elementOf(receiver);
+          const frame = new Map(scope);
+          frame.set("", argument);
+          if (name) frame.set(name, argument);
+          pending.push([node.body, false, frame, true, predicates.has(node)]);
+          continue;
+        }
+        const children = operandFields50(node);
+        for (let i = children.length - 1; i >= 0; i--) {
+          const [key, child] = children[i];
+          const childTruth = key === "if" || key === "guard" || key === "not" ||
+            key === "then" && (!node.else || needsTruth) || key === "else" && needsTruth ||
+            (key === "all" || key === "any") && Array.isArray(child) || Array.isArray(node) && needsTruth;
+          pending.push([child, false, scope, implicit, childTruth]);
+        }
+        continue;
+      }
+      if (Array.isArray(node)) continue;
+      if (boundary?.node === node) fail(node, boundary.message);
+      if (closed && node.capture !== undefined && !scope.has(node.capture)) {
+        fail(node, "a constant cannot read a capture outside its function scope");
+      }
+      if (closed && node.item && !implicit) fail(node, "an implicit receiver needs a function binding");
+      if (node.capture !== undefined && !node.expr && !(forwarding && node === root)) {
+        const inferred = scope.has(node.capture) && node.capture ? scope.get(node.capture) :
+          node.capture === "" ? whole : captureTypes.get(node.capture);
+        remember(node, inferred);
+      }
+      if (node.item) remember(node, scope.get(""));
+      if (node.string !== undefined) remember(node, "string");
+      if (node.integer !== undefined) remember(node, "number");
+      if (node.lambda !== undefined) {
+        if (type(node.body) === "function") fail(node.body, "a function cannot return a function");
+        remember(node, "function");
+      }
+      if (node.map) {
+        if (invalid(type(node.map), ["list"])) fail(node, "a map needs a list");
+        if (node.by.lambda === undefined && !node.by.method && !node.by.property &&
+            invalid(type(node.by), ["function"])) fail(node, "a map needs a function or selector");
+        remember(node, [type(node.by.lambda !== undefined ? node.by.body : node.by)]);
+      }
+      if (node.flatten) {
+        const nested = elementOf(type(node.flatten));
+        if (invalid(type(node.flatten), ["list"]) || invalid(nested, ["list"])) {
+          fail(node, "flatten needs a list of lists");
+        }
+        remember(node, [nested === emptyElement ? emptyElement : elementOf(nested)]);
+      }
+      if (node.list) {
+        let member = emptyElement;
+        let required = emptyElement;
+        for (const entry of node.list) {
+          const value = type(entry.value);
+          if (entry.kind === "splat" && invalid(value, ["list"])) fail(entry, "a list splat needs a list");
+          if (value === "function") fail(entry.value, "a list cannot store a function");
+          const item = entry.kind === "splat" ? elementOf(value) : value;
+          member = joinTypes(member, item);
+          if (!entry.guard && !entry.gates.length) required = joinTypes(required, item, true);
+        }
+        if (required === incompatible) fail(node, "a list needs one common element type");
+        remember(node, [member === incompatible ? undefined : member]);
+      }
+      if (node.emptySet || node.pattern) remember(node, "pattern");
+      if (node.bag) {
+        const definiteKeys = node.bag.every((/** @type {any} */ entry) => entry.kind === "bare" || entry.kind === "delete" ||
+          entry.kind === "splat" && type(entry.value) === "keys");
+        const payloads = new Map();
+        let open = false;
+        for (const entry of node.bag) {
+          if (entry.kind === "write" && !entry.guard && !entry.gates.length) {
+            for (const key of entry.keys) payloads.set(key, true);
+          } else if (entry.kind === "write" || entry.kind === "copy" || entry.kind === "splat" && type(entry.value) !== "keys") {
+            open = true;
+            payloads.clear();
+          } else if ((entry.kind === "delete" || entry.kind === "bare") && !entry.guard && !entry.gates.length) {
+            payloads.delete(entry.key);
+          }
+        }
+        if (definiteKeys || !open && !payloads.size) remember(node, "keys");
+        else if (payloads.size) remember(node, "bag");
+        const writesNode = nodeTerm && node === (forwarding ? root.term : root);
+        const hidden = new Set(hiddenKeys);
+        const effective = new Set();
+        const effectiveStrings = new Set();
+        const laterStrings = new Set(hiddenStrings);
+        if (writesNode) for (const entry of node.bag.slice().reverse()) {
+          for (const key of stringFields) {
+            const edit = run(stringFieldEdit50(entry, key));
+            if (edit !== noFieldEdit && !laterStrings.has(key)) {
+              if (invalid(type(edit), ["string"])) effectiveStrings.add(entry);
+              laterStrings.add(key);
+            }
+          }
+          if (entry.kind === "write" || entry.kind === "bare") {
+            const keys = entry.keys ?? [entry.key];
+            if (keys.some((/** @type {any} */ key) => !hidden.has(key) && key.startsWith("_"))) {
+              effective.add(entry);
+            }
+          }
+          if (!entry.guard && !entry.gates.length) {
+            if (entry.kind === "write") for (const key of entry.keys) hidden.add(key);
+            if (entry.kind === "bare" || entry.kind === "delete") hidden.add(entry.key);
+          }
+        }
+        for (const entry of node.bag) {
+          if (entry.kind === "splat" && invalid(type(entry.value), ["keys", "node", "bag"])) {
+            fail(entry, "a bag splat needs a bag or node");
+          }
+          if (entry.kind === "bare" && effective.has(entry) && entry.key.startsWith("_")) {
+            fail(entry, "a constructor cannot write an engine key without provenance");
+          }
+          if (entry.kind !== "write" && effectiveStrings.has(entry)) {
+            fail(entry, "a value or image needs a string");
+          }
+          if (entry.kind !== "write") continue;
+          const value = type(entry.value);
+          if (value === "function") fail(entry.value, "a key cannot store a function");
+          if (entry.keys.some((/** @type {any} */ key) => key.startsWith("_"))) fail(entry, "a constructor cannot write an engine key");
+          if (effectiveStrings.has(entry)) {
+            fail(entry.value, "a value or image needs a string");
+          }
+        }
+      }
+      if (message && node.method === "parse") fail(node, "a message cannot read a query");
+      const mapped = maps.get(node);
+      const receiver = type(node.receiver) ?? elementOf(type(mapped));
+      if (node.property && invalid(receiver, bagTypes)) fail(node, "a property read needs a node or bag");
+      const signature = methodTypes.get(node.method);
+      if (signature) {
+        const [result, ...receivers] = signature;
+        const wrong = () => fail(node, "a method has the wrong receiver or arguments");
+        if (invalid(receiver, receivers)) wrong();
+        const argumentType = methodArguments.get(node.method);
+        if (argumentType && invalid(type(node.args[0]), [argumentType])) wrong();
+        if (node.method === "any" && kindOf(receiver) === "list" && !node.args.length) wrong();
+        const member = elementOf(receiver);
+        if (node.method === "join" && invalid(member, ["string"]) ||
+            node.method === "union" && invalid(member, ["keys"])) wrong();
+        const element = ["split", "ngrams"].includes(node.method) ? "string" : "node";
+        remember(node, result === "list" ? [element] :
+          node.method === "select" && receiver === "keys" ? "keys" : result);
+      }
+      if (node.concat) {
+        if (node.concat.some((/** @type {any} */ part) => invalid(type(part), ["string"]))) fail(node, "++ requires string operands");
+        remember(node, "string");
+      }
+      if (node.if) {
+        const yes = type(node.then);
+        const no = type(node.else);
+        const result = joinTypes(yes, no);
+        if (node.else && result === incompatible) {
+          fail(node, "a conditional requires compatible branch types");
+        }
+        if (!node.else) remember(node, "truth");
+        else remember(node, result);
+      }
+      const group = node.union ?? node.intersection ?? node.difference;
+      if (group && node.at) {
+        const known = group.map(type).filter((/** @type {any} */ value) => !openType(value));
+        const listDifference = node.difference && kindOf(type(group[0])) === "list";
+        const openDifference = node.difference && openType(type(group[0]));
+        if (listDifference) {
+          const [left, right] = group.map(type);
+          const member = elementOf(left);
+          const direct = sameElementType(member, right);
+          const exclusion = Array.isArray(right) && sameElementType(member, elementOf(right));
+          if (!direct && !exclusion) fail(node, "∖ requires compatible operands");
+        }
+        if (!listDifference && !openDifference &&
+            (known.some((/** @type {any} */ value) => value !== "keys" && value !== "pattern") || new Set(known).size > 1)) {
+          const op = node.union ? "∪" : node.intersection ? "∩" : "∖";
+          fail(node, `${op} requires compatible operands`);
+        }
+        if (!openDifference) remember(node, listDifference ? type(group[0]) : known[0]);
+      }
+      if (node.not || Array.isArray(node.all) || Array.isArray(node.any)) remember(node, "truth");
+      if (needsTruth && ["string", "number", "pattern", "function"].includes(type(node))) {
+        fail(node, "this operand does not have a truth value");
+      }
+      if (!node.op) continue;
+      const left = type(node.left);
+      const right = type(node.right);
+      if (["+", "<", "≤", ">", "≥"].includes(node.op) && [left, right].some(value => invalid(value, ["number"]))) {
+        fail(node, `${node.op} requires number operands`);
+      }
+      if (needsTruth && node.op === "+") fail(node, "this operand does not have a truth value");
+      if (["=", "≠"].includes(node.op)) {
+        if ([left, right].some(value => !openType(value) && !comparable.has(value)) ||
+            joinTypes(left, right) === incompatible) {
+          fail(node, `${node.op} requires comparable operands of one type`);
+        }
+      }
+      if (["⊆", "⊈"].includes(node.op) && [left, right].some(value => invalid(value, ["keys"]))) {
+        fail(node, `${node.op} requires key sets`);
+      }
+      if (["∈", "∉"].includes(node.op)) {
+        if (invalid(right, ["list"])) fail(node, `${node.op} requires a list on its right`);
+        if (!sameElementType(left, elementOf(right))) fail(node, `${node.op} requires compatible operands`);
+      }
+      if (["≅", "≇"].includes(node.op)) {
+        if (node.left.capture === undefined && !node.left.item) {
+          fail(node, "a structural comparison needs one capture or bound item on its left");
+        }
+        if (node.left.capture !== undefined && node.left.capture === node.right.capture ||
+            node.left.item && node.right.item) {
+          fail(node, "a structural comparison cannot compare a binding with itself");
+        }
+        if (invalid(left, ["node"])) fail(node, "a structural comparison needs a bound node on its left");
+        if (invalid(right, ["pattern", "node"])) {
+          fail(node, "a structural comparison needs a pattern or a bound node on its right");
+        }
+      }
+      remember(node, node.op === "+" ? "number" : "truth");
+    }
+    if (message && invalid(type(root), ["string"])) fail(root, "a message needs a string");
+  }
+
+  const stageDirectives = new Set(["stage", "extend-stage", "redefine-stage"]);
+
+  /**
+   * @param {any} declaration
+   * @param {any} fail
+   * @param {any} unicode
+   */
+  function validateHeader(declaration, fail, unicode) {
+    const { name, args, conditions, steps, instance, params, op } = declaration;
+    if (declaration.alternatives || instance) {
+      if (!validRule(name, unicode)) {
+        fail(declaration, "a rule name must begin with a lowercase letter or be an emoji name");
+      }
+      if (instance && (args || params)) fail(declaration, "an instance binding needs a plain rule name");
+      if (instance && op === "extend") fail(declaration, "an instance binding cannot extend a rule");
+      if (args && (op === "define" || args.some((/** @type {any} */ arg) => arg.param))) {
+        fail(declaration, "a rule head needs all parameters or an exact instance edit");
+      }
+      if (params) {
+        const seen = new Set();
+        for (const param of params) {
+          if (!parameterName.test(param)) fail(declaration, "invalid parameter name");
+          if (seen.has(param)) fail(declaration, `duplicate parameter @${param}`);
+          seen.add(param);
+        }
+        if (declaration.error || declaration.warning) fail(declaration, "a template cannot declare an error or warning");
+      }
+      if (declaration.suppressWarnings?.some((/** @type {any} */ code) => code !== "_" && !featureName.test(code))) {
+        fail(declaration, "invalid warning code");
+      }
+    } else if (declaration.value) {
+      if (!CONSTANT_NAME.test(name)) fail(declaration, "invalid constant name");
+    } else if (name === "include" || name === "names") {
+      if (conditions || args?.length !== 1 || typeof args[0] !== "string") fail(declaration, `%${name} takes one quoted path`);
+    } else if (name === "features") {
+      if (!args?.length || args.some((/** @type {any} */ arg) => !featureName.test(arg))) fail(declaration, "%features takes feature names");
+    } else if (name === "elision-only") {
+      if (conditions || args?.length !== 0) fail(declaration, "%elision-only takes no operands");
+    } else if (stageDirectives.has(name)) {
+      if (conditions || args?.length !== 1 || !ruleName50.test(args[0])) fail(declaration, `%${name} takes one stage name`);
+    } else if (name === "ambiguity-resolution") {
+      for (const step of steps ?? []) {
+        if (Boolean(step.pattern) !== KEY_STEPS.has(step.step)) fail(step, "invalid resolution step operand");
+      }
+      if (!validSteps(steps)) fail(declaration, "invalid resolution policy");
+    }
+  }
+
+  /**
+   * @param {any} declaration
+   * @param {any} fail
+   * @param {any} unicode
+   * @param {any} emptyDelimiters
+   */
+  function validateDeclarationShape50(declaration, fail, unicode, emptyDelimiters = []) {
+    const locate = withOwner50(declaration, fail, declaration);
+    validateHeader(declaration, locate, unicode);
+    if (declaration.value && declaration.name === "INPUTS") fail(declaration, "$INPUTS is supplied by the engine");
+    for (const step of declaration.steps ?? []) {
+      if (step.pattern) validateExactPattern50(step.pattern, locate, { origin: step.step !== "leftmost-longest" });
+    }
+
+    const ruleBodies = new WeakSet((declaration.alternatives ?? []).map((/** @type {any} */ alt) => alt.expr));
+    const outputItems = new WeakSet(declaration.emit?.items ?? []);
+    const predicateSlots = new WeakSet();
+    const pending = [[declaration, false, false, false, false]];
+    while (pending.length) {
+      const [node, width, inRepeat, inPattern, requirement] = /** @type {any[]} */ (pending.pop());
+      if (!node || typeof node !== "object") continue;
+      if (ruleBodies.has(node)) validateBody50(node, locate);
+      if (outputItems.has(node) && node.capture === "" && !node.term) locate(node, "only a braced item can select the whole rule");
+      if (node.range) validateRange(node.range, node, locate);
+      if (node.integer !== undefined && (width ? !/^[1-9][0-9]*$/.test(node.integer) :
+        !/^(0|[1-9][0-9]*)$/.test(node.integer) || Number(node.integer) > 255)) {
+        locate(node, width ? "a width must be positive" : "a count literal must be between 0 and 255");
+      }
+      if (node.capture !== undefined && (node.capture !== "" || node.expr) && !CAPTURE_NAME.test(node.capture)) {
+        locate(node, "a capture name must use lowercase letters, digits, hyphens or underscores");
+      }
+      if (node.lambda === "" && !predicateSlots.has(node)) locate(node, "a predicate requires an explicit binder");
+      if (node.lambda && !CAPTURE_NAME.test(node.lambda)) {
+        locate(node, "a capture name must use lowercase letters, digits, hyphens or underscores");
+      }
+      if (node.by?.lambda === "") predicateSlots.add(node.by);
+      if (node.feature && !featureName.test(node.feature)) locate(node, "invalid feature name");
+      if (node.ref === "_Elided" || node.terminal === "_Elided" || node.property === "_Elided" ||
+          node.key === "_Elided" || !requirement && node.tag === "_Elided" ||
+          Array.isArray(node.keys) && node.keys.includes("_Elided") ||
+          ["has", "has-value"].includes(node.method) && node.args?.[0]?.key === "_Elided") {
+        locate(node, "unknown or forbidden engine key _Elided");
+      }
+      if (node.property !== undefined && !validProperty50(node.property, unicode)) locate(node, "invalid property name");
+      for (const value of [node.const, node.constant, node.apply]) {
+        if (typeof value === "string" && !CONSTANT_NAME.test(value)) locate(node, "invalid constant name");
+      }
+      if (node.param !== undefined && !parameterName.test(node.param)) locate(node, "invalid parameter name");
+      if (typeof node.call === "string" && !validRule(node.call, unicode) ||
+          typeof node.rule === "string" && !validRule(node.rule, unicode) ||
+          inPattern && typeof node.name === "string" && !validRule(node.name, unicode)) {
+        locate(node, "invalid rule name");
+      }
+      for (const name of [node.tag, node.terminal, typeof node.ref === "string" && terminalName.test(node.ref) ? node.ref : undefined]) {
+        if (typeof name === "string" && !(requirement && name === "_Elided") && !validTag(name, unicode)) {
+          locate(node, "invalid tag name");
+        }
+      }
+      if (typeof node.ref === "string" && !terminalName.test(node.ref) && !validRule(node.ref, unicode)) locate(node, "invalid rule name");
+      for (const key of Array.isArray(node.keys) ? node.keys : [node.key]) {
+        if (typeof key === "string" && !validProperty50(key, unicode)) locate(node, "invalid key name");
+      }
+      if (node.method) {
+        const sig = /** @type {{min: number, max: number}} */ (methods50.get(node.method));
+        if (!sig) locate(node, `unknown method .${node.method}`);
+        if (!node.args || node.args.length < sig.min || node.args.length > sig.max) {
+          locate(node, `method .${node.method} has the wrong number of arguments`);
+        }
+        if (["all", "any"].includes(node.method) && node.args[0]?.lambda === "") predicateSlots.add(node.args[0]);
+        if (node.method === "split" && node.args[0].string === "") emptyDelimiters.push(node);
+        if (node.method === "parse") validateQuery50(node, locate);
+      }
+      if ((node.call || node === declaration && declaration.alternatives) && node.args) for (const arg of node.args) {
+        validateArgument50(arg, locate);
+      }
+      validateOrigin50(node, locate, inPattern);
+      if (node.children) validatePatternChildren50(node, locate);
+      if (node.bag) validateBag50(node.bag, locate);
+      if (inRepeat && node.siblings) locate(node, "a repeated child list cannot contain a sibling gap");
+      for (const [key, value] of operandFields50(node).reverse()) {
+        const repeated = inRepeat && key !== "child" || Array.isArray(node.repeat) && (key === "repeat" || key === "separator");
+        pending.push([value, node.method === "ngrams" && key === "args" || width && Array.isArray(node),
+          repeated, key === "pattern" || inPattern && key !== "body", key === "value" && Object.hasOwn(node, "negated")]);
+      }
+    }
+  }
+
+  /** @param {any} dom */
+  const orderedDeclarations = dom => [...dom.rules, ...dom.directives, ...dom.constants]
+    .sort((a, b) => a.at[0] - b.at[0] || a.at[1] - b.at[1]);
+
+  /**
+   * @param {DocumentValidation} [configuration]
+   * @param {any} dom
+   */
+  function validateDocumentShape50(dom, configuration = {}) {
+    const { document, unicode } = configuration;
+    const fail = documentFault50(document);
+    /** @type {any[]} */
+    const emptyDelimiters = [];
+    let preamble = true;
+    for (const declaration of orderedDeclarations(dom)) {
+      if (declaration.name === "names" && declaration.args) {
+        if (!preamble) fail(declaration, "%names must precede all other declarations");
+      } else {
+        preamble = false;
+      }
+      validateDeclarationShape50(declaration, fail, unicode, emptyDelimiters);
+    }
+    if (emptyDelimiters.length) fail(emptyDelimiters[0], "a split delimiter cannot be empty");
+  }
+
+  /**
+   * @param {DocumentValidation} [configuration]
+   * @param {any} dom
+   */
+  function validateDocumentDefinitions50(dom, configuration = {}) {
+    const { document } = configuration;
+    const fail = documentFault50(document);
+    for (const declaration of orderedDeclarations(dom)) {
+      const locate = withOwner50(declaration, fail, declaration);
+      if (declaration.args && declaration.alternatives) validateClosedTypes(declaration.args, locate);
+      if (declaration.instance) validateClosedTypes(declaration.instance, locate);
+      if (declaration.alternatives) {
+        const slots = declaration.alternatives.map((/** @type {any} */ alt) => captureSlots50(alt.expr));
+        validateDefinitionNames50(declaration, slots, locate);
+        let earlier;
+        for (const [index, alternative] of declaration.alternatives.entries()) {
+          let checkingTerms = true;
+          try {
+            validateDefinitionExpansion50(declaration, alternative, slots[index], locate, validateClosedTypes,
+              () => { checkingTerms = false; });
+          } catch (error) {
+            if (checkingTerms || !(error instanceof GencmuError)) throw error;
+            // Conditions precede the message and outputs in the declaration.
+            // Remember the winning expansion fault before checking conditions.
+            earlier = error;
+            break;
+          }
+        }
+        validateDefinitionConditions50(declaration, slots, locate);
+        if (earlier) throw earlier;
+      } else if (declaration.name === "features") {
+        for (const condition of declaration.conditions ?? []) {
+          validateBindings50(condition, (/** @type {any} */ node, /** @type {any} */ message) =>
+            locate(node, message === argumentsError ? "a feature condition cannot read a named capture" : message),
+            { closed: true, bindings: [""] });
+          validateClosedTypes(condition, locate, { truth: true, whole: "span" });
+        }
+      } else if (declaration.value) {
+        validateClosedTypes(declaration.value, locate, { closed: true });
+      }
+    }
+  }
+
+  /**
+   * @param {DocumentValidation} [configuration]
+   * @param {any} dom
+   */
+  function validateDocumentDepth50(dom, configuration = {}) {
+    const { document } = configuration;
+    const fail = documentFault50(document);
+    for (const declaration of orderedDeclarations(dom)) {
+      if (tooDeep(declaration)) fail(declaration, `an expression, term or condition is nested more than ${DOM_MAX_DEPTH} deep`);
+    }
+  }
+
+  /**
+   * @param {DocumentValidation} [configuration]
+   * @param {any} dom
+   */
+  function validateDocument50(dom, configuration) {
+    validateDocumentShape50(dom, configuration);
+    validateDocumentDefinitions50(dom, configuration);
+    validateDocumentDepth50(dom, configuration);
+    return dom;
+  }
+
+  /** @param {any} declaration */
+  function tooDeep(declaration) {
+    /** @type {any[]} */
+    const pending = [];
+    /**
+     * @param {any} value
+     * @param {any} depth
+     */
+    const push = (value, depth) => {
+      if (value && typeof value === "object") pending.push([value, depth]);
+    };
+    /**
+     * @param {any} items
+     * @param {any} depth
+     */
+    const entries = (items, depth) => {
+      for (const item of items) for (const key of ["guard", "source", "value"]) push(item[key], depth);
+    };
+    push(declaration.term, 0);
+    push(declaration.value, 0);
+    push(declaration.error, 0);
+    push(declaration.warning, 0);
+    for (const condition of declaration.conditions ?? []) push(condition, 0);
+    for (const alt of declaration.alternatives ?? []) {
+      push(alt.expr, 0);
+      push(alt.term, 0);
+    }
+    for (const item of declaration.emit?.items ?? []) {
+      push(item.guard, 0);
+      push(item.term, 0);
+    }
+    for (const step of declaration.steps ?? []) push(step.pattern, 0);
+    if (declaration.instance) push(declaration.instance, 0);
+    for (const arg of declaration.args ?? []) push(arg, 1);
+    while (pending.length) {
+      const [node, depth] = /** @type {any[]} */ (pending.pop());
+      if (depth > DOM_MAX_DEPTH) return true;
+      if (Array.isArray(node)) {
+        for (const child of node) push(child, depth);
+        continue;
+      }
+      if (node.primary || node.expression || node.kind || node.body && node.lambda === undefined) {
+        push(node.primary ?? node.expression ?? node.body, depth);
+        if (node.kind) entries([node], depth);
+        continue;
+      }
+      if (node.targets || Object.hasOwn(node, "negated") && node.value) {
+        push(node.targets ?? node.value, depth);
+        continue;
+      }
+      if (node.bag || node.list) {
+        entries(node.bag ?? node.list, depth + 1);
+        continue;
+      }
+      if (node.map) {
+        push(node.map, depth + 1);
+        if (node.by.method) push(node.by.args, depth + 1);
+        else if (!node.by.property) push(node.by, depth + 1);
+        continue;
+      }
+      for (const [key, child] of operandFields50(node)) {
+        push(child, key === "literal" || key === "range" || key === "requirements" ? depth : depth + 1);
+      }
+    }
+    return false;
+  }
+
+  // ---- format50/walk.js
+
+
+
+
+
+  const EXPRESSION_WRAPPERS = new Set([
+    "expr", "disj", "conj", "comparison", "union", "inter", "sum", "post", "atom", "grouped-expr",
+  ]);
+  const BODY_WRAPPERS = new Set([
+    "factor", "untested-factor", "splice-target", "chain-separator", "body-argument",
+    "symbol-argument", "group", "choice", "some-of", "sequence",
+  ]);
+  const PATTERN_WRAPPERS = new Set([
+    "pattern-literal", "pattern-primary", "pattern-union", "pattern-intersection", "pattern-path",
+  ]);
+  const RULE_NAME = /^[a-z][A-Za-z0-9_-]*$/;
+  const FEATURE_NAME50 = /^[a-zA-Z][a-zA-Z0-9-]*$/;
+  const OPS = new Map([
+    ["≠", "≠"], ["∉", "∉"], ["⊈", "⊈"], ["≇", "≇"],
+  ]);
+  /** @param {any} keyword */
+  const operation = keyword => keyword.startsWith("%redefine-") ? "redefine" :
+    keyword.startsWith("%extend-") ? "extend" : "define";
+  /** @param {any} node */
+  const rules = node => node.children.filter((/** @type {any} */ child) => child.kind === "rule");
+  /**
+   * @param {any} node
+   * @param {any} name
+   */
+  const parts = (node, name) => rules(node).filter((/** @type {any} */ child) => child.rule === name);
+  /**
+   * @param {any} node
+   * @param {any} name
+   */
+  const part = (node, name) => parts(node, name)[0];
+  /** @param {any} node */
+  const leaves = node => node.children.filter((/** @type {any} */ child) => child.kind === "token");
+  /**
+   * @param {any} kind
+   * @param {any} items
+   */
+  const collapse = (kind, items) => items.length === 1 ? items[0] : { [kind]: items };
+  const GROUPS = new Set(["group", "optional", "repetition", "empty"]);
+  /** @param {any} node */
+  function baseFactor(node) {
+    while (["factor", "tested-factor", "untested-factor", "symbol-argument"].includes(node.rule)) node = rules(node)[0];
+    return node;
+  }
+
+  /** @param {any} node */
+  function containsCapture(node) {
+    return ["capture", "captured-terminator"].includes(node.rule) || rules(node).some(containsCapture);
+  }
+  /** @param {any} body */
+  const isSymbol = body => ["ref", "call", "param", "literal", "range", "wildcard", "splice", "test"]
+    .some(key => Object.hasOwn(body, key));
+
+  class DomBuilder {
+    /**
+     * @param {any} tokens
+     * @param {any} position
+     * @param {any} document
+     * @param {any} unicode
+     * @param {any} strings
+     */
+    constructor(tokens, position, document, unicode, strings) {
+      this.tokens = tokens;
+      this.position = position;
+      this.document = document;
+      this.unicode = unicode;
+      this.strings = strings;
+      this.domFault = documentFault50(document);
+      /** @type {WeakMap<object, any> | undefined} the default of each elided head */
+      this.defaults = undefined;
+    }
+
+    /** @param {any} node */
+    token(node) {
+      return this.tokens[node.span[0]];
+    }
+
+    /** @param {any} node */
+    at(node) {
+      return this.position(this.token(node)?.source[0]);
+    }
+
+    /** @param {any} node */
+    value(node) {
+      const value = this.token(node).value;
+      return OPS.get(value) ?? value;
+    }
+
+    /**
+     * @param {any} node
+     * @param {any} description
+     * @returns {never}
+     */
+    fail(node, description) {
+      const [line, column] = this.at(node);
+      throw new GencmuError("grammar", description, { document: this.document, line, column });
+    }
+
+    /** @param {any} tree */
+    build(tree) {
+      /** @type {any} */
+      const dom = { format: 50, rules: [], directives: [], constants: [] };
+      /** @type {any[]} */
+      const emptyDelimiters = [];
+      let preamble = true;
+      for (const statement of parts(tree, "statement")) {
+        const node = rules(statement)[0];
+        /** @type {"rules" | "directives" | "constants"} */
+        let category;
+        /** @type {any} */
+        let record;
+        switch (node.rule) {
+          case "rule":
+            category = "rules";
+            record = this.rule(node);
+            break;
+          case "constant-definition":
+            {
+              const name = this.value(part(node, "constant-name")).slice(1);
+              if (name === "INPUTS") this.fail(node, "$INPUTS is supplied by the engine");
+              category = "constants";
+              record = { name, op: operation(this.value(node)), value: this.expression(part(node, "expr")), at: this.at(node) };
+            }
+            break;
+          case "directive":
+            if (this.value(node) === "%names" && !preamble) this.fail(node, "%names must precede all other declarations");
+            category = "directives";
+            record = this.directive(node);
+            break;
+          case "ranking-directive":
+            category = "directives";
+            record = this.ranking(node);
+            break;
+          default:
+            this.fail(node, "expected a declaration");
+        }
+        validateDeclarationShape50(record, this.domFault, this.unicode, emptyDelimiters);
+        dom[category].push(record);
+        preamble &&= this.value(node) === "%names";
+      }
+      if (emptyDelimiters.length) this.domFault(emptyDelimiters[0], "a split delimiter cannot be empty");
+      validateDocumentDefinitions50(dom, { document: this.document });
+      validateDocumentDepth50(dom, { document: this.document });
+      return dom;
+    }
+
+    /** @param {any} node */
+    directive(node) {
+      const name = this.value(node).slice(1);
+      const operands = parts(node, "directive-argument").map((/** @type {any} */ argument) => rules(argument)[0]);
+      const clauses = part(node, "conditions-clause");
+      let args;
+      if (name === "include" || name === "names") {
+        if (clauses || operands.length !== 1 || this.token(operands[0]).props.has("Resource-Path") === false) {
+          this.fail(node, `%${name} takes one quoted path`);
+        }
+        args = [this.strings.decode(this.token(operands[0]), true)];
+      } else if (name === "features") {
+        if (!operands.length || operands.some((/** @type {any} */ operand) =>
+          operand.rule !== "directive-identifier" || !FEATURE_NAME50.test(this.value(operand)))) {
+          this.fail(node, "%features takes feature names");
+        }
+        args = operands.map((/** @type {any} */ operand) => this.value(operand));
+      } else if (name === "elision-only") {
+        if (clauses || operands.length) this.fail(node, "%elision-only takes no operands");
+        args = [];
+      } else {
+        if (clauses || operands.length !== 1 || operands[0].rule !== "directive-identifier" ||
+            !RULE_NAME.test(this.value(operands[0]))) this.fail(node, `%${name} takes one stage name`);
+        args = [this.value(operands[0])];
+      }
+      return { name, args, at: this.at(node), ...(clauses && { conditions: this.conditions(clauses) }) };
+    }
+
+    /** @param {any} node */
+    ranking(node) {
+      const steps = parts(node, "ranking-step").map((/** @type {any} */ stepNode) => {
+        const step = this.value(stepNode);
+        const patternNode = rules(stepNode)[0];
+        if (Boolean(patternNode) !== KEY_STEPS.has(step)) this.fail(node, "invalid resolution step operand");
+        if (!patternNode) return { step };
+        const pattern = patternNode.rule === "constant-reference" ?
+          this.expression(patternNode) : this.pattern(patternNode);
+        return { step, pattern };
+      });
+      if (!validSteps(steps)) this.fail(node, "invalid resolution policy");
+      return { name: "ambiguity-resolution", steps, at: this.at(node) };
+    }
+
+    /** @param {any} node */
+    rule(node) {
+      const op = operation(this.value(node));
+      const plain = part(node, "rule-name");
+      const call = part(node, "call");
+      const head = plain ?? call;
+      const name = this.value(head);
+      const at = this.at(node);
+      if (plain && !RULE_NAME.test(name) && !this.unicode.isEmojiName(name)) {
+        this.domFault({ at }, "a rule name must begin with a lowercase letter or be an emoji name");
+      }
+      if (leaves(node).some((/** @type {any} */ token) => this.value(token) === "=")) {
+        if (!plain) this.fail(head, "an instance binding needs a plain rule name");
+        if (op === "extend") this.fail(node, "an instance binding cannot extend a rule");
+        return { name, op, instance: this.call(call), conditions: [], at };
+      }
+      /** @type {{params?: any[], args?: any[]}} */
+      let category = {};
+      if (!plain) {
+        const { args } = this.call(head);
+        if (args.every((/** @type {any} */ arg) => Object.hasOwn(arg, "param"))) {
+          /** @type {any[]} */
+          const params = [];
+          for (const arg of args) {
+            if (params.includes(arg.param)) this.domFault({ at }, `duplicate parameter @${arg.param}`);
+            params.push(arg.param);
+          }
+          category = { params };
+        } else {
+          if (op === "define" || args.some((/** @type {any} */ arg) => Object.hasOwn(arg, "param"))) {
+            this.domFault({ at }, "a rule head needs all parameters or an exact instance edit");
+          }
+          category = { args };
+        }
+      }
+      const termNode = part(node, "statement-term");
+      const term = termNode && this.expression(part(termNode, "bag"));
+      const body = rules(part(node, "body") ?? part(node, "headed-body"))[0];
+      const owner = { at };
+      const alternatives = body.rule === "ranked-body" ?
+        [this.alternative(body, "ranked-choice", owner)] : rules(body).map((/** @type {any} */ alt) => this.alternative(alt, "some-of", owner));
+      const conditions = this.conditions(part(node, "conditions-clause"));
+      const diagnostic = part(node, "diagnostic-clause");
+      const diagnosticNode = diagnostic && rules(diagnostic)[0];
+      if (diagnostic && category.params) this.domFault({ at }, "a template cannot declare an error or warning");
+      const key = diagnosticNode?.rule.split("-")[0];
+      const message = diagnosticNode && this.expression(part(diagnosticNode, "expr"));
+      const suppression = part(node, "suppress-warnings-clause");
+      const suppressWarnings = suppression && (parts(suppression, "suppression-code").length ?
+        parts(suppression, "suppression-code").map((/** @type {any} */ code) => {
+          const name = this.value(code);
+          if (!FEATURE_NAME50.test(name)) this.domFault({ at }, "invalid warning code");
+          return name;
+        }) : ["_"]);
+      const output = part(node, "output-clause");
+      const outputNode = output && rules(output)[0];
+      const erased = outputNode?.rule === "erased-clause";
+      const emit = outputNode && !erased && { items: parts(outputNode, "output").map((/** @type {any} */ item) => this.entry(item)) };
+      return { name, ...category, op, ...(term && { term }), alternatives, ...(emit && { emit }), conditions,
+        ...(key && { [key]: message }), ...(suppressWarnings && { suppressWarnings }), ...(erased && { erased }), at };
+    }
+
+    /** @param {any} node */
+    conditions(node) {
+      return node ? parts(node, "expr").map((/** @type {any} */ item) => this.expression(item)) : [];
+    }
+
+    /**
+     * @param {any} node
+     * @param {any} kind
+     * @param {any} owner
+     */
+    alternative(node, kind, owner) {
+      const gates = parts(node, "feature-gate").map((/** @type {any} */ gate) => this.gate(gate));
+      const source = part(node, kind);
+      const expr = this.ownedBody(source, owner, true);
+      validateBody50(expr, withOwner50(expr, this.domFault, owner));
+      const term = part(node, "alternative-term");
+      return { gates, expr, ...(term && { term: this.expression(part(term, "bag")) }) };
+    }
+
+    /** @param {any} node */
+    name(node) {
+      const name = this.value(node);
+      if (!name.startsWith("_")) return name;
+      if (name === "_Elided") return name;
+      const canonical = this.unicode.canonicalTag(name);
+      if (!canonical || canonical === "_Elided") this.fail(node, `unknown or forbidden engine key ${name}`);
+      return canonical;
+    }
+
+    /** @param {any} node */
+    binder(node) {
+      return this.value(node).slice(1);
+    }
+
+    /** @param {any} node */
+    gate(node) {
+      const negated = this.value(node) === "¬";
+      const feature = this.value(leaves(node)[Number(negated)]);
+      return { feature, kind: "gate", negated };
+    }
+
+    /**
+     * @param {any} node
+     * @param {any} owner
+     * @returns {any}
+     */
+    ownedBody(node, owner, whole = false) {
+      /** @type {any} */
+      const previous = this.bodyOwner;
+      this.bodyOwner = owner;
+      try {
+        return this.body(node, whole);
+      } finally {
+        this.bodyOwner = previous;
+      }
+    }
+
+    /**
+     * @param {any} node
+     * @returns {any}
+     */
+    body(node, whole = false, elidable = false) {
+      let children = rules(node);
+      let optionals = 0;
+      let grouped = false;
+      while (children.length === 1 && (BODY_WRAPPERS.has(node.rule) || node.rule === "optional" &&
+          children[0].rule !== "captured-terminator" && leaves(node).every((/** @type {any} */ leaf) => this.value(leaf) !== "+"))) {
+        if (node.rule === "group" && whole) grouped = true;
+        if (node.rule === "optional") optionals++;
+        node = children[0];
+        children = rules(node);
+      }
+      if (optionals) {
+        /** @type {any} */
+        let result = this.body(node);
+        for (let i = 0; i < optionals; i++) result = { optional: result };
+        return result;
+      }
+      const first = children[0];
+      const expr = (child = first, top = whole, isElidable = elidable) =>
+        this.body(child, top, isElidable);
+      switch (node.rule) {
+        case "choice":
+          return { choice: children.map((/** @type {any} */ child) => expr(child, false, elidable)) };
+        case "ranked-choice":
+          return { ranked: children.map((/** @type {any} */ child) => expr(child, false, false)) };
+        case "some-of":
+          validateSubsetSize50(children.length, this.bodyOwner, this.domFault);
+          return { and: children.map((/** @type {any} */ child) => expr(child, false, elidable)) };
+        case "sequence":
+          return { seq: children.map((/** @type {any} */ child, /** @type {any} */ index) => expr(child, false, elidable && index === 0)) };
+        case "optional":
+          return this.optional(node, first);
+        case "repetition": {
+          const marks = leaves(node).filter((/** @type {any} */ leaf) => this.value(leaf) === "...");
+          if (marks.length > 1) this.fail(marks[1], "a chain can have only one marker");
+          if (marks.length && grouped) this.fail(node, "a chain must occupy a whole alternative");
+          const separatorMark = children[1] && leaves(children[1]).find((/** @type {any} */ leaf) => this.value(leaf) === "...");
+          if (separatorMark) this.fail(separatorMark, "a chain marker cannot label a separator");
+          return { repeat: expr(first, false, false),
+            ...(children[1] && { separator: expr(children[1], false, false) }),
+            ...(marks.length && { chain: marks[0].span[0] < first.span[0] ? "left" : "right" }) };
+        }
+        case "capture":
+        case "captured-terminator": {
+          const capture = this.binder(first);
+          if (GROUPS.has(baseFactor(children[1]).rule)) this.fail(first, "a capture wraps one symbol");
+          const target = expr(children[1], false, elidable);
+          if (!isSymbol(target)) this.fail(first, "a capture wraps one symbol");
+          return { capture, expr: target };
+        }
+        case "marked-factor": {
+          const atom = baseFactor(first.rule === "capture" ? rules(first)[1] : first);
+          if (GROUPS.has(atom.rule)) this.fail(node, "a primary marks one ungrouped symbol or capture that is not a splice");
+          const target = expr(first, false, elidable);
+          return { primary: target };
+        }
+        case "tested-factor": {
+          if (GROUPS.has(baseFactor(first).rule)) this.fail(children[1], "a test applies to one symbol");
+          const tests = this.testOrder(children.slice(1), elidable);
+          const base = expr();
+          if (!isSymbol(base)) this.fail(children[1], "a test applies to one symbol");
+          return this.tests(base, tests, false);
+        }
+        case "ref":
+        case "rule-reference":
+          return { ref: this.value(node) };
+        case "tag":
+          return { ref: this.name(node) };
+        case "range":
+          return { range: children.map((/** @type {any} */ child) => this.stringOperand(rules(child)[0])) };
+        case "string-terminal":
+          return { literal: this.stringOperand(first) };
+        case "wildcard":
+          return { wildcard: true };
+        case "empty":
+          return { empty: true };
+        case "splice":
+          return { splice: expr() };
+        case "parameter":
+          return this.parameter(node);
+        case "call":
+          return this.call(node);
+        default:
+          this.fail(node, `unexpected body part ${node.rule}`);
+      }
+    }
+
+    /**
+     * @param {any} node
+     * @param {any} route
+     * @returns {any}
+     */
+    optional(node, route) {
+      const captured = route.rule === "captured-terminator";
+      const elidable = captured || leaves(node).some((/** @type {any} */ leaf) => this.value(leaf) === "+");
+      if (!elidable) return { optional: this.body(route) };
+      const parts = rules(route);
+      const sequence = captured ? parts.slice(1) : rules(rules(parts[0])[0]);
+      const head = sequence[0] && baseFactor(sequence[0]);
+      if (head?.rule === "group" ||
+          !captured && (parts.length !== 1 || parts[0].rule !== "some-of" || rules(parts[0]).length !== 1 ||
+            !sequence[0] || this.value(route) !== this.value(sequence[0]) ||
+            sequence.length === 1 && head.rule === "capture")) {
+        this.fail(route, elidableForm50);
+      }
+      if (!head || !["tag", "parameter"].includes(head.rule) || head.rule === "tag" && !/^[A-Z]/.test(this.value(head)) ||
+          sequence.slice(1).some(containsCapture)) this.domFault(this.bodyOwner, elidableForm50);
+      /** @type {any} */
+      const optional = this.body(route, false, true);
+      const symbol = captured ? optional.expr : optional.seq?.[0] ?? optional;
+      const value = this.defaults?.get(symbol);
+      return { optional, elidable: true, ...(value && { default: value }) };
+    }
+
+    /** @param {any} testNodes */
+    testOrder(testNodes, elidable = false) {
+      const kinds = ["tag-test", "value-test", "default-value"];
+      const tests = testNodes.map((/** @type {any} */ wrapper) => rules(wrapper)[0]);
+      let previous = -1;
+      for (const test of tests) {
+        const index = kinds.indexOf(test.rule);
+        if (index <= previous) this.fail(test, "a filter, value test and default must occur once in that order");
+        if (index === 2 && !elidable) this.fail(test, "only an elidable head takes a default value");
+        previous = index;
+      }
+      return tests;
+    }
+
+    /**
+     * @param {any} base
+     * @param {any} tests
+     * @param {any} pattern
+     */
+    tests(base, tests, pattern) {
+      let result = base;
+      for (const test of tests) {
+        const at = this.at(test);
+        if (test.rule === "tag-test") {
+          const requirements = this.requirements(test);
+          result = { test: "tags", requirements, expr: result, at };
+          validateOrigin50(result, this.domFault, pattern);
+        } else {
+          const value = this.stringOperand(rules(test)[0], true);
+          if (test.rule === "value-test") result = { test: this.value(test), value, expr: result, at };
+          else {
+            this.defaults ??= new WeakMap();
+            this.defaults.set(result, value);
+          }
+        }
+      }
+      return result;
+    }
+
+    /** @param {any} node */
+    requirements(node) {
+      return parts(node, "tag-requirement").map((/** @type {any} */ requirement) => {
+        const operand = rules(rules(requirement)[0])[0];
+        const negated = this.value(requirement) === "¬";
+        if (operand.rule === "tag") return { negated, value: { tag: this.name(operand) } };
+        const value = this.stringOperand(operand, true, "a key requirement needs a tag, key-set constant or parameter");
+        if (value.string !== undefined) this.fail(operand, "a key requirement needs a tag, key-set constant or parameter");
+        return { negated, value };
+      });
+    }
+
+    /**
+     * @param {any} node
+     * @returns {any}
+     */
+    stringOperand(node, test = false, message = "a string operand needs a literal, constant or parameter") {
+      if (test && node.rule === "test-operand") node = rules(node)[0];
+      if (test && node.rule === "post" && rules(node).length === 1) node = rules(rules(node)[0])[0] ?? node;
+      if (!["string", "constant-reference", "parameter"].includes(node.rule)) this.fail(node, message);
+      return this.expression(node);
+    }
+
+    /** @param {any} node */
+    parameter(node) {
+      return { param: this.value(node).slice(1), at: this.at(node) };
+    }
+
+    /** @param {any} node */
+    call(node) {
+      return { call: this.value(node), args: parts(node, "call-argument").map((/** @type {any} */ arg) => this.argument(arg)), at: this.at(node) };
+    }
+
+    /**
+     * @param {any} node
+     * @returns {any}
+     */
+    target(node) {
+      const first = rules(node)[0];
+      if (node.rule === "neighbor-target" || node.rule === "target-option") return this.target(first);
+      if (node.rule === "call") return this.call(node);
+      if (node.rule === "parameter") return this.parameter(node);
+      if (node.rule === "tag") return { terminal: this.name(node) };
+      return { rule: this.value(node) };
+    }
+
+    /** @param {any} node */
+    argument(node) {
+      const first = rules(node)[0];
+      const at = this.at(first);
+      let result;
+      if (first.rule === "expr") result = { expression: this.expression(first), at };
+      else if (first.rule === "requirement-argument") result = { requirements: this.requirements(first), at };
+      else if (first.rule === "target-argument") result = { targets: rules(first).map((/** @type {any} */ target) => this.target(target)), at };
+      else {
+        const body = this.ownedBody(first, { at });
+        if (body.ref !== undefined) {
+          const key = /^[A-Z_]/.test(body.ref) ? "tag" : "rule";
+          result = { [key]: body.ref, at };
+        } else if (isSymbol(body)) result = { ...body, at: body.at ?? at };
+        else result = { body, at };
+      }
+      validateArgument50(result, withOwner50(result, this.domFault, result));
+      return result;
+    }
+
+    /**
+     * @param {any} node
+     * @returns {any}
+     */
+    expression(node) {
+      let children = rules(node);
+      // A long run of parentheses or precedence wrappers adds no DOM depth.
+      while (children.length === 1 && (EXPRESSION_WRAPPERS.has(node.rule) ||
+        node.rule === "neg" && node.children.length === 1)) {
+        node = children[0];
+        children = rules(node);
+      }
+      const first = children[0];
+      const operators = leaves(node);
+      /** @param {any} child */
+      const expr = child => this.expression(child);
+      switch (node.rule) {
+        case "expr":
+          return children.length === 1 ? expr(first) :
+            { if: expr(first), then: expr(children[1]), at: this.at(operators[0]) };
+        case "function":
+          return { lambda: this.binder(operators[0]), body: expr(first), at: this.at(operators[0]) };
+        case "disj":
+        case "conj": {
+          const key = node.rule === "disj" ? "any" : "all";
+          const values = children.map(expr);
+          return values.length === 1 ? values[0] : { [key]: values,
+            at: this.at(operators.find((/** @type {any} */ operator) => operator.span[0] >= first.span[1])) };
+        }
+        case "neg": {
+          const positions = [];
+          while (node.rule === "neg") {
+            const operator = leaves(node)[0];
+            if (operator) positions.push(this.at(operator));
+            node = rules(node)[0];
+          }
+          return positions.reduceRight((not, at) => ({ not, at }), expr(node));
+        }
+        case "comparison": {
+          if (children.length === 1) return expr(first);
+          const op = this.value(children[1]);
+          const left = expr(first);
+          const right = expr(children[2]);
+          return { op, left, right, at: this.at(children[1]) };
+        }
+        case "union":
+        case "inter":
+        case "sum":
+          return this.binary(node, (/** @type {any} */ child) => expr(child), false);
+        case "post": {
+          let value = expr(first);
+          for (const selector of children.slice(1)) {
+            const at = this.at(selector);
+            switch (selector.rule) {
+              case "prop":
+                value = { property: this.name(part(selector, "key")), receiver: value, at };
+                break;
+              case "method":
+                value = this.method(selector, value);
+                break;
+              case "map": {
+                const [map] = rules(selector);
+                const by = map.rule === "method" ? this.method(map) : map.rule === "prop" ?
+                  { property: this.name(part(map, "key")), at: this.at(map) } : this.predicate(map);
+                value = { map: value, by, at };
+                break;
+              }
+              case "flatten":
+                value = { flatten: value, at };
+                break;
+            }
+          }
+          return value;
+        }
+        case "atom":
+          if (first) return expr(first);
+          if (this.value(node) === "∅") return { emptySet: true };
+          return { capture: this.value(node) === "$" ? "" : this.binder(node) };
+        case "grouped-expr":
+          return children.length === 1 ? expr(first) :
+            { if: expr(first), then: expr(children[1]), else: expr(children[2]), at: this.at(operators[1]) };
+        case "item-reference":
+          return first ? { property: this.name(first), receiver: { item: true }, at: this.at(node) } : { item: true };
+        case "method":
+          return this.method(node, { item: true });
+        case "string":
+          return { string: this.strings.decode(this.token(node)) };
+        case "integer":
+          return { integer: this.value(node) };
+        case "constant-reference":
+          return { const: this.value(node).slice(1), at: this.at(node) };
+        case "application":
+          return { apply: this.value(node).slice(1), arg: expr(first), at: this.at(node) };
+        case "parameter":
+          return this.parameter(node);
+        case "pattern-literal":
+          return { pattern: this.pattern(node) };
+        case "bag": {
+          const entries = children.map((/** @type {any} */ child) => this.entry(child));
+          validateBag50(entries, this.domFault);
+          return { bag: entries };
+        }
+        case "list":
+          return { list: children.map((/** @type {any} */ child) => this.entry(child)) };
+        default:
+          this.fail(node, `unexpected expression part ${node.rule}`);
+      }
+    }
+
+    /**
+     * @param {any} node
+     * @param {any} convert
+     * @param {any} pattern
+     */
+    binary(node, convert, pattern) {
+      const children = rules(node);
+      const operators = leaves(node);
+      let left = convert(children[0]);
+      /** @type {Record<string, string>} */
+      const names = { "∪": "union", "∖": "difference", "∩": "intersection", "++": "concat" };
+      for (const [index, operator] of operators.entries()) {
+        const right = convert(children[index + 1]);
+        const symbol = this.value(operator);
+        const kind = names[symbol];
+        const at = this.at(operator);
+        if (!kind) left = { op: symbol, left, right, at };
+        else if (kind === "union" || kind === "concat" || pattern && kind === "intersection") {
+          left = { [kind]: [...(left[kind] ?? [left]), ...(right[kind] ?? [right])], at: left[kind] ? left.at : at };
+        } else left = { [kind]: [left, right], at };
+      }
+      return left;
+    }
+
+    /**
+     * @param {any} node
+     * @param {any} [receiver]
+     * @returns {any}
+     */
+    method(node, receiver) {
+      const [selector] = rules(part(node, "selector"));
+      const method = this.value(selector);
+      const signature = methods50.get(method);
+      if (!signature) return this.fail(node, `unknown method .${method}`);
+      const parentheses = leaves(selector).some((/** @type {any} */ token) => this.value(token) === "(");
+      if (parentheses !== (signature.max !== 0)) {
+        this.fail(node, `method .${method} ${signature.max ? "requires" : "omits"} parentheses`);
+      }
+      const args = [];
+      switch (selector.rule) {
+        case "named-selector":
+          for (const arg of parts(selector, "expr")) args.push(this.expression(arg));
+          break;
+        case "key-selector":
+          args.push({ key: this.name(part(selector, "key")) });
+          break;
+        case "width-selector": {
+          const at = part(selector, "integer");
+          /** @type {any} */
+          const integer = this.expression(at).integer;
+          args.push({ integer });
+          break;
+        }
+        case "predicate-selector": {
+          const predicate = part(selector, "predicate");
+          if (predicate) args.push(this.predicate(predicate));
+          break;
+        }
+        case "neighbor-selector":
+          for (const arg of parts(selector, "neighbor-target")) args.push(this.target(arg));
+          break;
+        case "family-selector":
+          args.push(this.target(rules(selector)[0]));
+          break;
+        case "parse-selector": {
+          const query = part(selector, "query-body");
+          const choice = part(query, "choice");
+          /** @type {any} */
+          const body = this.ownedBody(choice, { at: this.at(node) });
+          const sequence = [];
+          if (this.value(query) === "…") sequence.push({ remainder: true });
+          for (const operand of body.seq ?? [body]) sequence.push(operand);
+          if (leaves(query).some((/** @type {any} */ leaf) => leaf.span[0] >= choice.span[1])) sequence.push({ remainder: true });
+          args.push({ body: collapse("seq", sequence) });
+          break;
+        }
+      }
+      /** @type {any} */
+      const result = { method, ...(receiver !== undefined && { receiver }), args, at: this.at(node) };
+      if (method === "parse") validateQuery50(result, withOwner50(result, this.domFault, result));
+      return result;
+    }
+
+    /**
+     * @param {any} node
+     * @returns {any}
+     */
+    predicate(node) {
+      const expr = part(node, "expr");
+      /** @type {any} */
+      const value = this.expression(expr);
+      const first = expr.span[0];
+      if (value.lambda !== undefined ||
+          expr.span[1] === first + 1 && (value.const || value.capture || value.param)) {
+        return value;
+      }
+      const index = this.tokens[first].value === "¬" ? first + 1 : first;
+      if (!["'", "."].includes(this.tokens[index].value)) this.fail(node, "a predicate requires an explicit binder");
+      return { lambda: "", body: value, at: this.at(node) };
+    }
+
+    /** @param {any} node */
+    entry(node) {
+      const prefix = part(node, "prefix");
+      const gates = parts(prefix, "feature-gate").map((/** @type {any} */ gate) => this.gate(gate));
+      const guard = part(prefix, "guard");
+      const suffix = { gates, ...(guard && { guard: this.expression(part(guard, "expr")) }), at: this.at(node) };
+      if (node.rule === "item") {
+        const kind = leaves(node).length ? "splat" : "item";
+        return { kind, value: this.expression(part(node, "expr")), ...suffix };
+      }
+      if (node.rule === "output") {
+        const selector = leaves(node)[0];
+        const bag = part(node, "bag");
+        const term = bag && this.expression(bag);
+        const value = this.value(selector);
+        if (value === "ε") return { insert: true, term, ...suffix };
+        if (value === "$" && !bag) this.domFault(suffix, "only a braced item can select the whole rule");
+        const capture = value === "$" ? "" : this.binder(selector);
+        return { capture, ...(term && { term }), ...suffix };
+      }
+      const body = rules(node)[1];
+      switch (body.rule) {
+        case "bare-entry":
+          return { kind: "bare", key: this.name(part(body, "key")), ...suffix };
+        case "write-entry":
+          return { kind: "write", keys: parts(body, "key").map((/** @type {any} */ key) => this.name(key)),
+            value: this.expression(part(body, "expr")), ...suffix };
+        case "delete-entry":
+          return { kind: "delete", key: this.name(part(body, "key")), ...suffix };
+        case "splat-entry":
+          return { kind: "splat", value: this.expression(part(body, "expr")), ...suffix };
+        case "copy-entry": {
+          const post = part(body, "post");
+          const last = rules(post).at(-1);
+          const itemProperty = last?.rule === "atom" && rules(last)[0]?.rule === "item-reference" &&
+            !!part(rules(last)[0], "key");
+          if (last?.rule !== "prop" && !itemProperty) this.fail(body, "a copy ends with a property selector");
+          const source = this.expression(post);
+          return { kind: "copy", source: source.receiver, key: source.property, ...suffix };
+        }
+      }
+    }
+
+    /**
+     * @param {any} node
+     * @returns {any}
+     */
+    pattern(node) {
+      let children = rules(node);
+      const paths = [];
+      while (children.length === 1 && PATTERN_WRAPPERS.has(node.rule)) {
+        if (node.rule === "pattern-path") paths.push(node);
+        node = children[0];
+        children = rules(node);
+      }
+      if (paths.length) {
+        return paths.reduceRight((pattern, path) => this.patternPath(path, pattern), this.pattern(node));
+      }
+      const first = children[0];
+      const operators = leaves(node);
+      switch (node.rule) {
+        case "pattern-union":
+        case "pattern-intersection":
+          return this.binary(node, (/** @type {any} */ child) => this.pattern(child), true);
+        case "bare-child-list":
+          return { any: true, ...(operators.length && { exact: true }), children: this.items(first) };
+        case "pattern-node": {
+          /** @type {any} */
+          const { at, ...atom } = this.pattern(first);
+          if (children[1]) validatePatternChildren50({ ...atom, at: at ?? this.at(first) }, this.domFault);
+          return { ...atom, ...(operators.length && { exact: true }),
+            ...(children[1] && { children: this.items(children[1]) }), at };
+        }
+        case "pattern-atom": {
+          const tests = this.testOrder(children.slice(1));
+          const at = this.at(first);
+          let atom;
+          switch (first.rule) {
+            case "pattern-rule":
+              atom = rules(first).length ? this.pattern(rules(first)[0]) : { name: this.value(first), at };
+              break;
+            case "call":
+              atom = this.call(first);
+              break;
+            case "parameter":
+              atom = this.parameter(first);
+              break;
+            case "tag":
+              atom = { terminal: this.name(first), at };
+              break;
+            case "string":
+              atom = { literal: this.expression(first), at };
+              break;
+            case "range":
+              atom = { ...this.body(first), at };
+              break;
+            case "wildcard":
+              atom = { wildcard: true, at };
+              break;
+            case "constant-reference":
+              atom = { constant: this.value(first).slice(1), at };
+              break;
+          }
+          return this.tests(atom, tests, true);
+        }
+        case "parameter":
+          return this.parameter(node);
+        case "call":
+          return this.call(node);
+        case "child-set-operation":
+        case "child-intersection":
+          return this.binary(node, (/** @type {any} */ child) => this.singlePattern(child), true);
+        default:
+          this.fail(node, `unexpected pattern part ${node.rule}`);
+      }
+    }
+
+    /**
+     * @param {any} node
+     * @param {any} pattern
+     */
+    patternPath(node, pattern) {
+      const mark = leaves(node)[0];
+      /** @type {Record<string, string>} */
+      const names = { "⋮": "descendant", "⋱": "last", "⋰": "first" };
+      return mark ? { path: names[this.value(mark)], pattern } : pattern;
+    }
+
+    /**
+     * @param {any} node
+     * @returns {any}
+     */
+    singlePattern(node) {
+      /** @type {any} */
+      const items = this.items(node);
+      if (items.length !== 1 || !items[0].child) this.fail(node, "an operator needs one whole pattern");
+      return items[0].child;
+    }
+
+    /**
+     * @param {any} node
+     * @returns {any}
+     */
+    items(node) {
+      const children = rules(node);
+      const first = children[0];
+      switch (node.rule) {
+        case "child-list":
+          return first ? this.items(first) : [];
+        case "child-choice": {
+          const choices = children.map((/** @type {any} */ alt) => this.items(alt));
+          if (choices.length === 1) return choices[0];
+          return [{ choice: choices.flatMap((/** @type {any} */ items) => items.length === 1 && items[0].choice ? items[0].choice : [items]) }];
+        }
+        case "child-alternative":
+        case "child-item":
+          return first ? this.items(first) : [{ siblings: true }];
+        case "child-primary":
+          return first.rule === "child-choice" ? this.items(first) : [{ child: this.pattern(first) }];
+        case "child-sequence":
+          return children.flatMap((/** @type {any} */ item) => this.items(item));
+        case "child-path":
+          return leaves(node).length ? [{ child: this.patternPath(node, this.singlePattern(first)) }] : this.items(first);
+        case "child-set-operation":
+        case "child-intersection":
+          return [{ child: this.pattern(node) }];
+        case "child-optional":
+          return [{ optional: this.items(first) }];
+        case "child-repetition":
+          return [{ repeat: this.items(first), ...(children[1] && { separator: this.items(children[1]) }) }];
+        default:
+          this.fail(node, `unexpected child part ${node.rule}`);
+      }
+    }
+  }
+
+  // ---- format50/check.js
+  // Checks of a stitched format 50 stage that need the whole stage: the
+  // types of truth positions, the constant graph, classifier receivers,
+  // output masks, engine keys and capture scope (part 1 §13, part 3 §§3-6).
+  // A check whose answer depends on the features of a parse returns the
+  // expression, and the stage checks it again before recognition.
+
+
+
+
+  const NO_TRUTH = new Map([["string", "A string"], ["number", "A number"], ["pattern", "A pattern"], ["function", "A function"]]);
+  const SPAN_VALUED = new Set(["span", "first-token", "last-token", "tokens-after-first", "onward", "following-tokens", "preceding-tokens"]);
+  const TRUTH_METHODS = new Set(["has", "has-value", "present", "any", "all", "starts-input", "ends-input", "overlaps", "followed-by", "preceded-by"]);
+  const BAG_METHODS = new Set(["keys", "flags", "classes", "select", "classify", "union"]);
+  const NODE_METHODS = new Set([
+    "span", "children", "keys", "flags", "classes", "select", "has", "has-value", "tokens", "first-token", "last-token",
+    "tokens-after-first", "onward", "following-tokens", "preceding-tokens", "starts-input", "ends-input", "source-text",
+    "decomposed-source-text", "verbatim-text", "parse", "without-elision", "without-elision-except", "followed-by", "preceded-by",
+  ]);
+  const STRING_METHODS = new Set(["join", "source-text", "decomposed-source-text", "verbatim-text"]);
+
+  /**
+   * @param {any} description
+   * @param {any} document
+   * @param {any} at
+   */
+  function located(description, document, at) {
+    return new GencmuError("grammar", description, { document, ...(at ? { line: at[0], column: at[1] } : {}) });
+  }
+
+  class StageCheck {
+    /**
+     * @param {Map<string, {record: any, document: string}[]>} constants
+     */
+    constructor(constants) {
+      /** @type {Map<string, any[]>} */
+      this.constants = constants;
+    }
+
+    /**
+     * @param {any} name
+     * @param {any} [version]
+     */
+    constantValue(name, version) {
+      const versions = this.constants.get(name);
+      if (!versions) return undefined;
+      return versions[version ?? versions.length - 1];
+    }
+
+    /**
+     * The possible types of an expression, as a set of names.
+     * @param {any} node
+     * @param {any} ctx
+     * @returns {any}
+     */
+    typeOf(node, ctx) {
+      /** @param {any} name */
+      const one = name => new Set([name]);
+      if (!node || typeof node !== "object") return one("unknown");
+      if (node.string !== undefined) return one("string");
+      if (node.integer !== undefined) return one("number");
+      if (node.pattern !== undefined || node.emptySet) return one("pattern");
+      if (node.lambda !== undefined) return one("function");
+      if (node.bag) return one("bag");
+      if (node.list) return one("list");
+      if (node.concat) return one("string");
+      if (node.not !== undefined || node.all || node.any) return one("truth");
+      if (node.if !== undefined && node.else === undefined) return one("truth");
+      if (node.if !== undefined) return new Set([...this.typeOf(node.then, ctx), ...this.typeOf(node.else, ctx)]);
+      if (node.op !== undefined) return one(node.op === "+" ? "number" : "truth");
+      if (node.union || node.intersection) return one("bag");
+      if (node.difference) return this.typeOf(node.difference[0], ctx);
+      if (node.map !== undefined || node.flatten !== undefined) return one("list");
+      if (node.capture !== undefined) {
+        if (node.capture === "") return one("node");
+        if (ctx.names?.has(node.capture)) return ctx.names.get(node.capture);
+        return one(ctx.captures?.get(node.capture) === "list" ? "list" : "node");
+      }
+      if (node.item) return ctx.item ?? one("unknown");
+      if (node.const !== undefined) {
+        if (node.const === "INPUTS") return one("bag");
+        const version = this.constantValue(node.const, ctx.constant?.name === node.const ? ctx.constant.index - 1 : undefined);
+        if (!version) return one("unknown");
+        if (ctx.active?.has(version)) return one("unknown");
+        const active = new Set([...(ctx.active ?? []), version]);
+        return this.typeOf(version.record.value, { constant: { name: node.const, index: /** @type {any[]} */ (this.constants.get(node.const)).indexOf(version) }, active });
+      }
+      if (node.apply !== undefined) return one("unknown");
+      if (node.param !== undefined) return one("unknown");
+      if (node.property !== undefined) return this.propertyType(node, ctx);
+      if (node.method !== undefined) {
+        const name = node.method;
+        if (SPAN_VALUED.has(name)) return one("span");
+        if (name === "tokens" || name === "children" || name === "split" || name === "ngrams") return one("list");
+        if (TRUTH_METHODS.has(name)) return one("truth");
+        if (BAG_METHODS.has(name)) return one("bag");
+        if (STRING_METHODS.has(name)) return one("string");
+        if (name === "at-most") return one("number");
+        if (name === "parse" || name === "error-free") return one("forest");
+        return one("unknown");
+      }
+      return one("unknown");
+    }
+
+    /**
+     * @param {any} node
+     * @param {any} ctx
+     */
+    propertyType(node, ctx) {
+      const key = node.property;
+      const receiver = node.receiver;
+      if (receiver?.const !== undefined) {
+        const version = this.constantValue(receiver.const);
+        const value = version?.record.value;
+        if (value?.bag) {
+          const types = new Set();
+          let open = false;
+          for (const entry of value.bag) {
+            if (entry.kind === "bare" && entry.key === key) types.add("truth");
+            else if (entry.kind === "write" && entry.keys.includes(key)) for (const type of this.typeOf(entry.value, {})) types.add(type);
+            else if (entry.kind === "splat" || entry.kind === "copy") open = true;
+          }
+          if (open) types.add("unknown");
+          if (!types.size) types.add("truth");
+          return types;
+        }
+        return new Set(["unknown"]);
+      }
+      if (key === "value" || key === "image") {
+        const types = receiver ? this.typeOf(receiver, ctx) : ctx.item;
+        if (types && [...types].every(type => type === "node")) return new Set(["string"]);
+      }
+      return new Set(["unknown"]);
+    }
+
+    /**
+     * Checks an expression in a truth position.
+     * @returns {any | null} the expression, where the answer depends on the features
+     * @param {any} node
+     * @param {any} ctx
+     * @param {any} document
+     */
+    truth(node, ctx, document, what = "truth") {
+      const types = this.typeOf(node, ctx);
+      const bad = [...types].filter(type => NO_TRUTH.has(type));
+      if (bad.length && bad.length === types.size) {
+        const kind = /** @type {string} */ (NO_TRUTH.get(bad[0]));
+        throw located(what === "guard" ? `${kind.toLowerCase()} cannot serve as a guard` : `${kind.toLowerCase()} does not convert to truth`,
+          ctx.document ?? document, node.at ?? ctx.at);
+      }
+      return bad.length ? node : null;
+    }
+
+    /**
+     * Walks an expression: checks each truth position in it, and each method
+     * receiver that the types decide.
+     * @param {any} node
+     * @param {any} ctx
+     * @param {any} document
+     * @param {any} deferred
+     * @returns {any}
+     */
+    walk(node, ctx, document, deferred, truthPosition = false) {
+      if (!node || typeof node !== "object") return;
+      if (Array.isArray(node)) {
+        for (const item of node) this.walk(item, ctx, document, deferred);
+        return;
+      }
+      if (truthPosition) {
+        const later = this.truth(node, ctx, document);
+        if (later) deferred.push({ node: later, ctx, document });
+      }
+      if (node.method === "present" && node.receiver && this.typeOf(node.receiver, ctx).has("span") &&
+          this.typeOf(node.receiver, ctx).size === 1) {
+        throw located("a span has no .present method", document, node.at);
+      }
+      if (node.method === "has" || node.method === "has-value") {
+        if (node.args[0]?.key === "_Elided") throw located("the omission origin _Elided is not a bag key", document, node.at);
+      }
+      // A capture in an optional or a repetition is a list. A method of a
+      // node or a span does not take a list as its receiver (part 3 §4).
+      if (node.method !== undefined && NODE_METHODS.has(node.method) && node.receiver?.capture !== undefined &&
+          node.receiver.capture !== "" && !ctx.names?.has(node.receiver.capture) && ctx.captures?.get(node.receiver.capture) === "list") {
+        throw located(`$${node.receiver.capture} is a list of nodes, which has no method .${node.method}`, document, node.at);
+      }
+      if (node.concat) {
+        for (const operand of node.concat) {
+          const types = this.typeOf(operand, ctx);
+          const bad = [...types].find(type => type !== "string" && type !== "unknown");
+          if (bad && types.size === 1) throw located(`an operand of concatenation is ${bad === "number" ? "a number" : `of type ${bad}`}`, document, operand.at ?? node.at);
+        }
+      }
+      if (node.not !== undefined) return this.walk(node.not, ctx, document, deferred, true);
+      // A pattern's bare list also has the member any, as a truth value.
+      if (Array.isArray(node.all) || Array.isArray(node.any)) {
+        for (const item of node.all ?? node.any) this.walk(item, ctx, document, deferred, true);
+        return;
+      }
+      if (node.if !== undefined) {
+        this.walk(node.if, ctx, document, deferred, true);
+        const implication = node.else === undefined;
+        this.walk(node.then, ctx, document, deferred, implication);
+        if (!implication) this.walk(node.else, ctx, document, deferred);
+        return;
+      }
+      if (node.bag || node.list) {
+        for (const entry of node.bag ?? node.list) {
+          if (entry.guard) {
+            const later = this.truth(entry.guard, { ...ctx, at: entry.at }, document, "guard");
+            if (later) deferred.push({ node: later, ctx, document });
+            this.walk(entry.guard, ctx, document, deferred);
+          }
+          this.walk(entry.value ?? entry.source, ctx, document, deferred);
+        }
+        return;
+      }
+      if (node.lambda !== undefined) {
+        const names = new Map(ctx.names ?? []);
+        if (node.lambda) names.set(node.lambda, new Set(["unknown"]));
+        this.walk(node.body, { ...ctx, names, item: new Set(["unknown"]) }, document, deferred, ctx.predicate);
+        return;
+      }
+      if (node.method === "any" || node.method === "all") {
+        this.walk(node.receiver, ctx, document, deferred);
+        for (const arg of node.args) this.walk(arg, { ...ctx, predicate: true }, document, deferred);
+        return;
+      }
+      for (const [key, value] of Object.entries(node)) {
+        if (key !== "at" && value && typeof value === "object") this.walk(value, { ...ctx, predicate: false }, document, deferred);
+      }
+    }
+
+    /**
+     * Checks a stage. Returns the truth positions that depend on the features.
+     * @param {{rule: any, document: string}[]} rules the written rules of the stage
+     */
+    check(rules) {
+      /** @type {any[]} */
+      const deferred = [];
+      this.constantGraph();
+      for (const [name, versions] of this.constants) {
+        for (const [index, version] of versions.entries()) {
+          this.walk(version.record.value, { constant: { name, index }, document: version.document }, version.document, deferred);
+        }
+      }
+      for (const { rule, document } of rules) {
+        if (rule.instance) continue;
+        const statementKinds = new Map();
+        for (const alternative of rule.alternatives) {
+          for (const [name, kind] of captureKinds(alternative.expr)) {
+            statementKinds.set(name, statementKinds.has(name) && statementKinds.get(name) === "one" || kind === "one" ? "one" : "list");
+          }
+        }
+        const shared = { captures: statementKinds, document };
+        for (const condition of rule.conditions) this.walk(condition, shared, document, deferred, true);
+        for (const term of [rule.term, ...rule.alternatives.map((/** @type {any} */ alternative) => alternative.term)]) if (term) ownBagReads(term, document);
+        if (rule.term) {
+          this.scope(rule.term, rule, statementKinds, document, true);
+          this.walk(rule.term, shared, document, deferred);
+          this.nodeBag(rule.term, document);
+        }
+        for (const alternative of rule.alternatives) {
+          if (!alternative.term) continue;
+          const own = captureKinds(alternative.expr);
+          this.scope(alternative.term, rule, statementKinds, document, false, own);
+          this.walk(alternative.term, { captures: own, document }, document, deferred);
+          this.nodeBag(alternative.term, document);
+        }
+        for (const item of rule.emit?.items ?? []) {
+          if (item.guard) {
+            const later = this.truth(item.guard, { ...shared, at: item.at }, document, "guard");
+            if (later) deferred.push({ node: later, ctx: shared, document });
+            this.walk(item.guard, shared, document, deferred);
+          }
+          if (item.term) this.walk(item.term, shared, document, deferred);
+        }
+      }
+      this.instances(rules, deferred);
+      this.classifiers(rules);
+      this.outputs();
+      return deferred;
+    }
+
+    // Each call of a template: its arguments substituted into the terms of
+    // the template, and the origin filters that the arguments meet. An error
+    // that an argument causes is reported at the written argument.
+    /**
+     * @param {any} rules
+     * @param {any} deferred
+     * @returns {any}
+     */
+    instances(rules, deferred) {
+      const templates = new Map(rules.filter((/** @type {any} */ { rule }) => rule.params).map((/** @type {any} */ entry) => [entry.rule.name, entry]));
+      if (!templates.size) return;
+      /** @type {any[]} */
+      const calls = [];
+      /**
+       * @param {any} node
+       * @param {any} document
+       */
+      const find = (node, document) => {
+        if (!node || typeof node !== "object") return;
+        if (Array.isArray(node)) return node.forEach(item => find(item, document));
+        if (node.call !== undefined && Array.isArray(node.args) && templates.has(node.call)) calls.push({ call: node, document });
+        for (const value of Object.values(node)) if (value && typeof value === "object") find(value, document);
+      };
+      for (const { rule, document } of rules) find([rule.alternatives, rule.instance, rule.args && { call: rule.name, args: rule.args }], document);
+      for (const { call, document } of calls) {
+        const { rule: template, document: home } = templates.get(call.call);
+        const env = new Map(template.params.map((/** @type {any} */ param, /** @type {any} */ index) => [param, call.args[index]]));
+        // An origin filter on a parameter needs a terminal as its argument.
+        /** @param {any} node */
+        const filters = node => {
+          if (!node || typeof node !== "object") return;
+          if (Array.isArray(node)) return node.forEach(filters);
+          if (node.test === "tags" && node.expr?.param !== undefined &&
+              node.requirements.some((/** @type {any} */ item) => item.value.tag === "_Elided")) {
+            const arg = env.get(node.expr.param);
+            const name = arg?.rule ?? arg?.ref;
+            if (name !== undefined && /^[a-z]/.test(name) || arg?.call !== undefined) {
+              throw located("the _Elided origin test applies only to a terminal, and the argument is a rule", document, arg.at);
+            }
+          }
+          for (const value of Object.values(node)) if (value && typeof value === "object") filters(value);
+        };
+        template.alternatives.forEach((/** @type {any} */ alternative) => filters(alternative.expr));
+        /**
+         * @param {any} node
+         * @returns {any}
+         */
+        const substitute = node => {
+          if (Array.isArray(node)) return node.map(substitute);
+          if (!node || typeof node !== "object") return node;
+          if (node.param !== undefined && env.has(node.param)) {
+            const arg = env.get(node.param);
+            return arg.expression ? { ...arg.expression, at: arg.expression.at ?? arg.at } : arg;
+          }
+          return Object.fromEntries(Object.entries(node).map(/** @returns {any} */ ([key, value]) => [key, substitute(value)]));
+        };
+        const ctx = { captures: new Map(), document };
+        for (const term of [template.term, ...template.alternatives.map((/** @type {any} */ alternative) => alternative.term)]) {
+          if (term) this.walk(substitute(term), ctx, document, deferred);
+        }
+        void home;
+      }
+    }
+
+    /**
+     * The value certificate (part 2 §4): the rules whose value provably
+     * equals the join of their input values. Returns each value test or
+     * recognition read of a rule value that has no certificate.
+     * @param {any} rules
+     * @returns {any}
+     */
+    certificates(rules) {
+      const byName = new Map();
+      for (const entry of rules) {
+        if (entry.rule.params || entry.rule.instance) continue;
+        if (!byName.has(entry.rule.name) || entry.rule.op !== "extend") byName.set(entry.rule.name, []);
+        byName.get(entry.rule.name).push(entry);
+      }
+      const joinsChildren = this.defaultsJoinChildren();
+      const certified = new Set(byName.keys());
+      /**
+       * @param {any} node
+       * @returns {boolean}
+       */
+      const symbolPasses = node => {
+        if (!node || typeof node !== "object") return true;
+        if (node.primary) return symbolPasses(node.primary);
+        if (node.capture !== undefined && node.expr) return symbolPasses(node.expr);
+        if (node.test !== undefined) return symbolPasses(node.expr);
+        if (node.ref !== undefined) return !/^[a-z]/.test(node.ref) || certified.has(node.ref);
+        if (node.literal || node.range || node.wildcard || node.empty) return true;
+        // A splice adds its called rule's value.
+        if (node.splice) return symbolPasses(node.splice);
+        if (node.seq || node.choice) return (node.seq ?? node.choice).every(symbolPasses);
+        if (node.optional) return (!node.elidable || !node.default || node.default.string === "") && symbolPasses(node.optional);
+        if (node.repeat) return symbolPasses(node.repeat) && symbolPasses(node.separator);
+        return false;
+      };
+      /** @param {any} value */
+      const isInputJoin = value => value?.method === "join" && !value.args.length && value.receiver?.map?.method === "tokens" &&
+        value.receiver.by?.property === "value" && value.receiver.map.receiver?.method === "span" &&
+        value.receiver.map.receiver.receiver?.capture === "";
+      /**
+       * @param {any} rule
+       * @param {any} alternative
+       */
+      const alternativePasses = (rule, alternative) => {
+        const terms = [rule.term, alternative.term].filter(Boolean);
+        let writer = null;
+        for (const term of terms) for (const entry of term.bag) {
+          if (entry.kind === "write" && entry.keys.includes("value") || entry.kind === "delete" && entry.key === "value" ||
+              entry.kind === "splat" && splatMayWriteValue(entry.value) || entry.kind === "copy" && entry.key === "value") writer = entry;
+        }
+        if (writer) return writer.kind === "write" && !writer.guard && !writer.gates.length && isInputJoin(writer.value);
+        const body = alternative.expr;
+        if (body.primary) return symbolPasses(body.primary);
+        if (body.seq?.some((/** @type {any} */ item) => item.primary)) return false;
+        if (!terms.length && (body.ref !== undefined || body.literal || body.range || body.wildcard || body.test !== undefined || body.capture !== undefined || body.choice || body.splice)) {
+          return symbolPasses(body);
+        }
+        return joinsChildren && symbolPasses(body);
+      };
+      const reasons = new Map();
+      for (let changed = true; changed;) {
+        changed = false;
+        for (const name of [...certified]) {
+          const failing = byName.get(name).flatMap((/** @type {any} */ { rule }) => rule.alternatives.map((/** @type {any} */ alternative, /** @type {any} */ index) => [rule, alternative, index]))
+            .find((/** @type {any} */ [rule, alternative]) => !alternativePasses(rule, alternative));
+          if (failing) {
+            certified.delete(name);
+            // The first supplier that breaks the proof, for the message.
+            const [, alternative, index] = failing;
+            /** @type {any[]} */
+            const refs = [];
+            /** @param {any} node */
+            const collect = node => {
+              if (!node || typeof node !== "object") return;
+              if (node.ref !== undefined && /^[a-z]/.test(node.ref)) refs.push(node.ref);
+              for (const value of Object.values(node)) if (value && typeof value === "object") collect(value);
+            };
+            collect(alternative.expr);
+            const child = refs.find(ref => byName.has(ref) && !certified.has(ref));
+            reasons.set(name, child ? `alternative ${index + 1} reads ${child}, ${reasons.get(child) ?? "which has no certificate"}` :
+              `alternative ${index + 1} writes or keeps a value that is not the join of its input`);
+            changed = true;
+          }
+        }
+      }
+      /** @type {any[]} */
+      const failures = [];
+      /**
+       * @param {any} node
+       * @param {any} document
+       * @param {any} [symbols]
+       */
+      const visit = (node, document, symbols) => {
+        if (!node || typeof node !== "object") return;
+        if (Array.isArray(node)) return node.forEach(item => visit(item, document, symbols));
+        if ((node.test === "=" || node.test === "≠") && node.expr) {
+          let base = node.expr;
+          while (base.capture !== undefined && base.expr || base.test !== undefined) base = base.expr;
+          if (base.ref !== undefined && byName.has(base.ref) && !certified.has(base.ref)) {
+            failures.push(located(`the value test on ${base.ref} has no proof that the value equals the join of its input: ${base.ref}: ${reasons.get(base.ref)}`, document, node.at));
+          }
+        }
+        if (node.property === "value" && node.receiver?.capture && symbols?.has(node.receiver.capture)) {
+          const target = symbols.get(node.receiver.capture);
+          if (byName.has(target) && !certified.has(target)) {
+            failures.push(located(`the read of the value of ${target} in recognition has no proof that it equals the join of its input: ${target}: ${reasons.get(target)}`, document, node.at));
+          }
+        }
+        for (const value of Object.values(node)) if (value && typeof value === "object") visit(value, document, symbols);
+      };
+      for (const { rule, document } of rules) {
+        const symbols = new Map();
+        for (const alternative of rule.alternatives ?? []) collectRuleCaptures(alternative.expr, symbols);
+        visit(rule.alternatives?.map((/** @type {any} */ alternative) => alternative.expr), document);
+        visit(rule.conditions, document, symbols);
+      }
+      return failures;
+    }
+
+    /**
+     * A read of a payload needs a payload on each route that reaches it. A
+     * route of a rule without the key, or with the key bare, needs a test of
+     * .has-value(k) on the same capture before the read (part 3 §3).
+     * @param {any} rules
+     */
+    payloadRefinement(rules) {
+      const states = new Map();
+      for (const { rule } of rules) {
+        if (rule.params || rule.instance) continue;
+        const own = states.get(rule.name) ?? { alternatives: 0, keys: new Map() };
+        states.set(rule.name, own);
+        for (const alternative of rule.alternatives) {
+          own.alternatives++;
+          const terms = [rule.term, alternative.term].filter(Boolean);
+          const keys = new Set(terms.flatMap(term => term.bag.flatMap((/** @type {any} */ entry) => entry.keys ?? (entry.key ? [entry.key] : []))));
+          for (const key of keys) {
+            let writer = null;
+            for (const term of terms) for (const entry of term.bag) {
+              if (entry.kind === "write" && entry.keys.includes(key) || entry.key === key || entry.kind === "splat") writer = entry;
+            }
+            const state = writer === null ? "absent" : writer.kind === "write" ? (writer.guard || writer.gates.length ? "maybe" : "valued") :
+              writer.kind === "splat" || writer.kind === "copy" ? "unknown" : "absent";
+            own.keys.set(key, [...(own.keys.get(key) ?? []), state]);
+          }
+        }
+      }
+      /** @type {any[]} */
+      const failures = [];
+      /**
+       * @param {any} capture
+       * @param {any} key
+       */
+      const mark = (capture, key) => `${capture}|${key}`;
+      /**
+       * @param {any} node
+       * @param {any} out
+       */
+      const tested = (node, out) => {
+        if (node?.method === "has-value" && node.receiver?.capture !== undefined) out.add(mark(node.receiver.capture, node.args[0].key));
+        if (node?.all) for (const item of node.all) tested(item, out);
+        return out;
+      };
+      for (const { rule, document } of rules) {
+        const symbols = new Map();
+        for (const alternative of rule.alternatives ?? []) collectRuleCaptures(alternative.expr, symbols);
+        /**
+         * @param {any} node
+         * @param {any} refined
+         */
+        const walk = (node, refined) => {
+          if (!node || typeof node !== "object") return;
+          if (Array.isArray(node)) return node.forEach(item => walk(item, refined));
+          if (node.if !== undefined && node.else === undefined) {
+            walk(node.if, refined);
+            walk(node.then, new Set([...refined, ...tested(node.if, new Set())]));
+            return;
+          }
+          if (node.all) {
+            let current = new Set(refined);
+            for (const item of node.all) {
+              walk(item, current);
+              current = new Set([...current, ...tested(item, new Set())]);
+            }
+            return;
+          }
+          if (node.property !== undefined && node.property !== "value" && node.property !== "image" && node.receiver?.capture) {
+            const target = symbols.get(node.receiver.capture);
+            const routes = target !== undefined ? states.get(target) : undefined;
+            if (routes && !refined.has(mark(node.receiver.capture, node.property))) {
+              const found = routes.keys.get(node.property) ?? [];
+              const valuedSomewhere = found.some((/** @type {any} */ state) => state === "valued" || state === "maybe");
+              const missing = found.length < routes.alternatives || found.some((/** @type {any} */ state) => state !== "valued");
+              if (valuedSomewhere && missing && !found.includes("unknown")) {
+                failures.push(located(`the read of '${node.property} on $${node.receiver.capture} can reach an absent payload`, document, node.at));
+              }
+            }
+          }
+          for (const [key, value] of Object.entries(node)) if (key !== "at" && value && typeof value === "object") walk(value, refined);
+        };
+        walk(rule.conditions, new Set());
+      }
+      return failures;
+    }
+
+    /**
+     * The possible states of each key that the stage's tokens can carry
+     * (part 2 §2): "absent", "bare" or "valued", for each key that a term of
+     * the stage writes, and the input states of each key that a copy of an
+     * input bag passes on. The states are a union over all writers, so they
+     * over-approximate the interface.
+     * @param {{rule: any}[]} rules
+     * @param {Map<string, Set<string>> | null} input the states of the input keys
+     */
+    outputStates(rules, input) {
+      const states = new Map();
+      /**
+       * @param {any} key
+       * @param {any} state
+       */
+      const add = (key, state) => {
+        if (!states.has(key)) states.set(key, new Set(["absent"]));
+        states.get(key).add(state);
+      };
+      for (const [key, values] of input ?? []) for (const value of values) add(key, value);
+      const terms = [];
+      for (const { rule } of rules) {
+        terms.push(rule.term);
+        for (const alternative of rule.alternatives ?? []) terms.push(alternative.term);
+        for (const item of rule.emit?.items ?? []) terms.push(item.term);
+      }
+      for (const version of this.constants.get("DEFAULTS") ?? []) if (version.record.value.body?.bag) terms.push(version.record.value.body);
+      for (const term of terms.filter(Boolean)) {
+        for (const entry of term.bag) {
+          if (entry.kind === "bare") add(entry.key, "bare");
+          if (entry.kind === "write") for (const key of entry.keys) add(key, "valued");
+          if (entry.kind === "copy") for (const value of input?.get(entry.key) ?? ["valued"]) add(entry.key, value);
+        }
+      }
+      return states;
+    }
+
+    /**
+     * A read of the payload of an input token needs a payload on each route
+     * (part 3 §3). .has(k) removes absence and .has-value(k) also removes the
+     * bare state. A guard refines its entry, and an antecedent its
+     * consequent.
+     * @param {{rule: any, document: string}[]} rules
+     * @param {Map<string, Set<string>>} input the states of the input keys
+     */
+    inputRefinement(rules, input) {
+      /** @type {any[]} */
+      const failures = [];
+      /**
+       * @param {any} node
+       * @param {any} out
+       */
+      const tests = (node, out) => {
+        if ((node?.method === "has-value" || node?.method === "has") && node.receiver?.capture !== undefined) {
+          const key = `${node.receiver.capture}|${node.args[0].key}`;
+          if (node.method === "has-value" || out.get(key) !== "value") out.set(key, node.method === "has-value" ? "value" : "present");
+        }
+        if (node?.all) for (const item of node.all) tests(item, out);
+        return out;
+      };
+      /**
+       * @param {any} refined
+       * @param {any} more
+       */
+      const merge = (refined, more) => {
+        const result = new Map(refined);
+        for (const [key, kind] of more) if (kind === "value" || result.get(key) !== "value") result.set(key, kind);
+        return result;
+      };
+      for (const { rule, document } of rules) {
+        const terminals = new Set();
+        /** @param {any} node */
+        const find = node => {
+          if (!node || typeof node !== "object") return;
+          if (node.capture !== undefined && node.expr) {
+            let base = node.expr;
+            while (base.test !== undefined || base.primary) base = base.expr ?? base.primary;
+            if (base.wildcard || base.ref !== undefined && /^[A-Z_]/.test(base.ref)) terminals.add(node.capture);
+          }
+          for (const value of Object.values(node)) if (value && typeof value === "object") find(value);
+        };
+        for (const alternative of rule.alternatives ?? []) find(alternative.expr);
+        if (!terminals.size) continue;
+        /**
+         * @param {any} node
+         * @param {any} refined
+         */
+        const walk = (node, refined) => {
+          if (!node || typeof node !== "object") return;
+          if (Array.isArray(node)) return node.forEach(item => walk(item, refined));
+          if (node.if !== undefined && node.else === undefined) {
+            walk(node.if, refined);
+            walk(node.then, merge(refined, tests(node.if, new Map())));
+            return;
+          }
+          if (Array.isArray(node.all)) {
+            let current = refined;
+            for (const item of node.all) {
+              walk(item, current);
+              current = merge(current, tests(item, new Map()));
+            }
+            return;
+          }
+          if (Array.isArray(node.bag)) {
+            for (const entry of node.bag) {
+              if (entry.guard) walk(entry.guard, refined);
+              walk(entry.value ?? entry.source, entry.guard ? merge(refined, tests(entry.guard, new Map())) : refined);
+            }
+            return;
+          }
+          const read = node.property !== undefined && node.property !== "value" && node.property !== "image" &&
+            node.receiver?.capture !== undefined && terminals.has(node.receiver.capture);
+          if (read && input.has(node.property)) {
+            const states = /** @type {Set<string>} */ (input.get(node.property));
+            const kind = refined.get(`${node.receiver.capture}|${node.property}`);
+            if (states.has("valued") && (kind === undefined && (states.has("absent") || states.has("bare")) || kind === "present" && states.has("bare"))) {
+              failures.push(located(kind === "present"
+                ? `the presence test leaves a bare route to the read of '${node.property} on $${node.receiver.capture}`
+                : `the read of '${node.property} on $${node.receiver.capture} can reach an absent or bare key`, document, node.at));
+            }
+          }
+          for (const [key, value] of Object.entries(node)) if (key !== "at" && value && typeof value === "object") walk(value, refined);
+        };
+        walk([rule.conditions, rule.term, (rule.alternatives ?? []).map((/** @type {any} */ alternative) => alternative.term), (rule.emit?.items ?? []).map((/** @type {any} */ item) => item.term)], new Map());
+      }
+      return failures;
+    }
+
+    // Whether $DEFAULTS gives each rule node the join of its children's values.
+    defaultsJoinChildren() {
+      const version = this.constantValue("DEFAULTS");
+      const value = version?.record.value;
+      if (!value || value.lambda === undefined || !value.body?.bag) return false;
+      let writer = null;
+      for (const entry of value.body.bag) if (entry.kind === "write" && entry.keys.includes("value") || entry.kind === "splat") writer = entry;
+      const join = writer?.value;
+      return writer?.kind === "write" && !writer.guard && join?.method === "join" && !join.args.length &&
+        join.receiver?.map?.method === "children" && join.receiver.map.receiver?.capture === value.lambda &&
+        join.receiver.by?.property === "value";
+    }
+
+    // A shared statement term reads a capture of some alternatives only
+    // behind a presence guard. An alternative term reads only its own
+    // captures. Every capture name must be known to the statement.
+    /**
+     * @param {any} term
+     * @param {any} rule
+     * @param {any} statementKinds
+     * @param {any} document
+     * @param {any} sharedTerm
+     * @param {any} [own]
+     */
+    scope(term, rule, statementKinds, document, sharedTerm, own) {
+      /**
+       * @param {any} node
+       * @param {any} guarded
+       * @param {any} found
+       */
+      const reads = (node, guarded, found, bound = new Set()) => {
+        if (!node || typeof node !== "object") return;
+        if (Array.isArray(node)) {
+          for (const item of node) reads(item, guarded, found, bound);
+          return;
+        }
+        // A function binder is no capture of the rule.
+        if (node.lambda !== undefined) {
+          reads(node.body, guarded, found, node.lambda ? new Set([...bound, node.lambda]) : bound);
+          return;
+        }
+        if (node.capture !== undefined && node.capture !== "" && !node.expr && !bound.has(node.capture)) found.push({ name: node.capture, guarded, at: node.at });
+        for (const [key, value] of Object.entries(node)) if (key !== "at" && value && typeof value === "object") reads(value, guarded, found, bound);
+      };
+      const routes = rule.alternatives.map((/** @type {any} */ alternative) => captureKinds(alternative.expr));
+      for (const entry of term.bag) {
+        /** @type {any[]} */
+        const found = [];
+        if (entry.guard) reads(entry.guard, true, found);
+        reads(entry.value ?? entry.source, false, found);
+        for (const { name, guarded } of found) {
+          if (!statementKinds.has(name)) throw located(`the statement does not declare the capture $${name}`, document, entry.at);
+          if (sharedTerm) {
+            if (!guarded && !entry.guard && routes.some((/** @type {any} */ route) => !route.has(name))) {
+              throw located(`the shared statement entry reads $${name}, which an alternative does not declare`, document, entry.at);
+            }
+          } else if (!own.has(name)) {
+            throw located(`the alternative term reads $${name}, which only another alternative declares`, document, entry.at);
+          }
+        }
+      }
+    }
+
+    // A rule term writes no engine key, and copies no permission set into a
+    // node. A splat of a closed constant gives the strings of a node only
+    // where it holds strings for them.
+    /**
+     * @param {any} term
+     * @param {any} document
+     */
+    nodeBag(term, document) {
+      for (const entry of term.bag) {
+        const keys = entry.kind === "write" ? entry.keys : entry.kind === "bare" ? [entry.key] : [];
+        for (const key of keys) {
+          if (key.startsWith("_")) throw located(`a constructor cannot write the engine key ${key}`, document, entry.at);
+        }
+        if (entry.kind !== "splat") continue;
+        if (mentionsInputs(entry.value)) throw located("a permission set such as $INPUTS cannot supply stored engine memberships", document, entry.at);
+        if (entry.value.const !== undefined) {
+          const value = this.constantValue(entry.value.const)?.record.value;
+          for (const item of value?.bag ?? []) {
+            for (const key of item.kind === "write" ? item.keys : item.kind === "bare" ? [item.key] : []) {
+              if ((key === "value" || key === "image") && (item.kind === "bare" || !this.typeOf(item.value, {}).has("string") || this.typeOf(item.value, {}).size > 1)) {
+                throw located(`the splat gives the node's string key ${key} a value that is not a string`, document, entry.at);
+              }
+            }
+          }
+        }
+      }
+    }
+
+    // A constant reads the final version of another constant, and the
+    // previous version of itself only inside a redefinition.
+    constantGraph() {
+      const edges = new Map();
+      for (const [name, versions] of this.constants) {
+        versions.forEach((version, index) => {
+          /** @type {any[]} */
+          const targets = [];
+          collectConstants(version.record.value, (/** @type {any} */ target) => {
+            if (target === name) {
+              if (index === 0) throw located(`$${name} calls itself, a cycle of constants`, version.document, version.record.at);
+              targets.push(versions[index - 1]);
+            } else if (this.constants.has(target)) targets.push(/** @type {any[]} */ (this.constants.get(target)).at(-1));
+          });
+          edges.set(version, targets);
+        });
+      }
+      const state = new Map();
+      /** @param {any} version */
+      const visit = version => {
+        if (state.get(version) === "done") return;
+        if (state.get(version) === "active") throw located(`a cycle of constants reaches $${version.record.name}`, version.document, version.record.at);
+        state.set(version, "active");
+        for (const target of edges.get(version) ?? []) visit(target);
+        state.set(version, "done");
+      };
+      for (const version of edges.keys()) visit(version);
+    }
+
+    // Each receiver of .classify: its class entries hold strings, lists of
+    // strings or key sets, and each reference names a class of some version.
+    /** @param {any} rules */
+    classifiers(rules) {
+      const receivers = new Set();
+      /** @param {any} node */
+      const find = node => {
+        if (!node || typeof node !== "object") return;
+        if (Array.isArray(node)) return node.forEach(find);
+        if (node.method === "classify" && node.receiver?.const !== undefined) receivers.add(node.receiver.const);
+        for (const value of Object.values(node)) if (value && typeof value === "object") find(value);
+      };
+      for (const { rule } of rules) find(rule);
+      for (const versions of this.constants.values()) for (const version of versions) find(version.record.value);
+      for (const name of receivers) {
+        const versions = this.constants.get(name) ?? [];
+        const known = new Set();
+        for (const version of versions) for (const entry of version.record.value.bag ?? []) {
+          if (entry.kind === "write") entry.keys.forEach((/** @type {any} */ key) => known.add(key));
+          if (entry.kind === "bare") known.add(entry.key);
+        }
+        for (const version of versions) for (const entry of version.record.value.bag ?? []) {
+          if (entry.kind === "bare" && !entry.gates.length && !entry.guard) {
+            throw located(`the class ${entry.key} of $${name} has no value: an effective classifier entry cannot be bare`, version.document, entry.at);
+          }
+          if (entry.kind !== "write") continue;
+          const value = entry.value;
+          if (value.list && !value.list.every((/** @type {any} */ item) => item.value.string !== undefined)) {
+            throw located(`a classifier list of $${name} requires string elements`, version.document, entry.at);
+          }
+          if (value.bag) for (const reference of value.bag) {
+            if (reference.kind !== "bare" || !known.has(reference.key)) {
+              throw located(`${reference.key ?? "a reference"} has no supplier in any version of the classifier $${name}`, version.document, reference.at ?? entry.at);
+            }
+          }
+        }
+      }
+    }
+
+    // $OUTPUTS is a key set. A splat that can give it a valued entry fails.
+    outputs() {
+      for (const version of this.constants.get("OUTPUTS") ?? []) {
+        const value = version.record.value;
+        for (const entry of value.bag ?? []) {
+          if (entry.kind === "write") throw located(`$OUTPUTS cannot give the key ${entry.keys[0]} a value`, version.document, entry.at);
+          if (entry.kind !== "splat") continue;
+          const source = entry.value;
+          if (source.const !== undefined && source.const !== "INPUTS" && source.const !== "OUTPUTS") {
+            const target = this.constantValue(source.const)?.record.value;
+            if (target?.bag?.some((/** @type {any} */ item) => item.kind === "write")) {
+              throw located(`a splat of $${source.const} gives valued entries to the output mask`, version.document, entry.at);
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // Whether a splat can give the key value: a key set never does.
+  /** @param {any} node */
+  function splatMayWriteValue(node) {
+    if (node.bag) return node.bag.some((/** @type {any} */ entry) => entry.kind === "splat" ? splatMayWriteValue(entry.value) :
+      (entry.keys ?? [entry.key]).includes("value"));
+    if (["flags", "keys", "classes", "select", "classify", "union"].includes(node.method)) return node.method === "select";
+    if (node.intersection || node.union || node.difference) return false;
+    return true;
+  }
+
+  /**
+   * @param {any} node
+   * @param {any} symbols
+   */
+  function collectRuleCaptures(node, symbols) {
+    if (!node || typeof node !== "object") return;
+    if (Array.isArray(node)) return node.forEach(item => collectRuleCaptures(item, symbols));
+    if (node.capture !== undefined && node.expr) {
+      let base = node.expr;
+      while (base.test !== undefined || base.primary) base = base.expr ?? base.primary;
+      if (base.ref !== undefined && /^[a-z]/.test(base.ref)) symbols.set(node.capture, base.ref);
+    }
+    for (const value of Object.values(node)) if (value && typeof value === "object") collectRuleCaptures(value, symbols);
+  }
+
+  // The methods that read the bag of a node, not its place.
+  const BAG_READS = new Set(["keys", "flags", "classes", "select", "has", "has-value"]);
+
+  // A term builds the bag of `$`, so it cannot read that bag (part 1 §5). Its
+  // place, span and children stay readable. A function binder named `$`
+  // does not exist, so every bare `$` in a term is the rule occurrence.
+  /**
+   * @param {any} term
+   * @param {any} document
+   */
+  function ownBagReads(term, document) {
+    /** @param {any} node */
+    const visit = node => {
+      if (!node || typeof node !== "object") return;
+      if (Array.isArray(node)) return node.forEach(visit);
+      const own = node.receiver?.capture === "" && !node.receiver.expr;
+      if (own && (node.property !== undefined || BAG_READS.has(node.method))) {
+        throw located("a term cannot read the bag of $, which the term builds", document, node.at);
+      }
+      if (node.kind === "splat" && node.value?.capture === "") throw located("a term cannot read the bag of $, which the term builds", document, node.at);
+      if (node.kind === "copy" && node.source?.capture === "") throw located("a term cannot read the bag of $, which the term builds", document, node.at);
+      for (const [key, value] of Object.entries(node)) if (key !== "at" && value && typeof value === "object") visit(value);
+    };
+    visit(term);
+  }
+
+  /**
+   * @param {any} node
+   * @returns {any}
+   */
+  function mentionsInputs(node) {
+    if (!node || typeof node !== "object") return false;
+    if (node.const === "INPUTS") return true;
+    if (node.method === "keys" || node.method === "flags" || node.method === "classes") return false;
+    return Object.values(node).some(/** @returns {any} */ value => value && typeof value === "object" && mentionsInputs(value));
+  }
+
+  /**
+   * @param {any} node
+   * @param {any} visit
+   */
+  function collectConstants(node, visit) {
+    if (!node || typeof node !== "object") return;
+    if (Array.isArray(node)) return node.forEach(item => collectConstants(item, visit));
+    if (node.const !== undefined) visit(node.const);
+    if (node.apply !== undefined) visit(node.apply);
+    for (const value of Object.values(node)) if (value && typeof value === "object") collectConstants(value, visit);
+  }
+
+  // ---- format50/faces.js
+  // Display faces (part 2 §7). A published node with a primary shows its
+  // primary with satellites around it: the units that the branches beside the
+  // primary select. A branch selects the nodes that it would publish by
+  // itself. A node with no primary, or with no satellite, shows as one unit.
+
+
+
+  /**
+   * The units that a subtree selects: rule nodes with bare emission and the
+   * nodes of emission lists, in order. A rule without its own selection
+   * forwards those of its children. Erasure selects nothing.
+   * @param {any} root
+   * @returns {any[]}
+   */
+  function selectedUnits(root) {
+    const units = [];
+    const stack = [root];
+    while (stack.length) {
+      const node = stack.pop();
+      if ((node.kind !== "rule" && node.kind !== "splice") || node.erased) continue;
+      const emit = node.origin?.rule.emit;
+      if (emit) {
+        if (!emit.items.length) units.push(node);
+        continue;
+      }
+      for (let index = node.children.length - 1; index >= 0; index--) stack.push(node.children[index]);
+    }
+    return units;
+  }
+
+  /**
+   * The satellites of a display unit before and after its primary, or null
+   * for a unit that shows as one leaf or as its primary alone.
+   * @param {any} node
+   */
+  function decoration(node) {
+    const base = node.kind === "projection" ? node.part : node;
+    if (!base || !base.primary || (base.kind !== "rule" && base.kind !== "splice")) return null;
+    const index = base.children.indexOf(base.primary);
+    if (index < 0) return null;
+    const before = base.children.slice(0, index).flatMap(selectedUnits);
+    const after = base.children.slice(index + 1).flatMap(selectedUnits);
+    if (!before.length && !after.length) return null;
+    return { before, after };
+  }
+
+
+  /**
+   * The image and classes that a unit shows.
+   * @param {any} node
+   */
+  function unitFace(node) {
+    const bag = node.bag();
+    return {
+      image: bag.value("image") ?? "",
+      classes: bag.keys().filter((/** @type {any} */ key) => CLASS_KEY.test(key)).sort(),
+    };
+  }
+
+  // ---- format50/render.js
+  // The bracket and tree renderings of a format 50 tree (docs/output.md,
+  // "Renderings"). A root of a native result reaches its stage input through
+  // the rendering context that the result retains, so these functions take
+  // the root alone.
+
+
+
+
+
+
+  /** The rendering context of each root of a native result. */
+  const renderContexts = new WeakMap();
+
+  /**
+   * Records the context of the roots of a parse.
+   * @param {any} result a native format 50 result
+   * @param {any} unicode the core table of the pipeline
+   */
+  function retainRenderContext(result, unicode) {
+    for (const stage of result.stages) {
+      const context = { tokens: stage.input, unicode, text: result.text };
+      if (stage.root) renderContexts.set(stage.root, context);
+      for (const reading of stage.readings ?? []) renderContexts.set(reading, context);
+    }
+  }
+
+  /** @param {any} root */
+  function contextOf(root) {
+    const context = renderContexts.get(root);
+    if (!context) throw new GencmuError("usage", "the root does not belong to a format 50 result");
+    return context;
+  }
+
+  // The tree and tokens in the shapes that the shared renderers read. A
+  // token shows through its face, which is its image while faces carry no
+  // satellites.
+  /**
+   * @param {any} root
+   * @param {any} context
+   * @returns {{tree: any, tokens: any[]}}
+   */
+  function adapted(root, context) {
+    /** @type {(node: any) => any} */
+    const build = node => {
+      if (node.kind === "token") return { kind: "token", terminal: node.terminal, token: node.token, span: node.span, source: node.source };
+      if (node.kind === "elided") return { kind: "elided", terminal: node.terminal, span: node.span, source: node.source };
+      return { kind: "rule", rule: node.rule, span: node.span, source: node.source, children: node.children.map(build) };
+    };
+    // A decorated input token shows its satellites around its image, as the
+    // shared renderers show attachments.
+    /** @type {(node: any, image: string, tags: Set<string>, source: any) => any} */
+    const shown = (node, image, tags, source) => {
+      const decorated = node ? decoration(node) : null;
+      const unit = (/** @type {any} */ satellite) => {
+        const face = unitFace(satellite);
+        return shown(satellite, face.image, new Set(face.classes), satellite.source);
+      };
+      return { image, source, tags, before: decorated ? decorated.before.map(unit) : [], after: decorated ? decorated.after.map(unit) : [] };
+    };
+    const tokens = context.tokens.map((/** @type {any} */ token) => shown(token.node, token.image,
+      new Set(token.props.keys().filter((/** @type {string} */ key) => /^[A-Z_]/.test(key))), token.source));
+    resultCores.set(tokens, context.unicode);
+    return { tree: build(root), tokens };
+  }
+
+  /**
+   * The bracket rendering of a root of a native result.
+   * @param {any} root
+   * @param {{showElided?: boolean}} [options]
+   */
+  function nodeBrackets50(root, options = {}) {
+    const { tree, tokens } = adapted(root, contextOf(root));
+    return nodeBrackets(tree, tokens, options);
+  }
+
+  /**
+   * The tree rendering of a root of a native result.
+   * @param {any} root
+   */
+  function nodeTree50(root) {
+    const context = contextOf(root);
+    const { tree, tokens } = adapted(root, context);
+    return nodeTree(tree, tokens, context.text);
+  }
+
+  // ---- format50/loader.js
+  // The format 50 loader: the bundle of notation 50, its bootstrap, the
+  // reader of grammar documents, and pipelines that parse text.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  /** The bundle of notation 50 in the package. */
+  const BUNDLE_50 = Object.freeze({
+    format: 50,
+    sourceRoot: "grammars50",
+    notation: "grammars50/gencmu/jbogenbau/pipeline.md",
+    bootstrap: "data/preparsed50/gencmu.json",
+    cacheRoot: "data/preparsed50",
+  });
+
+  const UNICODE_PATH = "data/unicode/unicode.txt";
+  const PROPERTIES_PATH = "data/unicode/unicode-properties.txt";
+  const NAMES_PATH = "data/unicode/unicode-names.txt";
+
+  /**
+   * Reads the bootstrap: the DOMs of the notation pipeline.
+   * @param {string} text
+   * @returns {Map<string, any>} each document's entry
+   * @param {any} unicode
+   */
+  function readBootstrap50(text, unicode) {
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch (error) {
+      throw new GencmuError("grammar", `${BUNDLE_50.bootstrap} is not JSON: ${/** @type {Error} */ (error).message}`, { document: BUNDLE_50.bootstrap });
+    }
+    if (!data || data.format !== 50 || !data.documents || typeof data.documents !== "object" || Array.isArray(data.documents)) {
+      throw new GencmuError("grammar", "the bootstrap requires a document map of format 50", { document: BUNDLE_50.bootstrap });
+    }
+    const documents = new Map();
+    for (const [path, entry] of Object.entries(data.documents)) {
+      if (!entry || typeof entry.hash !== "string" || !entry.dom || entry.dom.format !== 50) {
+        throw new GencmuError("grammar", `the bootstrap's entry for ${path} is malformed`, { document: BUNDLE_50.bootstrap });
+      }
+      validateDocument50(entry.dom, { document: path, unicode });
+      documents.set(path, entry);
+    }
+    return documents;
+  }
+
+  /**
+   * Validates a DOM that did not come from the reader: a cache entry or a
+   * supplied DOM. Every template argument record carries its position.
+   * @param {any} dom
+   * @param {any} path
+   * @param {any} unicode
+   */
+  function validateStoredDom(dom, path, unicode) {
+    validateDocument50(dom, { document: path, unicode });
+    /** @param {any} node */
+    const visit = node => {
+      if (!node || typeof node !== "object") return;
+      if (Array.isArray(node)) return node.forEach(visit);
+      if (node.call !== undefined && Array.isArray(node.args) || Array.isArray(node.args) && node.op !== undefined && node.alternatives) {
+        for (const arg of node.args) {
+          if (!arg || typeof arg !== "object" || !Array.isArray(arg.at)) {
+            throw new GencmuError("grammar", `the DOM of ${path} has a template argument record without its position`, { document: path });
+          }
+        }
+      }
+      for (const value of Object.values(node)) if (value && typeof value === "object") visit(value);
+    };
+    visit(dom);
+  }
+
+  class Loader50 {
+    /**
+     * @param {(path: string) => string | undefined} read
+     */
+    constructor(read) {
+      this.read = read;
+      const unicodeText = this.need(UNICODE_PATH);
+      this.unicode = new UnicodeTable(unicodeText, read(PROPERTIES_PATH));
+      this.bootstrapText = this.need(BUNDLE_50.bootstrap);
+      this.bootstrap = readBootstrap50(this.bootstrapText, this.unicode);
+      /** @type {Pipeline50 | null} */
+      this.notationPipeline = null;
+      /** @type {Map<string, any>} */
+      this.documents = new Map();
+      /** @type {Map<string, any>} the optional cache entries by document */
+      this.preparsed = new Map();
+      /** @type {Set<string>} the cache files read so far */
+      this.preparsedFiles = new Set();
+      /** @type {Map<string, any>} the DOMs that a caller supplies by document */
+      this.supplied = new Map();
+      /** @type {string[]} the documents whose DOM came from a cache entry */
+      this.cacheHits = [];
+      this.bootstrapHash = fnv1a64(this.bootstrapText);
+      this.unicodeHash = fnv1a64(unicodeText);
+      const properties = read(PROPERTIES_PATH);
+      this.propertiesHash = properties === undefined ? null : fnv1a64(properties);
+    }
+
+    /** @param {any} path */
+    need(path) {
+      const text = this.read(path);
+      if (text === undefined) throw new GencmuError("grammar", `${path} was not found`, { document: path });
+      return text;
+    }
+
+    /** The notation reader, built from the bootstrap alone. */
+    notation() {
+      if (this.notationPipeline === null) {
+        this.notationPipeline = this.build(BUNDLE_50.notation, (/** @type {any} */ path) => this.bootstrap.get(path)?.dom);
+      }
+      return this.notationPipeline;
+    }
+
+    /**
+     * Reads one grammar document with the notation reader (engine §8, §9).
+     * @param {string} markdown
+     * @param {string} path
+     * @param {string[]} [inherited] the names resources of the including documents
+     * @returns {{hash: string, names?: any, dom: any}}
+     */
+    readDocument(markdown, path, inherited = []) {
+      const unicode = this.unicode;
+      const { text, positions } = extractGrammarText(markdown, path, unicode);
+      /** @param {any} offset */
+      const position = offset => positions[offset] ?? positions.at(-1) ?? [1, 1];
+      const names = new NamesScope(file => this.namesResource(file), unicode, inherited);
+      const strings = new DocumentStrings(path, unicode, names, position);
+      const result = this.notation().parse(text, {
+        /** @param {any} tokens */
+        inspectLexical: tokens => strings.inspect(tokens.map((/** @type {any} */ token) => token.recognizerToken())),
+      });
+      if (!result.ok) {
+        const error = result.error;
+        if (error.kind === "ambiguous") throw new GencmuError("grammar", error.message, { document: path, stage: error.stage });
+        const token = error.token !== undefined ? result.stages.at(-1).input[error.token] : undefined;
+        const [line, column] = position(token?.source[0] ?? (error.token === undefined ? 0 : [...text].length));
+        throw new GencmuError("grammar", error.message, { document: path, line, column, stage: error.stage });
+      }
+      const syntax = result.stages.at(-1);
+      const dom = new DomBuilder(syntax.input, position, path, unicode, strings).build(syntax.root);
+      return { hash: fnv1a64(markdown), ...(names.dependencies && { names: names.dependencies }), dom };
+    }
+
+    /** @param {any} file */
+    namesResource(file) {
+      const text = this.read(file) ?? (file === "data/unicode/unicode-names-reference.txt" ? this.read(NAMES_PATH) : undefined);
+      if (text === undefined) throw new GencmuError("grammar", "the resource was not found", { document: file });
+      return text;
+    }
+
+    /**
+     * The DOM of a document, read from its source.
+     * @param {any} path
+     * @param {any} inherited
+     */
+    documentDom(path, inherited) {
+      const key = JSON.stringify([path, inherited]);
+      if (!this.documents.has(key)) this.documents.set(key, this.findDom(path, inherited));
+      return this.documents.get(key);
+    }
+
+    /**
+     * @param {any} path
+     * @param {any} inherited
+     */
+    findDom(path, inherited) {
+      if (this.supplied.has(path)) return this.supplied.get(path);
+      const text = this.read(path);
+      if (text === undefined) return undefined;
+      this.loadPreparsed(path);
+      const entry = this.preparsed.get(path);
+      if (entry && entry.hash === fnv1a64(text)) {
+        try {
+          validateStoredDom(entry.dom, path, this.unicode);
+          this.cacheHits.push(path);
+          return entry.dom;
+        } catch (error) {
+          // An entry that fails validation is a miss, and the source is read.
+          if (!(error instanceof GencmuError)) throw error;
+        }
+      }
+      return this.readDocument(text, path, inherited).dom;
+    }
+
+    /**
+     * Uses the entries of an optional cache whose fingerprints match this
+     * loader: the bootstrap, the Unicode table, its properties and the format.
+     * @param {any} data
+     */
+    usePreparsed(data) {
+      if (!data || data.format !== 50 || data.bootstrap !== this.bootstrapHash || data.unicode !== this.unicodeHash ||
+          !Object.hasOwn(data, "properties") || data.properties !== this.propertiesHash ||
+          !data.documents || typeof data.documents !== "object") return;
+      for (const [path, entry] of Object.entries(data.documents)) {
+        if (entry && typeof entry.hash === "string" && entry.dom && !this.preparsed.has(path)) this.preparsed.set(path, entry);
+      }
+    }
+
+    // The optional cache of a document's family under the cache root.
+    /** @param {any} path */
+    loadPreparsed(path) {
+      const parts = path.split("/");
+      if (parts[0] !== BUNDLE_50.sourceRoot || parts.length < 3) return;
+      const file = `${BUNDLE_50.cacheRoot}/${parts[1]}.json`;
+      if (file === BUNDLE_50.bootstrap || this.preparsedFiles.has(file)) return;
+      this.preparsedFiles.add(file);
+      try {
+        const text = this.read(file);
+        if (text !== undefined) this.usePreparsed(JSON.parse(text));
+      } catch (error) {
+        // An unreadable optional cache supplies no entries.
+      }
+    }
+
+    /**
+     * Supplies the DOM of a document in place of its source.
+     * @param {string} path
+     * @param {string} json the DOM as JSON
+     */
+    supplyDom(path, json) {
+      let dom;
+      try {
+        dom = JSON.parse(json);
+      } catch (error) {
+        throw new GencmuError("grammar", `the supplied DOM of ${path} is not JSON: ${/** @type {Error} */ (error).message}`, { document: path });
+      }
+      if (!dom || dom.format !== 50) throw new GencmuError("grammar", `the supplied DOM of ${path} is not of format 50`, { document: path });
+      validateStoredDom(dom, path, this.unicode);
+      this.supplied.set(path, dom);
+    }
+
+    /**
+     * A pipeline from its pipeline document.
+     * @param {string} path
+     */
+    pipeline(path) {
+      return this.build(path, (/** @type {any} */ document, /** @type {any} */ inherited) => this.documentDom(document, inherited));
+    }
+
+    /**
+     * @param {any} path
+     * @param {any} domOf
+     */
+    build(path, domOf) {
+      const origins = new Map();
+      const bridged = new Map();
+      const spliced = splicePipeline(path, (document, inherited) => {
+        const dom = domOf(document, inherited);
+        if (!dom) return undefined;
+        const lowered = bridgeDocument(dom, document, origins);
+        bridged.set(document, lowered);
+        return lowered;
+      });
+      // The inferred states of the keys that each stage hands on.
+      /** @type {Map<string, Set<string>> | null} */
+      let inputStates = null;
+      const stages = spliced.stages.map(stage => {
+        // A bag term whose keys have no tag term is legal only where no
+        // recognizer test of the stage reads the keys of its rule.
+        const documents = [...new Set(stage.documents.map(run => run.path))].map(document => bridged.get(document));
+        const written = [];
+        for (const run of stage.documents) for (const rule of run.dom.rules) {
+          if (!rule.alternatives?.length) continue;
+          const origin = origins.get(rule.params ? `template:${rule.name}#0` : alternativeKey(run.path, rule.at, 0));
+          if (origin) written.push({ rule: origin.rule, document: run.path });
+        }
+        const stageConstants = new Map();
+        for (const run of stage.documents) for (const placeholder of run.dom.constants) {
+          const { constant, document } = origins.get(/** @type {any} */ (placeholder).origin50);
+          if (!stageConstants.has(constant.name)) stageConstants.set(constant.name, []);
+          stageConstants.get(constant.name).push({ record: constant, document });
+        }
+        const checker = new StageCheck(stageConstants);
+        checker.check(written);
+        const interfaceFailures = inputStates ? checker.inputRefinement(written, inputStates) : [];
+        inputStates = checker.outputStates(written, inputStates);
+        const certificateFailures = [...checker.payloadRefinement(written), ...interfaceFailures, ...checker.certificates(written)];
+        for (const document of documents) if (document.deferred.length) throw document.deferred[0];
+        const readers = new Set(documents.flatMap(document => [...document.keyReaders]));
+        for (const document of documents) {
+          for (const [rule, error] of document.untranslated) if (readers.has(rule)) throw error;
+        }
+        const constants = new Map();
+        for (const run of stage.documents) {
+          for (const placeholder of run.dom.constants) {
+            const { constant, document } = origins.get(/** @type {any} */ (placeholder).origin50);
+            if (!constants.has(constant.name)) constants.set(constant.name, []);
+            constants.get(constant.name).push({ record: constant, document });
+          }
+        }
+        /** @param {any} runs */
+        const grammar = runs => new Grammar(stage.name, runs, this.unicode);
+        const made = new Stage50(stage.name, stage.documents, origins, constants, grammar);
+        made.loweringErrors = certificateFailures;
+        made.featureDeclarations = stage.documents.flatMap(run => run.dom.directives
+          .filter(directive => directive.name === "features")
+          .map(directive => ({ directive, document: run.path })));
+        return made;
+      });
+      return new Pipeline50(path, stages, this, spliced.features);
+    }
+  }
+
+  class Pipeline50 {
+    /**
+     * @param {any} path
+     * @param {any} stages
+     * @param {any} loader
+     * @param {any} declared
+     */
+    constructor(path, stages, loader, declared) {
+      this.path = path;
+      this.stages = stages;
+      this.loader = loader;
+      this.declared = declared;
+    }
+
+    /**
+     * Parses a text.
+     * @param {string} text
+     * @param {any} [options]
+     */
+    parse(text, options = {}) {
+      const unicode = this.loader.unicode;
+      const sourceText = [...text];
+      const origin = options.tokens ? callerTokens(options.tokens, text, unicode) : characterTokens(text, unicode).map(token =>
+        new Token50({
+          text: token.text, span: token.span, source: token.source,
+          props: Bag.from(/** @type {[string, import("./bag.js").Entry][]} */ ([...[...token.tags].map(key => [key, BARE]),
+            ["image", valued(token.image)], ["value", valued(token.value)]]).sort((a, b) => compareCodePoints(a[0], b[0]))),
+        }));
+      const on = [...(options.features ?? [])];
+      const off = new Set(options.withoutFeatures ?? []);
+      const both = on.find(name => off.has(name));
+      if (both !== undefined) throw new GencmuError("usage", `the feature ${both} is named both to turn on and to turn off`);
+      const features = new Set([...this.declared, ...on].filter(name => !off.has(name)));
+      let last = this.stages.length - 1;
+      if (options.until !== undefined) {
+        last = this.stages.findIndex((/** @type {any} */ stage) => stage.name === options.until);
+        if (last < 0) throw new GencmuError("usage", `no stage is named ${JSON.stringify(options.until)}`);
+      }
+      const stages = [];
+      let tokens = origin;
+      let inputKeys = new Set(origin.flatMap(token => token.props.keys().filter(key => key !== "value" && key !== "image")));
+      for (let index = 0; index <= last; index++) {
+        const stage = this.stages[index];
+        const conflict = stage.declareFeatures(tokens, sourceText, features, off, inputKeys);
+        const report = conflict ?? stage.run(tokens, sourceText, unicode, { features, inputKeys, elisionOnly: options.elisionOnly });
+        report.input = tokens;
+        report.inputIndex = index - 1;
+        stages.push(report);
+        if (report.error) break;
+        if (index === 0 && report.output) options.inspectLexical?.(report.output);
+        if (index === last) break;
+        if (!report.output) {
+          report.error = { kind: "grammar", stage: stage.name, message: `the ${stage.name} stage has no $OUTPUTS, so it must be last` };
+          break;
+        }
+        tokens = report.output;
+        inputKeys = new Set([...report.outputKeys].filter(key => key !== "value" && key !== "image"));
+      }
+      // The reports that reach the reporting stage: those that its input
+      // tokens carry through its live leaves, its own, and those that earlier
+      // stages kept for want of a token (engine §12.1).
+      /** @type {Record<string, any[]>} */
+      const collected = { errors: [], warnings: [] };
+      for (const stage of stages.slice(0, -1)) for (const kind of ["errors", "warnings"]) for (const diagnostic of stage[kind] ?? []) collected[kind].push(diagnostic);
+      const reporting = stages.at(-1);
+      if (reporting?.root && !reporting.error) {
+        const live = new Set();
+        const stack = [reporting.root];
+        while (stack.length) {
+          const node = stack.pop();
+          if (node.erased) continue;
+          if (node.kind === "token") live.add(node.token);
+          for (const child of node.children) stack.push(child);
+        }
+        for (const index of [...live].sort((a, b) => a - b)) {
+          for (const kind of ["errors", "warnings"]) for (const diagnostic of reporting.input[index][kind] ?? []) collected[kind].push(diagnostic);
+        }
+        for (const { kind, diagnostic } of reporting.own ?? []) collected[kind].push(diagnostic);
+      }
+      // A failed stage collects the reports of its input: through the
+      // furthest token on a rejection, and all of it on other failures.
+      const failedStage = stages.find(stage => stage.error);
+      if (failedStage && failedStage.error.kind !== "ambiguous") {
+        const end = failedStage.error.kind === "rejected" ? Math.min(failedStage.input.length, (failedStage.error.token ?? failedStage.input.length) + 1) : failedStage.input.length;
+        for (const token of failedStage.input.slice(0, end)) {
+          for (const kind of ["errors", "warnings"]) for (const diagnostic of token[kind] ?? []) collected[kind].push(diagnostic);
+        }
+        if (collected.errors.length) failedStage.error.errors = collected.errors;
+        if (collected.warnings.length && failedStage.error.kind !== "reported") failedStage.error.warnings = collected.warnings;
+      }
+      if (!failedStage && stages.length === last + 1 && collected.errors.length) {
+        reporting.error = { kind: "reported", stage: reporting.name, errors: collected.errors, message: "the chosen derivation reports errors" };
+      }
+      const failed = stages.find(stage => stage.error);
+      const result = {
+        format: 18,
+        ok: !failed && stages.length === last + 1,
+        text,
+        origin,
+        stages,
+        tree: failed && failed.error.kind !== "reported" ? null : stages.length - 1,
+        error: failed ? failed.error : null,
+        warnings: collected.warnings,
+        features: [...features].sort(compareCodePoints),
+      };
+      retainRenderContext(result, unicode);
+      return result;
+    }
+  }
+
+  /**
+   * The tokens that a caller supplies instead of stage zero (docs/api.md).
+   * @param {any[]} supplied
+   * @param {string} text
+   * @param {any} unicode
+   */
+  function callerTokens(supplied, text, unicode) {
+    if (!Array.isArray(supplied)) throw new GencmuError("usage", "tokens must be an array");
+    const length = [...text].length;
+    return supplied.map((token, index) => {
+      if (!token || typeof token !== "object") throw new GencmuError("usage", `token ${index}: invalid input token`);
+      const props = token.props ?? Object.fromEntries((token.tags ?? []).map((/** @type {any} */ tag) => [tag, true]));
+      const entries = [];
+      for (const [key, value] of Object.entries(props)) {
+        if (key === "value" || key === "image") {
+          if (typeof value !== "string") throw new GencmuError("usage", `token ${index}: ${key} must be a string`);
+          continue;
+        }
+        if (value !== true) throw new GencmuError("usage", `token ${index}: the key ${key} cannot carry a value`);
+        if (key === "_Elided") throw new GencmuError("usage", `token ${index}: _Elided is not a key`);
+        const canonical = key.startsWith("_") ? unicode.canonicalTag(key) : key;
+        if (canonical === undefined || canonical === null) throw new GencmuError("usage", `token ${index}: unsupported engine key ${key}`);
+        entries.push([canonical, BARE]);
+      }
+      const tokenText = token.text;
+      if (typeof tokenText !== "string") throw new GencmuError("usage", `token ${index}: text must be a string`);
+      entries.push(["value", valued(props.value ?? token.value ?? tokenText)]);
+      entries.push(["image", valued(props.image ?? token.image ?? tokenText)]);
+      const span = token.span ?? [index, index + 1];
+      const source = token.source ?? [0, Math.min(length, [...tokenText].length)];
+      if (!(0 <= source[0] && source[0] <= source[1] && source[1] <= length)) {
+        throw new GencmuError("usage", `token ${index}: the source ${JSON.stringify(source)} is not a range within a text of ${length} code points`);
+      }
+      const sorted = /** @type {[string, import("./bag.js").Entry][]} */ (entries.sort((a, b) => compareCodePoints(a[0], b[0])));
+      return new Token50({ text: tokenText, props: Bag.from(sorted), span: [span[0], span[1]], source: [source[0], source[1]] });
+    });
+  }
+
+  /**
+   * The bootstrap file of a set of read documents, in the form that
+   * `data/preparsed50/gencmu.json` uses.
+   * @param {Map<string, any>} entries each document's entry
+   * @param {(path: string) => string} read
+   */
+  function bootstrapText(entries, read, names = [NAMES_PATH]) {
+    const header = {
+      unicode: fnv1a64(read(UNICODE_PATH)),
+      properties: fnv1a64(read(PROPERTIES_PATH)),
+      bundledNames: Object.fromEntries([...names].sort(compareCodePoints).map(file => [file, fnv1a64(read(file))])),
+    };
+    const documents = Object.fromEntries([...entries].sort(([a], [b]) => compareCodePoints(a, b)));
+    return JSON.stringify({ format: 50, ...header, documents }) + "\n";
+  }
+
+
+  // ---- format50/result.js
+  // Result 18: the canonical JSON of a format 50 parse (docs/output.md).
+  // Occurrence IDs number the body of each tree in preorder, then the
+  // synthetic occurrences by producer, item and binding. Earlier stages keep
+  // compact records: their roots, the nodes of their tokens, and the targets
+  // of primary, part, producer and face links.
+
+
+
+
+
+
+
+  /**
+   * The JSON value of a payload or a bag.
+   * @param {any} value
+   * @returns {any}
+   */
+  function propsJson(value) {
+    if (value instanceof Bag) {
+      /** @type {Record<string, any>} */
+      const object = {};
+      for (const key of value.keys()) {
+        const entry = value.entry(key);
+        object[key] = entry === BARE ? true : propsJson(entry.deferred.force());
+      }
+      return object;
+    }
+    if (Array.isArray(value)) return value.map(propsJson);
+    return value;
+  }
+
+  /**
+   * The tables of a result: one for each chosen tree and displayed reading.
+   * A table numbers its occurrences.
+   */
+  class Table {
+    /**
+     * @param {any} stage
+     * @param {any} reading
+     * @param {any} root
+     */
+    constructor(stage, reading, root) {
+      this.stage = stage;
+      this.reading = reading;
+      this.root = root;
+      /** @type {Map<any, number>} */
+      /** @type {Map<any, number>} */
+      this.ids = new Map();
+      this.nodes = [];
+      const stack = [root];
+      while (stack.length) {
+        const node = stack.pop();
+        this.ids.set(node, this.nodes.length);
+        this.nodes.push(node);
+        for (let index = node.children.length - 1; index >= 0; index--) stack.push(node.children[index]);
+      }
+      const synthetic = [...(root.synthetic ?? [])].sort((a, b) =>
+        /** @type {number} */ (this.ids.get(a.producer)) - /** @type {number} */ (this.ids.get(b.producer)) || a.item - b.item);
+      for (const node of synthetic) {
+        this.ids.set(node, this.nodes.length);
+        this.nodes.push(node);
+      }
+    }
+  }
+
+  /**
+   * The canonical record of a format 50 result.
+   * @param {any} result
+   * @param {{stageTrees?: "compact" | "all"}} [options]
+   */
+  function resultRecord(result, options = {}) {
+    const all = (options.stageTrees ?? result.stageTrees ?? "compact") === "all";
+    const stages = result.stages;
+    const tables = stages.map((/** @type {any} */ stage, /** @type {any} */ index) => stage.root ? new Table(index, 0, stage.root) : null);
+    const readings = stages.map((/** @type {any} */ stage, /** @type {any} */ index) => (stage.readings ?? []).map((/** @type {any} */ root, /** @type {any} */ reading) => new Table(index, reading + 1, root)));
+    const reporting = stages.length - 1;
+    // The face of each published node, and the core that it names.
+    const faces = new Map();
+    /**
+     * @param {any} stageIndex
+     * @param {any} node
+     */
+    const coreOf = (stageIndex, node) => {
+      let stage = stageIndex;
+      let current = node;
+      for (;;) {
+        if (current.kind === "projection") current = current.part;
+        else if ((current.kind === "rule" || current.kind === "splice") && current.primary) current = current.primary;
+        else if (current.kind === "token" && current.input) {
+          if (stage === 0) return [-1, 0, current.token];
+          const previous = current.input.node;
+          stage -= 1;
+          if (!previous) return [-1, 0, current.token];
+          current = previous;
+        } else return [stage, 0, tables[stage].ids.get(current)];
+      }
+    };
+    // A decorated face names its parts: the satellites before the primary,
+    // the primary, and the satellites after it. Each satellite is a display
+    // unit with a face of its own.
+    /**
+     * @param {any} index
+     * @param {any} node
+     * @param {any} image
+     * @param {any} classes
+     */
+    const faceOf = (index, node, image, classes) => {
+      /** @type {any} */
+      const face = { image, classes, core: coreOf(index, node) };
+      const decorated = decoration(node);
+      if (decorated) {
+        const base = node.kind === "projection" ? node.part : node;
+        /** @param {any} unit */
+        const ref = unit => [index, 0, tables[index].ids.get(unit)];
+        face.parts = [...decorated.before.map(ref), ref(base.primary), ...decorated.after.map(ref)];
+        face.primaryIndex = decorated.before.length;
+        for (const unit of [...decorated.before, ...decorated.after]) {
+          if (!faces.has(unit)) {
+            const shown = unitFace(unit);
+            faces.set(unit, faceOf(index, unit, shown.image, shown.classes));
+          }
+        }
+      }
+      return face;
+    };
+    stages.forEach((/** @type {any} */ stage, /** @type {any} */ index) => {
+      for (const token of stage.output ?? []) {
+        faces.set(token.node, faceOf(index, token.node, token.image,
+          token.props.keys().filter((/** @type {any} */ key) => CLASS_KEY.test(key)).sort(compareCodePoints)));
+      }
+    });
+    // Retention: full tables keep every node, compact ones follow the links.
+    const keep = tables.map((/** @type {any} */ table, /** @type {any} */ index) => table && (all || index === reporting || stages[index].error) ? null : new Set());
+    /** @type {any[]} */
+    const pending = [];
+    /**
+     * @param {any} stage
+     * @param {any} node
+     */
+    const mark = (stage, node) => {
+      if (stage < 0 || !keep[stage] || keep[stage].has(node)) return;
+      keep[stage].add(node);
+      pending.push([stage, node]);
+    };
+    stages.forEach((/** @type {any} */ stage, /** @type {any} */ index) => {
+      if (!tables[index]) return;
+      if (keep[index] === null) for (const node of tables[index].nodes) pending.push([index, node]);
+      mark(index, stage.root);
+      for (const token of stage.output ?? []) mark(index, token.node);
+    });
+    while (pending.length) {
+      const [stage, node] = /** @type {any[]} */ (pending.pop());
+      for (const target of [node.primary, node.part, node.producer]) if (target) mark(stage, target);
+      const face = faces.get(node);
+      if (face && face.core[0] >= 0) mark(face.core[0], tables[face.core[0]].nodes[face.core[2]]);
+      for (const part of face?.parts ?? []) mark(part[0], tables[part[0]].nodes[part[2]]);
+    }
+    /** @type {any} */
+    const record = {
+      format: 18,
+      ok: result.ok,
+      input: { text: result.text, tokens: result.origin.map((/** @type {any} */ token) => tokenRecord(token, null)) },
+      stages: stages.map((/** @type {any} */ stage, /** @type {any} */ index) => {
+        const table = tables[index];
+        /** @type {any} */
+        const out = { name: stage.name, verdict: stage.verdict ?? null, input: index - 1 };
+        if (table) {
+          out.root = table.ids.get(stage.root);
+          const full = keep[index] === null;
+          out.nodes = table.nodes.filter((/** @type {any} */ node) => full || keep[index].has(node))
+            .map((/** @type {any} */ node) => nodeRecord(node, table, full, faces));
+        }
+        if (readings[index].length) {
+          out.readings = readings[index].map((/** @type {any} */ reading) => ({
+            root: reading.ids.get(reading.root),
+            nodes: reading.nodes.map((/** @type {any} */ node) => nodeRecord(node, reading, true, faces)),
+          }));
+        }
+        if (stage.witness) out.witness = stage.witness;
+        if (stage.output) out.output = stage.output.map((/** @type {any} */ token) => tokenRecord(token, table.ids.get(token.node)));
+        if (stage.errors?.length) out.errors = stage.errors;
+        if (stage.warnings?.length) out.warnings = stage.warnings;
+        return out;
+      }),
+      tree: result.ok || result.error?.kind === "reported" ? [reporting, 0, tables[reporting].ids.get(stages[reporting].root)] : null,
+      error: result.error ? errorRecord(result.error, stages, readings) : null,
+    };
+    if (result.warnings?.length) record.warnings = result.warnings;
+    return record;
+  }
+
+  /**
+   * @param {any} node
+   * @param {any} table
+   * @param {any} full
+   * @param {any} faces
+   */
+  function nodeRecord(node, table, full, faces) {
+    const id = table.ids;
+    /** @type {any} */
+    const out = { id: id.get(node), kind: node.kind };
+    if (node.kind === "rule" || node.kind === "splice") out.rule = node.rule;
+    if (node.kind === "token" || node.kind === "elided") out.terminal = node.terminal;
+    if (node.kind === "token") out.token = node.token;
+    out.span = [...node.span];
+    out.source = [...node.source];
+    if (node.kind === "elided" && node.default !== undefined) out.default = node.default;
+    if (full && (node.kind === "rule" || node.kind === "splice")) out.children = node.children.map((/** @type {any} */ child) => id.get(child));
+    if (node.primary) out.primary = id.get(node.primary);
+    if (node.producer) out.producer = id.get(node.producer);
+    if (node.part) out.part = { node: id.get(node.part) };
+    const face = faces.get(node);
+    if (face) out.face = face;
+    return out;
+  }
+
+  /**
+   * @param {any} token
+   * @param {any} node
+   */
+  function tokenRecord(token, node) {
+    const out = {};
+    if (node !== null && node !== undefined) out.node = node;
+    out.text = token.text;
+    out.props = propsJson(token.props);
+    out.span = [...token.span];
+    out.source = [...token.source];
+    if (token.insertedBy !== undefined) out.insertedBy = token.insertedBy;
+    if (token.errors?.length) out.errors = token.errors;
+    if (token.warnings?.length) out.warnings = token.warnings;
+    return out;
+  }
+
+  /** @type {Record<string, string[]>} */
+  const ERROR_ORDER = {
+    rejected: ["kind", "stage", "token", "source", "line", "column", "expected", "boundary", "errors", "warnings", "message"],
+    ambiguous: ["kind", "stage", "reason", "readings", "witness", "errors", "message"],
+    "feature-conflict": ["kind", "stage", "feature", "errors", "warnings", "message"],
+    grammar: ["kind", "stage", "code", "errors", "warnings", "message", "chosen", "completion"],
+    reported: ["kind", "stage", "errors", "message"],
+  };
+
+  /**
+   * @param {any} error
+   * @param {any} stages
+   * @param {any} readings
+   */
+  function errorRecord(error, stages, readings) {
+    const index = stages.findIndex((/** @type {any} */ stage) => stage.name === error.stage && stage.error === error);
+    const fields = { ...error };
+    if (error.kind === "ambiguous" && index >= 0) {
+      fields.readings = readings[index].map((/** @type {any} */ reading) => [index, reading.reading, reading.ids.get(reading.root)]);
+    }
+    /** @type {Record<string, any>} */
+    const out = {};
+    for (const key of ERROR_ORDER[error.kind] ?? Object.keys(error)) {
+      if (fields[key] !== undefined && !(Array.isArray(fields[key]) && !fields[key].length && (key === "errors" || key === "warnings"))) out[key] = fields[key];
+    }
+    return out;
+  }
+
+  /**
+   * The canonical JSON text of a format 50 result.
+   * @param {any} result
+   * @param {any} options
+   */
+  function resultJson50(result, options) {
+    return JSON.stringify(resultRecord(result, options));
+  }
+
+  /**
+   * Decodes the canonical JSON of a result and checks its references.
+   * @param {string} text
+   */
+  function decodeResult50(text) {
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch (error) {
+      throw new GencmuError("usage", `the result is not JSON: ${/** @type {Error} */ (error).message}`);
+    }
+    /** @param {any} description */
+    const fail = description => { throw new GencmuError("usage", `the result is malformed: ${description}`); };
+    if (!data || data.format !== 18) fail("it requires format 18");
+    if (!Array.isArray(data.stages) || !data.input || !Array.isArray(data.input.tokens)) fail("it requires input and stages");
+    const tables = data.stages.map((/** @type {any} */ stage) => new Map((stage.nodes ?? []).map((/** @type {any} */ node) => [node.id, node])));
+    const readingTables = data.stages.map((/** @type {any} */ stage) => (stage.readings ?? []).map((/** @type {any} */ reading) => new Map(reading.nodes.map((/** @type {any} */ node) => [node.id, node]))));
+    /** @param {any} index */
+    const ordinal = index => ["first", "second", "third", "fourth", "fifth"][index] ?? `${index + 1}th`;
+    /**
+     * @param {any} stage
+     * @param {any} table
+     * @param {any} id
+     * @param {any} what
+     */
+    const local = (stage, table, id, what) => {
+      if (!Number.isInteger(id) || !table.has(id)) fail(`the ${ordinal(stage)} stage has no node with local ID ${id} for ${what}`);
+    };
+    /**
+     * @param {any} reference
+     * @param {any} what
+     */
+    const qualified = (reference, what) => {
+      if (!Array.isArray(reference) || reference.length !== 3 || !reference.every(Number.isInteger)) fail(`${what} is not a qualified reference`);
+      const [stage, reading, id] = reference;
+      if (stage === -1) {
+        if (reading !== 0 || id < 0 || id >= data.input.tokens.length) fail(`${what} names no origin token`);
+        return;
+      }
+      if (stage < 0 || stage >= data.stages.length) fail(`${what} names no stage`);
+      const table = reading === 0 ? tables[stage] : readingTables[stage][reading - 1];
+      if (!table) fail(`${what} names no reading`);
+      local(stage, table, id, what);
+    };
+    data.stages.forEach((/** @type {any} */ stage, /** @type {any} */ index) => {
+      /** @param {any} table */
+      const checkTable = (table) => {
+        for (const node of table.values()) {
+          for (const child of node.children ?? []) local(index, table, child, "a child");
+          if (node.primary !== undefined) local(index, table, node.primary, "a primary");
+          if (node.producer !== undefined) local(index, table, node.producer, "a producer");
+          if (node.part !== undefined) local(index, table, node.part.node, "a part");
+          if (node.face) qualified(node.face.core, "a face core");
+        }
+      };
+      checkTable(tables[index]);
+      readingTables[index].forEach(checkTable);
+      for (const token of stage.output ?? []) local(index, tables[index], token.node, "an output token");
+      if (stage.root !== undefined) local(index, tables[index], stage.root, "the root");
+    });
+    for (const token of data.input.tokens) if (token.node !== undefined) fail("an origin token names a node");
+    if (data.tree !== null && data.tree !== undefined) qualified(data.tree, "the tree");
+    return data;
+  }
+
+  // ---- format50/api.js
+  // The entry points that select notation 50 (docs/api.md, "Loading a
+  // pipeline"). The unversioned entry points keep notation 49.
+
+
+
+
+
+
+
+
+  /**
+   * Refuses a notation version that this library cannot load.
+   * @param {unknown} version
+   */
+  function requireNotation50(version) {
+    if (version !== 50) throw new GencmuError("usage", `notation ${JSON.stringify(version)} is not supported by this loader factory`);
+  }
+
+  /**
+   * The bundled pipeline names of a list of resource paths.
+   * @param {string[]} paths
+   * @returns {string[]}
+   */
+  function bundledPipelines50(paths) {
+    const prefix = `${BUNDLE_50.sourceRoot}/`;
+    return paths.filter(file => file.startsWith(prefix) && file.endsWith("/pipeline.md"))
+      .map(file => file.slice(prefix.length, -"/pipeline.md".length))
+      .filter(validPipelineName).sort();
+  }
+
+  /**
+   * The loaders of notation 50 over documents held in memory.
+   * @param {number} version
+   */
+  function portableLoaders(version) {
+    requireNotation50(version);
+    const loaderFromSources = (/** @type {Map<string, string> | Record<string, string>} */ sources) => {
+      const map = new Map(sources instanceof Map ? sources : Object.entries(sources));
+      checkSourceStrings(map);
+      return new Loader50((/** @type {string} */ file) => map.get(file));
+    };
+    return {
+      notation: 50,
+      loaderFromSources,
+      loadPipelineSources: (/** @type {Map<string, string> | Record<string, string>} */ sources, /** @type {string} */ pipelinePath) => loaderFromSources(sources).pipeline(pipelinePath),
+      resultJson: resultJson50,
+      decodeResult: decodeResult50,
+      nodeBrackets: nodeBrackets50,
+      nodeTree: nodeTree50,
+    };
+  }
+
   // ---- index.js
   // gencmu: a Lojban parser whose grammars are literate documents loaded at
   // runtime. This module works anywhere JavaScript runs; `gencmu/node` adds
   // loading grammars from disk.
+
 
 
 
@@ -26671,6 +33594,17 @@
     const map = new Map(sources instanceof Map ? sources : Object.entries(sources));
     checkSourceStrings(map);
     return new Loader((path) => map.get(path), path => map.has(path));
+  }
+
+  /**
+   * The loaders of one notation version over documents held in memory. Only
+   * notation 50 has a versioned loader. The unversioned functions of this
+   * module keep notation 49. The sources must include the bootstrap file
+   * `data/preparsed50/gencmu.json` and the Unicode data.
+   * @param {number} version
+   */
+  function loaderForNotation(version) {
+    return portableLoaders(version);
   }
 
   // ---- types.js
@@ -27449,7 +34383,7 @@
 
 
 
-    return { version: "0.1.0", Loader, Pipeline, fnv1a64, bundledPipelines, stitchText, GencmuError, Token, resultJson, toJson, compactJson, toBrackets, toTree, displayValue, prettyJson, nodeBrackets, nodeTree, explainError, explainTies, explainWarnings, tokenTable, audit, formatAudit, trace, formatTrace, loadPipelineSources, loaderFromSources };
+    return { version: "0.1.0", Loader, Pipeline, fnv1a64, bundledPipelines, stitchText, GencmuError, Token, resultJson, toJson, compactJson, toBrackets, toTree, displayValue, prettyJson, nodeBrackets, nodeTree, explainError, explainTies, explainWarnings, tokenTable, audit, formatAudit, trace, formatTrace, loadPipelineSources, loaderFromSources, loaderForNotation };
   }
   root.gencmuFactory = gencmuFactory;
   root.gencmu = gencmuFactory();

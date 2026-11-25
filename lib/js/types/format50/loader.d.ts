@@ -1,6 +1,4 @@
-import { resolvePath } from "../markdown.js";
 import { UnicodeTable } from "../unicode.js";
-import { isVisibleKey } from "./bridge.js";
 import { Token50 } from "./stage.js";
 /** The bundle of notation 50 in the package. */
 export declare const BUNDLE_50: Readonly<{
@@ -139,4 +137,3 @@ export declare class Pipeline50 {
  * @param {(path: string) => string} read
  */
 export declare function bootstrapText(entries: Map<string, any>, read: (path: string) => string, names?: string[]): string;
-export { isVisibleKey, resolvePath };

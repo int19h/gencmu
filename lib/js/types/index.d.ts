@@ -61,3 +61,19 @@ export declare function loadPipelineSources(sources: Map<string, string> | Recor
  * @returns {Loader}
  */
 export declare function loaderFromSources(sources: Map<string, string> | Record<string, string>): Loader;
+/**
+ * The loaders of one notation version over documents held in memory. Only
+ * notation 50 has a versioned loader. The unversioned functions of this
+ * module keep notation 49. The sources must include the bootstrap file
+ * `data/preparsed50/gencmu.json` and the Unicode data.
+ * @param {number} version
+ */
+export declare function loaderForNotation(version: number): {
+    notation: number;
+    loaderFromSources: (sources: Map<string, string> | Record<string, string>) => import("./format50/loader.js").Loader50;
+    loadPipelineSources: (sources: Map<string, string> | Record<string, string>, pipelinePath: string) => import("./format50/loader.js").Pipeline50;
+    resultJson: typeof import("./format50/result.js").resultJson50;
+    decodeResult: typeof import("./format50/result.js").decodeResult50;
+    nodeBrackets: typeof import("./format50/render.js").nodeBrackets50;
+    nodeTree: typeof import("./format50/render.js").nodeTree50;
+};

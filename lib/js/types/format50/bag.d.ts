@@ -1,3 +1,5 @@
+/** A key that names a class (engine §3.7). */
+export declare const CLASS_KEY: RegExp;
 /** The entry of a key with no value. */
 export declare const BARE: Readonly<{
     bare: true;
