@@ -407,7 +407,7 @@ The hesitation rule refuses a raw y letteral. In `zo'oi .y. bu`, the quote there
 %conditions
   ¬$r.following-tokens.parse(payload-token …),
   ¬$s.following-tokens.parse(payload-token …),
-  {Hesitation} ⊈ $s.span.first-token.flags ∨ $s.span.first-token.onward.parse(raw-y-letter …)
+  ¬$s.span.first-token.flags'Hesitation ∨ $s.span.first-token.onward.parse(raw-y-letter …)
 %emit
 
 %const $SINGLE-RUN-QUOTE-MARKERS {ZOhOI, MEhOI}
@@ -546,7 +546,7 @@ The body leaves its final quiet pause to the closing gap. The closing edge keeps
 %rule zoi-body
   raw-tokens → {}
 %conditions
-  {PAUSE} ⊈ $.span.last-token.flags ∨ {Quote-Material} ⊆ $.span.last-token.flags
+  ¬$.span.last-token.flags'PAUSE ∨ $.span.last-token.flags'Quote-Material
 
 %rule quiet-pause
   ^PAUSE<¬Quote-Material> → {image: value: ""}
@@ -614,7 +614,7 @@ The raw rule rejoins every piece of one y run. Its internal gap accepts pauses, 
   $y:raw-y-key [pause-run] $b:close-run-token → {*$y.flags, $y'letter}
 %conditions
   $b.span.tokens!'value.join() = "bu",
-  {Run-Initial} ⊆ $y.span.first-token.flags,
+  $y.span.first-token.flags'Run-Initial,
   ¬$b.following-tokens.parse(close-run-token …)
 
 %rule raw-y-base
