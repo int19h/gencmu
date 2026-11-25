@@ -135,7 +135,7 @@ A table without `decompose` records decomposes only Hangul syllables, and one wi
 
 A key set is a bag of bare keys. Union combines keys, intersection keeps common keys, and difference removes the right operand's keys.
 
-A range, `"a".."z"`, reads an ordinary token with one scalar value inside its inclusive endpoints. Endpoints are string literals or constants that resolve to one scalar. Surrogates are excluded, so `"‹U+D7FF›".."‹U+E000›"` has two possible values. A reversed range is a document error. Ranges cannot be tag sets or condition operands.
+A range, `"a".."z"`, reads an ordinary token with one scalar value inside its inclusive endpoints. Endpoints are string literals or constants that resolve to one scalar. Surrogates are excluded, so `"‹U+D7FF›".."‹U+E000›"` has two possible values. A reversed range is a document error. Ranges cannot be key sets or condition operands.
 
 Engine property names correspond to the configured Unicode table. A general-category tag uses its qualified long form, such as `_General_Category_Uppercase_Letter`. A major category groups related atomic categories. These are the canonical atomic and major names:
 
@@ -520,7 +520,7 @@ To stitch a stage's items, the loader reads them in order, whatever documents th
 
 An extension owns its own terms, conditions, diagnostics, suppression, erasure and emission. Its clauses apply to only the new alternatives.
 
-A key step of `%ambiguity-resolution` names the nodes that it counts in a node pattern (§6, §9.3). A rule name in that pattern must be defined in the stage, as a name in a body must. A step that names a rule counts the stitched rule, so it counts the alternatives of a redefinition and of every extension. A tag test on a rule atom reads each node's own tag set (§3.7). So an alternative that an extension adds passes the test where its own clauses or its inheritance give the tag. A layer changes what a step counts by `%redefine-const` of a pattern constant that a step names, where the base chose to name one.
+A key step of `%ambiguity-resolution` names the nodes that it counts in a node pattern (§6, §9.3). A rule name in that pattern must be defined in the stage, as a name in a body must. A step that names a rule counts the stitched rule, so it counts the alternatives of a redefinition and of every extension. A tag test on a rule atom reads the visible keys in the node's working bag (§3.7). An added alternative can get the tested key from a term, its primary, its sole symbol or stage defaults. A layer changes what a step counts by `%redefine-const` of a pattern constant that a step names, where the base chose to name one.
 
 The loader collects directives from all the stage's items. `%stage`, `%extend-stage`, `%redefine-stage`, and `%include` shape the pipeline (§13). Global `%features` also shapes the pipeline. Local `%features` and `%ambiguity-resolution` belong to a stage.
 
@@ -602,7 +602,7 @@ A lowercase name is a rule reference and must be defined in the stage. `🆓` is
 
 Binding retains each range endpoint as a scalar value. A wildcard has its own terminal form. Neither matcher derives character values from stored tag names. Unicode property terminals read stored membership directly.
 
-A rule reference, call, splice, terminal or parameter accepts one tag test and one value test, in that order. A tested parameter must receive one symbol. A value test uses `=` or `≠` with a string literal or string constant. A tag test lists signed tags or tag-set constants in `<…>`. All listed requirements hold together. An empty constant supplies no requirements.
+A rule reference, call, splice, terminal or parameter accepts one tag test and one value test, in that order. A tested parameter must receive one symbol. A value test uses `=` or `≠` with a string literal or string constant. A tag test lists signed tags or key-set constants in `<…>`. All listed requirements hold together. An empty constant supplies no requirements.
 
 A terminal test reads its leaf's bag and origin. A rule test reads the rule's bag. A value test on a rule requires the proof in §4. Tests do not alter terminal identity.
 
@@ -660,7 +660,7 @@ A DOM record with only `ranked` reports `ranked-choice-syntax` if its value is n
 
 A failure of the syntax stage carries that code when its failing token is `≻`, or the preceding token is `≻`. A failing `|` also carries it when its current grouping level already contains `≻`. Grouping levels start at `(`, `[`, or `{` and end at their matching closer. A keyword starts a new statement at its current level.
 
-Thus `a | b ≻ c`, `a ≻ b | c`, `| a ≻ b` without header clauses, `a ≻`, and `≻ a` carry `ranked-choice-syntax`. Other unrelated reader errors retain their codes or uncoded form.
+Thus `a | b ≻ c`, `a ≻ b | c`, `| a ≻ b` without a statement term, `a ≻`, and `≻ a` carry `ranked-choice-syntax`. Other unrelated reader errors retain their codes or uncoded form.
 
 Loading errors carry the structured members defined in `docs/output.md`. For a `ranked-choice-tags` error with a supplier path, store the shortest path from the group to the diverging supplier in `inheritance`. Source traversal order breaks equal-length choices. Helper sites use written expression paths.
 
@@ -742,7 +742,7 @@ The use determines the conversion, before ordinary validation:
 | Captured or tested symbol | One symbol after argument conversion |
 | Boundary target | Rule name, call, user tag, or spliced target choice |
 | One rule argument | Ordinary rule name or exact instance |
-| Signed requirement | Tag, tag-set constant, or unnegated spliced requirement list |
+| Signed requirement | Tag, key-set constant or unnegated spliced requirement list |
 | Value test or range endpoint | String literal or string constant |
 | Pattern operand | Name, call, tag, string, constant, terminal atom, or whole pattern predicate |
 | Pattern node with `·`, tests, or children | One node test that accepts those decorations |
@@ -778,9 +778,9 @@ Only two positions splice an argument's children into the surrounding list:
 %rule a = filtered("a", <¬Ogonek ¬Caron>)
 ```
 
-A requirement list is distinct from a tag set. An empty `<>` splices no requirements. A list under `¬@X` is an error. A tag or tag-set constant under `¬@X` retains ordinary requirement negation. A requirement list in any other position is an error.
+A requirement list is distinct from a key set. An empty `<>` splices no requirements. A list under `¬@X` is an error. A tag or key-set constant under `¬@X` retains ordinary requirement negation. A requirement list in any other position is an error.
 
-A target choice can also supply one grouped body choice where a body operand accepts it. It cannot become a tag set or a pattern. Parenthesized body choices never splice into boundary targets. A target list must remain nonempty after substitution.
+A target choice can also supply one grouped body choice where a body operand accepts it. It cannot become a key set or a pattern. Parenthesized body choices never splice into boundary targets. A target list must remain nonempty after substitution.
 
 Elsewhere, substitution keeps the argument as one node. Ranked groups keep their own seals and priority. Ordinary union flattening still applies after substitution.
 
@@ -1004,7 +1004,7 @@ Lowering expands each remaining alternative into sequences of symbols. `(a | b)`
 
 It expands first to the empty sequence, then to each expansion of `x`, in order. It has no helper.
 
-A plain optional whose captures occur only inside ranked groups uses a separate helper for each route. The absent route has an empty helper. Each present route has a helper for its expansion of `x`. These helpers preserve the optional as one logical symbol. Any other `[x]`, plain or elidable (§3.8), is a helper `h → ε | x`.
+A plain optional whose captures occur only inside ranked groups uses a separate helper for each route. The absent route has an empty helper. Each present route has a helper for its expansion of `x`. These helpers preserve the optional as one [logical symbol](notation.md#ambiguity). Any other `[x]`, plain or elidable (§3.8), is a helper `h → ε | x`.
 
 The engine names the helpers, and it never shows their names. A helper is a production whose left side is a helper name.
 
@@ -1836,7 +1836,7 @@ Write `$.span.tokens!'value.join()` for the original input join. The same expres
 
 `.source-text` reads the slice over an input span. `.decomposed-source-text` decomposes that slice with the configured Unicode table. For a complete cluster, it matches the join of stage-zero values over that cluster. An empty span gives empty text.
 
-Verbatim reads are late. They can extend the returned string without moving the source range. Section 11 defines the claim rules.
+Verbatim reads are late. They can extend the returned string without moving the source range. Section 11.2 defines the claim rules.
 
 ## 6. Choosing a parse
 
@@ -1908,7 +1908,7 @@ For example, `%rule text [[X]]` derives the empty input in two ways. The outer h
 
 `%rule text [[+KU]]` also derives the empty input in two ways. The outer helper is empty, which elides nothing, or the inner one is, which elides `KU`. Their elision counts at boundary 0 are 0 and 1. So the input ties under `greedy` or `lazy` alone, and it is `resolved` under `late #·_<_Elided>`.
 
-The engine does not merge derivations whose trees are equal either. Such derivations can still differ in what the stage does with them. Two definitions of `text` that each read `A` give equal trees, but their emission clauses can emit different tokens. Their alternatives can also differ in their diagnostic or suppression clauses, or in their bag terms.
+The engine does not merge derivations whose trees are equal either. Such derivations can still differ in what the stage does with them. Two definitions of `text` that each read `A` give equal trees, but different output selections can publish different tokens. Their alternatives can also differ in their diagnostic or suppression clauses, or in their bag terms.
 
 A lean compares two derivations with equal profiles at their first differing visible action:
 
@@ -2112,7 +2112,7 @@ The export proof follows every demanded early dependency through the active opti
 
 The check is on where the stage declares `%elision-only` or the caller asks for it. When it is on, it runs for `resolved`. It also runs for `unique` when the chosen tree holds an elided node. A resolved stage runs the enabled check even when its chosen tree elides nothing. The check runs after the stage completes publication or finishes its tree (§6, §11).
 
-Any counted error skips the check, including a carried error or an earlier stage-level error. Emission still runs (§11). A tie never reaches the check, because a tie ends the stage first. The check does not run for a unique tree with no elided node. An error of the grammar found during emission ends the stage before the check. A caller can switch the check off for a stage that declares it.
+Any counted error skips the check, including a carried error or an earlier stage-level error. A publishing stage still emits (§11). A tie never reaches the check, because a tie ends the stage first. The check does not run for a unique tree with no elided node. An error of the grammar found during emission ends the stage before the check. A caller can switch the check off for a stage that declares it.
 
 Uniqueness counts the original input's admitted derivations with the best measure (§6). Readings with worse measures never change that verdict or start this check. Restoration can create another derivation. For `%rule text "a" [+T] | "a" T`, input `a` has one derivation, with `T` elided. After restoration, the optional and the bare `T` both read the synthetic token. Their profiles are equal, so the check fails.
 
@@ -2320,7 +2320,7 @@ A smaller filtered best profile does not prove witness loss. Intentional exclusi
 
 A competing reading never replaces D. Both reported trees and their action witness map to O. Distinct reconstructed derivations can display equal trees.
 
-In every ambiguity outcome, the result's `tree` is null. The stage keeps its verdict, output and warnings, since it accepted its input and chose its derivation. The error has no `token` or `source`. Section 7.9 gives the result fields for witness loss.
+In every ambiguity outcome, the result's `tree` is null. The stage keeps its verdict, warnings and any completed publication. A tree-only stage has no output. The error has no `token` or `source`. Section 7.9 gives the result fields for witness loss.
 
 In an elision-only ambiguity, the two readings are two derivations of R, but they can be equal as trees over O. For example, one reading can restore an optional. The other reading can read the same synthetic token as a bare terminal, in a production with the same tree. So the error also has a witness, as a tie has (§6). It is the pair of actions at the first difference between the two derivations of R, visible if there is one, mapped to O:
 
@@ -3281,10 +3281,10 @@ For a chosen reporting derivation, the engine collects earlier stage-level diagn
 Every ending first includes the pending stage-level diagnostics of earlier stages, once by identity. Its remaining collection is as follows:
 
 - `ok`: No error counts. Collect warnings from the chosen derivation as above.
-- `reported`: At least one error counts. Keep the chosen tree, verdict, and reporting-stage output. The envelope lists all counted errors, and the result lists all counted warnings.
+- `reported`: At least one error counts. Keep the chosen tree and verdict. Keep any completed publication at the reporting stage. The envelope lists all counted errors, and the result lists all counted warnings.
 - `rejected`: No complete derivation exists. Collect carried diagnostics in input-token order through the furthest token, including that token. At input end, include every token. These are input facts, independent of a chosen reading. The result has no failed-stage output.
 - `ambiguous`, reason `tie`: Collect the two shown readings as below. Keep the tie verdict and stage witness, with a null result tree and no output. No later stage runs.
-- `ambiguous`, reason `elision-only`: Use the `ok` warning collection over the chosen derivation. No error counts, including at stage level, so the envelope has no `errors` member. Keep stage output.
+- `ambiguous`, reason `elision-only`: Use the `ok` warning collection over the chosen derivation. No error counts, including at stage level, so the envelope has no `errors` member. Keep any completed publication.
 - `feature-conflict` or `grammar`: Collect carried diagnostics over the whole failed-stage input in token order. For a grammar failure after choice, insert evaluated own-stage diagnostics after pending stage-level diagnostics and before the carried list. Their order is the chosen preorder, or the two readings' evaluation order for a tie. The `grammar` ending omits evaluated own-stage diagnostics from erased subtrees. These failures have no failed-stage output and a null result tree.
 
 A failure's `errors` and `warnings` members use the envelope rules of `docs/output.md`. The result's `warnings` also contains its complete warning collection. Warning controls change neither recognition nor the selected derivation.
@@ -3315,11 +3315,9 @@ The member holds `token`, `source`, `line`, `column`, and `expected`, in that or
 
 For a tie, collect pending identities once. Add reports from the first reading, then new multiplicities from the second. Deduplicate carried identities. Compare own diagnostic objects by multiplicity, separately by severity. A second-reading message failure takes precedence over ambiguity. Keep the tie verdict and action witness, without reading tables or output in that failure case.
 
-Verbatim reads are late. Start with the base source envelope. Extend each side independently through adjacent uncovered original text, bounded by its stage-input neighbor. Empty spans claim nothing. Identical input spans share a claim.
+See [Verbatim claims](#112-verbatim-claims) for claim evaluation and conflicts.
 
-Different input spans conflict only where their claimed extensions intersect. Base-source overlap alone is legal. Reordered sources can leave the same intervening comma available on two sides. Rendering never evaluates this operation.
-
-On publication failure, discard uncommitted anonymous nodes, tokens, faces and claims. Keep the chosen structural stage root and a null top-level tree. An elision ambiguity keeps the completed publication, including its referenced records, and both displayed readings over the original input. Its top-level tree is null. A restoration grammar failure or lost witness suppresses that stage’s publication.
+On publication failure, discard uncommitted anonymous nodes, tokens, faces and claims. Keep the chosen structural stage root and a null top-level tree. An elision ambiguity keeps both displayed readings over the original input. It also keeps any completed publication and its referenced records. Its top-level tree is null. A restoration grammar failure or lost witness suppresses that stage’s publication.
 
 Keep earlier completed stages intact. A tree-only reported error retains the chosen root and has no output member.
 
@@ -3402,7 +3400,7 @@ The loader rejects a pipeline without stages or a stage without rules before it 
 
 The loader examines gates within surviving rules and constant expressions before feature filtering.
 
-A rejection, ambiguity, feature conflict, or grammar failure ends the run with the collection of §12.1. Chosen errors before the reporting stage do not stop it. At that stage, counted errors give `reported` after successful emission, with the chosen tree, verdict, and output retained.
+A rejection, ambiguity, feature conflict, or grammar failure ends the run with the collection of §12.1. Chosen errors before the reporting stage do not stop it. At that stage, counted errors give `reported` with the chosen tree and verdict. A publishing stage reports after successful emission and keeps its output. A tree-only stage has no output.
 
 The result's `tree` is null for every error except `reported`, including failures after choice. When no error counts at the reporting stage and no other failure occurs, `ok` is true. Warnings follow the collection and erasure rules of §12.1, rather than unconditional accumulation across stages.
 

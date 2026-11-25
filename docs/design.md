@@ -121,13 +121,13 @@ The four libraries implement one specification, `docs/engine.md`. It defines the
 `tests/engine/` tests the specification. Each case is a small grammar, an input, and a pattern that the canonical result JSON of `docs/output.md` must match. So a fifth implementation can run the cases to make sure that it follows the specification, without the Lojban grammars at all. The cases cover every specification rule, with one or more cases per rule. They settle the edge cases that decide which parse comes out, so that the Lojban corpus does not become the specification by accident:
 
 - A tie is an error (`ok` is false) of kind `ambiguous`, with the reason `tie`. The stage has the verdict `tie` and a witness, and the error has two readings. The first reading is the least in a total order, *T*, that breaks the ranking's ties by canonical keys. The second is the tied derivation that diverges from the first earliest (engine §6). *T* orders the ambiguity diagnostics. The canonical tie-break keys never turn a tie into an accepted reading.
-- The witness of a tie is the pair of actions at the first visible difference between the two readings. A close of a helper rule, or of an alternative with one logical symbol, is transparent (not visible). An earlier difference at such a close does not decide the witness. If the two readings have no visible difference, the witness is the pair of actions at their first difference.
+- The witness of a tie is the pair of actions at the first visible difference between the two readings. A close of a helper, splice or alternative with one [logical symbol](notation.md#ambiguity) is transparent (not visible). An earlier difference at such a close does not decide the witness. If the two readings have no visible difference, the witness is the pair of actions at their first difference.
 - A stage with a tie emits nothing, and the pipeline stops there. Its tie stands even when every tied derivation emits the same tokens. The stage is ambiguous as written, and the error lets a grammar author fix it. The engine cases include a three-way tie and a tie whose derivations emit the same tokens.
 - The cases cover empty spans and cycles: rules that can match no tokens, empty captures and a condition on an empty span. They also cover a unary cycle of `a` to `b` and `b` to `a`. Another case is a nested parse asked about its own span as the same rule. Each case has its defined outcome.
 
 Every span and every source range in a result is half-open: the range holds its start but not its end. Source positions count Unicode code points, not bytes or UTF-16 units, so that the four languages agree on non-ASCII text. Each library converts at its edge (JavaScript from UTF-16, Go and Rust from UTF-8). The libraries derive line and column in diagnostics from code points. Lines split at `\n`, `\r\n` and `\r`.
 
-A token's `span` is a range of the previous stage's tokens. Its `source` is the smallest range of the original text that holds the sources of those tokens. So the source is contiguous even when some of those tokens emitted nothing, as an erased word inside a compound does. A token that an emission clause inserts has an empty span and an empty source range at its insertion point. Its provenance is that emission: its `insertedBy` records the rule whose clause inserted it.
+A token's `span` is a range of the previous stage's tokens. Its `source` is the smallest range of the original text that holds the sources of those tokens. So the source is contiguous even when some of those tokens emitted nothing, as an erased word inside a compound does. An inserted token has an empty span and an empty source range at its insertion point. Its `insertedBy` records the rule that selected the insertion.
 
 A verbatim image can include adjacent text that no input token covers. It never changes source or text metadata. A constituent's image can extend beyond its source interval. An enclosing source-text expression limits the token's image to its own source interval.
 
@@ -708,7 +708,7 @@ An error is better than a hidden choice. A reader of the error sees the two read
 
 CLL's own rule is narrower. It says only that a terminator can be elided if no ambiguity results. It says nothing of the other ambiguities that its EBNF has. `elision-only` is one reading of that rule, for the stage whose grammar declares it. CLL does not say which parse to test, so the check tests the one that the ranking chose.
 
-Any counted error skips the check, including a carried or pending stage-level error. The chosen derivation still emits. Otherwise the check runs after `resolved`, including without an elision. For `unique`, it also runs with an elided node in the chosen tree. Worse-measure readings change no verdict and start no check.
+Any counted error skips the check, including a carried or pending stage-level error. A publishing stage still emits if an error counts. If no error counts, the enabled check runs for `resolved`, even without an elision. For `unique`, it also runs with an elided node in the chosen tree. Worse-measure readings change no verdict and start no check.
 
 The initial search stops at the first elided node. The check walks the chosen derivation for a profile only when a key step can count an occurrence. It follows these steps:
 
@@ -724,9 +724,9 @@ Synthetic tokens carry no diagnostics or carried charge. An error occurrence ove
 
    If filtering excludes the restored chosen derivation, the check fails. Otherwise, its collapsed class must be the sole best admitted class of the written-back text. Only a failure gives an error of kind `ambiguous`, with the reason `elision-only`, and `ok` is false. The error carries the readings that engine §7.10 names, shown over the original input. An intentionally excluded witness gives ordinary ambiguity, not witness loss.
 
-The stage ranks and collects reports. It emits after message evaluation. If no error counts, it runs the applicable check. A tie ends the stage before emission and before the check. So a stage reports at most one `ambiguous` error, and a tie comes first.
+The stage ranks and collects reports. A publishing stage emits after message evaluation. If no error counts, it runs the applicable check. A tie ends the stage before emission and before the check. So a stage reports at most one `ambiguous` error, and a tie comes first.
 
-An `elision-only` ambiguity keeps stage output and warnings, with a null result tree. A grammar failure during the check keeps warnings but no output, with a null result tree. Both retain the chosen verdict and stop later stages.
+An `elision-only` ambiguity keeps any stage output and its warnings, with a null result tree. A grammar failure during the check keeps warnings but no output, with a null result tree. Both retain the chosen verdict and stop later stages.
 
 The two errors share their kind because both describe two readings. A tie compares parses of the text as written. An `elision-only` error compares reconstructions with written-back terminators. A tie has verdict `tie`. An `elision-only` error keeps `unique` or `resolved`. The error's reason identifies which comparison fails.
 

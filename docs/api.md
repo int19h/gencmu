@@ -285,14 +285,16 @@ The JavaScript entry points also export helpers for the CLI and playground:
 - `fnv1a64(text)` returns the FNV-1a hash of the UTF-8 bytes as 16 hexadecimal digits.
 - `stitchText(pipeline)` returns one jbogenbau text with the pipeline's includes expanded and its strings in canonical spelling.
 - `compactJson(value)` returns JSON text without spacing and supports values deeper than the call stack.
+- `nodeBrackets(root, { showElided })` renders a native result root as brackets. The configuration argument is optional.
+- `nodeTree(root, text)` renders a native result root as a tree listing. The source text is optional.
 - `explainWarnings(result)` formats each warning's evaluated `message` and its source excerpt, in result order. It uses the warning's `code`, rule, stage, and position. The formatter uses the stored message and coordinates, including the raising-stage coordinates of carried warnings.
 - `bundledGrammarsDirectory()` returns the bundled grammar directory and comes only from `gencmu/node`.
 
-The portable `gencmu` entry point and `gencmu/node` both export the first four helpers.
+The portable `gencmu` entry point and `gencmu/node` both export the first six helpers.
 
 Use `toBrackets(result)` or `toTree(result)` to render a complete result. For earlier-stage structure, parse with `stageTrees:"all"`. Find the stage by name and resolve its root ID in that stage's chosen occurrence table.
 
-An input index of minus one names `result.input.tokens`. Any other input index names the predecessor stage's output. Resolve faces against the stage and reading that their references name. For an individual root, rendering needs its occurrence table, input tokens and the tables for referenced faces. A tree listing also needs the originating Unicode table.
+An input index of minus one names `result.input.tokens`. Any other input index names the predecessor stage's output. Resolve faces against the stage and reading that their references name. Pass a root from a native result to either helper. The root uses the result's rendering context to reach its occurrence table, input tokens and referenced face tables. A tree listing also uses the originating Unicode table.
 
 The types are in the package's declarations (`lib/js/types/`).
 

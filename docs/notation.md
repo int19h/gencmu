@@ -149,7 +149,7 @@ A range and an engine tag are terminals in a body. A range tests the value and a
 
 An engine membership can stand in a terminal, filter or pattern. A constructor can copy an existing membership, list it in a mask, or delete it. A grammar cannot create a stored membership from a permission. See [engine key provenance](engine.md#engine-tag-provenance).
 
-Either terminal can take a test. Neither a range nor an engine tag can mark an elidable optional. Emission inserts tokens with `ε` and explicit clauses, never with a range or property literal. Expected terminals and tree leaves use canonical spellings, such as `"a".."z"`.
+Either terminal can take a test. Neither a range nor an engine tag can mark an elidable optional. Emission inserts tokens with `ε{…}`. Expected terminals and tree leaves use canonical spellings, such as `"a".."z"`.
 
 A string uses straight double quotes, such as `"la"`. It can be a terminal, a condition operand or part of a diagnostic message. Strings accept `‹…›` escapes, and backslashes and dollar signs are plain characters. String terms can join with `++`. [String literals and escapes](#string-literals-and-escapes) defines exact scalars and names.
 
@@ -225,7 +225,7 @@ A chain is the whole of its rule. That means two things. First, the chain is the
 
 Second, that alternative is the only alternative of its rule that the gates leave (see "Feature gates"). A warning does not remove an alternative. So a rule with another alternative beside its chain is an error of the grammar for the features that leave both. For those features, gencmu finds the error when it prepares the grammar, before recognition. An `%extend-rule` of a chain's rule can cause this error.
 
-The chain's alternative can still have gates and tags of its own, and its rule can have clauses. A chain can be optional, or part of a sequence, through a rule. Name the chain as a rule. Then write the rule's name there, as in `[tag]`.
+The chain's alternative can still have gates and a term of its own, and its rule can have trailing clauses. A chain can be optional, or part of a sequence, through a rule. Name the chain as a rule. Then write the rule's name there, as in `[tag]`.
 
 A chain cannot be the entire target of a query. A named rule in a query can contain a chain and expose its root through the forest.
 
@@ -289,16 +289,16 @@ The clauses of the rule serve every level, as they serve every alternative:
 
 - A condition on `$` holds of each level. So a condition of a left chain holds of every prefix, and one of a right chain of every suffix. A condition on the whole chain alone belongs to a rule that refers to the chain's rule.
 - Each level builds the bag of its rule, including stage defaults where applicable.
-- Bare `%emit` selects the outer level. A level with no selection forwards the outputs of its children.
+- If the stage publishes, bare `%emit` selects the outer level. A level with no selection forwards the outputs of its children.
 
 A chain cannot directly hold a capture in its item or separator (see "Captures"). Flat braces inside a chain can bind lists. Other clauses refer to a whole level, `$`.
 
-A right chain is not the same as an optional suffix. In a rule `r`, the body `x [s r]` and the chain `{x ... / s}` read the same words. But the level of one item is `x` alone in the chain, and `x` with an empty optional in the suffix. That makes three differences:
+A right chain is not the same as an optional suffix. In a rule `r`, the body `x [s r]` and the chain `{x ... / s}` read the same words. But the level of one item is `x` alone in the chain, and `x` with an empty optional in the suffix. That makes two differences for elision:
 
 - The suffix can be an elidable optional, `[+T s′ r]`, where `s` is `T s′`. Where that suffix is absent, it leaves an elided node, and `late #·_<_Elided>` counts it. The chain has no optional there, so it elides nothing. So a text can tie, or resolve otherwise, under `late #·_<_Elided>`, and `elision-only` sees a different terminator. A plain suffix, `[s r]`, elides nothing, as the chain does.
 - Where `s` starts with `[+T]`, the suffix and chain apply different rules for written-terminator priority (see [Conditions](#conditions)). In the suffix, the marked optional starts the optional's content. In the chain, it follows the item's last symbol, which a query can extend. Engine §4 gives the exact rule. An omission names no separate constituent that it ends.
 
-Where the suffix is plain and `s` does not begin with an elidable optional, the two group the words in the same way. The tags of a level of one item can still differ, as the second difference says.
+If the suffix is plain and `s` does not begin with an elidable optional, the two group the words in the same way. Neither body takes an implicit bag copy from `x`. If `x` is one [logical symbol](#ambiguity), the chain has one at its base level and the suffix form has two.
 
 ## Ranked choices
 
@@ -336,9 +336,9 @@ The seal hides no error occurrence from ranking or reports. Diagnostics still be
 | `{(a ≻ b)}` | Repeat ranked items that must read at least one token. |
 | `(ε ≻ a)` | Compare empty options only against other empty options. |
 
-Thus `a | b ≻ c` and `a ≻ b | c` require parentheses. A whole rule body can be `a ≻ b`. Without header clauses, a leading `|` starts the ordinary alternative list.
+Thus `a | b ≻ c` and `a ≻ b | c` require parentheses. A whole rule body can be `a ≻ b`. Without a statement term, a leading `|` starts the ordinary alternative list.
 
-After header clauses, `|` introduces an ordinary body or one ranked alternative. A rule with header clauses can therefore write `| a ≻ b` without parentheses. Its document object model (DOM) contains the same ranked expression as `a ≻ b`.
+After a statement term, `|` introduces an ordinary body or one ranked alternative. A rule with a statement term can therefore write `| a ≻ b` without parentheses. Its document object model (DOM) contains the same ranked expression as `a ≻ b`.
 
 Every ranked expression needs at least two operands. `ε` supplies an explicit empty operand. Each operand is a complete `&` expression. `≻` has no operator meaning inside strings, conditions, or tree patterns.
 
@@ -450,9 +450,9 @@ Ranking first compares source blame, with less blamed input preferred. At equal 
 
 Overlapping sources still add their charges. Erased subtrees contribute zero, and warnings contribute nothing. Grammar preferences follow equal measures, including in ranked admission.
 
-A chosen error before the reporting stage does not stop the pipeline. A `reported` result at the reporting stage keeps its chosen tree, `unique` or `resolved` verdict, and emitted output. Its `ok` is false. An error-bearing tie reports ambiguity and lists the errors and warnings of its two shown readings. For overlapping lists, engine §12.1 defines identity and multiplicity.
+A chosen error before the reporting stage does not stop the pipeline. A `reported` result at the reporting stage keeps its chosen tree and its `unique` or `resolved` verdict. A publishing stage also keeps its emitted output. Its `ok` is false. An error-bearing tie reports ambiguity and lists the errors and warnings of its two shown readings. For overlapping lists, engine §12.1 defines identity and multiplicity.
 
-A caller enables or disables warnings by code through the feature controls. `%features` supplies defaults. A disabled warning changes no accepted reading, chosen tree, or output. An error cannot be disabled.
+A caller enables or disables warnings by code through the feature controls. `%features` supplies defaults. A warning switch changes no recognition or ranking. A disabled warning evaluates no message. An error cannot be disabled.
 
 ### Suppressing warnings
 
@@ -554,7 +554,7 @@ A boundary-target choice splices into one complete target entry, in written orde
 %rule a = filtered("a", <¬Ogonek ¬Caron>)
 ```
 
-Here the letter's boundary test names `h | b | unvoiced`. The filter on `a` requires `<¬Accent ¬Ogonek ¬Caron>`. A list under `¬@Excluded` is an error. A requirement list is distinct from a tag set, and `<>` is an empty list. A boundary-target choice must remain nonempty.
+Here the letter's boundary test names `h | b | unvoiced`. The filter on `a` requires `<¬Accent ¬Ogonek ¬Caron>`. A list under `¬@Excluded` is an error. A requirement list is distinct from a key set, and `<>` is an empty list. A boundary-target choice must remain nonempty.
 
 These are the only list substitutions. A parenthesized body choice does not splice into boundary targets. Other terms retain their usual grouping and type rules. Substitution flattens string concatenations in operand order before validation. It preserves empty operands and their source locations. [Engine §2.3](engine.md#23-templates-and-instances) defines argument reading and conversion.
 
@@ -864,9 +864,9 @@ One tag test followed by one value test can follow a terminal atom. Its value or
 
 A terminal atom accepts one signed tag test and one exact value test, in that order. A rule, emoji, family or call atom accepts the same two tests. Its tag test reads the occurrence's working keys. Its value test requires the same input-join proof as a rule value test in a body. A test needs an atom, so a test alone, as `#<T>` or `#=""`, is an error.
 
-Pattern set operators combine complete predicates and cannot mix them with tag sets. `∅` denotes the empty pattern. `#A<B>` means `#(A<B>)`, and `#A<B>=""` means `#(A<B>="")`.
+Pattern set operators combine complete predicates and cannot mix them with key sets. `∅` denotes the empty pattern. `#A<B>` means `#(A<B>)`, and `#A<B>=""` means `#(A<B>="")`.
 
-Patterns reject splices, captures, emissions, alternative tags, feature gates, elision markers, chain repetitions, and direct chained path prefixes. `&` has no pattern or child operator role. Patterns cannot contain recursive constants.
+Patterns reject splices, captures, emissions, terms, feature gates, elision markers, chain repetitions, and direct chained path prefixes. `&` has no pattern or child operator role. Patterns cannot contain recursive constants.
 
 Optional and repeat bodies and choice arms must contain written items. A repeat body must have a way to consume at least one child. A sibling gap cannot occur within a repeat's item or separator at that sibling level. Gaps inside an attached child list remain valid because they consume another node's children.
 
@@ -934,6 +934,8 @@ A layer can use `%redefine-const $LEXICON {*$LEXICON, KIhEI: "ki'ei", A: $LEXICO
 A capture labels one symbol, as in `$x:A`. If every route binds it once, it gives one node. Mutually exclusive branches can bind the same slot, as in `($x:a | $x:b) c`. If a route can omit the binding, the slot gives a list of zero or one node. A repetition gives a flat list in input order.
 
 Place the label before the symbol inside the optional or repetition. A label cannot wrap a bracket, braces or a group. The terminator binder is `[$j:+JI]` and gives a list of zero or one written leaf.
+
+A capture cannot stand directly in the item or separator of a chain. An elidable optional accepts only the capture of its sole terminator. Thus `[+KU $x:🆓]`, `[+$k:KU 🆓]` and `$j : [+JI]` are errors. One route cannot bind a name twice, so `[$x:A] $x:B` and `$x:A & $x:B` are errors too.
 
 A bound node is true in a truth position even when it spans no input. A list of bindings tests nonemptiness. For these types, `.present` makes the same test. A shared condition or statement term can test a capture declared only on another alternative. Both spellings give false there.
 
@@ -1453,7 +1455,9 @@ The engine's canonical order (engine §6) orders the ambiguity diagnostics. Amon
 - If one reads and the other closes, the step decides. `greedy` takes the one that reads, so a constituent ends as late as the grammar allows. `lazy` takes the one that closes, so a constituent ends as early as the grammar allows.
 - If both close different constituents, they are tied.
 
-Some closes are transparent to action comparison. A named production with one logical symbol has a transparent close. A spliced call's close is transparent regardless of its body. The notation also creates a transparent helper for every optional, every flat `{ }` and every ranked group, including captured optionals. So two parses that differ only in such a relabeling do not differ yet.
+A logical symbol is one symbol of an alternative as written. Each optional, each pair of flat braces, each ranked group and each splice counts as one. A capture changes no count. So `A [$b:B]` has two logical symbols, even with B absent. The count serves ranking and query priority. [Rule bags](#rule-bags) gives the separate test for a sole-symbol copy.
+
+A named production with one logical symbol has a transparent close. A spliced call's close is transparent regardless of its body. The notation also creates a transparent helper for every optional, every flat `{ }` and every ranked group, including captured optionals. So two parses that differ only in such a relabeling do not differ yet.
 
 The levels of a chain are constituents of its rule, so a level with more than one symbol is not transparent. Where `greedy` or `lazy` must see where each step of a list ends, the grammar writes a chain or explicit recursion, not flat braces.
 
@@ -1506,7 +1510,7 @@ A template can choose its terminator through a parameter:
 %rule description = terminated(sumti-tail, KU)
 ```
 
-The argument for `@End` must be one bare user tag after argument conversion. A rule name, sequence, tested argument, constant, or tag-set expression fails loading. A parenthesized single tag, such as `(KU)`, reads as that tag. Tests written on `@End` apply to the resulting terminal. The rest of the optional keeps its ordinary restrictions.
+The argument for `@End` must be one bare user tag after argument conversion. A rule name, sequence, tested argument, constant or key-set expression fails loading. A parenthesized single tag, such as `(KU)`, reads as that tag. Tests written on `@End` apply to the resulting terminal. The rest of the optional keeps its ordinary restrictions.
 
 A plain optional is never elidable, whatever it holds. So `[KU]`, `[KU | VAU]` and `[{KU}]` are ordinary optionals. Where one is absent, it counts for nothing and leaves no node, as an absent optional separator does. A grammar can read a terminator both ways: `[+KU]` in one rule and `[KU]` in another. Only the first one is elided.
 
@@ -1526,7 +1530,7 @@ The constituent of an elided terminator can end wherever a parse of the whole te
 
 A language's own rule can be narrower: a terminator can be elided only if no ambiguity results. The `elision-only` check is one reading of such a rule. The directive `%elision-only` turns it on for a stage. It examines only the parse that the ranking chose.
 
-Any counted error skips the check, including carried errors and pending stage-level errors. Otherwise the enabled check runs after emission for `resolved`. For `unique`, it also runs with an elided node in the chosen parse. It skips a unique parse with no elided node. Verdicts count only best-measure readings, so worse-measure readings never start the check. Uniqueness on the original input cannot exclude another reading of the restored input.
+Any counted error skips the check, including carried errors and pending stage-level errors. Otherwise the enabled check runs after any emission for `resolved`. For `unique`, it also runs with an elided node in the chosen parse. It skips a unique parse with no elided node. Verdicts count only best-measure readings, so worse-measure readings never start the check. Uniqueness on the original input cannot exclude another reading of the restored input.
 
 A restored terminator has its terminal key, default value and empty image. The engine resolves the default from `≝`, the equality operand or the empty string, in that order.
 
@@ -1548,7 +1552,7 @@ An inert route, one that cannot succeed, causes no special error or warning.
 | `T<>` | Always | Empty |
 | `T<T>` | Always | Empty |
 
-Here C is a resolved tag constant, and s and d are exact strings. The same omission tests apply at each marked optional. A default value that fails the terminator's own test is a document error at `≝`, because the terminator then cannot be elided. So `[+JI="jie" ≝ "jie"]` is legal, and `[+JI="jie" ≝ "jei"]` is an error. `[+T≠""]` cannot omit T, but reads a written nonempty T. `[+T<U>]` cannot omit T when U differs from T, although a written token carrying both tags can pass.
+Here C is a resolved key-set constant, and s and d are exact strings. The same omission tests apply at each marked optional. A default value that fails the terminator's own test is a document error at `≝`, because the terminator then cannot be elided. So `[+JI="jie" ≝ "jie"]` is legal, and `[+JI="jie" ≝ "jei"]` is an error. `[+T≠""]` cannot omit T, but reads a written nonempty T. `[+T<U>]` cannot omit T when U differs from T, although a written token carrying both tags can pass.
 
 Then the stage parses that input again. Each elidable optional is either restored or written. In the chosen parse's own reading, an optional that it left out is restored: it reads only its restored terminator. Another reading can start an optional from a restored terminator and read more after it, where the rest of the optional reads something.
 
@@ -1574,9 +1578,9 @@ The `lojban/experimental` and `lojban/zantufa` pipelines do not declare `%elisio
 
 The bundled grammars keep a layout convention. Its purpose is that a reader sees at once where each top-level alternative of a rule ends. The notation does not require it. `tools/sync.js --check` makes sure that the bundled grammars keep the rules for alternatives and comments. Reviews examine the order of entries in each constructor.
 
-A plain alternative is one or more plain items in a row, with no gate and no clause. A plain item is a rule reference without arguments, a splice, a string, a tag terminal, an engine tag, `ε` or a parameter. `_<T>` with one tag `T` is also a plain item. Any other alternative is a marked alternative.
+A plain alternative is one or more plain items in a row, with no gate and no term. A plain item is a rule reference without arguments, a splice, a string, a tag terminal, an engine tag, `ε` or a parameter. `_<T>` with one tag `T` is also a plain item. Any other alternative is a marked alternative.
 
-So brackets, a call, another test, a range, a capture, a constant, `&`, `≻`, a gate or a clause makes an alternative marked. Brackets are parentheses, square brackets and braces. A bare `_` and a `_` with a test of several tags are not plain items.
+So brackets, a call, another test, a range, a capture, a constant, `&`, `≻`, a gate or a term makes an alternative marked. Brackets are parentheses, square brackets and braces. A bare `_` and a `_` with a test of several tags are not plain items.
 
 A range or a test makes the alternative marked, as in `"a".."p"` or `Letter="n"`. Each one adds visual weight, so a line of several of them reads as one dense run. `_<T>` reads as one word, so it is plain.
 
@@ -1592,7 +1596,7 @@ No line of a grammar block holds more than 100 characters, counted as Unicode co
 
 A line that holds only one string does not count, because a string cannot break. A string concatenation can break after `++`.
 
-Break a long line before a clause first. Then break between top-level items before breaking inside a term or bracket. If the term or its body needs several lines, put the term on a separate line. Indent it four columns past its owner. Count from the header, the alternative bar or the unbarred alternative’s first item.
+If a long body line includes its term, break before the term first. Break between top-level items before breaking inside a term or bracket. If the term or its body needs several lines, put the term on a separate line. Indent it four columns past its owner. Count from the header, the alternative bar or the unbarred alternative’s first item.
 
 End a continued condition line with its operator. In a condition list, indent its continuation two columns past the condition start. Align a guard continuation with the guard's condition. Inside brackets, continue one column past the opening bracket. Break first at the loosest operator. Indent a continuation within a tighter operand more deeply.
 
@@ -1606,6 +1610,7 @@ A grouped choice and a ranked group can each occupy one alternative line. For ex
   | ^$b:unit<¬Trailing-Pause> skipped<Gap-Pause> su-suffix
       → {Trailing-Pause, value: $b'value ++ $PAUSE, image: $b'image ++ $PAUSE}
 %emit
+  $b
 ```
 
 Keep the written order of constructor entries. For a long constructor or list, put one entry on each line. Apply the same break rules to output items.

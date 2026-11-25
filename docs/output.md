@@ -166,7 +166,7 @@ Guard atoms in statement and alternative bag terms follow their definition's wri
     The engine counts admitted derivations with the best blame measure. It collapses erased interiors with equal observable states (engine §6). Other transparent closes and equal trees do not merge derivations. The stage's witness then names the actions where they differ.
 
     Errors and result warnings come from the two shown readings only, after pending earlier stage-level diagnostics. Carried identities deduplicate across readings. Own-stage diagnostics use maximum multiplicity of each complete diagnostic object, including `rejection`, across the readings. The second reading adds only occurrences beyond the number already collected.
-  - `elision-only`: If filtering excludes the restored chosen derivation, the check fails. Otherwise, its collapsed class must be the sole best admitted class of the written-back text. Engine §7.10 defines this decision. The stage's verdict is `unique` or `resolved`, and it keeps its output.
+  - `elision-only`: If filtering excludes the restored chosen derivation, the check fails. Otherwise, its collapsed class must be the sole best admitted class of the written-back text. Engine §7.10 defines this decision. The stage's verdict is `unique` or `resolved`. A publishing stage keeps its output. A tree-only stage has no output.
 
     The first reading represents W(D), the restored chosen derivation. An admitted reading shows its class's kept interior. An excluded W(D) remains the concrete raw restored reading. The second is its deterministic competitor (engine §7.10). This order also applies without ranked groups or key steps.
 
