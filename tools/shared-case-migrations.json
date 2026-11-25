@@ -1012,19 +1012,22 @@
     }
   },
   "engine/overlap-whole-optional-capture.json": {
-    "reason": "The same nonempty route selects both the enclosing occurrence and its captured child.",
+    "reason": "The optional slot can forward the published child. The braced item also selects the enclosing occurrence that covers the child.",
     "fixture": {
       "source": [
         "%stage main",
         "%ambiguity-resolution greedy",
-        "%rule text [$a:\"a\"]",
-        "%emit ${*$}, $a{*$a}"
+        "%const $OUTPUTS {}",
+        "%rule text [$a:leaf]",
+        "%emit ${image: value: \"a\"}, $a",
+        "%rule leaf \"a\"",
+        "%emit"
       ]
     },
     "expected": {
       "kind": "grammar",
       "document": "main.md",
-      "line": 4,
+      "line": 5,
       "column": 1
     },
     "section": "Engine §§9.3, 11.1"
@@ -1043,7 +1046,7 @@
       "kind": "grammar",
       "document": "main.md",
       "line": 5,
-      "column": 16
+      "column": 18
     },
     "section": "Engine §§2.1, 9.3"
   },
@@ -1062,7 +1065,7 @@
       "kind": "grammar",
       "document": "main.md",
       "line": 4,
-      "column": 22
+      "column": 23
     },
     "section": "Engine §§3.7, 9.3"
   },
@@ -1080,7 +1083,7 @@
       "kind": "grammar",
       "document": "main.md",
       "line": 5,
-      "column": 16
+      "column": 18
     },
     "section": "Engine §§2.1, 9.3"
   },
@@ -1099,7 +1102,7 @@
       "kind": "grammar",
       "document": "main.md",
       "line": 4,
-      "column": 22
+      "column": 23
     },
     "section": "Engine §§3.7, 9.3"
   },
