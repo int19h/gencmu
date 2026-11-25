@@ -26567,14 +26567,14 @@
         if (written === null && deleted === null) continue;
         if (entry.gates.length) this.fail("gate an entry of a bag", entry.at);
         const guards = [entry.guard ? this.truth(entry.guard) : null, condition].filter(Boolean);
-        const changed = union(minus(tags, deleted), written);
         if (!guards.length) {
-          tags = changed;
+          tags = union(minus(tags, deleted), written);
           continue;
         }
         const test = guards.length === 1 ? guards[0] : { all: guards };
-        const kept = tags === null ? null : { if: { not: test }, then: tags };
-        tags = union(changed === null ? null : { if: test, then: changed }, kept);
+        // A guarded entry removes and adds only where its guard holds. The
+        // earlier tags appear once, so a run of guarded entries stays linear.
+        tags = union(minus(tags, deleted === null ? null : { if: test, then: deleted }), written === null ? null : { if: test, then: written });
       }
       return tags;
     }
@@ -28078,9 +28078,12 @@
       this.featureDeclarations = undefined;
       /** @type {any[] | undefined} the errors of bridging, which a parse reports */
       this.loweringErrors = undefined;
+      // Bridged records share subtrees, so each object is visited once.
+      const seen = new WeakSet();
       /** @param {any} node */
       const visit = node => {
-        if (!node || typeof node !== "object") return;
+        if (!node || typeof node !== "object" || seen.has(node)) return;
+        seen.add(node);
         if (node.closed50 !== undefined) this.closed.push(node.closed50);
         for (const value of Object.values(node)) if (value && typeof value === "object") visit(value);
       };
@@ -28101,15 +28104,21 @@
      */
     folded(truth) {
       if (!this.closed.length) return this.runs;
+      // A shared subtree gets one copy, so the copy keeps the sharing.
+      const copies = new WeakMap();
       /**
        * @param {any} node
        * @returns {any}
        */
       const replace = node => {
-        if (Array.isArray(node)) return node.map(replace);
         if (!node || typeof node !== "object") return node;
-        if (node.closed50 !== undefined) return truth(node.closed50) ? DOM_TRUE : DOM_FALSE;
-        return Object.fromEntries(Object.entries(node).map(/** @returns {any} */ ([name, value]) => [name, replace(value)]));
+        if (copies.has(node)) return copies.get(node);
+        /** @type {any} */
+        const copy = Array.isArray(node) ? node.map(replace)
+          : node.closed50 !== undefined ? (truth(node.closed50) ? DOM_TRUE : DOM_FALSE)
+          : Object.fromEntries(Object.entries(node).map(/** @returns {any} */ ([name, value]) => [name, replace(value)]));
+        copies.set(node, copy);
+        return copy;
       };
       return this.runs.map((/** @type {any} */ run) => ({ ...run, dom: { ...run.dom,
         rules: run.dom.rules.map((/** @type {any} */ rule) => ({ ...rule, conditions: replace(rule.conditions),
