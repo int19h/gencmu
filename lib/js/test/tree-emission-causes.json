@@ -22,7 +22,7 @@
   "truth-conversions/malformed": "a string does not convert to truth",
   "truth-conversions/control/2": "this operand does not have a truth value",
   "truth-conversions/control/3": "a function cannot serve as a guard",
-  "truth-conversions/control/4": "a span has no .present method",
+  "truth-conversions/control/4": "a method has the wrong receiver or arguments",
   "shared-capture-guard/malformed": "\\$x is absent from this expansion",
   "shared-capture-guard/control/3": "\\$x is absent from this expansion",
   "shared-capture-guard/control/4": "\\$y is captured by no alternative of text",
@@ -38,5 +38,8 @@
   "template-argument-position/control/3#supplied": "a template argument record without its position",
   "template-argument-position/control/1": "an operand of concatenation is a number",
   "origin-filter-on-rule/control/5": "the _Elided origin test applies only to a terminal, and the argument is a rule",
-  "origin-filter-on-rule/control/6": "the _Elided origin test applies only to a terminal, and the argument is a rule"
+  "origin-filter-on-rule/control/6": "the _Elided origin test applies only to a terminal, and the argument is a rule",
+  "stitched-definition-order/malformed": "extends a rule that is not defined before it",
+  "stitched-definition-order/control/0": "extends a rule that is not defined before it",
+  "stitched-definition-order/control/1": "an error production of empty can match no tokens"
 }
