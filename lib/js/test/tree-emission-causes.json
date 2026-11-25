@@ -1,0 +1,16 @@
+{
+  "//": "The load errors of the format 50 loader that state the expected cause of a case. A malformed case passes only where its error matches the pattern here.",
+  "bare-and-zero/malformed": "duplicate direct write for n",
+  "ordered-deletion/malformed": "could not continue at token 28; expected \",\", \"\\?\", \"}\"",
+  "synthetic-bare-read/malformed": "forbidden engine key _Elided",
+  "guarded-defaults/malformed": "a predicate requires an explicit binder",
+  "empty-term/malformed": "could not continue at token 30; expected \"\\{\"",
+  "singleton-repetition/malformed": "a primary must mark a mandatory child",
+  "origin-filter-on-rule/malformed": "origin test applies only to a terminal",
+  "origin-filter-on-rule/control/0": "origin test applies only to a terminal",
+  "origin-filter-on-rule/control/1": "origin test applies only to a terminal",
+  "origin-filter-on-rule/control/2": "origin test applies only to a terminal",
+  "origin-filter-on-rule/control/3": "origin test applies only to a terminal",
+  "origin-filter-on-rule/control/4": "origin test applies only to a terminal",
+  "origin-filter-on-rule/control/8": "origin test applies only to a terminal"
+}
