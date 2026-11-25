@@ -2919,8 +2919,8 @@ pattern-attached-start = $atom:pattern-atom $open:"⁅"
   assert ($.source-text = ($atom.source-text ++ $open.source-text))
 pattern-item-opening = "⁅" | "·"
 adjacent-item-opening = $left:ANY-TOKEN $right:pattern-item-opening
-  assert ($left.value ≠ "⋯")
-  assert ($left.value ≠ "⋰")
+  assert ($left'value ≠ "⋯")
+  assert ($left'value ≠ "⋰")
   assert ($.source-text = ($left.source-text ++ $right.source-text))
 ```
 

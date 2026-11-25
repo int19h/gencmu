@@ -673,8 +673,8 @@ Recognition admits repeated or reversed tests on node atoms. Each node atom acce
 %rule adjacent-item-opening
   $left:_ $right:pattern-item-opening
 %conditions
-  $left.value ≠ "⋯",
-  $left.value ≠ "⋰",
+  $left'value ≠ "⋯",
+  $left'value ≠ "⋰",
   $.source-text = $left.source-text ++ $right.source-text
 ```
 
