@@ -48,7 +48,7 @@ A replacement name keeps its source boundary. Thus `ladjan. sa .djim. bu` leaves
 
 The `y`-cmavo forms extend those that CLL gives, as [morphology.md](morphology.md) explains. The BPFK word forms omit those forms. The `lojban/bpfk` pipeline does not include this document. It therefore has neither the `y-cmavo` warning nor the words-stage name test before BU. BPFK is the Lojban language planning committee.
 
-### Differences from the format 49 grammar
+## Differences from the format 49 grammar
 
 These rules read and warn as their format 49 copy, `grammars/lojban/cll/stream.md`, does. The name condition tests the two flags of the unit directly, as `$u'CMEVLA` and `$u'Run-Initial`.
 

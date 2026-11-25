@@ -154,7 +154,7 @@ The rule `attitudinal-nai` reads the pair. Its primary is the attitudinal word, 
 <p><img src="../../../docs/diagrams/50/lojban/cll/indicators/nai.svg" alt="Railroad diagram of the rule nai"></p>
 </details>
 
-`indicator` and `fuhe` test their classes in conditions, not in a tag test on `Word`. So a failed indicator run expects one plain `Word`. Each test reads a bare tag of the word, such as `$i'Indicator`.
+`indicator`, `fuhe` and `attitudinal` test their classes in conditions, not in a tag test on `Word`. So a failed indicator run expects one plain `Word`. Each test reads a bare tag of the word, such as `$i'Indicator`.
 
 A `ba'e` before an indicator marks the indicator and goes with it. So does a `ba'e` before the `nai` of an attitudinal. Emphasis leaves the word's meaning intact. Each UI or CAI permits one NAI. So `mi .e .ui ba'e nai do` negates the `.ui` and leaves the `.e` as it is.
 
@@ -257,6 +257,8 @@ A leading `ui nai` is one token here, as it is after a word. The format 49 copy 
 A token covers its word with its satellites. Its place therefore runs from its first `ba'e` to its last indicator. In `mi cusku zo SINdarin ui`, the quote token covers the quote and `ui`, and its core is the quote alone. The format 49 token covers only its word, and lists its attachments beside it.
 
 One bracket form changes with this. `ba'e ui ba'e nai mi klama` shows as `([ba'e ui {ba'e nai}] [mi klama])`. The format 49 copy shows `([{ba'e ui} {ba'e nai}] [mi klama])`.
+
+The wider place also reaches a rejection. In `mi ba'e nai klama`, the stage hands on `ba'e nai` as one token, with `nai` as its core and `ba'e` as a satellite. The syntax rejects that token, because a `nai` cannot follow `mi` there. The rejected token starts at `ba'e`, and its core starts at `nai`. In the format 49 copy, the rejected token is `nai` alone. The place that the error reports follows from the error record of the engine, and this grammar does not choose it.
 
 [^cll-s13-9]: [CLL 1.1, section 13.9](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-scope.html).
 

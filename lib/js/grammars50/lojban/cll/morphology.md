@@ -155,7 +155,7 @@ These rules read lowercase vowel values with or without `Stressed`. A stressed v
 
 A brivla is a gismu, a lujvo or a borrowing (CLL[^cll-s4-3]). It ends in a vowel other than `y`, and it has a consonant pair among its first five letters, not counting `y` and the apostrophe. Gismu and lujvo always have one.
 
-`brivla-scan` of [shapes.md](shapes.md) finds where the stress of a brivla is. A brivla whose stress is marked has every capital vowel in its penultimate counted syllable. Each test asks whether a reading of the scan has one key or count. A word can follow it with no pause. A brivla with no capital vowel is `Open-Stress`. Its first syllable is stressed when it has exactly two counted nuclei. A capital `Y` never stands in a brivla, because no rule below reads one.
+`brivla-scan` of [shapes.md](shapes.md) finds where the stress of a brivla is. A brivla whose stress is marked has every capital vowel in its penultimate counted syllable. A word can follow it with no pause. A brivla with no capital vowel is `Open-Stress`. Its first syllable is stressed when it has exactly two counted nuclei. A capital `Y` never stands in a brivla, because no rule below reads one. Each test asks whether a reading of the scan has one key or count.
 
 Each alternative of `brivla-shape` marks its word as the primary. So the shape keeps the bag of the word, with `Gismu`, `Lujvo` or `Fuhivla` and the word's strings. A reader of the result follows the primary to the word.
 

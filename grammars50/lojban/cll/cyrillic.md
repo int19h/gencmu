@@ -76,7 +76,7 @@ CLL first lists 22 letters, which it maps "in the obvious ways". It then assigns
 
 The [Latin choices](latin.md#choices-beyond-cll) explain consonant folding.
 
-### Differences from the format 49 grammar
+## Differences from the format 49 grammar
 
 This document reads the same letters as its format 49 copy, `grammars/lojban/cll/cyrillic.md`, and emits the same tokens with the same values, images and tags.
 

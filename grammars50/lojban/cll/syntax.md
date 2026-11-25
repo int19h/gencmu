@@ -916,7 +916,7 @@ The official parser, CLL's reference implementation, uses a YACC grammar. YACC i
 
 Earlier stages also depart from CLL. [The word stream](../common/stream.md) lists eight departures under ["Departures from CLL, Magic Words, and the reference parsers"](../common/stream.md#departures-from-cll-magic-words-and-the-reference-parsers). They concern SI, ZEI, BU, hesitation, LOhU, ZOI, whole-quote attachment, and SU boundaries. The Magic Words proposal specifies word processing before syntax. The stream prose states each relationship to that proposal.
 
-[The indicator stage](indicators.md) permits several FUhE groups and several BAhE words. Printed rules 411 and 1100 each allow only one. The [CLL pipeline's differences section](pipeline.md#differences-from-cll-and-the-official-parser) and BPFK pipeline's differences section in `grammars/lojban/bpfk/pipeline.md` index pipeline choices and source comparisons.
+[The indicator stage](indicators.md) permits several FUhE groups and several BAhE words. Printed rules 411 and 1100 each allow only one. Printed rule 413 writes `[NAI]` in `indicator`. Here the indicator stage reads a `nai` with its attitudinal, and the syntax reads the pair as one `UI` or `CAI` token. The [CLL pipeline's differences section](pipeline.md#differences-from-cll-and-the-official-parser) and BPFK pipeline's differences section in `grammars/lojban/bpfk/pipeline.md` index pipeline choices and source comparisons.
 
 The words stage replaces CLL's non-formal erasure rule `null = any-word SI | utterance SA | text SU` with the left-to-right Magic Words model. A non-formal rule runs before syntax. CLL never defines the `utterance` that `sa` erases. The [stream's departure list](../common/stream.md#departures-from-cll-magic-words-and-the-reference-parsers) explains the differences.
 
@@ -1033,11 +1033,11 @@ The indivisible-number rule follows these CLL requirements in the `lojban/cll` a
 - CLL[^cll-s18-6], after the example[^cll-e18-32], requires `boi` between adjacent numbers. CLL[^cll-s18-16] shows the reverse Polish examples[^cll-e18-110][^cll-e18-111][^cll-e18-112] with the required `boi` boundaries. The `lojban/cll` and `lojban/bpfk` pipelines reject `li fu'a pa re su'i du li ci` and accept `li fu'a pa boi re su'i du li ci`.
 - CLL[^cll-s18-6], after the example[^cll-e18-34], requires `boi` between the function name and its operand. The `lojban/cll` and `lojban/bpfk` pipelines reject `li zy du li ma'o fy. xy.` and accept `li zy du li ma'o fy. boi xy.`.
 
-### Differences from the format 49 grammar
+## Differences from the format 49 grammar
 
 The format 49 copy of this grammar is `grammars/lojban/cll/syntax.md`. This grammar reads the same texts with the same trees, with one exception.
 
-- `indicator` reads `UI | CAI | DAhO | FUhO`. The format 49 rule reads `(UI | CAI) [NAI] | DAhO | FUhO`. The [indicator stage](indicators.md) hands on a leading attitudinal and its `nai` as one token, as it does after a word. So `ui nai mi klama` gives this stage one `UI` token before `mi`, where the format 49 stages give `UI` and `NAI`. The syntax tree has one indicator leaf there instead of an indicator node over two leaves. Printed rule 413 writes the `nai` in `indicator`. Here the indicator stage reads it in its place.
+- `indicator` reads `UI | CAI | DAhO | FUhO`. The format 49 rule reads `(UI | CAI) [NAI] | DAhO | FUhO`. The [indicator stage](indicators.md) hands on a leading attitudinal and its `nai` as one token, as it does after a word. So `ui nai mi klama` gives this stage one `UI` token before `mi`, where the format 49 stages give `UI` and `NAI`. The syntax tree has one indicator leaf there instead of an indicator node over two leaves.
 
 The patterns `$WRITTEN-KE-UNIT` and `$WRITTEN-VAU` test the written origin of KEhE and VAU with `<¬_Elided>`. The format 49 patterns test a nonempty value. A written KEhE or VAU always has a nonempty value, and an omitted one has the empty default, so both tests select the same leaves.
 

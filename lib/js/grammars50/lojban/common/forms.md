@@ -25,19 +25,14 @@ The `lojban/cll` pipeline stitches [../cll/shapes.md](../cll/shapes.md) and [../
 
 The stage joins the strings of each rule's children by default. So a word's value and image are the values and images of its phonemes, in order. A rule that needs another string writes it.
 
-The public keys are the keys of the phoneme stage, every class of the lexicon, and the tags that this stage gives. The words stage reads them. `Period-Initial`, `Period-Only`, `Quote-Material` and `Punctuation-Material` come from the phoneme stages of other pipelines. `Y`, `ZOhOI` and `MEhOI` are classes of other lexicons. The CLL pipeline gives none of these seven keys, and a public name alone gives a token nothing.
+The public keys are the keys of the phoneme stage, every class of the lexicon, and the tags that this stage writes. The words stage reads them. The two splats name the keys of the input and the classes of the stitched lexicon, so a pause tag or a class of another lexicon needs no name of its own. A layer that writes a new tag adds it with `%redefine-const`.
 
 ```jbogenbau
 %const $DEFAULTS $n ↦ {value: $n.children!'value.join(), image: $n.children!'image.join()}
 %const $OUTPUTS {
   *$INPUTS,
   *$LEXICON.keys,
-  PAUSE,
   FOREIGN,
-  Period-Initial,
-  Period-Only,
-  Quote-Material,
-  Punctuation-Material,
   Word,
   Cmavo,
   BRIVLA,
@@ -59,10 +54,7 @@ The public keys are the keys of the phoneme stage, every class of the lexicon, a
   Stress-Guard,
   Gismu,
   Lujvo,
-  Fuhivla,
-  Y,
-  ZOhOI,
-  MEhOI
+  Fuhivla
 }
 ```
 
@@ -327,7 +319,7 @@ The format 49 copy of this document is `grammars/lojban/common/forms.md`. On the
 
 The lookup gives `Indicator` where it gives an indicator class. The format 49 lexicon adds that tag to each emitted token with such a class. A token that a caller gives `UI` directly therefore needs `Indicator` from the caller too. The CLL phoneme stage gives no such token.
 
-The tags `Run-Initial` and `Run-Final` are keys of the `ordinary-word` node, so a parent can read them. No rule of this stage reads them on a node.
+Three rules put their tags or strings on the node, and not only on the token. They are `pause-token` with its value, `foreign-token` with its run tags, and `ordinary-word` with `Run-Initial` and `Run-Final`. So a parent can read them. No rule of this stage reads them on a node.
 
 A repetition passes no tags from a single item. No rule of a Lojban pipeline reads a tag that reaches it only that way.
 

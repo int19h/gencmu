@@ -90,8 +90,8 @@ CLL[^cll-s3-3] says that a comma "cannot be pronounced as a pause", so a comma a
   [pause-edge] $c:pause-core [pause-edge]
 %emit
   $c{PAUSE,
-     $c.span.first-token.parse(period-char)? Period-Initial,
-     $c.span.parse(period-core)? Period-Only,
+     $c.first-token.parse(period-char)? Period-Initial,
+     $c.parse(period-core)? Period-Only,
      image: value: " "}
 
 %rule pause-core
@@ -106,7 +106,7 @@ CLL[^cll-s3-3] says that a comma "cannot be pronounced as a pause", so a comma a
 %rule period-char
   $c:core-char
 %conditions
-  ¬$c.span.parse(space-char)
+  ¬$c.parse(space-char)
 
 %rule period-core
   {period-char}
@@ -219,11 +219,11 @@ A foreign run has at least one character that no rule of `any-lojban-char` reads
 
 ```jbogenbau
 %rule non-lojban-char-run
-  $r:chars-with-non-lojban-char → {FOREIGN, image: $.span.source-text}
+  $r:chars-with-non-lojban-char → {FOREIGN, image: $.source-text}
 %conditions
-  ¬$r.span.parse(letters),
-  ¬$r.span.first-token.parse(commas),
-  ¬$r.span.last-token.parse(commas)
+  ¬$r.parse(letters),
+  ¬$r.first-token.parse(commas),
+  ¬$r.last-token.parse(commas)
 %emit
 
 %rule chars-with-non-lojban-char
@@ -237,17 +237,17 @@ A foreign run has at least one character that no rule of `any-lojban-char` reads
 %rule lojban-char
   $c:run-char
 %conditions
-  $c.span.parse(any-lojban-char)
+  $c.parse(any-lojban-char)
 
 %rule non-lojban-char
   $c:run-char
 %conditions
-  ¬$c.span.parse(any-lojban-char)
+  ¬$c.parse(any-lojban-char)
 
 %rule run-char
   $c:_
 %conditions
-  ¬$c.span.parse(core-char)
+  ¬$c.parse(core-char)
 ```
 
 <details><summary>Railroad diagrams of the 6 rules from <code>non-lojban-char-run</code> to <code>run-char</code></summary>
@@ -271,6 +271,8 @@ Names can stress any syllable.[^cll-s3-9][^cll-s4-8] A cmavo is a particle. Cmav
 `stressed-vowel-with` takes six patterns, one for each vowel in a script. Named instances keep each script's vowel rule in the phoneme tree.
 
 The `Vowel` tag marks the five full vowels and not `y`. So `stressed-full-vowel-with` holds the five full vowels and carries `Vowel` in its statement term. The outer rule's statement term supplies `Stressed`, and the `y` pattern stays in `stressed-vowel-with`. Its first alternative marks the full vowel as its primary, so that the node keeps the vowel's strings and `Vowel`.
+
+The plain `y` has the empty term `→ {}`. It keeps the bag of the input character off the vowel node, as each other letter's term does. So a letter node has its strings and its own tags alone.
 
 CLL[^cll-s3-1] omits `h` from the alphabet. CLL[^cll-s3-3] says that `h` does not write the apostrophe. This stage treats `h` as foreign text. `grammars/lojban/common/latin.md` reads `h` as the apostrophe.
 
@@ -343,7 +345,7 @@ CLL[^cll-s3-1] uses capitals only for nonstandard stress in names. Capital conso
 
 CLL[^cll-s3-12] describes Loglan-compatible and Tengwar orthographies. This grammar reads neither. CLL calls the Loglan-compatible orthography nonstandard and unused.
 
-### Differences from the format 49 grammar
+## Differences from the format 49 grammar
 
 This document reads the same texts as its format 49 copy, `grammars/lojban/cll/latin.md`. It emits the same tokens with the same values, images, places and tags. `$OUTPUTS` names only the stage's own tags, so a phoneme token carries no Unicode property of its characters, as before.
 

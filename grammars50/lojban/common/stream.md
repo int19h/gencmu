@@ -34,14 +34,14 @@ The rule `empty` reads a prefix that leaves no units. Its alternatives use `text
 
 The stage defaults join the values and the images of the children of each rule. So a rule without its own strings spells what its parts spell, and an erased part adds nothing.
 
-`$OUTPUTS` passes on every key of the forms stage. It adds the keys that this stage gives its tokens: `Fault`, `Y-Letter`, `Y-Key` and `Ieho`. The other keys of this stage stay inside it.
+`$OUTPUTS` passes on every key of the forms stage. It adds `Y-Letter`, the mark of a y letteral. The other keys of this stage stay inside it, `Fault` and `letter` among them.
 
 The rule `stream` gives each stretch of the stream the keys of all its surviving units. So `text` can reject a stream in which a fault survives.
 
 ```jbogenbau
 %ambiguity-resolution lazy
 %const $DEFAULTS $n ↦ {value: $n.children!'value.join(), image: $n.children!'image.join()}
-%const $OUTPUTS {*$INPUTS, Fault, Y-Letter, Y-Key, Ieho}
+%const $OUTPUTS {*$INPUTS, Y-Letter}
 
 %rule text
   | empty [faho-group]
@@ -141,8 +141,8 @@ An optional part, such as the hesitations of `spacing`, is a list of zero or one
 %const $GAP-MARKS {Gap-Pause} ∪ $MATERIAL
 
 %rule pause-run → {image: value: $PAUSE}
-  | $p:PAUSE → {*$p.select($MATERIAL)}
-  | $r:pause-run $q:PAUSE → {*$r.select($MATERIAL), *$q.select($MATERIAL)}
+  | $p:PAUSE → {*$p.flags ∩ $MATERIAL}
+  | $r:pause-run $q:PAUSE → {*$r.flags ∩ $MATERIAL, *$q.flags ∩ $MATERIAL}
 
 %rule spacing
   [$p:pause-run] [$h:hesitations [$q:pause-run]]
@@ -216,7 +216,7 @@ Without SA or SU input, both feature states admit the same plain words. The rule
 
 `$MAGIC-WORDS` lists the operation classes that an ordinary word cannot carry.
 
-The y letteral `y-bu-word` takes the key of its y base, which `y-key` gives. It also takes `Run-Initial` from its first token and `Run-Final` from its last token.
+The y letteral `y-bu-word` takes the private key `letter` of its y base, which `y-key` gives. It also copies `Run-Initial` from its first token and `Run-Final` from its last token.
 
 ```jbogenbau
 %const $MAGIC-WORDS
@@ -240,10 +240,9 @@ The y letteral `y-bu-word` takes the key of its y base, which `y-key` gives. It 
       → {Word,
          BY,
          Y-Letter,
-         *$b.flags,
          $b'letter,
-         *$b.span.first-token.flags ∩ {Run-Initial},
-         *$u.span.last-token.flags ∩ {Run-Final}}
+         $b.first-token.flags'Run-Initial,
+         $u.last-token.flags'Run-Final}
 %emit
 
 -- Layers can add keys to the ordinary word through this hook.
@@ -258,7 +257,7 @@ The y letteral `y-bu-word` takes the key of its y base, which `y-key` gives. It 
 %emit
 
 %rule cmavo-token
-  $c:Cmavo
+  Cmavo
 ```
 
 <details><summary>Railroad diagrams of the 7 rules from <code>read-word</code> to <code>cmavo-token</code></summary>
@@ -336,7 +335,7 @@ An attached opening mark supplies one gap space, even without whitespace. `marke
 %rule word-quote
   $m:word-quote-marker
       ($g:word-quote-gap $w:word-quote-target | $g:word-gap<¬Quote-Material> $w:zo-punctuation)
-      → {*$m.flags, image: $m.span.source-text ++ $g.span.source-text ++ $w.span.verbatim-text}
+      → {*$m.flags, image: $m.source-text ++ $g.source-text ++ $w.verbatim-text}
 %emit
 
 %rule word-quote-gap
@@ -344,7 +343,7 @@ An attached opening mark supplies one gap space, even without whitespace. `marke
   | word-gap<¬Quote-Material> quote-attachment → {image: value: $PAUSE}
 
 %rule word-quote-target
-  $w:read-word [word-end-attachment] → {*$w.flags, image: $.span.verbatim-text}
+  $w:read-word [word-end-attachment] → {*$w.flags, image: $.verbatim-text}
 %conditions
   ¬$.following-tokens.parse(word-end-attachment …)
 
@@ -362,7 +361,7 @@ An attached opening mark supplies one gap space, even without whitespace. `marke
   ^PAUSE<Quote-Material> → {image: value: ""}
 
 %rule zo-punctuation
-  ^PAUSE<Quote-Material> → {value: $.span.decomposed-source-text, image: $.span.source-text}
+  ^PAUSE<Quote-Material> → {value: $.decomposed-source-text, image: $.source-text}
 %conditions
   $.ends-input ∨ $.following-tokens.parse(quiet-pause …)
 
@@ -401,13 +400,13 @@ The hesitation rule refuses a raw y letteral. In `zo'oi .y. bu`, the quote there
 
 ```jbogenbau
 %rule single-run-quote → {*$m.flags}
-  | $m:single-run-marker $r:single-run-payload → {image: $m.span.source-text ++ $r'image}
+  | $m:single-run-marker $r:single-run-payload → {image: $m.source-text ++ $r'image}
   | $m:single-run-marker $g:single-run-gap $s:single-run-payload
-      → {image: $m.span.source-text ++ $g.span.source-text ++ $s'image}
+      → {image: $m.source-text ++ $g.source-text ++ $s'image}
 %conditions
   ¬$r.following-tokens.parse(payload-token …),
   ¬$s.following-tokens.parse(payload-token …),
-  ¬$s.span.first-token.flags'Hesitation ∨ $s.span.first-token.onward.parse(raw-y-letter …)
+  ¬$s.first-token.flags'Hesitation ∨ $s.first-token.onward.parse(raw-y-letter …)
 %emit
 
 %const $SINGLE-RUN-QUOTE-MARKERS {ZOhOI, MEhOI}
@@ -453,7 +452,7 @@ The ZOI words, `zoi` and `la'o`, skip hesitation and read the next real word as 
 
 Both spacing routes use `delimiter-hesitation`, which refuses the opening y letteral. This rule stays separate because Zantufa's ordinary hesitation also requires a spacing boundary.
 
-The quotes close at the first matching whole run of nonpause tokens by exact value. Every pause, including punctuation, bounds such a delimiter run. ZOI compares foreign runs by their exact values too. Each comparison joins the values of the input tokens, so it reads the spelling that the forms stage handed on.
+The quotes close at the first matching whole run of nonpause tokens by exact value. Every pause, including punctuation, bounds such a delimiter run. ZOI compares foreign runs by their exact values too. Each comparison joins the values of the input tokens, so it reads the spelling that the forms stage handed on. The function `$RAW` states that join once. A rule value can differ from it, because a rule below can replace a string, as a pause does.
 
 The rule `zoi-y-quote` reads letteral delimiters formed from hesitation. The `lojban/zantufa` and `lojban/experimental` pipelines also form such a delimiter from `ie'o`. `grammars/lojban/zantufa/morphology.md` and `grammars/lojban/experimental/lexicon.md` describe it. The rule `zoi-quote` reads other delimiters. Each rule includes empty and nonempty bodies.
 
@@ -466,7 +465,9 @@ The body leaves its final quiet pause to the closing gap. The closing edge keeps
 `$ZOI-MARKERS` names the classes that open delimited quotes. Layers extend this set while keeping the shared delimiter rules.
 
 ```jbogenbau
-%rule zoi-y-quote → {*$m.flags, image: $.span.source-text}
+%const $RAW $x ↦ $x.tokens!'value.join()
+
+%rule zoi-y-quote → {*$m.flags, image: $.source-text}
   | $m:zoi-marker $g:delimiter-gap $open:delimiter $b:delimiter-body-gap $content:zoi-body PAUSE
     [quote-attachment] $close:raw-close [word-end-attachment]
   | $m:zoi-marker $g:delimiter-gap $open:delimiter $b:delimiter-body-gap $content:empty-zoi-body
@@ -481,7 +482,7 @@ The body leaves its final quiet pause to the closing gap. The closing edge keeps
     ¬$content.parse(body-with-y-close).any($r ↦ $r.has(letter) ∧ $r'letter = $open'letter)
 %emit
 
-%rule zoi-quote → {*$m.flags, image: $.span.source-text}
+%rule zoi-quote → {*$m.flags, image: $.source-text}
   | $m:zoi-marker $g:delimiter-gap $open:delimiter $b:delimiter-body-gap $content:zoi-body PAUSE
     [quote-attachment] $close:raw-close [word-end-attachment]
   | $m:zoi-marker $g:delimiter-gap $open:delimiter $b:delimiter-body-gap $content:empty-zoi-body
@@ -491,8 +492,8 @@ The body leaves its final quiet pause to the closing gap. The closing edge keeps
   ¬$.following-tokens.parse(word-end-attachment …),
   ¬$b'Delimiter-Edge ∨ $g'Delimiter-Mark,
   ¬$g'Delimiter-Mark ∨ ¬$b'Period-Only ∨ ¬$b.following-tokens.parse(quote-attachment …),
-  $open.span.tokens!'value.join() = $close.span.tokens!'value.join(),
-  $open.span.tokens!'value.join() ∉ $content.span.tokens!'value.join().split($PAUSE)
+  $RAW($open) = $RAW($close),
+  $RAW($open) ∉ $RAW($content).split($PAUSE)
 %emit
 
 %const $ZOI-MARKERS {ZOI}
@@ -500,7 +501,7 @@ The body leaves its final quiet pause to the closing gap. The closing edge keeps
 %rule zoi-marker = quote-marker(= $ZOI-MARKERS)
 
 %rule delimiter
-  $w:read-word<¬Y>
+  read-word<¬Y>
 
 %rule delimiter-gap
   | delimiter-spacing
@@ -546,7 +547,7 @@ The body leaves its final quiet pause to the closing gap. The closing edge keeps
 %rule zoi-body
   raw-tokens → {}
 %conditions
-  ¬$.span.last-token.flags'PAUSE ∨ $.span.last-token.flags'Quote-Material
+  ¬$.last-token.flags'PAUSE ∨ $.last-token.flags'Quote-Material
 
 %rule quiet-pause
   ^PAUSE<¬Quote-Material> → {image: value: ""}
@@ -580,20 +581,17 @@ Thus `zoi .yy. bu. foo .yy. bu.` fails, and `zoi .yy. bu. foo .y. bu.` succeeds.
 
 The body remains raw and opaque. In `zoi bu. foo .y. bu.`, the final `bu` closes the quote. The preceding y remains body text.
 
-The function `$Y-KEY` gives a y base its key. A base with value `y` gets `Y-Key`, and one with value `ie'o` gets `Ieho`. Both also get the private key `letter`, which holds that value. The opening `y-key` and the closing `raw-y-key` both use it.
+A y base whose value is one of `$Y-LETTERS` gets the private key `letter`, which holds that value. The opening `y-key` and the closing `raw-y-key` both give it. The delimiter tests compare this key alone.
 
 The forms stage separates the last opening y from preceding hesitation. `raw-y-key` applies the same tests but keeps every raw y value. A longer run gets no `letter`, so it cannot close the delimiter. A delimiter closes only where its opening and closing letters are equal.
 
 The raw rule rejoins every piece of one y run. Its internal gap accepts pauses, including punctuation, as the opening y letteral does. Zantufa's `ie'o` exception in `grammars/lojban/zantufa/morphology.md` keeps each `ie'o` separate from adjacent hesitation.
 
 ```jbogenbau
-%const $Y-KEY $y ↦
-  {$y'value = "ie'o"? Ieho,
-   $y'value = "y"? Y-Key,
-   $y'value ∈ ["ie'o", "y"]? letter: $y'value}
+%const $Y-LETTERS ["y", "ie'o"]
 
 %rule y-key
-  $y:y-run → {*$Y-KEY($y)}
+  $y:y-run → {$y'value ∈ $Y-LETTERS? letter: $y'value}
 
 %rule raw-close
   raw-run | raw-y-close
@@ -611,10 +609,10 @@ The raw rule rejoins every piece of one y run. Its internal gap accepts pauses, 
   | payload-token<¬Cmavo ¬PAUSE>
 
 %rule raw-y-close
-  $y:raw-y-key [pause-run] $b:close-run-token → {*$y.flags, $y'letter}
+  $y:raw-y-key [pause-run] $b:close-run-token → {$y'letter}
 %conditions
-  $b.span.tokens!'value.join() = "bu",
-  $y.span.first-token.flags'Run-Initial,
+  $RAW($b) = "bu",
+  $y.first-token.flags'Run-Initial,
   ¬$b.following-tokens.parse(close-run-token …)
 
 %rule raw-y-base
@@ -625,9 +623,9 @@ The raw rule rejoins every piece of one y run. Its internal gap accepts pauses, 
   $h'value ≠ "ie'o"
 
 %rule raw-y-key
-  $y:raw-y-base → {*$Y-KEY($y)}
+  $y:raw-y-base → {$y'value ∈ $Y-LETTERS? letter: $y'value}
 
-%rule body-with-y-close → {*$c.flags, $c'letter}
+%rule body-with-y-close → {$c'letter}
   | [quote-attachment] $c:raw-y-close [raw-tokens]
   | [raw-tokens] PAUSE [quote-attachment] $c:raw-y-close [raw-tokens]
 ```
@@ -650,22 +648,19 @@ A LOhU quote ends at the first LEhU. Its body reads Lojban words through the sha
 
 `lohu-stream` uses `word-gap` between words. Its empty, quiet and paused routes are disjoint. The shared gap rules execute no eraser inside the quote.
 
-A LEhU marker on its own emits a token with `LEhU` alone. A LOhU word emits a token with `Word` alone. Inside a quote, the quote token covers both.
+The quote hands on one token, which covers its markers and its words. They hand on nothing of their own. A LEhU marker outside a quote is a fault unit, which the stream rejects.
 
 ```jbogenbau
-%rule lohu-quote → {*$m.flags, image: $.span.source-text}
+%rule lohu-quote → {*$m.flags, image: $.source-text}
   | $m:lohu-marker word-gap lohu-stream word-gap lehu-marker
   | $m:lohu-marker word-gap lehu-marker
 %emit
 
 %rule lohu-marker
   $q:read-word<LOhU> → {Word, Cmavo, *$q.classes}
-%emit
 
 %rule lehu-marker
   $q:read-word<LEhU> → {Word, Cmavo, *$q.classes}
-%emit
-  ${LEhU}
 
 %rule lohu-stream
   | lohu-word
@@ -675,8 +670,6 @@ A LEhU marker on its own emits a token with `LEhU` alone. A LOhU word emits a to
   $w:read-word
 %conditions
   ¬$w'LEhU
-%emit
-  ${Word}
 ```
 
 <details><summary>Railroad diagrams of the 5 rules from <code>lohu-quote</code> to <code>lohu-word</code></summary>
@@ -698,7 +691,7 @@ Only `single-run-payload` gives its body its own image. Its `.verbatim-text` pre
   | any-token
   | raw-tokens any-token
 
-%rule single-run-payload → {image: $.span.verbatim-text}
+%rule single-run-payload → {image: $.verbatim-text}
   | payload-token
   | single-run-payload payload-token
 
@@ -708,7 +701,7 @@ Only `single-run-payload` gives its body its own image. Its `.verbatim-text` pre
 
 %rule payload-token
   | Word | Hesitation | FOREIGN
-  | ^PAUSE<Quote-Material> → {value: $.span.decomposed-source-text, image: $.span.source-text}
+  | ^PAUSE<Quote-Material> → {value: $.decomposed-source-text, image: $.source-text}
 ```
 
 <details><summary>Railroad diagrams of the 4 rules from <code>raw-tokens</code> to <code>payload-token</code></summary>
@@ -1010,13 +1003,13 @@ ZO can quote standalone punctuation or ignored material instead of moving to a l
 
 The Zantufa lexicon in `grammars/lojban/zantufa/lexicon.md` gives `zei` class SI. The word `zei` rejects surviving punctuation on either side, even with that class. Other SI words retain their punctuation spacing. Ignored comma-like characters remain spacing for ZEI. This preserves the punctuation restriction across pipeline lexicons.
 
-### Differences from the format 49 grammar
+## Differences from the format 49 grammar
 
 The format 49 copy of this document is `grammars/lojban/common/stream.md`. This document accepts the same texts and hands on the same tokens, with the same values, images and public keys.
 
-The tokens carry exactly the public keys that `$OUTPUTS` names. Those are the keys of the forms stage and the four keys of this stage that the format 49 tokens also carry.
+The tokens carry the public keys that `$OUTPUTS` names: the keys of the forms stage and `Y-Letter`. The format 49 tokens of a y letteral also carry `Y-Key` for `y` or `Ieho` for `ie'o`. Here these two tags are gone, because no stage reads them. A y letteral keeps its letter in the private key `letter`.
 
-The closing test of a y letteral delimiter compares the private key `letter` of the two delimiters. The format 49 copy compares their key sets without the word marks. Both tests need a key on the opening delimiter, and the forms stage always gives it one.
+The closing test of a y letteral delimiter compares `letter` on the two delimiters. The format 49 copy compares their key sets without the word marks. Both tests need a key on the opening delimiter. The forms stage always hands on a lone `y` before `bu`, so `y-key` always gives the key.
 
 `zei-spelling` tests the value in its body, as `Cmavo="zei"`. The format 49 copy states the same test as a condition.
 
