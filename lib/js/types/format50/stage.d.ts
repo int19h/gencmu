@@ -188,7 +188,7 @@ export declare class Stage50 {
      */
     stageData(tokens: any, sourceText: any, options: any): any;
     /** @param {any} data */
-    inputKeySet(data: any): Bag;
+    inputKeySet(data: any): any;
     /**
      * The occurrence tree of a derivation.
      * @param {any} root

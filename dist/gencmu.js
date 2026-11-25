@@ -28441,7 +28441,8 @@
 
     /** @param {any} data */
     inputKeySet(data) {
-      return Bag.from([...data.inputKeys].sort(compareCodePoints).map(key => [key, BARE]));
+      data.inputBag ??= Bag.from([...data.inputKeys].sort(compareCodePoints).map(key => [key, BARE]));
+      return data.inputBag;
     }
 
     /**
@@ -32732,6 +32733,7 @@
 
 
 
+
   /** The bundle of notation 50 in the package. */
   const BUNDLE_50 = Object.freeze({
     format: 50,
@@ -33070,7 +33072,11 @@
       }
       const stages = [];
       let tokens = origin;
-      let inputKeys = new Set(origin.flatMap(token => token.props.keys().filter(key => key !== "value" && key !== "image")));
+      // The first stage reads every canonical Unicode membership that the
+      // table supports, whatever the text holds, and the user keys of
+      // supplied tokens (engine §2).
+      let inputKeys = new Set([...originKeys(unicode),
+        ...origin.flatMap(token => token.props.keys().filter(key => key !== "value" && key !== "image"))]);
       for (let index = 0; index <= last; index++) {
         const stage = this.stages[index];
         const conflict = stage.declareFeatures(tokens, sourceText, features, off, inputKeys);
@@ -33194,6 +33200,23 @@
     return JSON.stringify({ format: 50, ...header, documents }) + "\n";
   }
 
+  /** @type {WeakMap<UnicodeTable, string[]>} */
+  const originKeyCache = new WeakMap();
+
+  /**
+   * The canonical Unicode memberships that the origin producer can supply
+   * with this table: each canonical tag of the catalog that the table
+   * supports. Aliases are not canonical, so they are left out.
+   * @param {UnicodeTable} unicode
+   */
+  function originKeys(unicode) {
+    let keys = originKeyCache.get(unicode);
+    if (!keys) {
+      keys = Object.keys(PROPERTY_CATALOG.tags).filter(tag => unicode.canonicalTag(tag) === tag);
+      originKeyCache.set(unicode, keys);
+    }
+    return keys;
+  }
 
   // ---- format50/result.js
   // Result 18: the canonical JSON of a format 50 parse (docs/output.md).
