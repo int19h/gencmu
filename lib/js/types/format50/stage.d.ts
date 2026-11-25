@@ -60,6 +60,37 @@ export declare class Stage50 {
     /** The runs with each closed condition replaced by its truth. */
     folded(truth: any): any;
     /**
+     * The stage-local %features declarations, in their order (engine §13).
+     * A declaration with conditions turns its features on where every
+     * condition holds on the input span. A declaration without conditions
+     * turns them on always. Returns a failed report on a conflict with a
+     * feature that the caller turns off.
+     */
+    declareFeatures(tokens: any, sourceText: any, features: any, off: any, inputKeys: any): {
+        name: string;
+        verdict: null;
+        root: null;
+        output: null;
+        errors: never[];
+        warnings: never[];
+        input: any;
+        error: import("../types.js").ParseError;
+    } | {
+        name: string;
+        verdict: null;
+        root: null;
+        output: null;
+        errors: never[];
+        warnings: never[];
+        input: any;
+        error: {
+            kind: string;
+            stage: string;
+            feature: any;
+            message: string;
+        };
+    } | null;
+    /**
      * The recognizer grammar, with each closed condition replaced by its
      * truth for these features and this input interface.
      */
