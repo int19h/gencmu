@@ -1181,25 +1181,5 @@
       },
       "pipelineDocument": "p.md"
     }
-  },
-  "engine/notation-r2-intersection-own-line.json": {
-    "reason": "Keep the captured input span and the singleton string list on the intersection operator line.",
-    "section": "Engine §10, Operators and truth",
-    "fixture": {
-      "source": [
-        "%stage main",
-        "%ambiguity-resolution greedy",
-        "%rule text $x:unit B",
-        "%conditions",
-        "  $x.span ∩ [\"a\"]",
-        "%rule unit A"
-      ]
-    },
-    "expected": {
-      "kind": "grammar",
-      "document": "main.md",
-      "line": 6,
-      "column": 11
-    }
   }
 }

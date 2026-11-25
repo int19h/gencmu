@@ -10000,5 +10000,20 @@
       "column": 13,
       "description": "an implicit receiver needs a function binding"
     }
+  },
+  "engine/notation-r2-intersection-own-line.json": {
+    "reason": "Keep the captured input span and the singleton string list on the intersection operator line.",
+    "section": "Engine §10, Operators and truth",
+    "entry": "main.md",
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text $x:unit B\n%conditions\n  $x.span ∩ [\"a\"]\n%rule unit A\n```\n"
+    },
+    "expected": {
+      "kind": "grammar",
+      "document": "main.md",
+      "line": 6,
+      "column": 11,
+      "description": "∩ requires compatible operands"
+    }
   }
 }
