@@ -12,11 +12,9 @@ The declarations contain the rule bodies and the clauses that belong to them. Th
   rule | ranking-directive | directive | constant-definition
 
 %rule rule
-  rule-keyword rule-name "=" call
-  | rule-keyword (rule-name | call) [$header:statement-term] body
+  | rule-keyword rule-name "=" call
+  | rule-keyword (rule-name | call) (body | statement-term headed-body)
     [conditions-clause] [diagnostic-clause] [suppress-warnings-clause] [output-clause]
-%conditions
-  $header ⟹ $header.following-tokens.first-token.value = "|"
 
 %rule rule-keyword
   KW-RULE | KW-EXTEND-RULE | KW-REDEFINE-RULE
@@ -28,7 +26,11 @@ The declarations contain the rule bodies and the clauses that belong to them. Th
   "→" bag
 
 %rule body
-  ["|"] ordinary-body | ["|"] ranked-body
+  | ["|"] ordinary-body
+  | ranked-body
+
+%rule headed-body
+  "|" (ordinary-body | ranked-body)
 
 %rule ordinary-body
   {alternative / "|"}
@@ -333,7 +335,7 @@ Expression rules group operators by precedence. Method names select the syntax o
   ("ngrams" | "at-most") "(" integer ")"
 
 %rule predicate-selector
-  ("all" | "any") ["(" [predicate] ")"]
+  ("all" | "any") "(" [predicate] ")"
 
 %rule predicate
   expr

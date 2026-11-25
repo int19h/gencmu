@@ -23,6 +23,7 @@
     "src",
     "types",
     "grammars",
+    "grammars50",
     "data"
   ],
   "engines": {

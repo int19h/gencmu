@@ -16,6 +16,12 @@ const parts = (node, name) => rules(node).filter(child => child.rule === name);
 const part = (node, name) => parts(node, name)[0];
 const leaves = node => node.children.filter(child => child.kind === "token");
 const collapse = (kind, items) => items.length === 1 ? items[0] : { [kind]: items };
+const GROUPS = new Set(["group", "optional", "repetition", "empty"]);
+function baseFactor(node) {
+  while (["factor", "tested-factor", "untested-factor"].includes(node.rule)) node = rules(node)[0];
+  return node;
+}
+
 const isSymbol = body => ["ref", "call", "param", "literal", "range", "wildcard", "splice", "test"]
   .some(key => Object.hasOwn(body, key));
 
@@ -160,7 +166,7 @@ export class DomBuilder {
     }
     const termNode = part(node, "statement-term");
     const term = termNode && this.expression(part(termNode, "bag"));
-    const body = rules(part(node, "body"))[0];
+    const body = rules(part(node, "body") ?? part(node, "headed-body"))[0];
     const alternatives = body.rule === "ranked-body" ?
       [this.alternative(body, "ranked-choice")] : rules(body).map(alt => this.alternative(alt, "some-of"));
     const conditions = this.conditions(part(node, "conditions-clause"));
@@ -248,6 +254,7 @@ export class DomBuilder {
       case "capture":
       case "captured-terminator": {
         const capture = this.binder(first);
+        if (GROUPS.has(baseFactor(children[1]).rule)) this.fail(first, "a capture wraps one symbol");
         const target = expr(children[1], false, elidable);
         if (!isSymbol(target)) this.fail(first, "a capture wraps one symbol");
         return this.remember({ capture, expr: target }, first);
@@ -258,6 +265,7 @@ export class DomBuilder {
         return { primary: target };
       }
       case "tested-factor": {
+        if (GROUPS.has(baseFactor(first).rule)) this.fail(children[1], "a test applies to one symbol");
         const base = expr();
         if (!isSymbol(base)) this.fail(children[1], "a test applies to one symbol");
         return this.tests(base, children.slice(1), false, elidable);
@@ -318,8 +326,7 @@ export class DomBuilder {
         const requirements = this.requirements(test);
         if (requirements.some(req => req.value.tag === "_Elided" && (!pattern || !req.negated))) {
           const targetIsRule = base.call || base.splice || base.name || /^[a-z]/.test(base.ref ?? "") ||
-            base.ref && [...base.ref].length === 1 && this.unicode.canonicalTag(base.ref) === null &&
-            !/^[A-Z_]/.test(base.ref);
+            base.ref && this.unicode.isEmojiName(base.ref);
           if (targetIsRule) this.fail(test, "the _Elided origin test applies only to a terminal");
         }
         result = { test: "tags", requirements, expr: result, at };
@@ -533,6 +540,7 @@ export class DomBuilder {
       }
       case "predicate-selector": {
         const predicate = part(selector, "predicate");
+        if (!predicate && method === "all") this.fail(node, ".all takes one predicate");
         if (predicate) args.push(this.predicate(predicate));
         break;
       }
@@ -756,8 +764,8 @@ function tooDeep(declaration) {
       for (const child of node) push(child, depth);
       continue;
     }
-    if (node.primary || node.expression || node.kind) {
-      push(node.primary ?? node.expression, depth);
+    if (node.primary || node.expression || node.kind || node.body && node.lambda === undefined) {
+      push(node.primary ?? node.expression ?? node.body, depth);
       if (node.kind) entries([node], depth);
       continue;
     }

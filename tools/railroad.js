@@ -621,6 +621,7 @@ export function expressionPiece(expr, limit = MAX_WIDTH, omission = unknownOmiss
   // A capture names a part for the clauses, and changes nothing that the
   // rule reads.
   if ("capture" in expr) return expressionPiece(expr.expr, limit, omission);
+  if ("primary" in expr) return expressionPiece(expr.primary, limit, omission);
   if ("test" in expr) return box(symbolText(expr.expr) + testText(expr), isTerminal(expr.expr));
   if (expr.empty === true) return skip();
   return box(symbolText(expr), isTerminal(expr));
@@ -893,10 +894,11 @@ export function ownedLines(lines) {
  * @param {{rules: any[]}} dom the document's DOM
  * @param {Map<string, Set<boolean>[]>} [outcomes] the answers of the
  *   omission predicate for the document's rules, from elisionOutcomes
+ * @param {string} [variant] an optional diagram namespace
  * @returns {{text: string, files: Map<string, string>}} the document, and
  *   the SVG files
  */
-export function withDiagrams(file, markdown, dom, outcomes = new Map()) {
+export function withDiagrams(file, markdown, dom, outcomes = new Map(), variant = "") {
   const { lines, ends } = documentLines(markdown);
   const newline = ends.find((end) => end !== "") ?? "\n";
   const blocks = fencedBlocks(lines);
@@ -916,7 +918,7 @@ export function withDiagrams(file, markdown, dom, outcomes = new Map()) {
 
   // The diagrams of each grammar block, by the line of its closing fence.
   // The rules come in the order of the document, and so do the blocks.
-  const directory = diagramDirectory(file);
+  const directory = diagramDirectory(variant ? `${variant}/${file}` : file);
   const up = "../".repeat(file.split("/").length);
   const names = diagramNames(dom.rules);
   const grammarBlocks = blocks.filter((block) => block.grammar);

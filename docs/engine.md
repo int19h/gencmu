@@ -2764,12 +2764,12 @@ Recognition productions:
 ```text
 text = [statement {statement}]
 statement = rule | ranking-directive | directive | constant-definition
-rule = rule-keyword rule-name "=" call | rule-keyword (rule-name | call) [$header:statement-term] body [conditions-clause] [diagnostic-clause] [suppress-warnings-clause] [output-clause]
-  assert ($header ⟹ ($header.following-tokens.first-token.tokens!'value.join() = "|"))
+rule = rule-keyword rule-name "=" call | rule-keyword (rule-name | call) (body | (statement-term headed-body)) [conditions-clause] [diagnostic-clause] [suppress-warnings-clause] [output-clause]
 rule-keyword = KW-RULE | KW-EXTEND-RULE | KW-REDEFINE-RULE
 rule-name = Identifier | Emoji-Name
 statement-term = "→" bag
-body = ["|"] ordinary-body | ["|"] ranked-body
+body = ["|"] ordinary-body | ranked-body
+headed-body = "|" (ordinary-body | ranked-body)
 ordinary-body = alternative {"|" alternative}
 ranked-body = [feature-gate {feature-gate}] ranked-choice [alternative-term]
 ranked-choice = some-of "≻" some-of {"≻" some-of}
@@ -2863,7 +2863,7 @@ neighbor-target = target-option | "(" target-option ")"
 family-selector = "without-elision-except" "(" (rule-reference | call | parameter) ")"
 key-selector = ("has" | "has-value") "(" key ")"
 width-selector = ("ngrams" | "at-most") "(" integer ")"
-predicate-selector = ("all" | "any") ["(" [predicate] ")"]
+predicate-selector = ("all" | "any") "(" [predicate] ")"
 predicate = expr
 map = "!" (prop | method | ("(" predicate ")"))
 flatten = "↓"

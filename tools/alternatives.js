@@ -83,7 +83,7 @@ function sourceWithoutComments(text) {
  */
 export function isPlainAlternative(alternative, text) {
   if (!alternative || (alternative.gates && alternative.gates.length !== 0)) return false;
-  if (alternative.tags !== undefined || alternative.value !== undefined || alternative.image !== undefined) return false;
+  if (alternative.term !== undefined || alternative.tags !== undefined || alternative.value !== undefined || alternative.image !== undefined) return false;
   if (/[\[\]{}()&≻]/.test(sourceWithoutStrings(sourceWithoutComments(text)))) return false;
   const expr = alternative.expr;
   const items = expr && Array.isArray(expr.seq) ? expr.seq : [expr];
@@ -120,7 +120,7 @@ export function scanComments(chars) {
  * @typedef {{text: string, lines: number[], plain: boolean, from: number, to: number}} WrittenAlternative
  * @typedef {{rule: any, keyword: string, alternatives: WrittenAlternative[]}} RuleLayout
  * @param {string} markdown
- * @param {{rules: any[]}} dom
+ * @param {{rules: any[], format?: number}} dom
  * @param {string} path
  * @returns {RuleLayout[]}
  */
@@ -139,7 +139,7 @@ export function alternativeLayouts(markdown, dom, path) {
     if (alternatives.length < 1) continue;
     const start = indexOf.get(`${rule.at[0]}:${rule.at[1]}`);
     if (start === undefined || chars[start] !== "%") throw new Error(`${path}:${rule.at[0]}:${rule.at[1]}: no keyword at the position of rule ${rule.name}`);
-    const starts = scanBody(chars, start);
+    const starts = scanBody(chars, start, dom.format === 50);
     if (starts.length !== alternatives.length) throw new Error(`${path}:${rule.at[0]}: found ${starts.length} alternatives of rule ${rule.name} in its text, but its DOM has ${alternatives.length}`);
     const written = starts.map(({ from, to }, index) => {
       const writtenText = chars.slice(from, to).join("");
@@ -164,9 +164,10 @@ export function alternativeLayouts(markdown, dom, path) {
  * at the end of the text.
  * @param {string[]} chars
  * @param {number} start
+ * @param {boolean} format50
  * @returns {{from: number, to: number}[]}
  */
-function scanBody(chars, start) {
+function scanBody(chars, start, format50) {
   const isSpace = (/** @type {string | undefined} */ c) => c !== undefined && /\p{White_Space}/u.test(c);
   const isNameChar = (/** @type {string | undefined} */ c) => c !== undefined && /[A-Za-z0-9_-]/.test(c);
   let i = start + 1;
@@ -195,6 +196,21 @@ function scanBody(chars, start) {
     }
   }
   i = skipLayout(i);
+  // In format 50 a header term is a bag. Its internal bars belong to
+  // expressions and cannot start an alternative.
+  if (format50 && chars[i] === "→") i = skipBag(skipLayout(i + 1));
+  function skipBag(at) {
+    let braces = 0;
+    for (; at < chars.length; at++) {
+      at = skipLayout(at);
+      const c = chars[at];
+      if (c === '"') {
+        while (++at < chars.length && chars[at] !== '"') {}
+      } else if (c === "{") braces++;
+      else if (c === "}" && --braces === 0) return at + 1;
+    }
+    return at;
+  }
   // A header clause precedes the bar that starts the ordinary body.
   if (chars[i] === ":" && [":", "=", "-"].includes(chars[i + 1])) {
     let headerDepth = 0;
@@ -230,6 +246,8 @@ function scanBody(chars, start) {
       i++;
       while (i < chars.length && chars[i] !== c) i++;
       i++;
+    } else if (format50 && c === "→" && depth === 0) {
+      i = skipBag(skipLayout(i + 1));
     } else {
       if (c === "(" || c === "[" || c === "{" || c === "<" || c === "⁅") depth++;
       else if (c === ")" || c === "]" || c === "}" || c === ">" || c === "⁆") depth--;
@@ -350,7 +368,7 @@ function hasTopLevel(text, op) {
  * condition or term ends each line with its operator, and the next
  * line stands one column after the opening bracket.
  * @param {string} markdown
- * @param {{rules: any[]}} dom
+ * @param {{rules: any[], format?: number}} dom
  * @param {string} path
  * @returns {string[]}
  */
@@ -870,7 +888,7 @@ function unbreakable(line) {
  * Each message names the file, the line and the rule. A line that holds
  * only a comment does not count toward the limit, wherever it stands.
  * @param {string} markdown
- * @param {{rules: any[]}} dom
+ * @param {{rules: any[], format?: number}} dom
  * @param {string} path
  * @param {number} [limit]
  * @returns {string[]}
@@ -878,8 +896,8 @@ function unbreakable(line) {
 export function layoutProblems(markdown, dom, path, limit = LINE_LIMIT) {
   const lines = splitLines(markdown);
   /** @type {string[]} */
-  const problems = clauseLayoutProblems(markdown, dom, path);
-  for (const problem of clauseTermProblems(markdown, dom, path)) problems.push(problem);
+  const problems = dom.format === 50 ? [] : clauseLayoutProblems(markdown, dom, path);
+  if (dom.format !== 50) for (const problem of clauseTermProblems(markdown, dom, path)) problems.push(problem);
   for (const problem of commentLayoutProblems(markdown, path)) problems.push(problem);
   const { text, positions } = extractGrammarText(markdown, path, unicode);
   const chars = [...text];
@@ -899,7 +917,7 @@ export function layoutProblems(markdown, dom, path, limit = LINE_LIMIT) {
     }
     // A sole alternative under a bare header stands without a leading
     // bar. A header with a clause keeps its bar.
-    if (alternatives.length === 1 && rule.tags === undefined && rule.value === undefined && rule.image === undefined) {
+    if (alternatives.length === 1 && rule.term === undefined && rule.tags === undefined && rule.value === undefined && rule.image === undefined) {
       const commentIndexes = new Set();
       for (const { from, to } of scanComments(chars)) for (let i = from; i < to; i++) commentIndexes.add(i);
       let before = alternatives[0].from - 1;
@@ -961,7 +979,7 @@ function commentLayoutProblems(markdown, path) {
 /**
  * Header clauses and blank layout in grammar blocks, outside opaque tokens.
  * @param {string} markdown
- * @param {{rules: any[]}} dom
+ * @param {{rules: any[], format?: number}} dom
  * @param {string} path
  * @returns {string[]}
  */

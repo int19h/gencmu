@@ -16,11 +16,9 @@ The declarations contain the rule bodies and the clauses that belong to them. Th
   rule | ranking-directive | directive | constant-definition
 
 %rule rule
-  rule-keyword rule-name "=" call
-  | rule-keyword (rule-name | call) [$header:statement-term] body
+  | rule-keyword rule-name "=" call
+  | rule-keyword (rule-name | call) (body | statement-term headed-body)
     [conditions-clause] [diagnostic-clause] [suppress-warnings-clause] [output-clause]
-%conditions
-  $header ⟹ $header.following-tokens.first-token.tokens!'value.join() = "|"
 
 %rule rule-keyword
   KW-RULE | KW-EXTEND-RULE | KW-REDEFINE-RULE
@@ -33,7 +31,10 @@ The declarations contain the rule bodies and the clauses that belong to them. Th
 
 %rule body
   | ["|"] ordinary-body
-  | ["|"] ranked-body
+  | ranked-body
+
+%rule headed-body
+  "|" (ordinary-body | ranked-body)
 
 %rule ordinary-body
   {alternative / "|"}
@@ -51,7 +52,7 @@ The declarations contain the rule bodies and the clauses that belong to them. Th
   "→" bag
 ```
 
-<details><summary>Railroad diagrams of the 12 rules from <code>text</code> to <code>alternative-term</code></summary>
+<details><summary>Railroad diagrams of the 13 rules from <code>text</code> to <code>alternative-term</code></summary>
 <p><img src="../../../docs/diagrams/50/gencmu/jbogenbau/syntax/text.svg" alt="Railroad diagram of the rule text"></p>
 <p><img src="../../../docs/diagrams/50/gencmu/jbogenbau/syntax/statement.svg" alt="Railroad diagram of the rule statement"></p>
 <p><img src="../../../docs/diagrams/50/gencmu/jbogenbau/syntax/rule.svg" alt="Railroad diagram of the rule rule"></p>
@@ -59,6 +60,7 @@ The declarations contain the rule bodies and the clauses that belong to them. Th
 <p><img src="../../../docs/diagrams/50/gencmu/jbogenbau/syntax/rule-name.svg" alt="Railroad diagram of the rule rule-name"></p>
 <p><img src="../../../docs/diagrams/50/gencmu/jbogenbau/syntax/statement-term.svg" alt="Railroad diagram of the rule statement-term"></p>
 <p><img src="../../../docs/diagrams/50/gencmu/jbogenbau/syntax/body.svg" alt="Railroad diagram of the rule body"></p>
+<p><img src="../../../docs/diagrams/50/gencmu/jbogenbau/syntax/headed-body.svg" alt="Railroad diagram of the rule headed-body"></p>
 <p><img src="../../../docs/diagrams/50/gencmu/jbogenbau/syntax/ordinary-body.svg" alt="Railroad diagram of the rule ordinary-body"></p>
 <p><img src="../../../docs/diagrams/50/gencmu/jbogenbau/syntax/ranked-body.svg" alt="Railroad diagram of the rule ranked-body"></p>
 <p><img src="../../../docs/diagrams/50/gencmu/jbogenbau/syntax/ranked-choice.svg" alt="Railroad diagram of the rule ranked-choice"></p>
@@ -437,7 +439,7 @@ Expression rules group operators by precedence. Method names select the syntax o
   ("ngrams" | "at-most") "(" integer ")"
 
 %rule predicate-selector
-  ("all" | "any") ["(" [predicate] ")"]
+  ("all" | "any") "(" [predicate] ")"
 
 %rule predicate
   expr
