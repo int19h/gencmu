@@ -55,6 +55,30 @@ export declare class StageCheck {
      * .has-value(k) on the same capture before the read (part 3 §3).
      */
     payloadRefinement(rules: any): any[];
+    /**
+     * The possible states of each key that the stage's tokens can carry
+     * (part 2 §2): "absent", "bare" or "valued", for each key that a term of
+     * the stage writes, and the input states of each key that a copy of an
+     * input bag passes on. The states are a union over all writers, so they
+     * over-approximate the interface.
+     * @param {{rule: any}[]} rules
+     * @param {Map<string, Set<string>> | null} input the states of the input keys
+     */
+    outputStates(rules: {
+        rule: any;
+    }[], input: Map<string, Set<string>> | null): Map<any, any>;
+    /**
+     * A read of the payload of an input token needs a payload on each route
+     * (part 3 §3). .has(k) removes absence and .has-value(k) also removes the
+     * bare state. A guard refines its entry, and an antecedent its
+     * consequent.
+     * @param {{rule: any, document: string}[]} rules
+     * @param {Map<string, Set<string>>} input the states of the input keys
+     */
+    inputRefinement(rules: {
+        rule: any;
+        document: string;
+    }[], input: Map<string, Set<string>>): any[];
     defaultsJoinChildren(): boolean;
     scope(term: any, rule: any, statementKinds: any, document: any, sharedTerm: any, own: any): void;
     nodeBag(term: any, document: any): void;
