@@ -1,0 +1,26 @@
+{
+  "engine/implies-emitted-only.json": {
+    "reason": "The public bag adds M in the projection. The working word bag and classifier still supply A alone.",
+    "fixture": {
+      "source": [
+        "%stage main",
+        "%ambiguity-resolution greedy",
+        "%const $LEX {A: \"mi\"}",
+        "%const $OUTPUTS {A, M}",
+        "%rule text [{word}]",
+        "%rule word ^$w:W → {¬W, *$LEX.classify($w'value)}",
+        "%conditions ¬$LEX.classify($w'value)'M ∧ ¬$w'M",
+        "%emit ${$'A? A, $'A? M}"
+      ],
+      "input": "mi",
+      "tokens": [{"text": "mi", "value": "mi", "props": {"W": true}}]
+    }
+  },
+  "notation/pattern-rule-positive-elided.json": {
+    "reason": "The origin requirement remains a load error on a rule atom. The counterpart includes the body rule and locates the filter at its opening angle.",
+    "oldPath": true,
+    "document": "```jbogenbau\n%rule text $x:w\n%conditions $x ≅ #w<_Elided>\n%rule w A\n```\n",
+    "expectedSourceError": "the _Elided origin test applies only to a terminal",
+    "diagnostics": [{"from": {"document": "notation.md", "line": 2, "column": 37}, "to": {"document": "notation.md", "line": 3, "column": 20}}]
+  }
+}
