@@ -90,3 +90,14 @@ test("each written migration has format 50 source or an expected source error", 
     }
   }
 });
+
+
+test("a ranked group keeps its boundary when it shares a rule with another alternative", () => {
+  const { fixture } = translateSharedCase("engine", "probe", {
+    grammar: '%rule text (a ≻ b) :: ∅ | C',
+  });
+  const [rule] = compiler.compileDocument(fixture.documents["main.md"]).rules;
+  assert.deepEqual(rule.alternatives[0].expr, { ranked: [{ ref: "a" }, { ref: "b" }] });
+  assert.deepEqual(rule.alternatives[0].term, { bag: [] });
+  assert.deepEqual(rule.alternatives[1].expr, { ref: "C" });
+});

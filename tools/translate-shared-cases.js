@@ -85,15 +85,23 @@ function migrateLocation(where, maps) {
   const matches = stream => stream.flatMap((item, index) => item.token === value ? [index] : []);
   const originalMatches = matches(input);
   const translatedMatches = matches(output);
+  const oldChannel = index => input[index + 1]?.token === "." && input[index + 2]?.token === "emitted" &&
+    input[index + 3]?.token === "." ? input[index + 4]?.token : null;
+  const channel = oldChannel(source);
+  if (channel === "value" || channel === "image") {
+    const reads = originalMatches.filter(index => oldChannel(index) === channel);
+    const selectors = translatedMatches.filter(index => output[index + 1]?.token === "'" &&
+      output[index + 2]?.token === channel);
+    if (reads.length === selectors.length) {
+      const [line, column] = output[selectors[reads.indexOf(source)] + 1].at;
+      return { from: where, to: { ...where, line, column }, operand: value, anchor: "property selector" };
+    }
+  }
   if (originalMatches.length === translatedMatches.length) {
     const index = translatedMatches[originalMatches.indexOf(source)];
-    const channel = input[source + 4]?.token;
-    const emitted = input[source + 1]?.token === "." && input[source + 2]?.token === "emitted" &&
-      input[source + 3]?.token === "." && ["value", "image"].includes(channel);
-    const selector = emitted && output[index + 1]?.token === "'" && output[index + 2]?.token === channel;
-    const [line, column] = output[index + Number(selector)].at;
+    const [line, column] = output[index].at;
     return { from: where, to: { ...where, line, column }, operand: value,
-      anchor: selector ? "property selector" : "operand order within its declaration" };
+      anchor: "operand order within its declaration" };
   }
   return { from: where, review: "No unique surviving operand anchors this location.", operand: value };
 }
@@ -201,7 +209,8 @@ export function translateSharedCase(family, file, testCase) {
   if (stages.size) translated[entry] += "\n" + fence([...stages].map(name =>
     `%extend-stage ${name}\n${defaults}\n${outputs}`).join("\n"));
   const fixture = { ...caseInput(testCase), documents: translated, pipelineDocument: entry };
-  return { id, status: "translated", fixture, diagnostics, changes, reference: testCase.expect ?? testCase.parses };
+  const unreadDocuments = Object.keys(sources).filter(file => file.endsWith(".md") && !doms.has(file));
+  return { id, status: "translated", fixture, diagnostics, changes, unreadDocuments, reference: testCase.expect ?? testCase.parses };
 }
 
 function main() {

@@ -130,7 +130,8 @@ class Printer {
       const term = this.ownerTerm(alt, item.image !== undefined);
       const needPrimary = !carrier && bareSymbol(alt.expr) &&
         (headerTerm !== undefined || term !== undefined) && item.tags === undefined && alt.tags === undefined;
-      const body = (needPrimary ? "^" : "") + this.body(alt.expr, undefined, carrier);
+      const parent = item.alternatives.length > 1 && alt.expr.ranked ? "choice" : undefined;
+      const body = (needPrimary ? "^" : "") + this.body(alt.expr, parent, carrier);
       return [...alt.gates.map(gate), body, ...(term === undefined ? [] : ["→", term])].join(" ");
     });
     const lines = [head + (headerTerm === undefined ? "" : ` → ${headerTerm}`)];
@@ -353,6 +354,11 @@ class Printer {
       if (op === "⊆" || op === "⊈") {
         this.changes.push("Test string-set inclusion with list difference.");
         return op === "⊆" ? `¬(${a} ∖ ${b})` : `¬¬(${a} ∖ ${b})`;
+      }
+      if (left.emptySet || right.emptySet) {
+        const value = left.emptySet ? b : a;
+        this.changes.push("Compare the string list with the empty set by testing its length.");
+        return op === "=" ? `¬(${value})` : `¬¬(${value})`;
       }
       this.changes.push("Compare string lists by membership in both directions. List order and duplicates do not affect the result.");
       const equal = `(¬(${a} ∖ ${b}) ∧ ¬(${b} ∖ ${a}))`;
