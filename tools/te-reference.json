@@ -1,0 +1,76 @@
+{
+  "commit": "0a09450db0c80802a76354b8f6457813d7e0105a",
+  "groups": {
+    "bootstrap": {
+      "count": 1,
+      "sha256": "6919e1937dce5b5635160aff7a66f395c9d862e0771044326728eaefddf5af41"
+    },
+    "unicode": {
+      "count": 3,
+      "sha256": "734cdd54a12d7848e6718a4bf1fb14991a77b28564e0c9744ba9c6e19a81c142"
+    },
+    "grammars": {
+      "count": 47,
+      "sha256": "27535120ec71a7833dfd635272b88f53c084967da82040d81bedb13ebc24b06b"
+    },
+    "corpusFiles": {
+      "count": 61,
+      "sha256": "b23c0436af35e0ac7276956da4dea03e4ffefbdb6b25c94cb9cf3f3298bf3148"
+    },
+    "sharedFixtures": {
+      "count": 7792,
+      "sha256": "5c3ddcd887e890e35853e4e4a6dddc741495bc23fd501efaf28ad26c608ca5fd"
+    },
+    "runnerSources": {
+      "count": 838,
+      "sha256": "0569730f91c2546e577bb5a14abc01d97e131c0048d472dd0e1eb7732bb243f0"
+    },
+    "inputCorpus": {
+      "count": 37609,
+      "sha256": "847165ab6a7b265dac93c383876ceb291deda58893490aac09cac0616807a5ea"
+    },
+    "features": {
+      "count": 37609,
+      "sha256": "6dbe9cc9c2700c79589d4439a1a1cb8bcb38b3a7f7584ad69a67c42062860b3c"
+    },
+    "expectations": {
+      "count": 37609,
+      "sha256": "06682ba3c51fe1d2ba7f95219148ec8e4b3bd6dcb182eb5fe0e5d734a62825aa"
+    }
+  },
+  "rustRunner": {
+    "target": "aarch64-unknown-linux-gnu",
+    "linker": "/usr/bin/cc",
+    "cargoArguments": [
+      "test",
+      "--offline",
+      "--target",
+      "aarch64-unknown-linux-gnu",
+      "--profile",
+      "test",
+      "--test",
+      "corpus",
+      "--no-run",
+      "--message-format=json",
+      "--config",
+      "target.aarch64-unknown-linux-gnu.linker=\"/usr/bin/cc\""
+    ],
+    "environment": {
+      "PATH": "/usr/bin:/bin",
+      "LC_ALL": "C",
+      "CARGO_INCREMENTAL": "0"
+    },
+    "tools": {
+      "cargo": "cargo 1.100.0 (3acc79c0c 2026-11-05)\nrelease: 1.100.0\ncommit-hash: 3acc79c0c841844675bc53a605922dbfc441e750\ncommit-date: 2026-11-05\nhost: aarch64-unknown-linux-gnu\nlibgit2: 1.9.6 (sys:0.21.0 vendored)\nlibcurl: 8.21.0-DEV (sys:0.4.90+curl-8.21.0 vendored ssl:OpenSSL/3.6.3)\nssl: OpenSSL 3.6.3 9 Jun 2026\nos: Ubuntu 25.10.0 (questing) [64-bit]",
+      "rustc": "rustc 1.100.0 (0ef1bc386 2026-11-09)\nbinary: rustc\ncommit-hash: 0ef1bc386059596dada8fb65b50425aab2ea637a\ncommit-date: 2026-11-09\nhost: aarch64-unknown-linux-gnu\nrelease: 1.100.0\nLLVM version: 23.1.5",
+      "cc": "cc (Ubuntu 15.2.0-4ubuntu4) 15.2.0\nCopyright (C) 2025 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.",
+      "ld": "GNU ld (GNU Binutils for Ubuntu) 2.45\nCopyright (C) 2025 Free Software Foundation, Inc.\nThis program is free software; you may redistribute it under the terms of\nthe GNU General Public License version 3 or (at your option) a later version.\nThis program has absolutely no warranty."
+    },
+    "sha256": "2755b3d8314caffb92165c31ed538ada8df3e370848c3f381de24cf6c4554a4d"
+  },
+  "javascript": {
+    "entrypoint": "lib/js/cli.js",
+    "nodeVersion": "v24.21.0",
+    "nodeSha256": "0f8949d1028f6d61506b2d5bc57e7e6fe893d7b1997509b7847294fc9c616584"
+  }
+}
