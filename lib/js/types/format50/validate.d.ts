@@ -23,9 +23,10 @@ export declare function validateDefinitionExpansion50(rule: any, alternative: an
 export declare function validateDefinitionBoundaries50(rule: any, fail: any): void;
 export declare function validateDefinitionConditions50(rule: any, slots: any, fail: any, check?: typeof validateClosedTypes): void;
 export declare function validateDefinitionNullability50(productions: any, nullable: any, fail: any): void;
-declare function validateClosedTypes(root: any, fail: any, { closed, slots, truth, forwarding, message, nodeTerm }?: {
+declare function validateClosedTypes(root: any, fail: any, { closed, slots, truth, forwarding, message, nodeTerm, hiddenKeys }?: {
     closed?: boolean | undefined;
     forwarding?: boolean | undefined;
+    hiddenKeys?: Set<any> | undefined;
     message?: boolean | undefined;
     nodeTerm?: boolean | undefined;
     slots?: Map<any, any> | undefined;

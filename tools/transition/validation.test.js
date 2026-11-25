@@ -8,6 +8,63 @@ const compiler = createTransitionCompiler();
 const fenced = source => "\x60\x60\x60jbogenbau\n" + source + "\n\x60\x60\x60";
 const read = source => compiler.compileDocument(fenced(source), "probe.md");
 
+for (const source of [
+  '%const $K (1 = 1 ? {A} | {a: 1})',
+  '%const $K (1 = 1 ? {} | {a: "x"})',
+  '%const $K [{}, {a: 1}]',
+  '%const $X [["a"]] ∖ ["a"]',
+  '%const $X [["a"], ["b"]] ∖ ["a"]',
+  '%rule r\n  | $x:"a"\n  | "b" → {k: ["a"].all($x ↦ $x = "a")}',
+  '%rule r $x:"a"\n%conditions $x.followed-by(r) ∧ ["a"].all($y ↦ $y = "a")',
+  '%rule r → {value: 1}\n  | "a" → {value: "ok"}',
+  '%rule r → {image: 1}\n  | "a" → {¬image}',
+  '%rule 😀 "a"',
+  '%rule r $x:"a"\n%conditions $x\'_White_Space',
+]) {
+  test(`valid document ${source}`, () => {
+    const dom = read("%stage s\n" + source);
+    assert.equal(validateDocument50(dom), dom);
+    assert.equal(validateDocument50(dom, { unicode: compiler.unicode }), dom);
+  });
+}
+
+test("requirement and target actuals have transparent wrappers at the depth limit", () => {
+  const calls = [
+    { tag: "A" }, { expression: { string: "a" } },
+    { requirements: [{ negated: false, value: { tag: "T" } }] },
+    { targets: [{ rule: "a" }, { rule: "b" }] },
+  ];
+  for (const arg of calls) {
+    const dom = read("%rule r f(A)");
+    const alt = dom.rules[0].alternatives[0];
+    let body = { call: "f", args: [{ ...arg, at: [2, 11] }], at: [2, 9] };
+    for (let depth = 0; depth < 255; depth++) body = { seq: [{ ref: "A" }, body] };
+    alt.expr = body;
+    assert.equal(validateDocument50(dom), dom);
+    alt.expr = { seq: [{ ref: "A" }, body] };
+    assert.throws(() => validateDocument50(dom), /nested more than 256 deep/);
+  }
+});
+
+for (const [source, anchor] of [
+  ['%rule r\n  | [$b:"b"] → {$b? *$c.flags}\n  | $c:"c"', ".flags"],
+  ['%rule r\n  | $b:"b" → {(1 = 1)? *$c.flags}\n  | $c:"c"', ".flags"],
+  ['%rule r\n  | $b:"b" → {k: ($b\'F ? $c\'v | "x")}\n  | $c:"c"', "'v"],
+  ['%rule r\n  | [$b:"b"]\n  | $c:"c"\n%error ($b ? $c\'v | "x")', "'v"],
+  ['%rule r → {($b ∧ $c\'F)? K}\n  | [$b:"b"]\n  | $c:"c"', "'F"],
+  ['%rule r\n  | $b:"b"\n  | $c:"c"\n%emit (1 = 1)? ${*$c.flags}', ".flags"],
+]) {
+  test(`missing capture behind a guard in ${source}`, () => {
+    const lines = source.split("\n");
+    const index = lines.findIndex(line => line.includes(anchor));
+    assert.throws(() => read("%stage s\n" + source), error => {
+      assert.equal(error.description, "$c is absent from this expansion");
+      assert.deepEqual(error.where, { document: "probe.md", line: index + 3, column: lines[index].indexOf(anchor) + 1 });
+      return true;
+    });
+  });
+}
+
 for (const [source, message, column] of [
   ["%rule r A %conditions $.keys()", /omits parentheses/, 24],
   ['%const $A ["x"].join', /requires parentheses/, 16],

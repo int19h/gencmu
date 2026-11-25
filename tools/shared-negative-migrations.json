@@ -8224,8 +8224,20 @@
     "section": "Engine §11.3"
   },
   "engine/deferral-capture-order.json": {
-    "retired": "The old carrier listed attachment captures. Presentation now follows the structural sibling order.",
-    "section": "Engine §11.3"
+    "reason": "Both optional bindings can forward consuming publications. The second item reverses their cover order.",
+    "section": "Engine §§9.3, 11.1",
+    "native": true,
+    "expected": {
+      "kind": "grammar",
+      "document": "main.md",
+      "line": 6,
+      "column": 11,
+      "owner": "/rules/0/emit/items/1"
+    },
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%const $OUTPUTS {}\n%rule text [$a:a] [$b:b] (X ≻ Y)\n%emit $b, $a\n%rule a A\n%emit\n%rule b B\n%emit\n```\n"
+    },
+    "entry": "main.md"
   },
   "notation/braces-257-deep.json": {
     "reason": "Keep the written input and the first structural fault under format 50.",
@@ -9919,7 +9931,8 @@
       "kind": "grammar",
       "document": "notation.md",
       "line": 3,
-      "column": 1
+      "column": 53,
+      "owner": "/rules/0/emit/items/2"
     },
     "section": "Engine §§9.3, 11.1",
     "native": true
@@ -9935,7 +9948,8 @@
       "kind": "grammar",
       "document": "notation.md",
       "line": 3,
-      "column": 1
+      "column": 34,
+      "owner": "/rules/0/emit/items/1"
     },
     "section": "Engine §§9.3, 11.1",
     "native": true
@@ -9950,8 +9964,9 @@
     "expected": {
       "kind": "grammar",
       "document": "main.md",
-      "line": 3,
-      "column": 1
+      "line": 4,
+      "column": 16,
+      "owner": "/rules/0/emit/items/1"
     },
     "section": "Engine §§9.3, 11.1",
     "native": true
@@ -10057,7 +10072,8 @@
       "kind": "grammar",
       "document": "main.md",
       "line": 4,
-      "column": 1
+      "column": 35,
+      "owner": "/rules/1/alternatives/0/term/bag/0/guard"
     },
     "section": "Engine §3.7, Neighbor guards",
     "native": true
@@ -10073,7 +10089,8 @@
       "kind": "grammar",
       "document": "main.md",
       "line": 4,
-      "column": 1
+      "column": 24,
+      "owner": "/rules/1/alternatives/0/term/bag/0/guard/not"
     },
     "section": "Engine §3.7, Neighbor guards",
     "native": true
@@ -10089,7 +10106,8 @@
       "kind": "grammar",
       "document": "main.md",
       "line": 3,
-      "column": 1
+      "column": 23,
+      "owner": "/rules/0/alternatives/0/term/bag/0/guard"
     },
     "section": "Engine §3.7, Neighbor guards",
     "native": true
@@ -10105,7 +10123,8 @@
       "kind": "grammar",
       "document": "main.md",
       "line": 3,
-      "column": 1
+      "column": 40,
+      "owner": "/rules/0/alternatives/0/term/bag/0/guard"
     },
     "section": "Engine §3.7, Neighbor guards",
     "native": true
@@ -10121,7 +10140,8 @@
       "kind": "grammar",
       "document": "main.md",
       "line": 4,
-      "column": 1
+      "column": 45,
+      "owner": "/rules/1/alternatives/0/term/bag/0/value"
     },
     "section": "Engine §3.7, Neighbor guards",
     "native": true
@@ -10137,7 +10157,8 @@
       "kind": "grammar",
       "document": "main.md",
       "line": 3,
-      "column": 1
+      "column": 47,
+      "owner": "/rules/0/alternatives/0/term/bag/0/value"
     },
     "section": "Engine §3.7, Neighbor guards",
     "native": true
@@ -10152,8 +10173,9 @@
     "expected": {
       "kind": "grammar",
       "document": "main.md",
-      "line": 3,
-      "column": 1
+      "line": 4,
+      "column": 1,
+      "owner": "/rules/1"
     },
     "section": "Engine §3.7, Neighbor guards",
     "native": true
@@ -10168,8 +10190,9 @@
     "expected": {
       "kind": "grammar",
       "document": "main.md",
-      "line": 3,
-      "column": 1
+      "line": 4,
+      "column": 1,
+      "owner": "/rules/1"
     },
     "section": "Engine §3.7, Neighbor guards",
     "native": true

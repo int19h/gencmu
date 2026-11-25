@@ -1027,8 +1027,9 @@
     "expected": {
       "kind": "grammar",
       "document": "main.md",
-      "line": 5,
-      "column": 1
+      "line": 6,
+      "column": 29,
+      "owner": "/rules/0/emit/items/1"
     },
     "section": "Engine §§9.3, 11.1"
   },
@@ -1144,8 +1145,9 @@
     "expected": {
       "kind": "grammar",
       "document": "b.md",
-      "line": 3,
-      "column": 1
+      "line": 4,
+      "column": 13,
+      "owner": "/rules/0/emit/items/1"
     },
     "fixture": {
       "documents": {
@@ -1163,8 +1165,9 @@
     "expected": {
       "kind": "grammar",
       "document": "b.md",
-      "line": 3,
-      "column": 1
+      "line": 4,
+      "column": 13,
+      "owner": "/rules/0/emit/items/1"
     },
     "fixture": {
       "documents": {

@@ -21,6 +21,13 @@ function hasSite(root, line, column) {
   return false;
 }
 
+function matchesSite(record, expected) {
+  const dom = record?.dom ?? record;
+  if (!expected.owner) return hasSite(dom, expected.line, expected.column);
+  const owner = expected.owner.split("/").slice(1).reduce((node, part) => node?.[part], dom);
+  return owner?.at?.[0] === expected.line && owner.at[1] === expected.column;
+}
+
 test("the translator keeps statement, alternative and emission terms on their owners", () => {
   const grammar = '%rule text :- "head"\n  | $x:A := "body"\n%emits $x :: Result';
   const { fixture, status, diagnostics } = translateSharedCase("engine", "probe", {
@@ -35,6 +42,21 @@ test("the translator keeps statement, alternative and emission terms on their ow
   assert.equal(rule.alternatives[0].term.bag[0].value.string, "body");
   assert.equal(rule.emit.items[0].capture, "x");
   assert.equal(rule.emit.items[0].term.bag[0].key, "Result");
+});
+
+test("the input value join excludes nonempty elidable defaults", () => {
+  for (const name of [
+    "267-default-emission", "267-default-image", "267-default-template-constant",
+    "267-default-template-head", "267-default-template-string", "reparse-original-rule-test",
+  ]) {
+    const file = name + ".json";
+    const migrated = translateSharedCase("engine", file, legacyFixture("engine", file));
+    const { documents, pipelineDocument } = migrated.fixture;
+    const pipeline = documents[pipelineDocument];
+    assert.match(pipeline, /value: \$node\.span\.tokens!'value\.join\(\)/, name);
+    assert.match(pipeline, /image: \$node\.children!'image\.join\(\)/, name);
+    assert.ok(migrated.changes.some(change => change.reason.includes("omitted defaults")), name);
+  }
 });
 
 test("the translator follows an old span receiver and keeps its literal operands", () => {
@@ -142,7 +164,7 @@ for (const [id, record] of Object.entries(negatives)) {
         assert.equal(expected, undefined);
       } else {
         assert.equal(expected.kind, "grammar");
-        assert.ok(hasSite(compiled[expected.document], expected.line, expected.column),
+        assert.ok(matchesSite(compiled[expected.document], expected),
           `${expected.document}:${expected.line}:${expected.column} needs a DOM record at the expected site`);
       }
       return;
@@ -249,7 +271,7 @@ test("each written migration has format 50 source or an expected source error", 
           const dom = scoped.compileDocument(text, file);
           assert.equal(dom.format, 50, id);
           if (record.expected?.document === file && record.expected.line) {
-            assert.ok(hasSite(dom, record.expected.line, record.expected.column), id);
+            assert.ok(matchesSite(dom, record.expected), id);
           }
         }
       }
@@ -257,7 +279,7 @@ test("each written migration has format 50 source or an expected source error", 
       const source = document ?? ["```jbogenbau", ...fixture.source, "```"].join("\n");
       const dom = compiler.compileDocument(source, id);
       assert.equal(dom.format, 50, id);
-      if (record.expected?.line) assert.ok(hasSite(dom, record.expected.line, record.expected.column), id);
+      if (record.expected?.line) assert.ok(matchesSite(dom, record.expected), id);
     }
   }
 });
