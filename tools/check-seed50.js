@@ -2,7 +2,7 @@
 import fs from "node:fs";
 import { createHash } from "node:crypto";
 import { UnicodeTable } from "../lib/js/src/unicode.js";
-import { methods50, validProperty50 } from "./transition/signatures.js";
+import { methods50, validProperty50 } from "../lib/js/src/format50/signatures.js";
 
 const root = new URL("../", import.meta.url);
 const read = file => fs.readFileSync(new URL(file, root), "utf8");

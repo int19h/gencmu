@@ -1,7 +1,7 @@
 import { GencmuError } from "../../lib/js/src/errors.js";
 import { CAPTURE_NAME, KEY_STEPS, validSteps } from "../../lib/js/src/dom.js";
-import { methods50 } from "./signatures.js";
-import { validateBag50, validateBindings50, validateBody50, validateDocument50 } from "./validate-dom50.js";
+import { methods50 } from "../../lib/js/src/format50/signatures.js";
+import { validateBag50, validateBindings50, validateBody50, validateDocument50 } from "../../lib/js/src/format50/validate.js";
 
 const EXPRESSION_WRAPPERS = new Set([
   "expr", "disj", "conj", "comparison", "union", "inter", "sum", "post", "atom", "grouped-expr",

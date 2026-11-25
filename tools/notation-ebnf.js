@@ -1,4 +1,4 @@
-import { methods50 } from "./transition/signatures.js";
+import { methods50 } from "../lib/js/src/format50/signatures.js";
 
 function only(node, ...keys) {
   for (const key of Object.keys(node)) {
