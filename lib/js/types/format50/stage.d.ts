@@ -58,6 +58,8 @@ export declare class Stage50 {
     featureDeclarations: any[] | undefined;
     /** @type {any[] | undefined} the errors of bridging, which a parse reports */
     loweringErrors: any[] | undefined;
+    /** @type {any} the stitched grammar, which the pipeline checks for its features */
+    probe: any;
     instanceNames: {
         grammar: any;
         names: Map<any, any>;
