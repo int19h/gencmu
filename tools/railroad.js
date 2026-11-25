@@ -404,9 +404,33 @@ function diagramTermText(term) {
   return hasUnresolved(term) ? canonicalArgument(term,unicode) : formatTerm(term);
 }
 
+// A format 50 template argument can pass an expression, as `= {Run-Initial}`.
+// The diagrams print the constant forms that template arguments use.
+function expressionText(e) {
+  if ("string" in e) return canonicalArgument(e,unicode);
+  if ("integer" in e) return e.integer;
+  if (e.const) return "$"+e.const;
+  if (e.param) return "@"+e.param;
+  if (e.list) return "["+e.list.map(item => (item.kind === "splat" ? "*" : "")+expressionText(item.value)).join(", ")+"]";
+  if (e.bag) return "{"+e.bag.map(entry => {
+    if (entry.gates.length || entry.guard) throw new Error(`unprintable argument ${JSON.stringify(e)}`);
+    if (entry.kind === "bare") return entry.key;
+    if (entry.kind === "delete") return "¬"+entry.key;
+    if (entry.kind === "splat") return "*"+expressionText(entry.value);
+    if (entry.kind === "write") return entry.keys.map(key => key+": ").join("")+expressionText(entry.value);
+    throw new Error(`unprintable argument ${JSON.stringify(e)}`);
+  }).join(", ")+"}";
+  throw new Error(`unprintable argument ${JSON.stringify(e)}`);
+}
+
+function argumentText(arg) {
+  return arg.expression ? "= "+expressionText(arg.expression) : canonicalArgument(arg,unicode);
+}
+
 function symbolText(expr) {
   if (expr.splice) return "*"+symbolText(expr.splice);
-  if (expr.param || expr.call) return canonicalArgument(expr,unicode);
+  if (expr.call) return `${expr.call}(${expr.args.map(argumentText).join(", ")})`;
+  if (expr.param) return canonicalArgument(expr,unicode);
   if (expr.test) return symbolText(expr.expr) + testText(expr);
   if (expr.literal) return diagramTermText(expr.literal);
   if (expr.wildcard) return "_";
@@ -691,7 +715,7 @@ function hasRankedChoice(rule) {
  * @returns {string}
  */
 export function ruleSvg(rule, omission = unknownOmission) {
-  const title=rule.name+(rule.params ? "("+rule.params.map(name=>"@"+name).join(", ")+")" : rule.args ? "("+rule.args.map(arg=>canonicalArgument(arg,unicode)).join(", ")+")" : "");
+  const title=rule.name+(rule.params ? "("+rule.params.map(name=>"@"+name).join(", ")+")" : rule.args ? "("+rule.args.map(argumentText).join(", ")+")" : "");
   const body = rulePiece(rule, omission);
   const mark = 10;
   const titleWidth = length(title) * CHAR_WIDTH;
