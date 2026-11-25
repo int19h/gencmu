@@ -7,6 +7,26 @@ const fixture = new URL("../../tests/tree-emission/pairs.json", import.meta.url)
 const pairs = JSON.parse(fs.readFileSync(fixture, "utf8"));
 const compiler = createTransitionCompiler();
 
+test("a custom emoji rule name can also be an ASCII tag spelling", () => {
+  const unicode = [
+    "unicode 15.1.0",
+    "white-space 0009 000D",
+    "white-space 0020 0020",
+    "emoji-presentation 0041 0041",
+    "emoji-presentation 0061 0061",
+  ].join("\n") + "\n";
+  const custom = createTransitionCompiler(file => file === "data/unicode/unicode.txt" ? unicode : undefined);
+  const { rules } = custom.compileDocument(`\`\`\`jbogenbau
+%rule A "a"
+%rule a(@p) @p
+%rule A(@p) @p
+%rule text a(A) A(A)
+\`\`\`\n`);
+  assert.deepEqual(rules.map(rule => rule.name), ["A", "a", "A", "text"]);
+  const calls = rules.at(-1).alternatives[0].expr.seq;
+  assert.deepEqual(calls.map(call => [call.call, call.args[0].tag]), [["a", "A"], ["A", "A"]]);
+});
+
 function cases(pair) {
   return [
     ["valid", pair.valid], ["malformed", pair.malformed],

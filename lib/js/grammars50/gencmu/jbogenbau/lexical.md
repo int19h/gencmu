@@ -73,12 +73,15 @@ A name starts with an ASCII letter. Letters, digits, hyphens and underscores can
 
 An emoji name is one scalar with the required Unicode properties. Adjacent emoji names stay separate.
 
+A scalar can meet the rules for both an ASCII name and an emoji name. The ASCII token keeps its spelling and category.
+
 An engine key starts with an underscore. A dot between digits belongs to the key. A lone underscore is a wildcard.
 
 ```jbogenbau
 %rule emoji-name
   _Emoji_Presentation<¬_Emoji_Component>≠"#"
 %conditions
+  ¬$.parse(letter),
   ¬$.following-tokens.parse(call-open …)
 %emit
   ${Emoji-Name}
@@ -88,7 +91,8 @@ An engine key starts with an underscore. A dot between digits belongs to the key
   | ^upper-initial-name → {Uppercase-Name}
 %conditions
   ¬$.following-tokens.parse(name-character …),
-  $lower ⟹ ¬$.following-tokens.parse(call-open …)
+  ($lower ∨ $.parse(_Emoji_Presentation<¬_Emoji_Component>)) ⟹
+    ¬$.following-tokens.parse(call-open …)
 %emit
 
 %rule whole-name
@@ -178,8 +182,9 @@ A call name touches its opening parenthesis. The next token holds the parenthesi
 ```jbogenbau
 %rule call-name
   lower-initial-name
-  | _Emoji_Presentation<¬_Emoji_Component>≠"#"
+  | $emoji:_Emoji_Presentation<¬_Emoji_Component>≠"#"
 %conditions
+  $emoji ⟹ ¬$emoji.parse("a".."z"),
   $.following-tokens.parse(call-open …)
 %emit
   ${Call-Name}

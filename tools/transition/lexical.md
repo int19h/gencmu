@@ -17,6 +17,7 @@ Reads the tokens of the tree emission notation.
 %rule emoji-name
   _Emoji_Presentation<¬_Emoji_Component>≠"#"
 %conditions
+  ¬$.parse(letter),
   ¬$.following-tokens.parse(call-open …)
 %emits
   $ :: Emoji-Name
@@ -26,7 +27,8 @@ Reads the tokens of the tree emission notation.
   | upper-initial-name :: Uppercase-Name
 %conditions
   ¬$.following-tokens.parse(name-character …),
-  $lower ⟹ ¬$.following-tokens.parse(call-open …)
+  ($lower ∨ $.parse(_Emoji_Presentation<¬_Emoji_Component>)) ⟹
+    ¬$.following-tokens.parse(call-open …)
 %emits
   $
 
@@ -93,8 +95,9 @@ Reads the tokens of the tree emission notation.
 
 %rule call-name
   lower-initial-name
-  | _Emoji_Presentation<¬_Emoji_Component>≠"#"
+  | $emoji:_Emoji_Presentation<¬_Emoji_Component>≠"#"
 %conditions
+  $emoji ⟹ ¬$emoji.parse("a".."z"),
   $.following-tokens.parse(call-open …)
 %emits
   $ :: Call-Name

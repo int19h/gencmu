@@ -139,7 +139,7 @@ export class DomBuilder {
     const call = part(node, "call");
     const head = plain ?? call;
     const name = this.value(head);
-    if (plain && !RULE_NAME.test(name) && !this.token(plain).tags.has("Emoji-Name")) {
+    if (plain && !RULE_NAME.test(name) && !this.unicode.isEmojiName(name)) {
       this.fail(plain, "a rule name must begin with a lowercase letter or be an emoji name");
     }
     const at = this.at(node);
