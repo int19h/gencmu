@@ -2407,7 +2407,7 @@ Each stage of the notation runs as any stage does (§4 to §7, §11, §12). So e
 
 Each format 50 family has one preparsed file, `data/preparsed50/FAMILY.json`, for the documents below `grammars50/FAMILY/`. The required `gencmu.json` supplies the bootstrap. A loader reads only the optional file that each document key selects, besides that required file. A missing, malformed or mismatched optional file gives cache misses. Once a current document meets the cache identity rules, decode it under the supplied-DOM rules. An illegal record reports its error without falling back to source.
 
-A document key under `grammars50/FAMILY/` selects `data/preparsed50/FAMILY.json`. Other document keys select no optional file. A loader can still reuse DOMs that it reads through the notation, under the complete identity below.
+A document key under `grammars50/FAMILY/` selects `data/preparsed50/FAMILY.json`. The bootstrap family uses the optional file named by `bootstrapFamilyCache`. Other document keys select no optional file. A loader can still reuse DOMs that it reads through the notation, under the complete identity below.
 
 The bootstrap fingerprint is the 64-bit FNV-1a hash of the complete UTF-8 text of the selected bootstrap file. Its own header omits `bootstrap` to avoid a circular fingerprint. Every other family's header records that fingerprint as `bootstrap`. The required entries load even when custom Unicode resources differ from its header. Ordinary entries still require the full cache identity.
 

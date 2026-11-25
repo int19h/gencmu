@@ -902,6 +902,38 @@ function format50ClauseProblems(markdown, dom, path) {
     for (const child of Object.values(node)) walk.push(child);
   }
   const { text, positions } = extractGrammarText(markdown, path, unicode);
+  const chars = [...text];
+  const offsets = new Map(positions.map(([line, column], offset) => [`${line}:${column}`, offset]));
+  const beforeBody = start => {
+    let index = start - 1;
+    while (index >= 0 && /^[ \t]$/.test(chars[index])) index--;
+    return chars[index] === "|" ? index : start;
+  };
+  const checkTerm = (start, end, owner) => {
+    while (end > start && /\s/.test(chars[end - 1])) end--;
+    if (end <= start || positions[start][0] === positions[end - 1][0]) return;
+    const part = scrubComments(chars.slice(start, end));
+    let quoted = false;
+    for (const [offset, character] of part.entries()) {
+      if (character === '"') quoted = !quoted;
+      if (quoted || character !== "→") continue;
+      const [line, column] = positions[start + offset];
+      const initial = lines[line - 1].trimStart().startsWith("→");
+      if (!initial || column !== positions[owner][1] + 4) {
+        problems.push(`${path}:${line}: put a continued term on a line four columns past its owner`);
+      }
+      return;
+    }
+  };
+  for (const { rule, alternatives } of alternativeLayouts(markdown, dom, path)) {
+    if (rule.term) {
+      const start = offsets.get(rule.at.join(":"));
+      checkTerm(start, beforeBody(alternatives[0].from), start);
+    }
+    for (const [index, alternative] of alternatives.entries()) {
+      if (rule.alternatives[index].term) checkTerm(alternative.from, alternative.to, beforeBody(alternative.from));
+    }
+  }
   const physical = new Set(positions.map(([line]) => line));
   const conditionStart = /^\s*%conditions\b/;
   const operator = /(?:[∧∨⟹∪∩∖≠≤≥≅≇∈∉⊆⊈=<>+]|\|)\s*$/u;

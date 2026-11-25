@@ -28,6 +28,16 @@ test("layout inspects long constructors and condition continuation in format 50"
   ]);
 });
 
+test("a continued term belongs on a separate line past its owner", () => {
+  const compiler = createTransitionCompiler();
+  const bad = fenced("%rule text A → {One,\n                 Two}");
+  const good = fenced("%rule text A\n               → {One,\n                  Two}");
+  assert.deepEqual(layoutProblems(bad, compiler.compileDocument(bad), "terms.md"), [
+    "terms.md:2: put a continued term on a line four columns past its owner",
+  ]);
+  assert.deepEqual(layoutProblems(good, compiler.compileDocument(good), "terms.md"), []);
+});
+
 test("an unchanged intermediate include keeps both leaf readings", () => {
   const documents = { ...parents, "p.md": fenced('%stage main\n%include "a.md"\n%include "b.md"') };
   const compiler = createTransitionCompiler(file => documents[file]);

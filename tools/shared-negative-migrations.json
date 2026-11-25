@@ -1,4 +1,844 @@
 {
+  "engine/capture-in-chain.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "document": "main.md",
+      "line": 4,
+      "column": 17,
+      "description": "a chain item or separator cannot bind a capture directly"
+    }
+  },
+  "engine/capture-name-gated-duplicate-on.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "document": "main.md",
+      "line": 3,
+      "column": 23,
+      "description": "a route binds $x twice"
+    }
+  },
+  "engine/capture-name-gated-duplicate.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "document": "main.md",
+      "line": 3,
+      "column": 23,
+      "description": "a route binds $x twice"
+    }
+  },
+  "engine/capture-twice.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "document": "main.md",
+      "line": 3,
+      "column": 16,
+      "description": "a route binds $a twice"
+    }
+  },
+  "engine/configured-fence-closer-omitted.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "document": "p.md",
+      "line": 1,
+      "column": 1,
+      "description": "a jbogenbau block that is never closed"
+    }
+  },
+  "engine/documents-order-reading-before-stitching.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "document": "b.md",
+      "line": 2,
+      "column": 13,
+      "description": "a route binds $x twice"
+    }
+  },
+  "engine/documents-order-reading.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "document": "b.md",
+      "line": 2,
+      "column": 13,
+      "description": "a route binds $x twice"
+    }
+  },
+  "engine/escape-algorithm-lowercase.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "document": "g.md",
+      "line": 3,
+      "column": 13,
+      "description": "an invalid or unknown string escape"
+    }
+  },
+  "engine/escape-algorithm-outside-range.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "document": "g.md",
+      "line": 3,
+      "column": 13,
+      "description": "an invalid or unknown string escape"
+    }
+  },
+  "engine/escape-algorithm-padded.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "document": "g.md",
+      "line": 3,
+      "column": 13,
+      "description": "an invalid or unknown string escape"
+    }
+  },
+  "engine/escape-custom-no-fallback.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "document": "g.md",
+      "line": 3,
+      "column": 13,
+      "description": "an invalid or unknown string escape"
+    }
+  },
+  "engine/escape-empty.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "document": "g.md",
+      "line": 3,
+      "column": 13,
+      "description": "an invalid or unknown string escape"
+    }
+  },
+  "engine/escape-inspection-before-syntax.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "document": "g.md",
+      "line": 3,
+      "column": 13,
+      "description": "an invalid or unknown string escape"
+    }
+  },
+  "engine/escape-line-break.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "document": "g.md",
+      "line": 3,
+      "column": 13,
+      "description": "an invalid or unknown string escape"
+    }
+  },
+  "engine/escape-missing-closer.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "document": "g.md",
+      "line": 3,
+      "column": 13,
+      "description": "an invalid or unknown string escape"
+    }
+  },
+  "engine/escape-name-case.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "document": "g.md",
+      "line": 3,
+      "column": 13,
+      "description": "an invalid or unknown string escape"
+    }
+  },
+  "engine/escape-name-spaces.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "document": "g.md",
+      "line": 3,
+      "column": 13,
+      "description": "an invalid or unknown string escape"
+    }
+  },
+  "engine/escape-numeric-long.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "document": "g.md",
+      "line": 3,
+      "column": 13,
+      "description": "an invalid or unknown string escape"
+    }
+  },
+  "engine/escape-numeric-nonhex.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "document": "g.md",
+      "line": 3,
+      "column": 13,
+      "description": "an invalid or unknown string escape"
+    }
+  },
+  "engine/escape-numeric-out-of-range.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "document": "g.md",
+      "line": 3,
+      "column": 13,
+      "description": "an invalid or unknown string escape"
+    }
+  },
+  "engine/escape-numeric-prefix.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "document": "g.md",
+      "line": 3,
+      "column": 13,
+      "description": "an invalid or unknown string escape"
+    }
+  },
+  "engine/escape-numeric-short.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "document": "g.md",
+      "line": 3,
+      "column": 13,
+      "description": "an invalid or unknown string escape"
+    }
+  },
+  "engine/escape-numeric-surrogate.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "document": "g.md",
+      "line": 3,
+      "column": 13,
+      "description": "an invalid or unknown string escape"
+    }
+  },
+  "engine/escape-unknown.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "document": "g.md",
+      "line": 3,
+      "column": 13,
+      "description": "an invalid or unknown string escape"
+    }
+  },
+  "engine/fence-closer-bom.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "document": "p.md",
+      "line": 1,
+      "column": 1,
+      "description": "a jbogenbau block that is never closed"
+    }
+  },
+  "engine/fence-closer-file-separator.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "document": "p.md",
+      "line": 1,
+      "column": 1,
+      "description": "a jbogenbau block that is never closed"
+    }
+  },
+  "engine/fence-unclosed-indented.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "document": "p.md",
+      "line": 1,
+      "column": 3,
+      "description": "a jbogenbau block that is never closed"
+    }
+  },
+  "engine/layered-pattern-source-depth-256.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "document": "main.md",
+      "line": 3,
+      "column": 1,
+      "description": "an expression, term or condition is nested more than 256 deep"
+    }
+  },
+  "engine/layered-pattern-source-depth-declaration.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "document": "main.md",
+      "line": 3,
+      "column": 1,
+      "description": "an expression, term or condition is nested more than 256 deep"
+    }
+  },
+  "engine/names-abbreviation-conflict.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "document": "data/unicode/unicode-names.txt",
+      "line": 2,
+      "description": "an added name must name an unnamed scalar without a reserved spelling"
+    }
+  },
+  "engine/names-added-initial.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "document": "data/unicode/unicode-names.txt",
+      "line": 2,
+      "description": "an added name must name an unnamed scalar without a reserved spelling"
+    }
+  },
+  "engine/names-algorithm-changed.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "document": "data/unicode/unicode-names.txt",
+      "line": 2,
+      "description": "an algorithm must retain its pinned rule and range"
+    }
+  },
+  "engine/names-algorithm-empty-prefix.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "document": "data/unicode/unicode-names.txt",
+      "line": 2,
+      "description": "an invalid naming algorithm"
+    }
+  },
+  "engine/names-algorithm-explicit.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "document": "data/unicode/unicode-names.txt",
+      "line": 3,
+      "description": "an explicit name lies in an algorithmic range"
+    }
+  },
+  "engine/names-algorithm-namespace.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "document": "data/unicode/unicode-names.txt",
+      "line": 3,
+      "description": "a name identifies different scalars"
+    }
+  },
+  "engine/names-algorithm-overlap.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "document": "data/unicode/unicode-names.txt",
+      "line": 3,
+      "description": "overlapping naming algorithms"
+    }
+  },
+  "engine/names-algorithm-range.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "document": "data/unicode/unicode-names.txt",
+      "line": 2,
+      "description": "an invalid naming algorithm"
+    }
+  },
+  "engine/names-algorithm-surrogate.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "document": "data/unicode/unicode-names.txt",
+      "line": 2,
+      "description": "an invalid naming algorithm"
+    }
+  },
+  "engine/names-alias-changed.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "document": "data/unicode/unicode-names.txt",
+      "line": 2,
+      "description": "an alias must retain its pinned kind, spelling, and scalar"
+    }
+  },
+  "engine/names-alias-duplicate.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "document": "data/unicode/unicode-names.txt",
+      "line": 3,
+      "description": "a duplicate alias record"
+    }
+  },
+  "engine/names-alias-kind.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "document": "data/unicode/unicode-names.txt",
+      "line": 2,
+      "description": "an invalid name record"
+    }
+  },
+  "engine/names-aliased-scalar-renamed.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "document": "data/unicode/unicode-names.txt",
+      "line": 2,
+      "description": "an added name must name an unnamed scalar without a reserved spelling"
+    }
+  },
+  "engine/names-final-cr.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "document": "data/unicode/unicode-names.txt",
+      "line": 2,
+      "description": "an invalid name spelling"
+    }
+  },
+  "engine/names-formal-duplicate.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "document": "data/unicode/unicode-names.txt",
+      "line": 3,
+      "description": "a scalar has more than one formal name"
+    }
+  },
+  "engine/names-hangul-endpoints.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "document": "data/unicode/unicode-names.txt",
+      "line": 2,
+      "description": "an invalid naming algorithm"
+    }
+  },
+  "engine/names-header-malformed.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "document": "data/unicode/unicode-names.txt",
+      "line": 1,
+      "description": "the names header must match the core version"
+    }
+  },
+  "engine/names-header-missing.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "document": "data/unicode/unicode-names.txt",
+      "description": "the names header is missing"
+    }
+  },
+  "engine/names-header-repeated.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "document": "data/unicode/unicode-names.txt",
+      "line": 2,
+      "description": "an unknown names record"
+    }
+  },
+  "engine/names-header-version.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "document": "data/unicode/unicode-names.txt",
+      "line": 1,
+      "description": "the names header must match the core version"
+    }
+  },
+  "engine/names-name-empty.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "document": "data/unicode/unicode-names.txt",
+      "line": 2,
+      "description": "an invalid name record"
+    }
+  },
+  "engine/names-name-lowercase.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "document": "data/unicode/unicode-names.txt",
+      "line": 2,
+      "description": "an invalid name spelling"
+    }
+  },
+  "engine/names-name-punctuation.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "document": "data/unicode/unicode-names.txt",
+      "line": 2,
+      "description": "an invalid name spelling"
+    }
+  },
+  "engine/names-one-formal.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "document": "data/unicode/unicode-names.txt",
+      "line": 3,
+      "description": "a scalar has more than one formal name"
+    }
+  },
+  "engine/names-pinned-alias-spelling.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "document": "data/unicode/unicode-names.txt",
+      "line": 2,
+      "description": "an added name must name an unnamed scalar without a reserved spelling"
+    }
+  },
+  "engine/names-pinned-spelling.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "document": "data/unicode/unicode-names.txt",
+      "line": 2,
+      "description": "an added name must name an unnamed scalar without a reserved spelling"
+    }
+  },
+  "engine/names-preamble-base-conflict.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "document": "extra.txt",
+      "line": 2,
+      "description": "names resources conflict"
+    }
+  },
+  "engine/names-preamble-conditions.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "document": "g.md",
+      "line": 2,
+      "column": 1,
+      "description": "%names takes one quoted path"
+    }
+  },
+  "engine/names-preamble-empty-escape.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "document": "g.md",
+      "line": 2,
+      "column": 9,
+      "description": "an invalid or unknown string escape"
+    }
+  },
+  "engine/names-preamble-extra-algorithm.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "document": "extra.txt",
+      "line": 2,
+      "description": "an algorithm must retain its pinned rule and range"
+    }
+  },
+  "engine/names-preamble-extra-alias.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "document": "extra.txt",
+      "line": 2,
+      "description": "an alias must retain its pinned kind, spelling, and scalar"
+    }
+  },
+  "engine/names-preamble-extra-standard.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "document": "extra.txt",
+      "line": 2,
+      "description": "an added name must name an unnamed scalar without a reserved spelling"
+    }
+  },
+  "engine/names-preamble-extra-version.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "document": "extra.txt",
+      "line": 1,
+      "description": "the names header must match the core version"
+    }
+  },
+  "engine/names-preamble-file-order.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "document": "b.txt",
+      "line": 2,
+      "description": "names resources conflict"
+    }
+  },
+  "engine/names-preamble-formal-conflict.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "document": "extra.txt",
+      "line": 2,
+      "description": "names resources conflict"
+    }
+  },
+  "engine/names-preamble-leading-before-ordinary.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "document": "g.md",
+      "line": 2,
+      "column": 1,
+      "description": "%names takes one quoted path"
+    }
+  },
+  "engine/names-preamble-method-operand.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "document": "g.md",
+      "line": 2,
+      "column": 1,
+      "description": "%names takes one quoted path"
+    }
+  },
+  "engine/names-preamble-misplaced-path.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "document": "g.md",
+      "line": 3,
+      "column": 9,
+      "description": "an invalid or unknown string escape"
+    }
+  },
+  "engine/names-preamble-missing-closer.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "document": "g.md",
+      "line": 2,
+      "column": 9,
+      "description": "an invalid or unknown string escape"
+    }
+  },
+  "engine/names-preamble-missing-operand.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "document": "g.md",
+      "line": 2,
+      "column": 1,
+      "description": "%names takes one quoted path"
+    }
+  },
+  "engine/names-preamble-noncore-path.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "document": "g.md",
+      "line": 2,
+      "column": 9,
+      "description": "an invalid or unknown string escape"
+    }
+  },
+  "engine/names-preamble-numeric-error.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "document": "g.md",
+      "line": 2,
+      "column": 9,
+      "description": "an invalid or unknown string escape"
+    }
+  },
+  "engine/names-preamble-ordinary-order.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "document": "g.md",
+      "line": 2,
+      "column": 13,
+      "description": "an invalid or unknown string escape"
+    }
+  },
+  "engine/names-preamble-term-operand.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "document": "g.md",
+      "line": 2,
+      "column": 1,
+      "description": "%names takes one quoted path"
+    }
+  },
+  "engine/names-preamble-two-operands.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "document": "g.md",
+      "line": 2,
+      "column": 1,
+      "description": "%names takes one quoted path"
+    }
+  },
+  "engine/names-preamble-whole-namespace.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "document": "other.txt",
+      "line": 2,
+      "description": "names resources conflict"
+    }
+  },
+  "engine/names-preamble-word-operand.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "document": "g.md",
+      "line": 2,
+      "column": 1,
+      "description": "%names takes one quoted path"
+    }
+  },
+  "engine/names-record-unknown.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "document": "data/unicode/unicode-names.txt",
+      "line": 2,
+      "description": "an unknown names record"
+    }
+  },
+  "engine/names-reference-fingerprint.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "document": "data/unicode/unicode-names-reference.txt",
+      "description": "the reference fingerprint differs from the pinned data"
+    }
+  },
+  "engine/names-reference-version.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "document": "data/unicode/unicode-names-reference.txt",
+      "description": "the reference version differs from the selected names version"
+    }
+  },
+  "engine/names-scalar-hex.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "document": "data/unicode/unicode-names.txt",
+      "line": 2,
+      "description": "an invalid scalar"
+    }
+  },
+  "engine/names-scalar-range.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "document": "data/unicode/unicode-names.txt",
+      "line": 2,
+      "description": "an invalid scalar"
+    }
+  },
+  "engine/names-scalar-surrogate.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "document": "data/unicode/unicode-names.txt",
+      "line": 2,
+      "description": "an invalid scalar"
+    }
+  },
+  "engine/names-spelling-conflict.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "document": "data/unicode/unicode-names.txt",
+      "line": 3,
+      "description": "a name identifies different scalars"
+    }
+  },
+  "engine/names-standard-renamed.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "document": "data/unicode/unicode-names.txt",
+      "line": 2,
+      "description": "an added name must name an unnamed scalar without a reserved spelling"
+    }
+  },
+  "engine/notation-r2-stage-integer-negative-discarded.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "document": "pipeline.md",
+      "line": 5,
+      "column": 25,
+      "stage": "lexical",
+      "description": "the lexical stage could not continue at token 77; expected \"-\""
+    }
+  },
+  "engine/notation-r2-stage-integer-negative-surviving.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "document": "pipeline.md",
+      "line": 5,
+      "column": 25,
+      "stage": "lexical",
+      "description": "the lexical stage could not continue at token 77; expected \"-\""
+    }
+  },
+  "engine/notation-small-ngrams-invalid-negative.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "document": "main.md",
+      "line": 4,
+      "column": 40,
+      "stage": "lexical",
+      "description": "the lexical stage could not continue at token 82; expected \"-\""
+    }
+  },
+  "engine/path-absolute-include.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "document": "p.md",
+      "line": 2,
+      "column": 1,
+      "description": "a path target must be relative"
+    }
+  },
+  "engine/path-absolute-names.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "document": "p.md",
+      "line": 2,
+      "column": 1,
+      "description": "a path target must be relative"
+    }
+  },
+  "engine/properties-unavailable-disabled.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "document": "g.md",
+      "line": 2,
+      "column": 17,
+      "description": "unknown or forbidden engine key _Script_Latin"
+    }
+  },
+  "engine/properties-unavailable-negative.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "document": "g.md",
+      "line": 2,
+      "column": 15,
+      "description": "unknown or forbidden engine key _Script_Latin"
+    }
+  },
+  "engine/properties-unavailable-pattern.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "document": "g.md",
+      "line": 2,
+      "column": 12,
+      "description": "unknown or forbidden engine key _Script_Latin"
+    }
+  },
+  "engine/properties-unavailable-reference.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "document": "g.md",
+      "line": 2,
+      "column": 12,
+      "description": "unknown or forbidden engine key _Script_Latin"
+    }
+  },
+  "engine/properties-unavailable-replaced.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "document": "g.md",
+      "line": 2,
+      "column": 12,
+      "description": "unknown or forbidden engine key _Script_Latin"
+    }
+  },
+  "engine/properties-unavailable-template.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "document": "g.md",
+      "line": 2,
+      "column": 18,
+      "description": "unknown or forbidden engine key _Script_Latin"
+    }
+  },
+  "engine/properties-unavailable-value.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "document": "g.md",
+      "line": 2,
+      "column": 12,
+      "description": "unknown or forbidden engine key _Script_Cyrillic"
+    }
+  },
+  "engine/source-map-standard-names-replacement.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "document": "g.md",
+      "line": 3,
+      "column": 13,
+      "description": "an invalid or unknown string escape"
+    }
+  },
+  "engine/zbalermorna-names-unqualified.json": {
+    "reason": "The same written operand causes a retained fault at the original position.",
+    "expected": {
+      "document": "g.md",
+      "line": 4,
+      "column": 13,
+      "description": "an invalid or unknown string escape"
+    }
+  },
   "notation/267-default-fails-test.json": {
     "reason": "The explicit default fails the written equality test.",
     "expected": {

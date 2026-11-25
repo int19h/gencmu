@@ -41,7 +41,7 @@ export function notation50Resources(root, { readSource } = {}) {
     for (const { dom } of entries) {
       for (const item of dom.directives.filter(directive => directive.name === "names")) {
         const target = resolvePath(file, item.args[0]);
-        if (sources.includes(target)) names.add(target);
+        if (sources.includes(target) || target.startsWith("data/") && read(target) !== undefined) names.add(target);
       }
     }
   }

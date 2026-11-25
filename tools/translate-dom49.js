@@ -166,7 +166,8 @@ class Printer {
     if (item.suppressWarnings) lines.push(`%suppress-warnings ${item.suppressWarnings.join(", ")}`);
     if (item.erased) lines.push("%erased");
     if (item.emit) {
-      const whole = !item.emit.items.length || item.emit.items.some(output => output.capture === "");
+      const whole = !item.emit.items.length ||
+        item.emit.items.some(output => output.capture === "" && output.tags === undefined);
       if (whole && item.tags === undefined && item.alternatives.some(alt => alt.tags === undefined &&
           (alt.expr.repeat || alt.expr.optional || alt.expr.ranked || alt.expr.and))) {
         this.hand("A singleton route can inherit keys in the old publication. Establish its format 50 bag and cover.");
@@ -240,8 +241,8 @@ class Printer {
       const [head, ...tail] = node.optional.seq ?? [node.optional];
       if (!node.elidable) return `[${this.body(node.optional, undefined, primary)}]`;
       const value = node.default === undefined ? "" : ` ≝ ${this.operand(node.default)}`;
-      if (head.capture !== undefined) return `[$${head.capture}:+${this.elidable(head.expr)}${value}]`;
-      return `[+${[this.elidable(head) + value, ...tail.map(child => this.body(child, "seq"))].join(" ")}]`;
+      if (head.capture !== undefined) return `[$${head.capture}:+${this.body(head.expr)}${value}]`;
+      return `[+${[this.body(head) + value, ...tail.map(child => this.body(child, "seq"))].join(" ")}]`;
     }
     if (node.repeat) {
       const left = node.chain === "left" ? "... " : "";
@@ -261,13 +262,6 @@ class Printer {
     if (node.call) return this.call(node);
     if (node.param) return "@" + node.param;
     this.hand("Preserve an unrecognized body record.");
-  }
-
-  elidable(node) {
-    if (node.test && node.value?.string === "") {
-      this.hand("Distinguish the head's written empty value from its omitted origin before migrating the test.");
-    }
-    return this.body(node);
   }
 
   requirements(items) {
@@ -416,6 +410,9 @@ class Printer {
 
   method({ method, receiver, args }) {
     if (method === "value" || method === "image") {
+      const observed = receiver.method === "emitted" ? receiver.receiver : receiver;
+      const capture = observed.capture ?? observed.captured;
+      if (this.repeated.has(capture)) this.hand(`Resolve the ordered string read on repeated capture $${capture}.`);
       if (receiver.method === "emitted") return `${this.term(receiver.receiver)}'${method}`;
       return this.stringRead(this.term(receiver), receiver, method);
     }

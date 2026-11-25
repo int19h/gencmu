@@ -186,7 +186,9 @@ export function translateSharedCase(family, file, testCase) {
       reference: testCase.expect ?? testCase.parses };
   }
   if (testCase.pipeline !== undefined) {
-    if (typeof testCase.pipeline !== "string" || !/^[a-z0-9][a-z0-9-]*(?:\/[a-z0-9][a-z0-9-]*)+$/.test(testCase.pipeline)) {
+    const valid = typeof testCase.pipeline === "string" && /^[a-z0-9][a-z0-9-]*(?:\/[a-z0-9][a-z0-9-]*)+$/.test(testCase.pipeline);
+    const exists = valid && fs.existsSync(path.join(root, "grammars", testCase.pipeline, "pipeline.md"));
+    if (!valid || !exists && testCase.expect?.error === "usage") {
       return { id, status: "portable-negative", fixture: caseInput(testCase), reference: testCase.expect };
     }
     return { id, status: "deferred", reason: `The case waits for the format 50 migration of ${testCase.pipeline}.` };
@@ -255,12 +257,26 @@ export function translateSharedCase(family, file, testCase) {
     if (error instanceof GencmuError) {
       const location = error.where;
       if (location.document === "data/unicode/unicode.txt" || location.document === "data/unicode/unicode-properties.txt") {
+        // A resource can fail while the table loads or when a document first
+        // asks for a name. Keep the latter's demand for the resource.
+        const documents = loader ? sources : {
+          [location.document]: sources[location.document],
+          ...(Object.hasOwn(sources, "data/unicode/unicode.txt") && { "data/unicode/unicode.txt": sources["data/unicode/unicode.txt"] }),
+          "p.md": fence("%stage main\n%rule text ε"),
+        };
         return { id, status: "portable-negative", oldPath: true,
-          fixture: { ...caseInput(testCase), pipelineDocument: "p.md", documents: {
-            [location.document]: sources[location.document],
-            ...(Object.hasOwn(sources, "data/unicode/unicode.txt") && { "data/unicode/unicode.txt": sources["data/unicode/unicode.txt"] }),
-            "p.md": fence("%stage main\n%rule text ε"),
-          } }, expected: { description: error.description, ...location }, reference: testCase.expect ?? testCase.parses };
+          fixture: { ...caseInput(testCase), pipelineDocument: loader ? entry : "p.md", documents },
+          expected: { description: error.description, ...location }, reference: testCase.expect ?? testCase.parses };
+      }
+      if (error.description === "a query method is a condition, not a term") {
+        return { id, status: "retired", oldPath: true,
+          reason: "Format 50 gives a query a forest value. The old prohibition on query values is absent." };
+      }
+      const counterpart = negativeMigrations[id];
+      if (counterpart?.expected) {
+        return { id, status: "retained-negative", oldPath: true, ...counterpart,
+          fixture: { ...caseInput(testCase), pipelineDocument: entry, documents: sources },
+          reference: testCase.expect ?? testCase.parses };
       }
       return { id, status: "needs-negative", oldPath: true, reason: error.description, location, reference: testCase.expect ?? testCase.parses };
     }

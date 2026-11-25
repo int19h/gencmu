@@ -928,5 +928,52 @@
     "expectedNative": {
       "outcome": "accept"
     }
+  },
+  "engine/unused-argument-undefined.json": {
+    "reason": "Use a marked expression to keep the missing constant as an operand even though the template ignores it.",
+    "fixture": {
+      "pipelineDocument": "main.md",
+      "documents": {
+        "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule f(@X) \"a\"\n%rule text f(= $MISSING)\n```\n"
+      }
+    },
+    "expectedNative": {
+      "outcome": "grammar",
+      "phase": "load",
+      "cause": "undefined constant $MISSING",
+      "where": {
+        "document": "main.md",
+        "line": 5,
+        "column": 16
+      }
+    },
+    "diagnostics": [
+      {
+        "from": {
+          "document": "main.md",
+          "line": 4,
+          "column": 14
+        },
+        "to": {
+          "document": "main.md",
+          "line": 5,
+          "column": 16
+        }
+      }
+    ]
+  },
+  "engine/item-condition-each-item-holds.json": {
+    "reason": "The repeated capture supplies input leaves. Test each value on those leaves in binding order.",
+    "fixture": {
+      "source": [
+        "%stage main",
+        "%ambiguity-resolution greedy",
+        "%rule text {$c:A}",
+        "%conditions $c.all('value ≠ \"x\")"
+      ]
+    },
+    "expectedNative": {
+      "outcome": "accept"
+    }
   }
 }

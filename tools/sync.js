@@ -514,7 +514,7 @@ for (const copy of copies) {
   for (const relative of existing(`${packageRoot}/data`)) {
     const key = relative.slice(packageRoot.length + 1);
     if (Object.hasOwn(dataSources, key) && (key !== manifestPath || packageRoot === "lib/js")) continue;
-    if (packageRoot === "lib/js" && caches50.has(key)) continue;
+    if (packageRoot === "lib/js" && key.startsWith(resources50.bundle.cacheRoot + "/")) continue;
     stale.push(relative);
     if (!check) fs.unlinkSync(path.join(root, relative));
   }

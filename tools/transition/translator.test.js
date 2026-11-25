@@ -5,6 +5,8 @@ import { translateSharedCase } from "../translate-shared-cases.js";
 import { createTransitionCompiler } from "../transition-compiler.js";
 
 const compiler = createTransitionCompiler();
+let activeDocuments = {};
+const scopedCompiler = createTransitionCompiler(file => activeDocuments[file]);
 const legacyFixture = (family, name) =>
   JSON.parse(fs.readFileSync(new URL(`../../tests/${family}/${name}`, import.meta.url), "utf8"));
 
@@ -71,15 +73,22 @@ for (const [id, record] of Object.entries(negatives)) {
     }
     assert.equal(migrated.status, "retained-negative");
     const { expected } = migrated;
-    assert.throws(() => compiler.compileDocument(migrated.document, "notation.md"), error => {
+    const compile = () => {
+      if (!migrated.fixture) return compiler.compileDocument(migrated.document, "notation.md");
+      const { documents, pipelineDocument } = migrated.fixture;
+      activeDocuments = documents;
+      const hasTables = Object.hasOwn(documents, "data/unicode/unicode.txt") ||
+        Object.hasOwn(documents, "data/unicode/unicode-properties.txt");
+      const reader = hasTables ? createTransitionCompiler(file => documents[file]) : scopedCompiler;
+      return reader.compilePipeline(pipelineDocument);
+    };
+    assert.throws(compile, error => {
       assert.equal(error.kind, "grammar");
-      assert.equal(error.where.line, expected.line);
-      assert.equal(error.where.column, expected.column);
-      if (expected.description !== undefined) assert.equal(error.description, expected.description);
-      if (expected.stage !== undefined) {
-        assert.equal(error.where.stage, expected.stage);
-        assert.match(error.description, new RegExp(`at token ${expected.token}(?:;|$)`));
+      for (const key of ["document", "line", "column", "stage"]) {
+        if (Object.hasOwn(expected, key)) assert.equal(error.where[key], expected[key]);
       }
+      if (expected.description !== undefined) assert.equal(error.description, expected.description);
+      if (expected.token !== undefined) assert.match(error.description, new RegExp(`at token ${expected.token}(?:;|$)`));
       return true;
     });
   });
@@ -226,8 +235,20 @@ test("a rule across grammar fences maps its operand from the physical line", () 
   assert.deepEqual(result.diagnostics[0].to, { document: "g.md", line: 3, column: 1 });
 });
 
+for (const name of ["names-core-version-missing.json", "names-core-version-repeated.json", "properties-resource-binary-arity.json"]) {
+  test(`the resource error remains active in ${name}`, () => {
+    const record = translateSharedCase("engine", name, legacyFixture("engine", name));
+    assert.equal(record.status, "portable-negative");
+    const { documents, pipelineDocument } = record.fixture;
+    assert.throws(() => createTransitionCompiler(file => documents[file]).compilePipeline(pipelineDocument), error => {
+      assert.deepEqual({ description: error.description, ...error.where }, record.expected);
+      return true;
+    });
+  });
+}
+
 test("invalid pipeline names are portable and language deferrals name the bundle", () => {
-  for (const name of ["pipeline-name-empty.json", "pipeline-name-parent.json"]) {
+  for (const name of ["pipeline-name-empty.json", "pipeline-name-parent.json", "pipeline-name-unknown.json"]) {
     assert.equal(translateSharedCase("engine", name, legacyFixture("engine", name)).status, "portable-negative");
   }
   const deferred = translateSharedCase("engine", "bundle-probe", { pipeline: "lojban/cll", input: "mi" });
