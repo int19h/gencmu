@@ -111,6 +111,20 @@ function mutate(dom, edits, run) {
   }
 }
 
+// A name fault is local to a declaration. The unedited document already
+// passed. Keep the names preamble and the edited declarations in place.
+function editedDeclarations(dom, edits) {
+  if (!edits.length || dom.rules.length + dom.directives.length + dom.constants.length <= 16) return dom;
+  const selected = new Map(declarationKinds.map(kind => [kind, new Set()]));
+  for (const { path: [kind, index] } of edits) selected.get(kind).add(Number(index));
+  const slice = { ...dom };
+  for (const kind of declarationKinds) {
+    slice[kind] = dom[kind].filter((record, index) => selected.get(kind).has(index) ||
+      kind === "directives" && record.name === "names");
+  }
+  return slice;
+}
+
 export function createDifferential(window) {
   const counts = { sources: 0, valid: 0, prefix: 0, invalid: 0, sourceOnly: 0, single: 0, paired: 0 };
   const differences = [];
@@ -142,10 +156,12 @@ export function createDifferential(window) {
       ["reverse", roundtrip(dom, reverseFields), reverseFields],
       ["seeded", roundtrip(dom, shuffle(0x50b007)), shuffle(0x45638)],
     ];
-    const compare = (expected, edits) => {
+    const measured = new Set();
+    const compare = (expected, edits, full = false) => {
       for (const [order, record, permute] of variants) {
         const permuted = edits.map(edit => ({ ...edit, value: reorder(edit.value, permute) }));
-        const actual = mutate(record, permuted, () => diagnostic(() => validateDocument50(record, configuration)));
+        const actual = mutate(record, permuted, () => diagnostic(() =>
+          validateDocument50(full ? record : editedDeclarations(record, edits), configuration)));
         try {
           assert.deepEqual(actual, expected);
         } catch {
@@ -158,8 +174,20 @@ export function createDifferential(window) {
 
     // Invalid DOM names can have no legal token spelling. Replay the converted
     // records through the source reader's per-declaration validation in that case.
-    const replay = edits => mutate(dom, edits, () =>
-      diagnostic(() => inspectConverted50(declarations(dom), configuration)));
+    const replay = (edits, full = false) => mutate(dom, edits, () => {
+      const projection = full ? dom : editedDeclarations(dom, edits);
+      return diagnostic(() => inspectConverted50(declarations(projection), configuration));
+    });
+    const compareMutation = (expected, edits) => {
+      compare(expected, edits);
+      if (editedDeclarations(dom, edits) === dom) return;
+      const owners = edits.map(edit => edit.path.slice(0, 2).join("/")).sort().join(";");
+      if (measured.has(owners)) return;
+      measured.add(owners);
+      // Exercise the full document once for each set of edited declarations.
+      assert.deepEqual(replay(edits, true), expected);
+      compare(expected, edits, true);
+    };
     const operands = operandMutations(dom);
     const testedPairs = new Set();
     for (const [index, operand] of operands.entries()) {
@@ -169,7 +197,7 @@ export function createDifferential(window) {
         const expected = replay([operand]);
         assert.ok(expected, `${document}: invalid name at ${operand.path.join("/")} did not fail`);
         counts.single++;
-        compare(expected, [operand]);
+        compareMutation(expected, [operand]);
       }
       let next = operands.findIndex((other, i) => i > index && canPair(operand, other));
       if (next === -1) next = operands.findIndex(other => canPair(operand, other));
@@ -181,7 +209,7 @@ export function createDifferential(window) {
       if (selected) {
         const pair = [operand, operands[next]];
         counts.paired++;
-        compare(replay(pair), pair);
+        compareMutation(replay(pair), pair);
       }
     }
   }
