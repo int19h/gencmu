@@ -1,5 +1,27 @@
 import { Loader, Pipeline } from "./pipeline.js";
 export * from "./index.js";
+import { Loader50 } from "./format50/loader.js";
+/**
+ * The loaders of one notation version: the bundled, disk and source-map
+ * loaders of notation 50. Other versions are a usage error.
+ * @param {number} version
+ */
+export declare function loaderForNotation(version: number): {
+    notation: number;
+    loaderFromSources: (sources: any) => Loader50;
+    resultJson: typeof import("./format50/result.js").resultJson50;
+    decodeResult: typeof import("./format50/result.js").decodeResult50;
+    bundledPipelines: () => any;
+    /** @param {string} name */
+    loadPipeline(name: string): import("./format50/loader.js").Pipeline50;
+    /** @param {string} file */
+    loadPipelineFile(file: string): import("./format50/loader.js").Pipeline50;
+    /**
+     * @param {Map<string, string> | Record<string, string>} sources
+     * @param {string} pipelinePath
+     */
+    loadPipelineSources(sources: Map<string, string> | Record<string, string>, pipelinePath: string): import("./format50/loader.js").Pipeline50;
+};
 /** @returns {string} */
 export declare function bundledGrammarsDirectory(): string;
 /**
