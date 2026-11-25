@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import { test } from "node:test";
 import { createTransitionCompiler } from "../transition-compiler.js";
+import { validateDefinitionNullability50, validateDocument50 } from "../../lib/js/src/format50/validate.js";
 
 const compiler = createTransitionCompiler();
 const fenced = source => "\x60\x60\x60jbogenbau\n" + source + "\n\x60\x60\x60";
@@ -24,27 +25,120 @@ for (const [source, message, column] of [
   ["%rule r (^A | B)", /each route must have one primary/],
   ["%rule r [^A]", /primary must mark a mandatory child/],
   ["%rule r { ... $a:A / $b:B }", /chain item or separator cannot bind/],
-  ["%rule r [$x:A] $x:B", /binds \$x twice/, 16],
+  ["%rule r [$x:A] $x:B", /binds \$x twice/, 1],
   ["%rule r f(= $.span)", /argument cannot read or declare captures/],
   ["%rule r f(= $x ↦ [1]!($x ↦ $x))", /cannot hide a live name/],
   ["%const $K {K,K}", /duplicate direct write/, 14],
   ["%rule r ^A → {k:1,k:2}", /duplicate direct write/, 19],
   ["%const $K $x ↦ {k,$x'k}", /duplicate direct write/],
   ["%const $K {f? k:k:1}", /duplicate direct write/],
-  ["%const $N 256", /count literal/, 11],
+  ["%const $N 256", /count literal/, 1],
   ["%rule r A %conditions $.at-most(256)", /count literal/],
   ["%const $INPUTS {}", /supplied by the engine/],
   ["%redefine-const $INPUTS {}", /supplied by the engine/],
-  ["%ambiguity-resolution most #r", /exact local pattern/, 28],
+  ["%ambiguity-resolution most #r", /exact local pattern/, 29],
   ["%rule r T %suppress-warnings a_b", /invalid warning code/],
   ["%rule r _Bogus<A><B>", /once in that order/, 18],
   ["%rule f(A) = g(A)", /plain rule name/, 7],
   ['%const $K {K,K}\n%rule f(A) = g(A)', /duplicate direct write/],
+  ["%rule r $x:A %conditions $x ≅ $x", /compare a binding with itself/],
+  ["%rule r A %conditions $.followed-by(_White_Space)", /boundary target must be/],
+  ["%rule r $x:A %conditions $x.span.tokens.all($x ↦ $x'B)", /cannot hide a live name/],
+  ["%rule r {$a:A} %conditions $a.all($n ↦ $a.any($n ↦ $n'B))", /cannot hide a live name/],
+  ["%rule r [$x:A] B %conditions $x ⟹ $x.onward.parse(A …)", /wrong receiver or arguments/],
+  ['%rule r {$x:A} %conditions $x\'value = "a"', /a property read needs a node or bag/],
+  ["%rule r {$x:A} %emit $x{K}", /a braced output item needs a node/],
+  ['%rule r A %conditions "x"', /does not have a truth value/, 1],
+  ["%rule r A %conditions ¬1", /does not have a truth value/, 23],
+  ['%const $K (1 = 1 ? "a" | 2)', /conditional requires compatible branch types/],
+  ["%const $K {a: $x ↦ $x}", /a key cannot store a function/],
+  ['%rule r A → {_White_Space: "x"}', /a constructor cannot write an engine key/],
+  ["%features f %conditions $x'A", /a feature condition cannot read a named capture/],
+  ['%rule r → {*$a.flags}\n  | $b:"b"\n  | $a:"a"', /\$a is absent from this expansion/, 15],
+  ['%rule r A %conditions "x" ∧ ("a" = 1)', /does not have a truth value/, 27],
 ]) {
   test(source, () => assert.throws(() => read(source), error =>
     error.kind === "grammar" && message.test(error.description) &&
       (column === undefined || error.where.column === column), message.source));
 }
+
+test("grouped arguments keep the terminal or rule class of the symbol", () => {
+  const { rules } = read("%rule t(@X) @X\n%rule r t((A)) t((a)) t(A) t((_White_Space))\n%rule a B");
+  const args = rules[1].alternatives[0].expr.seq.map(call => call.args[0]);
+  assert.deepEqual(args.map(({ at, ...symbol }) => symbol), [
+    { tag: "A" }, { rule: "a" }, { tag: "A" }, { tag: "_White_Space" },
+  ]);
+});
+
+test("a parameter atom defers both forms of the origin test to substitution", () => {
+  for (const sign of ["", "¬"]) {
+    const dom = read(`%rule f(@T) $x:@T\n%conditions $x ≅ #@T<${sign}_Elided>`);
+    const { pattern } = dom.rules[0].conditions[0].right;
+    assert.equal(pattern.expr.param, "T");
+    assert.equal(pattern.requirements[0].negated, sign === "¬");
+  }
+  assert.throws(() => read("%rule f $x:A\n%conditions $x ≅ #f<_Elided>"), /origin test applies only to a terminal/);
+});
+
+test("a DOM fault in a capture read uses its selector in both readers", () => {
+  const source = "%rule r $b:A → {*$b.flags}";
+  const dom = read(source);
+  const value = dom.rules[0].alternatives[0].term.bag[0].value;
+  value.receiver.capture = "a";
+  const expected = { document: "probe.md", line: value.at[0], column: value.at[1] };
+  const matches = error => {
+    assert.match(error.description, /\$a is captured by no alternative/);
+    assert.deepEqual(error.where, expected);
+    return true;
+  };
+  assert.throws(() => read(source.replace("$b.flags", "$a.flags")), matches);
+  assert.throws(() => validateDocument50(dom, { document: "probe.md", unicode: compiler.unicode }), matches);
+});
+
+test("stored declarations receive the same shape checks as source declarations", () => {
+  const dom = read("%rule r $x:A");
+  const directive = (name, args) => ({ name, args, at: [2, 1] });
+  const cases = [
+    [directive("names", ["names.txt"]), /must precede all other declarations/],
+    [directive("stage", ["a", "b"]), /takes one stage name/],
+    [directive("include", []), /takes one quoted path/],
+    [directive("features", ["_f"]), /takes feature names/],
+    [directive("elision-only", ["x"]), /takes no operands/],
+    [{ name: "ambiguity-resolution", steps: [{ step: "most" }], at: [2, 1] }, /invalid resolution step operand/],
+    [{ name: "ambiguity-resolution", steps: [{ step: "greedy" }, { step: "lazy" }], at: [2, 1] }, /invalid resolution policy/],
+  ];
+  for (const [record, description] of cases) {
+    const invalid = { ...dom, directives: [{ ...record, at: [3, 1] }] };
+    assert.throws(() => validateDocument50(invalid, { unicode: compiler.unicode }), description);
+  }
+});
+
+test("the first expansion checks its rule term before its alternative term", () => {
+  const source = '%rule r → {*$a.flags}\n  | $b:"b" → {*$c.flags}\n  | $a:"a"\n  | $c:"c"';
+  assert.throws(() => read(source), error => {
+    assert.equal(error.description, "$a is absent from this expansion");
+    assert.deepEqual(error.where, { document: "probe.md", line: 2, column: 15 });
+    return true;
+  });
+});
+
+test("nullability uses the first expanded production with an error source", () => {
+  const warning = { at: [2, 1] };
+  const first = { at: [3, 1] };
+  const second = { at: [7, 1] };
+  const productions = [
+    { warning, empty: true },
+    { errorSource: second, empty: false },
+    { errorSource: first, empty: true },
+    { errorSource: second, empty: true },
+  ];
+  const fault = {};
+  assert.throws(() => validateDefinitionNullability50(productions, production => production.empty, (record, description) => {
+    assert.equal(record, first);
+    assert.match(description, /error production can derive an empty sequence/);
+    throw fault;
+  }), error => error === fault);
+});
 
 test("an explicit function actual can read its own parameter", () => {
   const actual = read("%rule r f(= [1] !($n ↦ $n + 1))").rules[0].alternatives[0].expr.args[0];

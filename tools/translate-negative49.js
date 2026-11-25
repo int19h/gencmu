@@ -67,26 +67,10 @@ export function translateNegative49(id, legacy, description) {
 }
 
 const retiredFaults = [
-  [/^a query method is a condition, not a term$/, "Engine §7, Queries",
-    "The query method returns a forest value."],
   [/^a side of an implication /, "Engine §2, Classification",
     "The grammar gives each key at its supplier. The general implication declaration is gone."],
-  [/ is not a class: a class starts and ends with a capital$/, "Engine §2, Classification",
-    "A classifier table uses ordinary bag keys. A class name no longer needs a final capital."],
   [/^%emits of \S+ attaches \$\S+ in a production without its carrier /, "Engine §11.3",
     "Presentation follows a mandatory primary and its structural siblings. An emission item no longer names attachment lists."],
-  [/^%emits of \S+ names \$\S+, an item capture, which only a condition reads$/,
-    "Engine §11.1", "An emission item can forward an entire capture list."],
-  [/^a clause of \S+ names \$\S+, an item capture, which only a condition reads$/,
-    "Engine §§3.5, 10", "A clause can read an ordered list. Binding inside flat braces no longer limits reads to conditions."],
-  [/^a condition of \S+ reads .*item captures of two pairs of braces$/, "Engine §§3.5–3.6",
-    "The lists from distinct repetitions are ordinary operands. There is no implicit item frame whose owner must be inferred."],
-  [/^a condition of \S+ reads .*an item capture, together with \$, which is not complete at each item$/,
-    "Engine §§3.5–3.6", "An explicit list predicate can wait for the enclosing occurrence."],
-  [/^a condition of \S+ reads .*with the item capture .*after the braces$/,
-    "Engine §§3.5–3.6", "An explicit list predicate waits for its outer bindings. A later outer binding is legal."],
-  [/^a recipe atom has no grouping or arguments$/, "Engine §10",
-    "A string supplier is an expression. It can contain parentheses and method arguments."],
 ];
 
 export function retireNegative49(description) {

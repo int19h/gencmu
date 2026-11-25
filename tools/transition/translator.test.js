@@ -10,6 +10,17 @@ const scopedCompiler = createTransitionCompiler(file => activeDocuments[file]);
 const legacyFixture = (family, name) =>
   JSON.parse(fs.readFileSync(new URL(`../../tests/${family}/${name}`, import.meta.url), "utf8"));
 
+function hasSite(root, line, column) {
+  const pending = [root];
+  while (pending.length) {
+    const record = pending.pop();
+    if (!record || typeof record !== "object") continue;
+    if (Array.isArray(record.at) && record.at[0] === line && record.at[1] === column) return true;
+    for (const [key, child] of Object.entries(record)) if (key !== "at") pending.push(child);
+  }
+  return false;
+}
+
 test("the translator keeps statement, alternative and emission terms on their owners", () => {
   const grammar = '%rule text :- "head"\n  | $x:A := "body"\n%emits $x :: Result';
   const { fixture, status, diagnostics } = translateSharedCase("engine", "probe", {
@@ -61,8 +72,47 @@ test("a custom table can make punctuation an emoji rule name", () => {
 });
 
 const negatives = JSON.parse(fs.readFileSync(new URL("../shared-negative-migrations.json", import.meta.url), "utf8"));
+const definitionOrder = new Set([
+  "engine/definition-alternative-tags-name-absent-capture.json",
+  "engine/definition-rule-tags-before-alternative-tags.json",
+  "engine/issue314-alternative-tags.json",
+  "engine/issue314-split-order-a-alternative.json",
+  "engine/issue314-split-order-b-alternative.json",
+  "engine/notation-r2-stage-integer-zero-discarded.json",
+  "engine/notation-r2-stage-integer-zero-surviving.json",
+  "notation/267-default-off-head.json",
+  "notation/braces-257-deep.json",
+  "notation/chain-alone-in-group.json",
+  "notation/chain-alone-in-groups.json",
+  "notation/deep-groups-syntax-later.json",
+  "notation/deep-optionals-then-error.json",
+  "notation/deep-optionals.json",
+  "notation/deep-template-before-later-reader-error.json",
+  "notation/deep-template-capture-before-depth.json",
+  "notation/deep-template-depth-limit.json",
+  "notation/definition-order-alternative-tags.json",
+  "notation/definition-order-clause-definition.json",
+  "notation/definition-order-tags-conditions.json",
+  "notation/marked-optional-order-chain-first.json",
+  "notation/nesting-257.json",
+  "notation/nesting-too-deep-paired-later.json",
+  "notation/nesting-too-deep-paired.json",
+  "notation/nesting-too-deep-then-error.json",
+  "notation/range-tag-set.json",
+  "notation/range-wide-before-called-parameter.json",
+  "notation/range-wide-before-parameter.json",
+  "notation/reader-order-range-descending-tag.json",
+  "notation/reader-order-range-descending-value.json",
+  "notation/reader-order-range-multiple-scalars-tag.json",
+  "notation/reader-order-range-multiple-scalars-value.json",
+  "notation/tag-bare-name.json",
+  "notation/tags-unguarded.json",
+  "notation/test-nesting-257.json",
+  "notation/values-include-method-syntax-first.json",
+  "notation/values-include-method-syntax.json",
+]);
 for (const [id, record] of Object.entries(negatives)) {
-  test(id, () => {
+  test(definitionOrder.has(id) ? `§9.3 order ${id}` : id, () => {
     const [family, name] = id.split("/");
     const migrated = translateSharedCase(family, name, legacyFixture(family, name));
     assert.equal(migrated.oldPath, true);
@@ -86,11 +136,15 @@ for (const [id, record] of Object.entries(negatives)) {
     if (record.native) {
       assert.equal(migrated.status, "native-pending");
       assert.match(migrated.section, /^Engine §/);
-      assert.equal(expected.kind, "grammar");
-      const source = migrated.fixture.documents[expected.document];
-      const line = source.split("\n")[expected.line - 1];
-      assert.match([...line][expected.column - 1], /\S/u);
-      compile();
+      const compiled = compile();
+      if (record.load) {
+        assert.equal(migrated.load, true);
+        assert.equal(expected, undefined);
+      } else {
+        assert.equal(expected.kind, "grammar");
+        assert.ok(hasSite(compiled[expected.document], expected.line, expected.column),
+          `${expected.document}:${expected.line}:${expected.column} needs a DOM record at the expected site`);
+      }
       return;
     }
     assert.equal(migrated.status, "retained-negative");
@@ -191,11 +245,19 @@ test("each written migration has format 50 source or an expected source error", 
           assert.equal(first.rules[0].alternatives[0].expr.literal.string, "\uE000");
           assert.equal(second.rules[0].alternatives[0].expr.literal.string, "\uE001");
           assert.deepEqual(first.rules[0].term.bag[0].value.at, [diagnostics[0].to.line, diagnostics[0].to.column]);
-        } else assert.equal(scoped.compileDocument(text, file).format, 50, id);
+        } else {
+          const dom = scoped.compileDocument(text, file);
+          assert.equal(dom.format, 50, id);
+          if (record.expected?.document === file && record.expected.line) {
+            assert.ok(hasSite(dom, record.expected.line, record.expected.column), id);
+          }
+        }
       }
     } else {
       const source = document ?? ["```jbogenbau", ...fixture.source, "```"].join("\n");
-      assert.equal(compiler.compileDocument(source, id).format, 50, id);
+      const dom = compiler.compileDocument(source, id);
+      assert.equal(dom.format, 50, id);
+      if (record.expected?.line) assert.ok(hasSite(dom, record.expected.line, record.expected.column), id);
     }
   }
 });
@@ -309,4 +371,41 @@ test("invalid pipeline names are portable and language deferrals name the bundle
   }
   const deferred = translateSharedCase("engine", "bundle-probe", { pipeline: "lojban/cll", input: "mi" });
   assert.match(deferred.reason, /lojban\/cll/);
+  const catalog = translateSharedCase("engine", "pipeline-catalog.json", legacyFixture("engine", "pipeline-catalog.json"));
+  assert.equal(catalog.status, "deferred");
+  assert.match(catalog.reason, /eberban\/refgram/);
+  assert.doesNotMatch(catalog.reason, /gencmu\/jbogenbau/);
+});
+
+test("an item without the tested capture needs a hand migration", () => {
+  const grammar = "%rule text {A | $c:B}\n%conditions $c";
+  const probe = translateSharedCase("engine", "partial-item-probe", { grammar });
+  assert.equal(probe.status, "needs-hand");
+  assert.match(probe.reason, /an item route can omit/i);
+
+  for (const [name, condition] of [
+    ["presence", "not"], ["presence-holds", "not"],
+    ["simplified-without-item", "if"], ["simplified-without-item-holds", "if"],
+  ]) {
+    const file = `item-condition-${name}.json`;
+    const { fixture, status } = translateSharedCase("engine", file, legacyFixture("engine", file));
+    assert.equal(status, "hand-migrated");
+    const [rule] = compiler.compileDocument(fixture.documents["main.md"]).rules;
+    const body = rule.alternatives[0].expr;
+    const repetition = body.seq?.at(-1) ?? body;
+    assert.equal(repetition.repeat.choice[0].capture, "a");
+    assert.equal(rule.conditions[0][condition].capture, "a");
+  }
+});
+
+test("the whole optional retains its body in its format 50 counterpart", () => {
+  const name = "helper-tags.json";
+  const { counterpart, status } = translateSharedCase("engine", name, legacyFixture("engine", name));
+  assert.equal(status, "retired");
+  assert.equal(counterpart.status, "native-pending");
+  const [text, rule] = compiler.compileDocument(counterpart.fixture.documents["main.md"]).rules;
+  assert.equal(text.alternatives[0].expr.ref, "w");
+  assert.equal(rule.alternatives[0].expr.optional.ref, "A");
+  assert.deepEqual(rule.emit.items, []);
+  assert.deepEqual(counterpart.expected, { props: { value: "a", image: "a" } });
 });

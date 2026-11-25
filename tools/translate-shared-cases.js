@@ -180,12 +180,13 @@ function caseInput(testCase) {
 function recordedNegative(id, testCase, documents, entry) {
   const counterpart = negativeMigrations[id];
   if (!counterpart) return;
-  const { retired, native, expected, reason, section, document, documents: replacement, entry: replacementEntry } = counterpart;
+  const { retired, native, load, expected, reason, section, document, documents: replacement, entry: replacementEntry } = counterpart;
   if (retired) return { id, status: "retired", oldPath: true, reason: retired, section };
   const fixture = replacement || documents ? { ...caseInput(testCase),
     pipelineDocument: replacementEntry ?? entry, documents: { ...documents, ...replacement } } : undefined;
   return { id, status: native ? "native-pending" : "retained-negative", oldPath: true,
-    expected, reason, ...(section && { section }), ...(fixture ? { fixture } : { document: document ?? testCase.document }),
+    expected, ...(load && { load }), reason, ...(section && { section }),
+    ...(fixture ? { fixture } : { document: document ?? testCase.document }),
     reference: testCase.expect ?? testCase.parses };
 }
 
@@ -226,11 +227,23 @@ export function translateSharedCase(family, file, testCase) {
   }
   if (testCase.pipeline !== undefined) {
     const valid = typeof testCase.pipeline === "string" && /^[a-z0-9][a-z0-9-]*(?:\/[a-z0-9][a-z0-9-]*)+$/.test(testCase.pipeline);
-    const exists = valid && fs.existsSync(path.join(root, "grammars", testCase.pipeline, "pipeline.md"));
+    const current = valid && fs.existsSync(path.join(root, "grammars50", testCase.pipeline, "pipeline.md"));
+    const exists = current || valid && fs.existsSync(path.join(root, "grammars", testCase.pipeline, "pipeline.md"));
     if (!valid || !exists && testCase.expect?.error === "usage") {
       return { id, status: "portable-negative", fixture: caseInput(testCase), reference: testCase.expect };
     }
+    if (current && testCase.expect?.bundledPipelines) {
+      const missing = testCase.expect.bundledPipelines.filter(name =>
+        !fs.existsSync(path.join(root, "grammars50", name, "pipeline.md")));
+      if (missing.length) return { id, status: "deferred", reason: `The format 50 catalog still needs ${missing.join(", ")}.` };
+    }
+    if (current) return { id, status: "native-pending", section: "Engine §1, Bundles and bootstraps",
+      fixture: caseInput(testCase), reason: "Run the pipeline with the format 50 bundle.", reference: testCase.expect };
     return { id, status: "deferred", reason: `The case waits for the format 50 migration of ${testCase.pipeline}.` };
+  }
+  const authored = negativeMigrations[id];
+  if (authored?.load && authored.entry && authored.documents) {
+    return recordedNegative(id, testCase, testCase.documents, authored.entry);
   }
   if (family === "notation" && testCase.expect.error) {
     return recordedNegative(id, testCase) ?? { id, status: "needs-negative", oldPath: true,

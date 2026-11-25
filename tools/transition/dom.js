@@ -1,7 +1,9 @@
 import { GencmuError } from "../../lib/js/src/errors.js";
 import { CAPTURE_NAME, KEY_STEPS, validSteps } from "../../lib/js/src/dom.js";
 import { methods50 } from "../../lib/js/src/format50/signatures.js";
-import { validateBag50, validateBindings50, validateBody50, validateDocument50 } from "../../lib/js/src/format50/validate.js";
+import { documentFault50, validateBag50, validateBindings50, validateBody50, validateDeclarationShape50,
+  validateDocumentDefinitions50, validateDocumentDepth50, validateOrigin50, validatePatternChildren50,
+  withOwner50 } from "../../lib/js/src/format50/validate.js";
 
 const EXPRESSION_WRAPPERS = new Set([
   "expr", "disj", "conj", "comparison", "union", "inter", "sum", "post", "atom", "grouped-expr",
@@ -44,7 +46,7 @@ export class DomBuilder {
     this.document = document;
     this.unicode = unicode;
     this.strings = strings;
-    this.origins = new WeakMap();
+    this.domFault = documentFault50(document);
   }
 
   token(node) {
@@ -65,42 +67,47 @@ export class DomBuilder {
     throw new GencmuError("grammar", description, { document: this.document, line, column });
   }
 
-  remember(record, node) {
-    this.origins.set(record, node);
-    return record;
-  }
-
   build(tree) {
     const dom = { format: 50, rules: [], directives: [], constants: [] };
+    const emptyDelimiters = [];
     let preamble = true;
     for (const statement of parts(tree, "statement")) {
       const node = rules(statement)[0];
+      this.declarationSite = { at: this.at(node) };
+      let category, record;
       switch (node.rule) {
         case "rule":
-          dom.rules.push(this.rule(node));
+          category = "rules";
+          record = this.rule(node);
           break;
         case "constant-definition":
           {
             const name = this.value(part(node, "constant-name")).slice(1);
             if (name === "INPUTS") this.fail(node, "$INPUTS is supplied by the engine");
-            dom.constants.push({ name, op: operation(this.value(node)),
-              value: this.expression(part(node, "expr")), at: this.at(node) });
+            category = "constants";
+            record = { name, op: operation(this.value(node)), value: this.expression(part(node, "expr")), at: this.at(node) };
           }
           break;
         case "directive":
           if (this.value(node) === "%names" && !preamble) this.fail(node, "%names must precede all other declarations");
-          dom.directives.push(this.directive(node));
+          category = "directives";
+          record = this.directive(node);
           break;
         case "ranking-directive":
-          dom.directives.push(this.ranking(node));
+          category = "directives";
+          record = this.ranking(node);
           break;
         default:
           this.fail(node, "expected a declaration");
       }
+      validateDeclarationShape50(record, this.domFault, this.unicode, emptyDelimiters);
+      dom[category].push(record);
       preamble &&= this.value(node) === "%names";
     }
-    return validateDocument50(dom, { document: this.document, unicode: this.unicode,
-      location: record => this.origins.has(record) ? this.at(this.origins.get(record)) : record.at });
+    if (emptyDelimiters.length) this.domFault(emptyDelimiters[0], "a split delimiter cannot be empty");
+    validateDocumentDefinitions50(dom, { document: this.document });
+    validateDocumentDepth50(dom, { document: this.document });
+    return dom;
   }
 
   directive(node) {
@@ -138,7 +145,7 @@ export class DomBuilder {
       if (!patternNode) return { step };
       const pattern = patternNode.rule === "constant-reference" ?
         this.expression(patternNode) : this.pattern(patternNode);
-      return { step, pattern: this.remember(pattern, patternNode) };
+      return { step, pattern };
     });
     if (!validSteps(steps)) this.fail(node, "invalid resolution policy");
     return { name: "ambiguity-resolution", steps, at: this.at(node) };
@@ -150,10 +157,10 @@ export class DomBuilder {
     const call = part(node, "call");
     const head = plain ?? call;
     const name = this.value(head);
-    if (plain && !RULE_NAME.test(name) && !this.unicode.isEmojiName(name)) {
-      this.fail(plain, "a rule name must begin with a lowercase letter or be an emoji name");
-    }
     const at = this.at(node);
+    if (plain && !RULE_NAME.test(name) && !this.unicode.isEmojiName(name)) {
+      this.domFault({ at }, "a rule name must begin with a lowercase letter or be an emoji name");
+    }
     if (leaves(node).some(token => this.value(token) === "=")) {
       if (!plain) this.fail(head, "an instance binding needs a plain rule name");
       if (op === "extend") this.fail(node, "an instance binding cannot extend a rule");
@@ -165,13 +172,13 @@ export class DomBuilder {
       if (args.every(arg => Object.hasOwn(arg, "param"))) {
         const params = [];
         for (const arg of args) {
-          if (params.includes(arg.param)) this.fail(this.origins.get(arg), `duplicate parameter @${arg.param}`);
+          if (params.includes(arg.param)) this.domFault({ at }, `duplicate parameter @${arg.param}`);
           params.push(arg.param);
         }
         category = { params };
       } else {
         if (op === "define" || args.some(arg => Object.hasOwn(arg, "param"))) {
-          this.fail(head, "a rule head needs all parameters or an exact instance edit");
+          this.domFault({ at }, "a rule head needs all parameters or an exact instance edit");
         }
         category = { args };
       }
@@ -179,19 +186,20 @@ export class DomBuilder {
     const termNode = part(node, "statement-term");
     const term = termNode && this.expression(part(termNode, "bag"));
     const body = rules(part(node, "body") ?? part(node, "headed-body"))[0];
+    const owner = { at };
     const alternatives = body.rule === "ranked-body" ?
-      [this.alternative(body, "ranked-choice")] : rules(body).map(alt => this.alternative(alt, "some-of"));
+      [this.alternative(body, "ranked-choice", owner)] : rules(body).map(alt => this.alternative(alt, "some-of", owner));
     const conditions = this.conditions(part(node, "conditions-clause"));
     const diagnostic = part(node, "diagnostic-clause");
     const diagnosticNode = diagnostic && rules(diagnostic)[0];
-    if (diagnostic && category.params) this.fail(diagnosticNode, "a template cannot declare an error or warning");
+    if (diagnostic && category.params) this.domFault({ at }, "a template cannot declare an error or warning");
     const key = diagnosticNode?.rule.split("-")[0];
     const message = diagnosticNode && this.expression(part(diagnosticNode, "expr"));
     const suppression = part(node, "suppress-warnings-clause");
     const suppressWarnings = suppression && (parts(suppression, "suppression-code").length ?
       parts(suppression, "suppression-code").map(code => {
         const name = this.value(code);
-        if (!FEATURE_NAME.test(name)) this.fail(code, "invalid warning code");
+        if (!FEATURE_NAME.test(name)) this.domFault({ at }, "invalid warning code");
         return name;
       }) : ["_"]);
     const output = part(node, "output-clause");
@@ -206,11 +214,11 @@ export class DomBuilder {
     return node ? parts(node, "expr").map(item => this.expression(item)) : [];
   }
 
-  alternative(node, kind) {
+  alternative(node, kind, owner) {
     const gates = parts(node, "feature-gate").map(gate => this.gate(gate));
     const source = part(node, kind);
     const expr = this.body(source, true);
-    validateBody50(expr, (record, message) => this.fail(this.origins.get(record) ?? source, message));
+    validateBody50(expr, withOwner50(expr, this.domFault, owner));
     const term = part(node, "alternative-term");
     return { gates, expr, ...(term && { term: this.expression(part(term, "bag")) }) };
   }
@@ -225,15 +233,12 @@ export class DomBuilder {
   }
 
   binder(node) {
-    const name = this.value(node).slice(1);
-    if (!CAPTURE_NAME.test(name)) this.fail(node, "a capture name must use lowercase letters, digits, hyphens or underscores");
-    return name;
+    return this.value(node).slice(1);
   }
 
   gate(node) {
     const negated = this.value(node) === "¬";
     const feature = this.value(leaves(node)[Number(negated)]);
-    if (!FEATURE_NAME.test(feature)) this.fail(node, "invalid feature name");
     return { feature, kind: "gate", negated };
   }
 
@@ -281,10 +286,13 @@ export class DomBuilder {
       case "captured-terminator": {
         if (chain) this.fail(first, "a chain item or separator cannot bind a capture directly");
         const capture = this.binder(first);
+        if (!CAPTURE_NAME.test(capture)) {
+          this.domFault(this.declarationSite, "a capture name must use lowercase letters, digits, hyphens or underscores");
+        }
         if (GROUPS.has(baseFactor(children[1]).rule)) this.fail(first, "a capture wraps one symbol");
         const target = expr(children[1], false, elidable);
         if (!isSymbol(target)) this.fail(first, "a capture wraps one symbol");
-        return this.remember({ capture, expr: target }, first);
+        return { capture, expr: target };
       }
       case "marked-factor": {
         if (blockedPrimary) this.fail(node, "a primary must mark a mandatory child that is not a splice");
@@ -292,15 +300,14 @@ export class DomBuilder {
         if (GROUPS.has(atom.rule) || atom.rule === "splice") this.fail(node, "a primary marks one ungrouped symbol or capture that is not a splice");
         const target = expr(first, false, elidable);
         if (!isSymbol(target) && !Object.hasOwn(target, "capture")) this.fail(node, "a primary marks one symbol or capture");
-        return this.remember({ primary: target }, node);
+        return { primary: target };
       }
       case "tested-factor": {
         if (GROUPS.has(baseFactor(first).rule)) this.fail(children[1], "a test applies to one symbol");
         const tests = this.testOrder(children.slice(1), elidable);
-        const targetIsRule = ["rule-reference", "call", "splice"].includes(baseFactor(first).rule);
         const base = expr();
         if (!isSymbol(base)) this.fail(children[1], "a test applies to one symbol");
-        return this.tests(base, tests, false, targetIsRule);
+        return this.tests(base, tests, false);
       }
       case "ref":
       case "rule-reference":
@@ -308,7 +315,7 @@ export class DomBuilder {
       case "tag":
         return { ref: this.name(node) };
       case "range":
-        return this.remember({ range: children.map(child => this.stringOperand(rules(child)[0])) }, node);
+        return { range: children.map(child => this.stringOperand(rules(child)[0])) };
       case "string-terminal":
         return { literal: this.stringOperand(first) };
       case "wildcard":
@@ -359,24 +366,20 @@ export class DomBuilder {
     return tests;
   }
 
-  tests(base, tests, pattern, targetIsRule) {
+  tests(base, tests, pattern) {
     let result = base;
     for (const test of tests) {
       const at = this.at(test);
       if (test.rule === "tag-test") {
         const requirements = this.requirements(test);
-        const originTest = requirements.findIndex(req => req.value.tag === "_Elided" && (!pattern || !req.negated));
-        if (originTest !== -1 && targetIsRule) {
-          const site = pattern ? part(parts(test, "tag-requirement")[originTest], "test-operand") : test;
-          this.fail(site, "the _Elided origin test applies only to a terminal");
-        }
-        result = this.remember({ test: "tags", requirements, expr: result, at }, test);
+        result = { test: "tags", requirements, expr: result, at };
+        validateOrigin50(result, this.domFault, pattern);
       } else {
         const value = this.stringOperand(rules(test)[0], true);
-        if (test.rule === "value-test") result = this.remember({ test: this.value(test), value, expr: result, at }, test);
+        if (test.rule === "value-test") result = { test: this.value(test), value, expr: result, at };
         else {
           this.defaults ??= new WeakMap();
-          this.defaults.set(result, this.remember(value, test));
+          this.defaults.set(result, value);
         }
       }
     }
@@ -428,13 +431,13 @@ export class DomBuilder {
     else {
       const body = this.body(first);
       if (body.ref !== undefined) {
-        const key = baseFactor(first).rule === "tag" ? "tag" : "rule";
+        const key = /^[A-Z_]/.test(body.ref) ? "tag" : "rule";
         result = { [key]: body.ref, at };
       } else if (isSymbol(body)) result = { ...body, at: body.at ?? at };
       else result = { body, at };
     }
-    validateBindings50(result, (record, message) => this.fail(this.origins.get(record) ?? first, message), { closed: true });
-    return this.remember(result, first);
+    validateBindings50(result, withOwner50(result, this.domFault, result), { closed: true });
+    return result;
   }
 
   expression(node) {
@@ -475,9 +478,6 @@ export class DomBuilder {
         const op = this.value(children[1]);
         const left = expr(first);
         const right = expr(children[2]);
-        if ((op === "≅" || op === "≇") && left.capture === undefined && !left.item) {
-          this.fail(children[1], "a structural comparison needs one capture or bound item on its left");
-        }
         return { op, left, right, at: this.at(children[1]) };
       }
       case "union":
@@ -512,7 +512,7 @@ export class DomBuilder {
       case "atom":
         if (first) return expr(first);
         if (this.value(node) === "∅") return { emptySet: true };
-        return this.remember({ capture: this.value(node) === "$" ? "" : this.binder(node) }, node);
+        return { capture: this.value(node) === "$" ? "" : this.binder(node) };
       case "grouped-expr":
         return children.length === 1 ? expr(first) :
           { if: expr(first), then: expr(children[1]), else: expr(children[2]), at: this.at(operators[1]) };
@@ -525,7 +525,7 @@ export class DomBuilder {
       case "integer": {
         const integer = this.value(node);
         if (!/^(?:0|[1-9][0-9]*)$/.test(integer)) this.fail(node, "an integer cannot start with a leading zero");
-        return this.remember({ integer }, node);
+        return { integer };
       }
       case "constant-reference":
         return { const: this.value(node).slice(1), at: this.at(node) };
@@ -537,7 +537,7 @@ export class DomBuilder {
         return { pattern: this.pattern(node) };
       case "bag": {
         const entries = children.map(child => this.entry(child));
-        validateBag50(entries, (entry, message) => this.fail(children[entries.indexOf(entry)], message));
+        validateBag50(entries, this.domFault);
         return { bag: entries };
       }
       case "list":
@@ -586,7 +586,7 @@ export class DomBuilder {
         const at = part(selector, "integer");
         const integer = this.expression(at).integer;
         if (method === "ngrams" && integer === "0") this.fail(at, "a width must be positive");
-        args.push(this.remember({ integer }, at));
+        args.push({ integer });
         break;
       }
       case "predicate-selector": {
@@ -606,7 +606,7 @@ export class DomBuilder {
         const choice = part(query, "choice");
         const body = this.body(choice, true);
         if (body.chain) this.fail(choice, "a chain cannot be the query target");
-        validateBindings50(body, (record, message) => this.fail(this.origins.get(record) ?? choice, message), { query: true });
+        validateBindings50(body, withOwner50(body, this.domFault, { at: this.at(node) }), { query: true });
         const sequence = [];
         if (this.value(query) === "…") sequence.push({ remainder: true });
         for (const operand of body.seq ?? [body]) sequence.push(operand);
@@ -646,7 +646,7 @@ export class DomBuilder {
       const term = bag && this.expression(bag);
       const value = this.value(selector);
       if (value === "ε") return { insert: true, term, ...suffix };
-      if (value === "$" && !bag) this.fail(selector, "only a braced item can select the whole rule");
+      if (value === "$" && !bag) this.domFault(suffix, "only a braced item can select the whole rule");
       const capture = value === "$" ? "" : this.binder(selector);
       return { capture, ...(term && { term }), ...suffix };
     }
@@ -694,9 +694,7 @@ export class DomBuilder {
         return { any: true, ...(operators.length && { exact: true }), children: this.items(first) };
       case "pattern-node": {
         const { at, ...atom } = this.pattern(first);
-        if (children[1] && !atom.name && !atom.call && !atom.param) {
-          this.fail(children[1], "only a rule atom, call or parameter can have a child list");
-        }
+        if (children[1]) validatePatternChildren50({ ...atom, at: at ?? this.at(first) }, this.domFault);
         return { ...atom, ...(operators.length && { exact: true }),
           ...(children[1] && { children: this.items(children[1]) }), at };
       }
@@ -730,7 +728,7 @@ export class DomBuilder {
             atom = { constant: this.value(first).slice(1), at };
             break;
         }
-        return this.tests(atom, tests, true, ["pattern-rule", "call"].includes(first.rule));
+        return this.tests(atom, tests, true);
       }
       case "parameter":
         return this.parameter(node);
@@ -769,7 +767,7 @@ export class DomBuilder {
       }
       case "child-alternative":
       case "child-item":
-        return first ? this.items(first) : [this.remember({ siblings: true }, node)];
+        return first ? this.items(first) : [{ siblings: true }];
       case "child-primary":
         return first.rule === "child-choice" ? this.items(first) : [{ child: this.pattern(first) }];
       case "child-sequence":

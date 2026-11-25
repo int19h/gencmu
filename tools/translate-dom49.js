@@ -1,6 +1,6 @@
 // Print format 50 source from the written format 49 records. A decision that
 // depends on the intended grammar raises MigrationRequired at the old site.
-import { termType } from "../lib/js/src/dom.js";
+import { capturesUsed, DOM_TRUE, simplify, termType } from "../lib/js/src/dom.js";
 import { SPAN_METHODS } from "../lib/js/src/methods.js";
 import { layeredPatternText } from "../lib/js/src/pattern-shapes.js";
 import { stringName } from "../lib/js/src/tags.js";
@@ -17,6 +17,22 @@ const keyword = (op, noun) => `%${op === "define" ? "" : op + "-"}${noun}`;
 const classifierName = name => `CLASSIFIER-${name}`;
 const bareSymbol = node => ["ref", "call", "param", "literal", "range", "wildcard", "splice", "test", "capture"]
   .some(key => Object.hasOwn(node, key));
+const bindsOnEveryRoute = (node, name) => {
+  if (node.capture === name) return true;
+  if (node.choice || node.ranked) return (node.choice ?? node.ranked).every(part => bindsOnEveryRoute(part, name));
+  if (node.seq) return node.seq.some(part => bindsOnEveryRoute(part, name));
+  if (node.and) return node.and.every(part => bindsOnEveryRoute(part, name));
+  return false;
+};
+
+function skipsAbsentItem(condition, name) {
+  const absent = simplify(condition, capture => capture === name ? false : undefined);
+  if (absent === DOM_TRUE) return true;
+  // A comparison with a required absent operand does not attach to the item.
+  // Require a direct method read so no inner guard can remove that operand.
+  return !!absent.op && [absent.left, absent.right].some(operand =>
+    operand.method && operand.receiver?.capture === name && capturesUsed(operand).includes(name));
+}
 
 // Bound the position of every direct capture on all routes. The carrier must
 // remain mandatory and siblings must occur in the written attachment order.
@@ -157,6 +173,7 @@ class Printer {
     this.repeated = new Set();
     this.bindings = new Set();
     const scalar = new Set();
+    const partialItems = new Set();
     const alternativesWithItem = [];
     const findRepeated = (node, local, inList = false) => {
       if (!node || typeof node !== "object") return;
@@ -168,7 +185,16 @@ class Printer {
         } else scalar.add(node.capture);
       }
       for (const [part, child] of Object.entries(node)) {
-        findRepeated(child, local, inList || (part === "repeat" || part === "separator") && !node.chain);
+        if ((part === "repeat" || part === "separator") && !node.chain) {
+          const captures = new Set();
+          findRepeated(child, captures, true);
+          for (const name of captures) {
+            local.add(name);
+            if (inList || !bindsOnEveryRoute(child, name)) partialItems.add(name);
+          }
+        } else {
+          findRepeated(child, local, inList);
+        }
       }
     };
     for (const alt of item.alternatives ?? []) {
@@ -177,6 +203,7 @@ class Printer {
       alternativesWithItem.push(local);
     }
     this.sharedItems = [...this.repeated].filter(name => !scalar.has(name) && alternativesWithItem.every(local => local.has(name)));
+    this.partialItems = partialItems;
     const head = [keyword(item.op, "rule"), item.name].join(" ") +
       (item.params ? `(${item.params.map(param => "@" + param).join(", ")})` :
         item.args ? `(${item.args.map(arg => this.argument(arg)).join(", ")})` : "");
@@ -249,7 +276,8 @@ class Printer {
         this.hand("Inspect the attachment cover and preserve its selected carrier, children and output strings.");
       }
     }
-    this.changes.push("The old carrier supplies the primary. The parent covers the whole route, and the selected siblings supply display parts.");
+    this.changes.push("The old carrier supplies the primary. The parent covers the whole route, so its place can be wider than the old carrier's.");
+    this.changes.push("The selected siblings supply the display parts.");
     return output.capture;
   }
 
@@ -273,6 +301,10 @@ class Printer {
       this.hand("Preserve the item frame and its co-bound operands.");
     }
     const [name] = names;
+    if (this.partialItems.has(name)) {
+      if (!skipsAbsentItem(node, name)) this.hand("An item route can omit this capture. A predicate over the list would skip that item.");
+      this.changes.push("An item without the capture satisfies the old condition or receives no copy of it.");
+    }
     while (used.has(local) || this.repeated.has(local) || this.bindings.has(local)) local += "-item";
     this.item = { name, local };
     try {

@@ -13,7 +13,7 @@
     "expected": {
       "document": "main.md",
       "line": 3,
-      "column": 23,
+      "column": 1,
       "description": "a route binds $x twice"
     }
   },
@@ -22,7 +22,7 @@
     "expected": {
       "document": "main.md",
       "line": 3,
-      "column": 23,
+      "column": 1,
       "description": "a route binds $x twice"
     }
   },
@@ -31,7 +31,7 @@
     "expected": {
       "document": "main.md",
       "line": 3,
-      "column": 16,
+      "column": 1,
       "description": "a route binds $a twice"
     }
   },
@@ -49,7 +49,7 @@
     "expected": {
       "document": "b.md",
       "line": 2,
-      "column": 13,
+      "column": 1,
       "description": "a route binds $x twice"
     }
   },
@@ -58,7 +58,7 @@
     "expected": {
       "document": "b.md",
       "line": 2,
-      "column": 13,
+      "column": 1,
       "description": "a route binds $x twice"
     }
   },
@@ -844,7 +844,7 @@
     "expected": {
       "description": "the default does not pass the omission predicate",
       "line": 2,
-      "column": 23
+      "column": 1
     }
   },
   "notation/267-default-off-head.json": {
@@ -1022,7 +1022,7 @@
     "reason": "The same written operand causes a retained fault at the original position.",
     "expected": {
       "line": 2,
-      "column": 9,
+      "column": 1,
       "description": "a capture name must use lowercase letters, digits, hyphens or underscores"
     }
   },
@@ -1046,7 +1046,7 @@
     "reason": "The same written operand causes a retained fault at the original position.",
     "expected": {
       "line": 2,
-      "column": 9,
+      "column": 1,
       "description": "a capture name must use lowercase letters, digits, hyphens or underscores"
     }
   },
@@ -1079,7 +1079,7 @@
     "reason": "The same written operand causes a retained fault at the original position.",
     "expected": {
       "line": 2,
-      "column": 23,
+      "column": 1,
       "description": "a route binds $x twice"
     }
   },
@@ -1087,7 +1087,7 @@
     "reason": "The same written operand causes a retained fault at the original position.",
     "expected": {
       "line": 2,
-      "column": 15,
+      "column": 1,
       "description": "a route binds $x twice"
     }
   },
@@ -1095,7 +1095,7 @@
     "reason": "The same written operand causes a retained fault at the original position.",
     "expected": {
       "line": 2,
-      "column": 25,
+      "column": 1,
       "description": "a route binds $y twice"
     }
   },
@@ -1103,7 +1103,7 @@
     "reason": "The same written operand causes a retained fault at the original position.",
     "expected": {
       "line": 2,
-      "column": 20,
+      "column": 1,
       "description": "a route binds $x twice"
     }
   },
@@ -1111,7 +1111,7 @@
     "reason": "The same written operand causes a retained fault at the original position.",
     "expected": {
       "line": 2,
-      "column": 13,
+      "column": 1,
       "description": "a route binds $a twice"
     }
   },
@@ -1119,7 +1119,7 @@
     "reason": "The same written operand causes a retained fault at the original position.",
     "expected": {
       "line": 2,
-      "column": 302,
+      "column": 1,
       "description": "a route binds $c0 twice"
     }
   },
@@ -1127,7 +1127,7 @@
     "reason": "The same written operand causes a retained fault at the original position.",
     "expected": {
       "line": 2,
-      "column": 31,
+      "column": 1,
       "description": "a route binds $x twice"
     }
   },
@@ -1135,7 +1135,7 @@
     "reason": "The same written operand causes a retained fault at the original position.",
     "expected": {
       "line": 2,
-      "column": 17,
+      "column": 1,
       "description": "a route binds $x twice"
     }
   },
@@ -1388,7 +1388,7 @@
     "reason": "The same written operand causes a retained fault at the original position.",
     "expected": {
       "line": 4,
-      "column": 27,
+      "column": 14,
       "description": "a query cannot declare captures"
     }
   },
@@ -1396,7 +1396,7 @@
     "reason": "The same written operand causes a retained fault at the original position.",
     "expected": {
       "line": 4,
-      "column": 24,
+      "column": 14,
       "description": "a query cannot declare captures"
     }
   },
@@ -1404,7 +1404,7 @@
     "reason": "The same written operand causes a retained fault at the original position.",
     "expected": {
       "line": 4,
-      "column": 26,
+      "column": 14,
       "description": "a query cannot declare captures"
     }
   },
@@ -1412,7 +1412,7 @@
     "reason": "The same written operand causes a retained fault at the original position.",
     "expected": {
       "line": 4,
-      "column": 21,
+      "column": 14,
       "description": "a query cannot declare captures"
     }
   },
@@ -1447,7 +1447,7 @@
     "reason": "The same written operand causes a retained fault at the original position.",
     "expected": {
       "line": 2,
-      "column": 13,
+      "column": 1,
       "description": "a route binds $x twice"
     }
   },
@@ -1455,7 +1455,7 @@
     "reason": "The same written operand causes a retained fault at the original position.",
     "expected": {
       "line": 2,
-      "column": 17,
+      "column": 1,
       "description": "a route binds $x twice"
     }
   },
@@ -1479,7 +1479,7 @@
     "reason": "The same written operand causes a retained fault at the original position.",
     "expected": {
       "line": 2,
-      "column": 12,
+      "column": 1,
       "description": "a capture name must use lowercase letters, digits, hyphens or underscores"
     }
   },
@@ -2107,7 +2107,7 @@
     "reason": "The same written operand causes a retained fault at the original position.",
     "expected": {
       "line": 3,
-      "column": 19,
+      "column": 18,
       "description": "only a rule atom, call or parameter can have a child list"
     }
   },
@@ -2115,7 +2115,7 @@
     "reason": "The same written operand causes a retained fault at the original position.",
     "expected": {
       "line": 3,
-      "column": 19,
+      "column": 18,
       "description": "only a rule atom, call or parameter can have a child list"
     }
   },
@@ -2123,7 +2123,7 @@
     "reason": "The same written operand causes a retained fault at the original position.",
     "expected": {
       "line": 3,
-      "column": 25,
+      "column": 18,
       "description": "only a rule atom, call or parameter can have a child list"
     }
   },
@@ -2131,7 +2131,7 @@
     "reason": "The same written operand causes a retained fault at the original position.",
     "expected": {
       "line": 3,
-      "column": 22,
+      "column": 19,
       "description": "only a rule atom, call or parameter can have a child list"
     }
   },
@@ -2139,7 +2139,7 @@
     "reason": "The same written operand causes a retained fault at the original position.",
     "expected": {
       "line": 3,
-      "column": 21,
+      "column": 18,
       "description": "only a rule atom, call or parameter can have a child list"
     }
   },
@@ -2566,7 +2566,7 @@
     "reason": "The same written operand causes a retained fault at the original position.",
     "expected": {
       "line": 2,
-      "column": 24,
+      "column": 1,
       "description": "a route binds $y twice"
     }
   },
@@ -3018,7 +3018,7 @@
     "reason": "The same written operand causes a retained fault at the original position.",
     "expected": {
       "line": 2,
-      "column": 28,
+      "column": 1,
       "description": "a route binds $y twice"
     }
   },
@@ -3026,7 +3026,7 @@
     "reason": "The same written operand causes a retained fault at the original position.",
     "expected": {
       "line": 2,
-      "column": 22,
+      "column": 1,
       "description": "a route binds $x twice"
     }
   },
@@ -3281,7 +3281,7 @@
     "reason": "The same written operand causes a retained fault at the original position.",
     "expected": {
       "line": 2,
-      "column": 9,
+      "column": 1,
       "description": "a capture name must use lowercase letters, digits, hyphens or underscores"
     }
   },
@@ -3432,21 +3432,39 @@
     "expected": {
       "document": "notation.md",
       "line": 2,
-      "column": 17,
+      "column": 1,
       "description": "a route binds $c twice"
     }
   },
   "notation/classifier-class-lower.json": {
-    "retired": "A classifier table uses ordinary bag keys. The class name no longer needs a final capital.",
-    "section": "Engine §2, Classification"
+    "reason": "A classifier table uses ordinary bag keys. The class name no longer needs a final capital.",
+    "section": "Engine §2, Classification",
+    "native": true,
+    "load": true,
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%const $TABLE {koha: \"mi\"}\n%const $CHECK $TABLE.classify(\"mi\")\n%rule text ε\n```\n"
+    },
+    "entry": "main.md"
   },
   "notation/classifier-class-mark.json": {
-    "retired": "A classifier table uses ordinary bag keys. The class name no longer needs a final capital.",
-    "section": "Engine §2, Classification"
+    "reason": "A classifier table uses ordinary bag keys. The class name no longer needs a final capital.",
+    "section": "Engine §2, Classification",
+    "native": true,
+    "load": true,
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%const $TABLE {Indicator: \"ui\"}\n%const $CHECK $TABLE.classify(\"ui\")\n%rule text ε\n```\n"
+    },
+    "entry": "main.md"
   },
   "notation/classifier-class-phoneme.json": {
-    "retired": "A classifier table uses ordinary bag keys. The class name no longer needs a final capital.",
-    "section": "Engine §2, Classification"
+    "reason": "A classifier table uses ordinary bag keys. The class name no longer needs a final capital.",
+    "section": "Engine §2, Classification",
+    "native": true,
+    "load": true,
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%const $TABLE {Sound-0061-s: \"a\"}\n%const $CHECK $TABLE.classify(\"a\")\n%rule text ε\n```\n"
+    },
+    "entry": "main.md"
   },
   "notation/classify-in-implication.json": {
     "retired": "The format 50 classifier and explicit suppliers replace the old implication declaration.",
@@ -3457,7 +3475,7 @@
     "expected": {
       "document": "notation.md",
       "line": 2,
-      "column": 7,
+      "column": 1,
       "description": "a rule head needs all parameters or an exact instance edit"
     }
   },
@@ -3466,7 +3484,7 @@
     "expected": {
       "document": "notation.md",
       "line": 2,
-      "column": 12,
+      "column": 1,
       "description": "a capture name must use lowercase letters, digits, hyphens or underscores"
     }
   },
@@ -3574,7 +3592,7 @@
     "expected": {
       "document": "notation.md",
       "line": 2,
-      "column": 13,
+      "column": 1,
       "description": "duplicate parameter @X"
     }
   },
@@ -3668,7 +3686,7 @@
     "expected": {
       "document": "notation.md",
       "line": 2,
-      "column": 7,
+      "column": 1,
       "description": "a rule head needs all parameters or an exact instance edit"
     }
   },
@@ -3757,7 +3775,7 @@
     "expected": {
       "document": "notation.md",
       "line": 2,
-      "column": 7,
+      "column": 1,
       "description": "a rule name must begin with a lowercase letter or be an emoji name"
     }
   },
@@ -3852,15 +3870,21 @@
     }
   },
   "notation/values-recipe-parentheses.json": {
-    "retired": "A string supplier is an expression. It can contain parentheses and method arguments.",
-    "section": "Engine §10"
+    "reason": "A string supplier is an expression. It can contain parentheses and method arguments.",
+    "section": "Engine §10",
+    "native": true,
+    "load": true,
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule r ^A → {value: (\"v\")}\n%rule text r\n```\n"
+    },
+    "entry": "main.md"
   },
   "notation/whole-constituent-wraps.json": {
     "reason": "The same written token causes the retained fault at the original position.",
     "expected": {
       "document": "notation.md",
       "line": 2,
-      "column": 9,
+      "column": 1,
       "description": "a capture name must use lowercase letters, digits, hyphens or underscores"
     }
   },
@@ -3884,7 +3908,6 @@
   },
   "notation/boundary-before-erased-recipe.json": {
     "reason": "The same condition contains two boundary atoms.",
-    "native": true,
     "section": "Engine §§4.2, 9.3",
     "entry": "pipeline.md",
     "documents": {
@@ -3895,7 +3918,8 @@
       "kind": "grammar",
       "document": "notation.md",
       "line": 4,
-      "column": 34
+      "column": 34,
+      "description": "a condition item cannot have more than one boundary atom"
     }
   },
   "notation/capture-unknown.json": {
@@ -3909,12 +3933,12 @@
     "expected": {
       "document": "notation.md",
       "line": 3,
-      "column": 14,
+      "column": 17,
       "description": "$y is captured by no alternative of a"
     }
   },
   "notation/conditions-parenthesized.json": {
-    "reason": "Keep the condition and its written capture scopes. No expansion can supply all required bindings.",
+    "reason": "No expansion can supply the captures of this condition after simplification. The clause uses its declaration's position.",
     "native": true,
     "section": "Engine §§3.6, 9.3",
     "entry": "pipeline.md",
@@ -3925,7 +3949,7 @@
     "expected": {
       "kind": "grammar",
       "document": "notation.md",
-      "line": 5,
+      "line": 2,
       "column": 1
     }
   },
@@ -3940,13 +3964,19 @@
     "expected": {
       "document": "notation.md",
       "line": 2,
-      "column": 18,
+      "column": 16,
       "description": "a constant cannot read a capture outside its function scope"
     }
   },
   "notation/const-value-guarded.json": {
-    "retired": "A constant can evaluate a closed conditional expression.",
-    "section": "Engine §§2, 10"
+    "reason": "A constant can evaluate a closed conditional expression.",
+    "section": "Engine §§2, 10",
+    "native": true,
+    "load": true,
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%const $A ({A} ⊆ {B} ? {C} | {})\n%rule text ε\n```\n"
+    },
+    "entry": "main.md"
   },
   "notation/const-value-open-kind.json": {
     "retired": "The expression now distinguishes lists, key sets and empty patterns by their syntax. The old typeless set literal is gone.",
@@ -3963,7 +3993,7 @@
     "expected": {
       "document": "notation.md",
       "line": 2,
-      "column": 11,
+      "column": 13,
       "description": "a constant cannot read a capture outside its function scope"
     }
   },
@@ -3978,7 +4008,7 @@
     "expected": {
       "document": "notation.md",
       "line": 2,
-      "column": 11,
+      "column": 13,
       "description": "a constant cannot read a capture outside its function scope"
     }
   },
@@ -4023,8 +4053,8 @@
     },
     "expected": {
       "document": "notation.md",
-      "line": 3,
-      "column": 13,
+      "line": 2,
+      "column": 1,
       "description": "$q is captured by no alternative of a"
     }
   },
@@ -4038,8 +4068,8 @@
     },
     "expected": {
       "document": "notation.md",
-      "line": 3,
-      "column": 13,
+      "line": 2,
+      "column": 1,
       "description": "$q is captured by no alternative of a"
     }
   },
@@ -4075,7 +4105,6 @@
   },
   "notation/diagnostic-method-condition.json": {
     "reason": "The condition still returns a string. A string has no truth conversion.",
-    "native": true,
     "section": "Engine §10, Operators and truth",
     "entry": "pipeline.md",
     "documents": {
@@ -4086,7 +4115,8 @@
       "kind": "grammar",
       "document": "notation.md",
       "line": 3,
-      "column": 33
+      "column": 33,
+      "description": "this operand does not have a truth value"
     }
   },
   "notation/diagnostic-method-restored.json": {
@@ -4106,8 +4136,14 @@
     }
   },
   "notation/emit-anchor-missing.json": {
-    "retired": "The next surviving cover determines an insertion anchor. An absent cover leaves no invalid named anchor.",
-    "section": "Engine §11.1"
+    "reason": "The next surviving cover determines an insertion anchor. An absent cover leaves no invalid named anchor.",
+    "section": "Engine §11.1",
+    "native": true,
+    "load": true,
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule a $x:A$y:B| $x:A%emit $x,  ε{T, image: value: \"\"}, $y\n%rule text a\n```\n"
+    },
+    "entry": "main.md"
   },
   "notation/emit-item-unknown-capture.json": {
     "reason": "The clause still reads a name with no written binding in this definition.",
@@ -4125,8 +4161,14 @@
     }
   },
   "notation/emit-nothing-left.json": {
-    "retired": "A skipped or absent output item can leave the publication empty.",
-    "section": "Engine §11.1"
+    "reason": "A skipped or absent output item can leave the publication empty.",
+    "section": "Engine §11.1",
+    "native": true,
+    "load": true,
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule a $x:A| B %emit $x\n%rule text a\n```\n"
+    },
+    "entry": "main.md"
   },
   "notation/emoji-invalid-stray-parameter.json": {
     "reason": "The same written parameter has no declaration.",
@@ -4145,8 +4187,14 @@
     }
   },
   "notation/item-capture-in-ranked.json": {
-    "retired": "Flat braces can bind node lists inside a ranked option. The option keeps their scope.",
-    "section": "Engine §§2.1, 3.5"
+    "reason": "Flat braces can bind node lists inside a ranked option. The option keeps their scope.",
+    "section": "Engine §§2.1, 3.5",
+    "native": true,
+    "load": true,
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule a { X ( $c:Y ≻ V ) }\n%rule text a\n```\n"
+    },
+    "entry": "main.md"
   },
   "notation/own-tags.json": {
     "reason": "The working bag reads its own unfinished key set or requires its own key in the root pattern.",
@@ -4161,7 +4209,7 @@
       "kind": "grammar",
       "document": "notation.md",
       "line": 2,
-      "column": 19
+      "column": 18
     }
   },
   "notation/property-in-tag-term.json": {
@@ -4191,7 +4239,7 @@
     "expected": {
       "document": "notation.md",
       "line": 2,
-      "column": 12,
+      "column": 1,
       "description": "a range endpoint must be one scalar"
     }
   },
@@ -4206,7 +4254,7 @@
     "expected": {
       "document": "notation.md",
       "line": 2,
-      "column": 15,
+      "column": 1,
       "description": "a range starts above its end"
     }
   },
@@ -4216,7 +4264,6 @@
   },
   "notation/template-boundary-item-at-second-atom.json": {
     "reason": "The same condition contains two boundary atoms.",
-    "native": true,
     "section": "Engine §§4.2, 9.3",
     "entry": "pipeline.md",
     "documents": {
@@ -4227,11 +4274,12 @@
       "kind": "grammar",
       "document": "notation.md",
       "line": 3,
-      "column": 35
+      "column": 35,
+      "description": "a condition item cannot have more than one boundary atom"
     }
   },
   "notation/template-definition-inapplicable-condition.json": {
-    "reason": "Keep the condition and its written capture scopes. No expansion can supply all required bindings.",
+    "reason": "No expansion can supply the captures of this condition after simplification. The clause uses its declaration's position.",
     "native": true,
     "section": "Engine §§3.6, 9.3",
     "entry": "pipeline.md",
@@ -4242,7 +4290,7 @@
     "expected": {
       "kind": "grammar",
       "document": "notation.md",
-      "line": 5,
+      "line": 2,
       "column": 1
     }
   },
@@ -4257,7 +4305,7 @@
     "expected": {
       "document": "notation.md",
       "line": 2,
-      "column": 23,
+      "column": 25,
       "description": "$y is captured by no alternative of pair"
     }
   },
@@ -4278,16 +4326,49 @@
     }
   },
   "notation/tree-reflexive-not.json": {
-    "retired": "Constituent comparison accepts two bound nodes, including two reads of the same node.",
-    "section": "Engine §§4.1, 10"
+    "reason": "Keep the same binding on both sides of the structural comparison.",
+    "section": "Engine §10, Operators and truth",
+    "expected": {
+      "kind": "grammar",
+      "document": "main.md",
+      "line": 5,
+      "column": 16,
+      "description": "a structural comparison cannot compare a binding with itself"
+    },
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text $x:A\n%conditions $x ≇ $x\n```\n"
+    },
+    "entry": "main.md"
   },
   "notation/tree-reflexive-whole.json": {
-    "retired": "Constituent comparison accepts two bound nodes, including two reads of the same node.",
-    "section": "Engine §§4.1, 10"
+    "reason": "Keep the same binding on both sides of the structural comparison.",
+    "section": "Engine §10, Operators and truth",
+    "expected": {
+      "kind": "grammar",
+      "document": "main.md",
+      "line": 5,
+      "column": 15,
+      "description": "a structural comparison cannot compare a binding with itself"
+    },
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text $x:A\n%conditions $ ≅ $\n```\n"
+    },
+    "entry": "main.md"
   },
   "notation/tree-reflexive.json": {
-    "retired": "Constituent comparison accepts two bound nodes, including two reads of the same node.",
-    "section": "Engine §§4.1, 10"
+    "reason": "Keep the same binding on both sides of the structural comparison.",
+    "section": "Engine §10, Operators and truth",
+    "expected": {
+      "kind": "grammar",
+      "document": "main.md",
+      "line": 5,
+      "column": 16,
+      "description": "a structural comparison cannot compare a binding with itself"
+    },
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text $x:A\n%conditions $x ≅ $x\n```\n"
+    },
+    "entry": "main.md"
   },
   "notation/type-open-kind.json": {
     "retired": "The expression now distinguishes lists, key sets and empty patterns by their syntax. The old typeless set literal is gone.",
@@ -4295,7 +4376,6 @@
   },
   "notation/uncalled-template-boundary-item.json": {
     "reason": "The same condition contains two boundary atoms.",
-    "native": true,
     "section": "Engine §§4.2, 9.3",
     "entry": "pipeline.md",
     "documents": {
@@ -4306,7 +4386,8 @@
       "kind": "grammar",
       "document": "notation.md",
       "line": 3,
-      "column": 34
+      "column": 34,
+      "description": "a condition item cannot have more than one boundary atom"
     }
   },
   "notation/without-elision-except-family-receiver.json": {
@@ -4410,7 +4491,7 @@
     "expected": {
       "document": "notation.md",
       "line": 3,
-      "column": 13,
+      "column": 15,
       "description": "$y is captured by no alternative of a"
     }
   },
@@ -4475,44 +4556,104 @@
     }
   },
   "engine/capture-optional-emits-nothing.json": {
-    "retired": "A skipped or absent output item can leave the publication empty.",
-    "section": "Engine §11.1"
+    "reason": "A skipped or absent output item can leave the publication empty.",
+    "section": "Engine §11.1",
+    "native": true,
+    "load": true,
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text A [ $b:B]\n%emit $b\n```\n"
+    },
+    "entry": "main.md"
   },
   "engine/clause-guarded-consequent-true.json": {
-    "retired": "A presence guard can simplify an alternative to a closed condition. Constant truth and falsehood are legal conditions.",
-    "section": "Engine §§3.6, 10"
+    "reason": "A presence guard can simplify an alternative to a closed condition. Constant truth and falsehood are legal conditions.",
+    "section": "Engine §§3.6, 10",
+    "native": true,
+    "load": true,
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text $c:A | $d:B\n%conditions $c ⟹ {Word}\n```\n"
+    },
+    "entry": "main.md"
   },
   "engine/clause-parse-query-condition-applies-nowhere.json": {
-    "retired": "A presence guard can simplify an alternative to a closed condition. Constant truth and falsehood are legal conditions.",
-    "section": "Engine §§3.6, 10"
+    "reason": "The route with $d makes the premise false. This makes the implication true on that route.",
+    "section": "Engine §9.3, Definition checks",
+    "native": true,
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text $c:A | $d:B\n%conditions $c ⟹ $d.parse(other)\n%rule other B\n```\n"
+    },
+    "entry": "main.md",
+    "load": true
   },
   "engine/closed-set-resolved-both-guards.json": {
-    "retired": "A presence guard can simplify an alternative to a closed condition. Constant truth and falsehood are legal conditions.",
-    "section": "Engine §§3.6, 10"
+    "reason": "A presence guard can simplify an alternative to a closed condition. Constant truth and falsehood are legal conditions.",
+    "section": "Engine §§3.6, 10",
+    "native": true,
+    "load": true,
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text $c:A $d:B\n%conditions {$c? Word} ∪ {$d? Other}\n```\n"
+    },
+    "entry": "main.md"
   },
   "engine/closed-set-resolved-difference.json": {
-    "retired": "A presence guard can simplify an alternative to a closed condition. Constant truth and falsehood are legal conditions.",
-    "section": "Engine §§3.6, 10"
+    "reason": "A presence guard can simplify an alternative to a closed condition. Constant truth and falsehood are legal conditions.",
+    "section": "Engine §§3.6, 10",
+    "native": true,
+    "load": true,
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text $c:A | $d:B\n%conditions ({$c? Word} ∪ {Other}) ∖ {Third}\n```\n"
+    },
+    "entry": "main.md"
   },
   "engine/closed-set-resolved-disjunction.json": {
-    "retired": "A presence guard can simplify an alternative to a closed condition. Constant truth and falsehood are legal conditions.",
-    "section": "Engine §§3.6, 10"
+    "reason": "A presence guard can simplify an alternative to a closed condition. Constant truth and falsehood are legal conditions.",
+    "section": "Engine §§3.6, 10",
+    "native": true,
+    "load": true,
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text $c:A | $d:B\n%conditions ({$c? Word} ∪ {Other}) ∨ $c\n```\n"
+    },
+    "entry": "main.md"
   },
   "engine/closed-set-resolved-fixed-premise-disjunction.json": {
-    "retired": "A presence guard can simplify an alternative to a closed condition. Constant truth and falsehood are legal conditions.",
-    "section": "Engine §§3.6, 10"
+    "reason": "A presence guard can simplify an alternative to a closed condition. Constant truth and falsehood are legal conditions.",
+    "section": "Engine §§3.6, 10",
+    "native": true,
+    "load": true,
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text $c:A | $d:B\n%conditions ({{Word}? Other} ∪ {Third}) ∨ $c'value = \"a\"\n```\n"
+    },
+    "entry": "main.md"
   },
   "engine/closed-set-resolved-fixed-premise.json": {
-    "retired": "A presence guard can simplify an alternative to a closed condition. Constant truth and falsehood are legal conditions.",
-    "section": "Engine §§3.6, 10"
+    "reason": "A presence guard can simplify an alternative to a closed condition. Constant truth and falsehood are legal conditions.",
+    "section": "Engine §§3.6, 10",
+    "native": true,
+    "load": true,
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text $c:A $d:B\n%conditions {{Word}? Other} ∪ {Third}\n```\n"
+    },
+    "entry": "main.md"
   },
   "engine/closed-set-resolved-intersection.json": {
-    "retired": "A presence guard can simplify an alternative to a closed condition. Constant truth and falsehood are legal conditions.",
-    "section": "Engine §§3.6, 10"
+    "reason": "A presence guard can simplify an alternative to a closed condition. Constant truth and falsehood are legal conditions.",
+    "section": "Engine §§3.6, 10",
+    "native": true,
+    "load": true,
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text $c:A | $d:B\n%conditions ({$c? Word} ∪ {Word}) ∩ {Word}\n```\n"
+    },
+    "entry": "main.md"
   },
   "engine/closed-set-resolved-union.json": {
-    "retired": "A presence guard can simplify an alternative to a closed condition. Constant truth and falsehood are legal conditions.",
-    "section": "Engine §§3.6, 10"
+    "reason": "A presence guard can simplify an alternative to a closed condition. Constant truth and falsehood are legal conditions.",
+    "section": "Engine §§3.6, 10",
+    "native": true,
+    "load": true,
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text $c:A | $d:B\n%conditions {$c? Word} ∪ {Other}\n```\n"
+    },
+    "entry": "main.md"
   },
   "engine/concat-reject-closed-capture.json": {
     "reason": "A constant expression cannot read the written capture outside a function binding.",
@@ -4525,7 +4666,7 @@
     "expected": {
       "document": "main.md",
       "line": 3,
-      "column": 12,
+      "column": 14,
       "description": "a constant cannot read a capture outside its function scope"
     }
   },
@@ -4540,12 +4681,12 @@
     "expected": {
       "document": "main.md",
       "line": 6,
-      "column": 23,
+      "column": 25,
       "description": "$z is captured by no alternative of text"
     }
   },
   "engine/deferral-condition.json": {
-    "reason": "Keep the condition and its written capture scopes. No expansion can supply all required bindings.",
+    "reason": "No expansion can supply the captures of this condition after simplification. The clause uses its declaration's position.",
     "native": true,
     "section": "Engine §§3.6, 9.3",
     "entry": "pipeline.md",
@@ -4556,29 +4697,28 @@
     "expected": {
       "kind": "grammar",
       "document": "main.md",
-      "line": 4,
+      "line": 3,
       "column": 1
     }
   },
   "engine/i276-message-absent.json": {
-    "reason": "The clause keeps its unguarded read on a route without the required capture.",
-    "native": true,
+    "reason": "Write out the routes so one alternative still lacks the binding that the clause reads.",
     "section": "Engine §9.3, Definition checks",
     "entry": "pipeline.md",
     "documents": {
       "pipeline.md": "```jbogenbau\n%stage main\n%include \"main.md\"\n```\n",
-      "main.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text [$x:A]\n%error $x.span.tokens!'value.join()\n```\n"
+      "main.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text $x:A | ε\n%error $x.span.tokens!'value.join()\n```\n"
     },
     "expected": {
       "kind": "grammar",
       "document": "main.md",
       "line": 4,
-      "column": 8
+      "column": 10,
+      "description": "$x is absent from this expansion"
     }
   },
   "engine/i276-message-captured-terminator-reason.json": {
-    "reason": "The clause keeps its unguarded read on a route without the required capture.",
-    "native": true,
+    "reason": "The terminator slot can be empty. Keep the invalid span read on that list in its diagnostic.",
     "section": "Engine §9.3, Definition checks",
     "entry": "pipeline.md",
     "documents": {
@@ -4589,23 +4729,24 @@
       "kind": "grammar",
       "document": "main.md",
       "line": 5,
-      "column": 18
+      "column": 20,
+      "description": "a method has the wrong receiver or arguments"
     }
   },
   "engine/i276-message-optional-capture-reason.json": {
-    "reason": "The clause keeps its unguarded read on a route without the required capture.",
-    "native": true,
+    "reason": "Write out the routes so one alternative still lacks the binding that the clause reads.",
     "section": "Engine §9.3, Definition checks",
     "entry": "pipeline.md",
     "documents": {
       "pipeline.md": "```jbogenbau\n%stage main\n%include \"main.md\"\n```\n",
-      "main.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text item\n%rule item [$j:B] A\n%warning (\"w\" ++ $j.span.tokens!'value.join())\n```\n"
+      "main.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text item\n%rule item A | $j:B A\n%warning (\"w\" ++ $j.span.tokens!'value.join())\n```\n"
     },
     "expected": {
       "kind": "grammar",
       "document": "main.md",
       "line": 5,
-      "column": 18
+      "column": 20,
+      "description": "$j is absent from this expansion"
     }
   },
   "engine/issue314-unknown-condition-capture.json": {
@@ -4619,7 +4760,7 @@
     "expected": {
       "document": "main.md",
       "line": 4,
-      "column": 13,
+      "column": 15,
       "description": "$x is captured by no alternative of text"
     }
   },
@@ -4634,13 +4775,12 @@
     "expected": {
       "document": "main.md",
       "line": 3,
-      "column": 31,
-      "description": "$c is captured by no alternative of text"
+      "column": 33,
+      "description": "$c is absent from this expansion"
     }
   },
   "engine/issue315-recipe-absent-error.json": {
     "reason": "The clause keeps its unguarded read on a route without the required capture.",
-    "native": true,
     "section": "Engine §9.3, Definition checks",
     "entry": "pipeline.md",
     "documents": {
@@ -4651,12 +4791,12 @@
       "kind": "grammar",
       "document": "main.md",
       "line": 6,
-      "column": 8
+      "column": 10,
+      "description": "$c is absent from this expansion"
     }
   },
   "engine/issue315-recipe-absent-header.json": {
     "reason": "The clause keeps its unguarded read on a route without the required capture.",
-    "native": true,
     "section": "Engine §9.3, Definition checks",
     "entry": "pipeline.md",
     "documents": {
@@ -4667,44 +4807,44 @@
       "kind": "grammar",
       "document": "main.md",
       "line": 3,
-      "column": 29
+      "column": 31,
+      "description": "$c is absent from this expansion"
     }
   },
   "engine/issue315-recipe-absent-nested-error.json": {
-    "reason": "The clause keeps its unguarded read on a route without the required capture.",
-    "native": true,
+    "reason": "Write out the routes so one alternative still lacks the binding that the clause reads.",
     "section": "Engine §9.3, Definition checks",
     "entry": "pipeline.md",
     "documents": {
       "pipeline.md": "```jbogenbau\n%stage main\n%include \"main.md\"\n```\n",
-      "main.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text ($c:A | B) C\n%error $c.span.tokens!'value.join()\n```\n"
+      "main.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text $c:A C | B C\n%error $c.span.tokens!'value.join()\n```\n"
     },
     "expected": {
       "kind": "grammar",
       "document": "main.md",
       "line": 4,
-      "column": 8
+      "column": 10,
+      "description": "$c is absent from this expansion"
     }
   },
   "engine/issue315-recipe-absent-nested-warning.json": {
-    "reason": "The clause keeps its unguarded read on a route without the required capture.",
-    "native": true,
+    "reason": "Write out the routes so one alternative still lacks the binding that the clause reads.",
     "section": "Engine §9.3, Definition checks",
     "entry": "pipeline.md",
     "documents": {
       "pipeline.md": "```jbogenbau\n%stage main\n%include \"main.md\"\n```\n",
-      "main.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text ($c:A | B) C\n%warning $c.span.tokens!'value.join()\n```\n"
+      "main.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text $c:A C | B C\n%warning $c.span.tokens!'value.join()\n```\n"
     },
     "expected": {
       "kind": "grammar",
       "document": "main.md",
       "line": 4,
-      "column": 10
+      "column": 12,
+      "description": "$c is absent from this expansion"
     }
   },
   "engine/issue315-recipe-absent-warning.json": {
     "reason": "The clause keeps its unguarded read on a route without the required capture.",
-    "native": true,
     "section": "Engine §9.3, Definition checks",
     "entry": "pipeline.md",
     "documents": {
@@ -4715,7 +4855,8 @@
       "kind": "grammar",
       "document": "main.md",
       "line": 6,
-      "column": 10
+      "column": 12,
+      "description": "$c is absent from this expansion"
     }
   },
   "engine/issue315-undefined-capture-alternative-tags-before-error.json": {
@@ -4729,7 +4870,7 @@
     "expected": {
       "document": "main.md",
       "line": 3,
-      "column": 18,
+      "column": 20,
       "description": "$c is captured by no alternative of text"
     }
   },
@@ -4744,7 +4885,7 @@
     "expected": {
       "document": "main.md",
       "line": 4,
-      "column": 14,
+      "column": 16,
       "description": "$c is captured by no alternative of text"
     }
   },
@@ -4759,7 +4900,7 @@
     "expected": {
       "document": "main.md",
       "line": 4,
-      "column": 8,
+      "column": 10,
       "description": "$c is captured by no alternative of text"
     }
   },
@@ -4844,24 +4985,54 @@
     }
   },
   "engine/query-closed-ngrams.json": {
-    "retired": "A list uses nonemptiness in a truth position. A closed list condition is legal.",
-    "section": "Engine §§3.6, 10"
+    "reason": "A list uses nonemptiness in a truth position. A closed list condition is legal.",
+    "section": "Engine §§3.6, 10",
+    "native": true,
+    "load": true,
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text \"a\"\n%conditions \"ab\".ngrams(1)\n```\n"
+    },
+    "entry": "main.md"
   },
   "engine/query-closed-split.json": {
-    "retired": "A list uses nonemptiness in a truth position. A closed list condition is legal.",
-    "section": "Engine §§3.6, 10"
+    "reason": "A list uses nonemptiness in a truth position. A closed list condition is legal.",
+    "section": "Engine §§3.6, 10",
+    "native": true,
+    "load": true,
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text \"a\"\n%conditions \"a b\".split(\" \")\n```\n"
+    },
+    "entry": "main.md"
   },
   "engine/query-conditions-closed-set.json": {
-    "retired": "A presence guard can simplify an alternative to a closed condition. Constant truth and falsehood are legal conditions.",
-    "section": "Engine §§3.6, 10"
+    "reason": "A presence guard can simplify an alternative to a closed condition. Constant truth and falsehood are legal conditions.",
+    "section": "Engine §§3.6, 10",
+    "native": true,
+    "load": true,
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text A\n%conditions {Word}\n```\n"
+    },
+    "entry": "main.md"
   },
   "engine/query-conditions-empty-set-disjunct.json": {
-    "retired": "An empty key set can supply false in any truth position.",
-    "section": "Engine §10"
+    "reason": "An empty key set can supply false in any truth position.",
+    "section": "Engine §10",
+    "native": true,
+    "load": true,
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text [$y:word2] A\n%conditions $y ∨ {}\n%rule word2 B\n```\n"
+    },
+    "entry": "main.md"
   },
   "engine/query-conditions-empty-set.json": {
-    "retired": "An empty key set can supply false in any truth position.",
-    "section": "Engine §10"
+    "reason": "An empty key set can supply false in any truth position.",
+    "section": "Engine §10",
+    "native": true,
+    "load": true,
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text {_}\n%conditions {}\n```\n"
+    },
+    "entry": "main.md"
   },
   "engine/query-contains-restored-load-error.json": {
     "reason": "The suffix query still receives the restored span.",
@@ -4880,63 +5051,144 @@
     }
   },
   "engine/query-guarded-term-empty.json": {
-    "retired": "An empty key set can supply false in any truth position.",
-    "section": "Engine §10"
+    "reason": "An empty key set can supply false in any truth position.",
+    "section": "Engine §10",
+    "native": true,
+    "load": true,
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text \"a\" → {{}? Word}\n```\n"
+    },
+    "entry": "main.md"
   },
   "engine/query-truthiness-empty-negated-load-error.json": {
-    "retired": "A presence guard can simplify an alternative to a closed condition. Constant truth and falsehood are legal conditions.",
-    "section": "Engine §§3.6, 10"
+    "reason": "A presence guard can simplify an alternative to a closed condition. Constant truth and falsehood are legal conditions.",
+    "section": "Engine §§3.6, 10",
+    "native": true,
+    "load": true,
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text $x:word\n%conditions ¬($x.flags ∩ {})\n%rule word A → {Word}\n```\n"
+    },
+    "entry": "main.md"
   },
   "engine/query-truthiness-trivial-load-error.json": {
-    "retired": "A presence guard can simplify an alternative to a closed condition. Constant truth and falsehood are legal conditions.",
-    "section": "Engine §§3.6, 10"
+    "reason": "A presence guard can simplify an alternative to a closed condition. Constant truth and falsehood are legal conditions.",
+    "section": "Engine §§3.6, 10",
+    "native": true,
+    "load": true,
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text $x:word $y:B\n%conditions $x.flags ∩ {Word} ∨ $y\n%rule word A → {Word}\n```\n"
+    },
+    "entry": "main.md"
   },
   "engine/ranked-review-no-rank-deferred-duplicate.json": {
-    "retired": "A skipped or absent output item can leave the publication empty.",
-    "section": "Engine §11.1"
+    "reason": "The absent output is legal. The later definition fault remains.",
+    "section": "Engine §2, Stage assembly",
+    "expected": {
+      "kind": "grammar",
+      "document": "main.md",
+      "line": 6,
+      "column": 1
+    },
+    "native": true,
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text $x:X| Y\n%emit $x\n%rule text Z\n```\n"
+    },
+    "entry": "main.md"
   },
   "engine/ranked-review-no-rank-deferred-undefined.json": {
-    "retired": "A skipped or absent output item can leave the publication empty.",
-    "section": "Engine §11.1"
+    "reason": "The absent output is legal. The later definition fault remains.",
+    "section": "Engine §2, Stage assembly",
+    "expected": {
+      "kind": "grammar",
+      "document": "main.md",
+      "line": 6,
+      "column": 1
+    },
+    "native": true,
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text $x:X| Y\n%emit $x\n%rule bad missing\n```\n"
+    },
+    "entry": "main.md"
   },
   "engine/ranked-review-ordinary-emits-beside-rank.json": {
-    "retired": "A skipped or absent output item can leave the publication empty.",
-    "section": "Engine §11.1"
+    "reason": "The absent output is legal. The later definition fault remains.",
+    "section": "Engine §2, Stage assembly",
+    "expected": {
+      "kind": "grammar",
+      "document": "main.md",
+      "line": 6,
+      "column": 1
+    },
+    "native": true,
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text $x:X| Y\n%emit $x\n%rule bad missing\n%rule other X Y ≻ X Z\n```\n"
+    },
+    "entry": "main.md"
   },
   "engine/ranked-review3-repeat-count.json": {
-    "retired": "Flat braces can bind node lists inside a ranked option. The option keeps their scope.",
-    "section": "Engine §§2.1, 3.5"
+    "reason": "Flat braces can bind node lists inside a ranked option. The option keeps their scope.",
+    "section": "Engine §§2.1, 3.5",
+    "native": true,
+    "load": true,
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text ( X { [ ( ( $x:Y ≻ V ) ) ] U } ≻ Z W )\n%conditions $x\n```\n"
+    },
+    "entry": "main.md"
   },
   "engine/ranked-review3-repeat-zero.json": {
-    "retired": "Flat braces can bind node lists inside a ranked option. The option keeps their scope.",
-    "section": "Engine §§2.1, 3.5"
+    "reason": "Flat braces can bind node lists inside a ranked option. The option keeps their scope.",
+    "section": "Engine §§2.1, 3.5",
+    "native": true,
+    "load": true,
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text ( X [ { ( $x:Y ≻ V ) } ] ≻ Z W )\n%conditions $x\n```\n"
+    },
+    "entry": "main.md"
   },
   "engine/ranked-review3-separator-optional.json": {
-    "retired": "Flat braces can bind node lists inside a ranked option. The option keeps their scope.",
-    "section": "Engine §§2.1, 3.5"
+    "reason": "Flat braces can bind node lists inside a ranked option. The option keeps their scope.",
+    "section": "Engine §§2.1, 3.5",
+    "native": true,
+    "load": true,
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text ( X { U / [ ( $x:Y ≻ V ) ] } ≻ Z W )\n%conditions $x\n```\n"
+    },
+    "entry": "main.md"
   },
   "engine/ranked-review3-separator-present.json": {
-    "retired": "Flat braces can bind node lists inside a ranked option. The option keeps their scope.",
-    "section": "Engine §§2.1, 3.5"
+    "reason": "Flat braces can bind node lists inside a ranked option. The option keeps their scope.",
+    "section": "Engine §§2.1, 3.5",
+    "native": true,
+    "load": true,
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text ( X { U / ( $x:Y ≻ V ) } ≻ Z W )\n%conditions $x\n```\n"
+    },
+    "entry": "main.md"
   },
   "engine/ranked-review3-separator-single.json": {
-    "retired": "Flat braces can bind node lists inside a ranked option. The option keeps their scope.",
-    "section": "Engine §§2.1, 3.5"
+    "reason": "Flat braces can bind node lists inside a ranked option. The option keeps their scope.",
+    "section": "Engine §§2.1, 3.5",
+    "native": true,
+    "load": true,
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text ( X { U / ( $x:Y ≻ V ) } ≻ Z W )\n%conditions $x\n```\n"
+    },
+    "entry": "main.md"
   },
   "engine/recipe-absent-rule.json": {
-    "reason": "The clause keeps its unguarded read on a route without the required capture.",
-    "native": true,
+    "reason": "Write out the routes so one alternative still lacks the binding that the clause reads.",
     "section": "Engine §9.3, Definition checks",
     "entry": "pipeline.md",
     "documents": {
       "pipeline.md": "```jbogenbau\n%stage main\n%include \"main.md\"\n```\n",
-      "main.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text → {image: value: ($y.span.tokens!'value.join() ++ $x.span.tokens!'value.join())}\n  | [$x:A] [$y:B]\n```\n"
+      "main.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text → {image: value: ($y.span.tokens!'value.join() ++ $x.span.tokens!'value.join())}\n  | ε\n  | $y:B\n  | $x:A\n  | $x:A $y:B\n```\n"
     },
     "expected": {
       "kind": "grammar",
       "document": "main.md",
       "line": 3,
-      "column": 30
+      "column": 32,
+      "description": "$y is absent from this expansion"
     }
   },
   "engine/review-tags-own-alternative-classes.json": {
@@ -4952,7 +5204,7 @@
       "kind": "grammar",
       "document": "main.md",
       "line": 3,
-      "column": 33
+      "column": 32
     }
   },
   "engine/review-tags-own-alternative-tags.json": {
@@ -4968,7 +5220,7 @@
       "kind": "grammar",
       "document": "main.md",
       "line": 3,
-      "column": 33
+      "column": 32
     }
   },
   "engine/review-tags-own-rule-classes.json": {
@@ -4984,7 +5236,7 @@
       "kind": "grammar",
       "document": "main.md",
       "line": 3,
-      "column": 33
+      "column": 32
     }
   },
   "engine/review-tags-own-rule-tags.json": {
@@ -5000,7 +5252,7 @@
       "kind": "grammar",
       "document": "main.md",
       "line": 3,
-      "column": 33
+      "column": 32
     }
   },
   "engine/tags-own-tags-direct.json": {
@@ -5053,7 +5305,6 @@
   },
   "engine/tree-boundary-25.json": {
     "reason": "The same condition contains two boundary atoms.",
-    "native": true,
     "section": "Engine §§4.2, 9.3",
     "entry": "pipeline.md",
     "documents": {
@@ -5064,12 +5315,12 @@
       "kind": "grammar",
       "document": "main.md",
       "line": 7,
-      "column": 34
+      "column": 34,
+      "description": "a condition item cannot have more than one boundary atom"
     }
   },
   "engine/tree-boundary-26.json": {
     "reason": "A condition still reads a second binding alongside its captured boundary receiver.",
-    "native": true,
     "section": "Engine §§4.2, 9.3",
     "entry": "pipeline.md",
     "documents": {
@@ -5080,7 +5331,8 @@
       "kind": "grammar",
       "document": "main.md",
       "line": 4,
-      "column": 16
+      "column": 16,
+      "description": "a condition with a named boundary receiver cannot read another capture"
     }
   },
   "engine/values-lit-union.json": {
@@ -5101,7 +5353,6 @@
   },
   "engine/values-recipe-absent-capture.json": {
     "reason": "The clause keeps its unguarded read on a route without the required capture.",
-    "native": true,
     "section": "Engine §9.3, Definition checks",
     "entry": "pipeline.md",
     "documents": {
@@ -5112,7 +5363,8 @@
       "kind": "grammar",
       "document": "main.md",
       "line": 3,
-      "column": 29
+      "column": 31,
+      "description": "$x is absent from this expansion"
     }
   },
   "engine/without-elision-argument-from.json": {
@@ -5156,7 +5408,7 @@
     "expected": {
       "document": "main.md",
       "line": 4,
-      "column": 13,
+      "column": 21,
       "description": "$unknown is captured by no alternative of text"
     }
   },
@@ -5184,7 +5436,7 @@
     "expected": {
       "document": "notation.md",
       "line": 2,
-      "column": 14,
+      "column": 1,
       "description": "a route binds $x twice"
     },
     "reason": "Keep the written construct that causes the same source fault.",
@@ -5285,7 +5537,7 @@
     "expected": {
       "document": "notation.md",
       "line": 2,
-      "column": 13,
+      "column": 1,
       "description": "duplicate parameter @X"
     },
     "reason": "Keep the written construct that causes the same source fault.",
@@ -5455,7 +5707,7 @@
     "expected": {
       "document": "notation.md",
       "line": 2,
-      "column": 13,
+      "column": 1,
       "description": "duplicate parameter @X"
     },
     "reason": "Keep the written construct that causes the same source fault.",
@@ -6163,30 +6415,29 @@
     "expected": {
       "document": "notation.md",
       "line": 4,
-      "column": 14,
-      "description": "$x is captured by no alternative of a"
+      "column": 16,
+      "description": "$x is absent from this expansion"
     }
   },
   "engine/capture-optional-tags-unguarded.json": {
-    "reason": "Keep the first unguarded operand that needs the absent binding.",
+    "reason": "Write out the routes so one alternative still lacks the binding that the clause reads.",
     "section": "Engine §9.3, Definition checks",
-    "native": true,
     "documents": {
       "pipeline.md": "```jbogenbau\n%stage main\n%include \"main.md\"\n```\n",
-      "main.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text A [$b:B] → {*$b.flags}\n```\n"
+      "main.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text → {*$b.flags}\n  | A\n  | A $b:B\n```\n"
     },
     "entry": "pipeline.md",
     "expected": {
       "kind": "grammar",
       "document": "main.md",
       "line": 3,
-      "column": 25
+      "column": 18,
+      "description": "$b is absent from this expansion"
     }
   },
   "engine/clause-first-absent-bare-capture-mirror.json": {
     "reason": "Keep the first unguarded operand that needs the absent binding.",
     "section": "Engine §9.3, Definition checks",
-    "native": true,
     "documents": {
       "pipeline.md": "```jbogenbau\n%stage main\n%include \"main.md\"\n```\n",
       "main.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text → {(($d ≅ $c))? X}\n  | $c:A $d:B\n  | C\n```\n"
@@ -6196,13 +6447,13 @@
       "kind": "grammar",
       "document": "main.md",
       "line": 3,
-      "column": 17
+      "column": 20,
+      "description": "$d is absent from this expansion"
     }
   },
   "engine/clause-first-absent-bare-capture.json": {
     "reason": "Keep the first unguarded operand that needs the absent binding.",
     "section": "Engine §9.3, Definition checks",
-    "native": true,
     "documents": {
       "pipeline.md": "```jbogenbau\n%stage main\n%include \"main.md\"\n```\n",
       "main.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text → {(($c ≅ $d))? X}\n  | $c:A $d:B\n  | C\n```\n"
@@ -6212,13 +6463,13 @@
       "kind": "grammar",
       "document": "main.md",
       "line": 3,
-      "column": 17
+      "column": 20,
+      "description": "$c is absent from this expansion"
     }
   },
   "engine/clause-parse-query-guard-missing-capture.json": {
     "reason": "Keep the first unguarded operand that needs the absent binding.",
     "section": "Engine §9.3, Definition checks",
-    "native": true,
     "documents": {
       "pipeline.md": "```jbogenbau\n%stage main\n%include \"main.md\"\n```\n",
       "main.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text → {($d.parse(other))? X}\n  | $c:A\n  | $d:B\n%rule other B\n```\n"
@@ -6228,7 +6479,8 @@
       "kind": "grammar",
       "document": "main.md",
       "line": 3,
-      "column": 16
+      "column": 18,
+      "description": "$d is absent from this expansion"
     }
   },
   "engine/deferral-tag-guard.json": {
@@ -6244,7 +6496,7 @@
       "kind": "grammar",
       "document": "main.md",
       "line": 3,
-      "column": 28
+      "column": 30
     }
   },
   "engine/definition-alternative-tags-name-absent-capture.json": {
@@ -6258,44 +6510,44 @@
     "expected": {
       "document": "main.md",
       "line": 4,
-      "column": 16,
-      "description": "$b is captured by no alternative of text"
+      "column": 18,
+      "description": "$b is absent from this expansion"
     }
   },
   "engine/definition-item-recipe-names-rule-and-capture.json": {
-    "reason": "Keep the first unguarded operand that needs the absent binding.",
+    "reason": "Write out the routes so one alternative still lacks the binding that the clause reads.",
     "section": "Engine §9.3, Definition checks",
-    "native": true,
     "documents": {
       "pipeline.md": "```jbogenbau\n%stage main\n%include \"main.md\"\n```\n",
-      "main.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text $a:\"a\" [$b:\"b\"]\n%emit $a{*$a, image: value: $b.span.tokens!'value.join()}\n```\n"
+      "main.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text $a:\"a\" | $a:\"a\" $b:\"b\"\n%emit $a{*$a, image: value: $b.span.tokens!'value.join()}\n```\n"
     },
     "entry": "pipeline.md",
     "expected": {
       "kind": "grammar",
       "document": "main.md",
       "line": 4,
-      "column": 29
+      "column": 31,
+      "description": "$b is absent from this expansion"
     }
   },
   "engine/definition-item-tags-name-absent-capture.json": {
-    "reason": "Keep the first unguarded operand that needs the absent binding.",
+    "reason": "Write out the routes so one alternative still lacks the binding that the clause reads.",
     "section": "Engine §9.3, Definition checks",
-    "native": true,
     "documents": {
       "pipeline.md": "```jbogenbau\n%stage main\n%include \"main.md\"\n```\n",
-      "main.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text $a:\"a\" [$b:\"b\"]\n%emit $a{*$b.flags}\n```\n"
+      "main.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text $a:\"a\" | $a:\"a\" $b:\"b\"\n%emit $a{*$b.flags}\n```\n"
     },
     "entry": "pipeline.md",
     "expected": {
       "kind": "grammar",
       "document": "main.md",
       "line": 4,
-      "column": 11
+      "column": 13,
+      "description": "$b is absent from this expansion"
     }
   },
   "engine/definition-rule-tags-before-alternative-tags.json": {
-    "reason": "Keep both suppliers. Format 50 rejects the alternative read of $c outside that alternative before it checks the shared term.",
+    "reason": "Retain both invalid reads. Visit the first expansion, then its clause operands in the order of Engine §9.3, Definition checks.",
     "section": "Engine §9.3, Definition checks",
     "documents": {
       "pipeline.md": "```jbogenbau\n%stage main\n%include \"main.md\"\n```\n",
@@ -6304,15 +6556,14 @@
     "entry": "pipeline.md",
     "expected": {
       "document": "main.md",
-      "line": 4,
-      "column": 16,
-      "description": "$c is captured by no alternative of r"
+      "line": 3,
+      "column": 15,
+      "description": "$a is absent from this expansion"
     }
   },
   "engine/definition-rule-tags-name-absent-capture.json": {
     "reason": "Keep the first unguarded operand that needs the absent binding.",
     "section": "Engine §9.3, Definition checks",
-    "native": true,
     "documents": {
       "pipeline.md": "```jbogenbau\n%stage main\n%include \"main.md\"\n```\n",
       "main.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text → {*$b.flags}\n  | $a:\"a\"\n  | $b:\"b\"\n```\n"
@@ -6322,13 +6573,13 @@
       "kind": "grammar",
       "document": "main.md",
       "line": 3,
-      "column": 16
+      "column": 18,
+      "description": "$b is absent from this expansion"
     }
   },
   "engine/definition-tags-nonempty-absent-capture.json": {
     "reason": "Keep the first unguarded operand that needs the absent binding.",
     "section": "Engine §9.3, Definition checks",
-    "native": true,
     "documents": {
       "pipeline.md": "```jbogenbau\n%stage main\n%include \"main.md\"\n```\n",
       "main.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text → {($c.flags)? X}\n  | $c:A\n  | C\n```\n"
@@ -6338,7 +6589,8 @@
       "kind": "grammar",
       "document": "main.md",
       "line": 3,
-      "column": 16
+      "column": 18,
+      "description": "$c is absent from this expansion"
     }
   },
   "engine/issue314-alternative-tags.json": {
@@ -6352,14 +6604,13 @@
     "expected": {
       "document": "main.md",
       "line": 5,
-      "column": 11,
-      "description": "$c is captured by no alternative of text"
+      "column": 13,
+      "description": "$c is absent from this expansion"
     }
   },
   "engine/issue314-moved-definition.json": {
     "reason": "Keep the first unguarded operand that needs the absent binding.",
     "section": "Engine §9.3, Definition checks",
-    "native": true,
     "documents": {
       "pipeline.md": "```jbogenbau\n%stage main\n%include \"main.md\"\n```\n",
       "main.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule other B\n%rule text → {($c.flags)? X}\n  | $c:A\n  | C\n```\n"
@@ -6369,7 +6620,8 @@
       "kind": "grammar",
       "document": "main.md",
       "line": 4,
-      "column": 16
+      "column": 18,
+      "description": "$c is absent from this expansion"
     }
   },
   "engine/issue314-split-order-a-alternative.json": {
@@ -6383,14 +6635,13 @@
     "expected": {
       "document": "main.md",
       "line": 5,
-      "column": 11,
-      "description": "$a is captured by no alternative of text"
+      "column": 13,
+      "description": "$a is absent from this expansion"
     }
   },
   "engine/issue314-split-order-a-header.json": {
     "reason": "Keep the first unguarded operand that needs the absent binding.",
     "section": "Engine §9.3, Definition checks",
-    "native": true,
     "documents": {
       "pipeline.md": "```jbogenbau\n%stage main\n%include \"main.md\"\n```\n",
       "main.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text → {($a.span.tokens!'value.join().split($b.span.tokens!'value.join()))? X}\n  | $a:A $b:B\n  | C\n```\n"
@@ -6400,7 +6651,8 @@
       "kind": "grammar",
       "document": "main.md",
       "line": 3,
-      "column": 16
+      "column": 18,
+      "description": "$a is absent from this expansion"
     }
   },
   "engine/issue314-split-order-b-alternative.json": {
@@ -6414,14 +6666,13 @@
     "expected": {
       "document": "main.md",
       "line": 5,
-      "column": 11,
-      "description": "$b is captured by no alternative of text"
+      "column": 13,
+      "description": "$b is absent from this expansion"
     }
   },
   "engine/issue314-split-order-b-header.json": {
     "reason": "Keep the first unguarded operand that needs the absent binding.",
     "section": "Engine §9.3, Definition checks",
-    "native": true,
     "documents": {
       "pipeline.md": "```jbogenbau\n%stage main\n%include \"main.md\"\n```\n",
       "main.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text → {($b.span.tokens!'value.join().split($a.span.tokens!'value.join()))? X}\n  | $a:A $b:B\n  | C\n```\n"
@@ -6431,11 +6682,12 @@
       "kind": "grammar",
       "document": "main.md",
       "line": 3,
-      "column": 16
+      "column": 18,
+      "description": "$b is absent from this expansion"
     }
   },
   "engine/issue315-absent-capture-tags-before-recipe.json": {
-    "reason": "Keep the recipe and the alternative term. The alternative read of $b outside that alternative fails the document scope check.",
+    "reason": "Retain both invalid reads. Visit the first expansion, then its clause operands in the order of Engine §9.3, Definition checks.",
     "section": "Engine §9.3, Definition checks",
     "documents": {
       "pipeline.md": "```jbogenbau\n%stage main\n%include \"main.md\"\n```\n",
@@ -6444,25 +6696,25 @@
     "entry": "pipeline.md",
     "expected": {
       "document": "main.md",
-      "line": 5,
-      "column": 11,
-      "description": "$b is captured by no alternative of text"
+      "line": 3,
+      "column": 31,
+      "description": "$a is absent from this expansion"
     }
   },
   "engine/recipe-absent-item.json": {
-    "reason": "Keep the first unguarded operand that needs the absent binding.",
+    "reason": "Write out the routes so one alternative still lacks the binding that the clause reads.",
     "section": "Engine §9.3, Definition checks",
-    "native": true,
     "documents": {
       "pipeline.md": "```jbogenbau\n%stage main\n%include \"main.md\"\n```\n",
-      "main.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text [$x:A] [$y:B]\n%emit ${*$, image: value: ($y.span.tokens!'value.join() ++ $x.span.tokens!'value.join())}\n```\n"
+      "main.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text ε | $y:B | $x:A | $x:A $y:B\n%emit ${*$, image: value: ($y.span.tokens!'value.join() ++ $x.span.tokens!'value.join())}\n```\n"
     },
     "entry": "pipeline.md",
     "expected": {
       "kind": "grammar",
       "document": "main.md",
       "line": 4,
-      "column": 28
+      "column": 30,
+      "description": "$y is absent from this expansion"
     }
   },
   "notation/capture-tags-bare.json": {
@@ -7144,7 +7396,6 @@
   "engine/concat-reject-recipe-set.json": {
     "reason": "The old string set becomes a list. It cannot supply the string field.",
     "section": "Engine §§3.7, 10",
-    "native": true,
     "documents": {
       "pipeline.md": "```jbogenbau\n%stage main\n%include \"main.md\"\n```\n",
       "main.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text → {image: value: [\"a\", \"b\"]}\n  | ^\"x\"\n```\n"
@@ -7154,7 +7405,8 @@
       "kind": "grammar",
       "document": "main.md",
       "line": 3,
-      "column": 22
+      "column": 15,
+      "description": "a value or image needs a string"
     }
   },
   "engine/concat-reject-set.json": {
@@ -7203,52 +7455,49 @@
     }
   },
   "engine/notation-r4-recipe-invalid-difference.json": {
-    "reason": "The set result still supplies a field that requires a string.",
-    "section": "Engine §§3.7, 10",
-    "native": true,
-    "documents": {
-      "pipeline.md": "```jbogenbau\n%stage main\n%include \"main.md\"\n```\n",
-      "main.md": "```jbogenbau\n%ambiguity-resolution greedy\n%const $S \"b\"\n%rule text ^$a:\"x\" → {image: value: ([\"a\"] ∖ [\"b\"])}\n%emit\n```\n"
-    },
-    "entry": "pipeline.md",
+    "reason": "Keep the set operator and its two string operands.",
+    "section": "Engine §10, Operators and truth",
     "expected": {
       "kind": "grammar",
       "document": "main.md",
-      "line": 4,
-      "column": 30
-    }
+      "line": 5,
+      "column": 42,
+      "description": "∖ requires compatible operands"
+    },
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%const $S \"b\"\n%rule text ^$a:\"x\" → {image: value: (\"a\" ∖ \"b\")}\n%emit\n```\n"
+    },
+    "entry": "main.md"
   },
   "engine/notation-r4-recipe-invalid-intersection.json": {
-    "reason": "The set result still supplies a field that requires a string.",
-    "section": "Engine §§3.7, 10",
-    "native": true,
-    "documents": {
-      "pipeline.md": "```jbogenbau\n%stage main\n%include \"main.md\"\n```\n",
-      "main.md": "```jbogenbau\n%ambiguity-resolution greedy\n%const $S \"b\"\n%rule text ^$a:\"x\" → {image: value: ([\"a\"] ∖ ([\"a\"] ∖ [\"b\"]))}\n%emit\n```\n"
-    },
-    "entry": "pipeline.md",
+    "reason": "Keep the set operator and its two string operands.",
+    "section": "Engine §10, Operators and truth",
     "expected": {
       "kind": "grammar",
       "document": "main.md",
-      "line": 4,
-      "column": 30
-    }
+      "line": 5,
+      "column": 42,
+      "description": "∩ requires compatible operands"
+    },
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%const $S \"b\"\n%rule text ^$a:\"x\" → {image: value: (\"a\" ∩ \"b\")}\n%emit\n```\n"
+    },
+    "entry": "main.md"
   },
   "engine/notation-r4-recipe-invalid-union.json": {
-    "reason": "The set result still supplies a field that requires a string.",
-    "section": "Engine §§3.7, 10",
-    "native": true,
-    "documents": {
-      "pipeline.md": "```jbogenbau\n%stage main\n%include \"main.md\"\n```\n",
-      "main.md": "```jbogenbau\n%ambiguity-resolution greedy\n%const $S \"b\"\n%rule text ^$a:\"x\" → {image: value: [\"a\", \"b\"]}\n%emit\n```\n"
-    },
-    "entry": "pipeline.md",
+    "reason": "Keep the set operator and its two string operands.",
+    "section": "Engine §10, Operators and truth",
     "expected": {
       "kind": "grammar",
       "document": "main.md",
-      "line": 4,
-      "column": 30
-    }
+      "line": 5,
+      "column": 42,
+      "description": "∪ requires compatible operands"
+    },
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%const $S \"b\"\n%rule text ^$a:\"x\" → {image: value: (\"a\" ∪ \"b\")}\n%emit\n```\n"
+    },
+    "entry": "main.md"
   },
   "engine/notation-r5-string-set-body-value.json": {
     "reason": "A list cannot serve as a string test operand.",
@@ -7762,16 +8011,34 @@
     "section": "Engine §2, Classification"
   },
   "notation/concat-reject-key-group.json": {
-    "retired": "Table entries use ordinary expressions. They can contain grouping and concatenation.",
-    "section": "Engine §2, Classification"
+    "reason": "Table entries use ordinary expressions. They can contain grouping and concatenation.",
+    "section": "Engine §2, Classification",
+    "native": true,
+    "load": true,
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%const $TABLE {K: (\"a\")}\n%const $CHECK $TABLE.classify(\"a\")\n%rule text ε\n```\n"
+    },
+    "entry": "main.md"
   },
   "notation/concat-reject-key-grouped-constant.json": {
-    "retired": "Table entries use ordinary expressions. They can contain grouping and concatenation.",
-    "section": "Engine §2, Classification"
+    "reason": "Table entries use ordinary expressions. They can contain grouping and concatenation.",
+    "section": "Engine §2, Classification",
+    "native": true,
+    "load": true,
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%const $C \"a\"\n%const $TABLE {K: ($C)}\n%const $CHECK $TABLE.classify(\"a\")\n%rule text ε\n```\n"
+    },
+    "entry": "main.md"
   },
   "notation/concat-reject-key-inline.json": {
-    "retired": "Table entries use ordinary expressions. They can contain grouping and concatenation.",
-    "section": "Engine §2, Classification"
+    "reason": "Table entries use ordinary expressions. They can contain grouping and concatenation.",
+    "section": "Engine §2, Classification",
+    "native": true,
+    "load": true,
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%const $TABLE {K: \"a\" ++ \"b\"}\n%const $CHECK $TABLE.classify(\"ab\")\n%rule text ε\n```\n"
+    },
+    "entry": "main.md"
   },
   "notation/classifier-warning.json": {
     "retired": "Classifier entries have no warning marker. The table supplies keys and does not raise rule diagnostics.",
@@ -7790,16 +8057,39 @@
     "section": "Engine §2, Classification"
   },
   "notation/classify-in-constant.json": {
-    "retired": "A closed string can classify against a closed table. The lookup has no dependence on stage input.",
-    "section": "Engine §2, Classification"
+    "reason": "A closed string can classify against a closed table. The lookup has no dependence on stage input.",
+    "section": "Engine §2, Classification",
+    "native": true,
+    "load": true,
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%const $TABLE {KOHA: \"mi\"}\n%const $K $TABLE.classify(\"mi\")\n%rule text ε\n```\n"
+    },
+    "entry": "main.md"
   },
   "notation/const-value-classify.json": {
-    "retired": "A closed string can classify against a closed table. The lookup has no dependence on stage input.",
-    "section": "Engine §2, Classification"
+    "reason": "A closed string can classify against a closed table. The lookup has no dependence on stage input.",
+    "section": "Engine §2, Classification",
+    "native": true,
+    "load": true,
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%const $TABLE {KOHA: \"mi\"}\n%const $A $TABLE.classify(\"mi\")\n%rule text ε\n```\n"
+    },
+    "entry": "main.md"
   },
   "notation/diagnostic-method-closed.json": {
-    "retired": "A closed string can classify against a closed table. The lookup has no dependence on stage input.",
-    "section": "Engine §2, Classification"
+    "reason": "The receiver keeps the closed key set. It has no input span.",
+    "section": "Engine §10, Method signatures",
+    "expected": {
+      "kind": "grammar",
+      "document": "main.md",
+      "line": 4,
+      "column": 14,
+      "description": "a method has the wrong receiver or arguments"
+    },
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%const $C {A}.parse(A)\n```\n"
+    },
+    "entry": "main.md"
   },
   "notation/no-braces.json": {
     "retired": "Braces are the written form of a bag constructor. The tag clause that rejected those braces is gone.",
@@ -7810,16 +8100,49 @@
     "section": "Engine §9.2"
   },
   "notation/error-initial-term.json": {
-    "retired": "A query supplies a forest value. The former restriction to query conditions is gone.",
-    "section": "Engine §10"
+    "reason": "Keep the truth-valued span test in a bag operand.",
+    "section": "Engine §10, Method signatures",
+    "expected": {
+      "kind": "grammar",
+      "document": "main.md",
+      "line": 4,
+      "column": 17,
+      "description": "a bag splat needs a bag or node"
+    },
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule g $a:A → {*$a.starts-input}\n%rule text g\n```\n"
+    },
+    "entry": "main.md"
   },
   "notation/constant-engine-tag-before-capture.json": {
-    "retired": "A key set can contain engine names as a mask. Only storing a reserved membership needs provenance.",
-    "section": "Engine §10"
+    "reason": "The mask can name an engine key. The capture still falls outside a closed constant.",
+    "section": "Engine §9.3, Definition checks",
+    "expected": {
+      "kind": "grammar",
+      "document": "main.md",
+      "line": 4,
+      "column": 38,
+      "description": "a constant cannot read a capture outside its function scope"
+    },
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%const $X {_General_Category_Letter} ∪ $c\n```\n"
+    },
+    "entry": "main.md"
   },
   "notation/constant-tag-run-before-capture.json": {
-    "retired": "A key set can contain engine names as a mask. Only storing a reserved membership needs provenance.",
-    "section": "Engine §10"
+    "reason": "The mask can name an engine key. The capture still falls outside a closed constant.",
+    "section": "Engine §9.3, Definition checks",
+    "expected": {
+      "kind": "grammar",
+      "document": "main.md",
+      "line": 4,
+      "column": 41,
+      "description": "a constant cannot read a capture outside its function scope"
+    },
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%const $X {A, _General_Category_Letter} ∪ $c\n```\n"
+    },
+    "entry": "main.md"
   },
   "notation/267-emitted-in-tag-guard.json": {
     "retired": "Expression contexts read properties of a working node. The separate emitted method inside a clause is gone.",
@@ -7862,16 +8185,39 @@
     "section": "Engine §11.3"
   },
   "engine/backward-span-recipe.json": {
-    "retired": "A string field uses a general expression. Its input span can extend backwards.",
-    "section": "Engine §§5, 10"
+    "reason": "A string field uses a general expression. Its input span can extend backwards.",
+    "section": "Engine §§5, 10",
+    "native": true,
+    "load": true,
+    "documents": {
+      "main.md": "```jbogenbau\n%stage first\n%ambiguity-resolution greedy\n%const $OUTPUTS {*$INPUTS}\n%const $DEFAULTS $n ↦ {value: $n.children!'value.join(), image: $n.children!'image.join()}\n%rule text {_}\n%emit\n%stage second\n%ambiguity-resolution greedy\n%rule text A\n%emit ${value: $.preceding-tokens.tokens!'value.join(), image: $'image}\n```\n"
+    },
+    "entry": "main.md"
   },
   "engine/concat-reject-key-inline.json": {
-    "retired": "A classifier spelling can be a computed string in a bag value.",
-    "section": "Engine §2, Classification"
+    "reason": "A classifier spelling can be a computed string in a bag value.",
+    "section": "Engine §2, Classification",
+    "native": true,
+    "load": true,
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%const $A \"a\"\n%const $B \"b\"\n%const $TABLE {AB: $A ++ $B}\n%rule text ^$letter:_ → {*$TABLE.classify($letter'value)}\n%emit\n```\n"
+    },
+    "entry": "main.md"
   },
   "engine/layered-pattern-source-depth-later-error.json": {
-    "retired": "An engine key in a data mask is legal. The old diagnostic took priority over the depth fault.",
-    "section": "Engine §§1, 10"
+    "reason": "Keep the deep operand after the earlier restriction goes away.",
+    "section": "Engine §9.3, Depth",
+    "expected": {
+      "kind": "grammar",
+      "document": "main.md",
+      "line": 4,
+      "column": 1,
+      "description": "an expression, term or condition is nested more than 256 deep"
+    },
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%const $P #(⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (⋮ (A))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))\n%const $Bad {_White_Space}\n%rule text A\n```\n"
+    },
+    "entry": "main.md"
   },
   "engine/attach-branch-names-order.json": {
     "retired": "The old carrier listed attachment captures. Presentation now follows the structural sibling order.",
@@ -7941,7 +8287,7 @@
     "expected": {
       "document": "notation.md",
       "line": 3,
-      "column": 9,
+      "column": 1,
       "description": "a capture name must use lowercase letters, digits, hyphens or underscores"
     }
   },
@@ -7950,7 +8296,7 @@
     "expected": {
       "document": "notation.md",
       "line": 2,
-      "column": 628,
+      "column": 1,
       "description": "$y is captured by no alternative of f"
     }
   },
@@ -7977,7 +8323,7 @@
     "expected": {
       "document": "notation.md",
       "line": 2,
-      "column": 528,
+      "column": 1,
       "description": "a range starts above its end"
     }
   },
@@ -7986,7 +8332,7 @@
     "expected": {
       "document": "notation.md",
       "line": 2,
-      "column": 528,
+      "column": 1,
       "description": "a capture name must use lowercase letters, digits, hyphens or underscores"
     }
   },
@@ -8014,7 +8360,7 @@
     "expected": {
       "document": "notation.md",
       "line": 2,
-      "column": 16,
+      "column": 1,
       "description": "a range endpoint must be one scalar"
     }
   },
@@ -8023,7 +8369,7 @@
     "expected": {
       "document": "notation.md",
       "line": 2,
-      "column": 16,
+      "column": 1,
       "description": "a range endpoint must be one scalar"
     }
   },
@@ -8633,12 +8979,34 @@
     "entry": "pipeline.md"
   },
   "notation/deep-negations-then-definition.json": {
-    "retired": "The old reader rejects this condition because its closed truth applies nowhere. Constant truth is legal. The format 50 depth limit remains independent.",
-    "section": "Engine §§3.6, 10"
+    "reason": "Keep the deep operand after the earlier restriction goes away.",
+    "section": "Engine §9.3, Depth",
+    "expected": {
+      "kind": "grammar",
+      "document": "main.md",
+      "line": 4,
+      "column": 1,
+      "description": "an expression, term or condition is nested more than 256 deep"
+    },
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text $x:A\n%conditions ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ ¬ $x\n```\n"
+    },
+    "entry": "main.md"
   },
   "engine/ranked-review-no-rank-deferred-later-reader.json": {
-    "retired": "An absent output item can leave the publication empty. The old empty-output fault no longer comes before the later delimiter fault.",
-    "section": "Engine §11.1"
+    "reason": "The legal absent output leaves the later closed delimiter fault.",
+    "section": "Engine §9.3, Error selection",
+    "expected": {
+      "kind": "grammar",
+      "document": "main.md",
+      "line": 7,
+      "column": 16,
+      "description": "a split delimiter cannot be empty"
+    },
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text $x:X| Y\n%emit $x\n%rule bad Z\n%conditions \"a\".split(\"\")\n```\n"
+    },
+    "entry": "main.md"
   },
   "notation/template-scope-implication.json": {
     "retired": "The implication directive is gone. It no longer has a parameter scope to inspect.",
@@ -8653,8 +9021,14 @@
     "section": "Engine §2, Classification"
   },
   "engine/tags-mark-body-test.json": {
-    "retired": "A terminal filter accepts the origin test. Its old prohibition is gone.",
-    "section": "Engine §§3.8, 9.3"
+    "reason": "A terminal filter accepts the origin test. Its old prohibition is gone.",
+    "section": "Engine §§3.8, 9.3",
+    "native": true,
+    "load": true,
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text A<_Elided>\n```\n"
+    },
+    "entry": "main.md"
   },
   "engine/tags-mark-implies-before.json": {
     "retired": "The implication directive is gone. The origin mark has its own filter syntax.",
@@ -8673,8 +9047,14 @@
     "section": "Engine §§9.3, 10"
   },
   "engine/item-condition-different-expansions.json": {
-    "retired": "An explicit list predicate can compare bindings from distinct repetition items. The old implicit item frame is gone.",
-    "section": "Engine §§3.5–3.6"
+    "reason": "Map each capture list to ordered values or a key set. Keep the written operands and their order.",
+    "section": "Engine §§3.5–3.6",
+    "native": true,
+    "load": true,
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text {$c:A | $d:B}\n%conditions $c!'value.join() = $d!'value.join()\n```\n"
+    },
+    "entry": "main.md"
   },
   "notation/concat-reject-term-range-argument.json": {
     "reason": "A scalar range cannot serve as an expression operand.",
@@ -8785,7 +9165,7 @@
     "expected": {
       "document": "notation.md",
       "line": 2,
-      "column": 30,
+      "column": 1,
       "description": "a route binds $x twice"
     },
     "document": "```jbogenbau\n%rule a A  → {*$.flags}| $x:B$x:C\n```\n"
@@ -8795,7 +9175,7 @@
     "expected": {
       "document": "notation.md",
       "line": 3,
-      "column": 15,
+      "column": 17,
       "description": "$q is captured by no alternative of a"
     },
     "document": "```jbogenbau\n%rule a A\n→ {*$.flags, *$q.flags}\n```\n"
@@ -8815,7 +9195,7 @@
     "expected": {
       "document": "notation.md",
       "line": 3,
-      "column": 9,
+      "column": 1,
       "description": "a capture name must use lowercase letters, digits, hyphens or underscores"
     },
     "document": "```jbogenbau\n%rule f $x:g(\"a\") %conditions $y\n%rule s $xY:A\n```\n"
@@ -8825,7 +9205,7 @@
     "expected": {
       "document": "notation.md",
       "line": 3,
-      "column": 9,
+      "column": 1,
       "description": "a capture name must use lowercase letters, digits, hyphens or underscores"
     },
     "document": "```jbogenbau\n%rule f(@X) $x:@X %conditions $y\n%rule s $xY:A\n```\n"
@@ -8835,7 +9215,7 @@
     "expected": {
       "document": "notation.md",
       "line": 3,
-      "column": 9,
+      "column": 1,
       "description": "a capture name must use lowercase letters, digits, hyphens or underscores"
     },
     "document": "```jbogenbau\n%redefine-rule f(g(@X)) A\n%rule s $xY:A\n```\n"
@@ -9142,7 +9522,7 @@
     "expected": {
       "document": "notation.md",
       "line": 2,
-      "column": 12,
+      "column": 20,
       "description": "a range starts above its end"
     },
     "document": "```jbogenbau\n%rule text \"z\"..\"a\"<BAD>\n```\n"
@@ -9152,7 +9532,7 @@
     "expected": {
       "document": "notation.md",
       "line": 2,
-      "column": 12,
+      "column": 20,
       "description": "a range starts above its end"
     },
     "document": "```jbogenbau\n%rule text \"z\"..\"a\"=\"ui\"\n```\n"
@@ -9162,7 +9542,7 @@
     "expected": {
       "document": "notation.md",
       "line": 2,
-      "column": 12,
+      "column": 21,
       "description": "a range endpoint must be one scalar"
     },
     "document": "```jbogenbau\n%rule text \"ab\"..\"z\"<BAD>\n```\n"
@@ -9172,7 +9552,7 @@
     "expected": {
       "document": "notation.md",
       "line": 2,
-      "column": 12,
+      "column": 21,
       "description": "a range endpoint must be one scalar"
     },
     "document": "```jbogenbau\n%rule text \"ab\"..\"z\"=\"ui\"\n```\n"
@@ -9396,7 +9776,7 @@
     "expected": {
       "document": "notation.md",
       "line": 2,
-      "column": 21,
+      "column": 1,
       "description": "a route binds $x twice"
     },
     "document": "```jbogenbau\n%rule r f((A)) $x:B $x:C\n```\n"
@@ -9587,10 +9967,10 @@
       "kind": "grammar",
       "document": "main.md",
       "line": 3,
-      "column": 26
+      "column": 35,
+      "description": "a value or image needs a string"
     },
-    "section": "Engine §§3.7, 9.3",
-    "native": true
+    "section": "Engine §§3.7, 9.3"
   },
   "engine/span-tag-set-diagnostic.json": {
     "reason": "Keep the span as an operand of key-set union.",
@@ -9607,12 +9987,34 @@
     "entry": "pipeline.md"
   },
   "engine/notation-r5-engine-tag-followed-by.json": {
-    "retired": "A boundary target accepts a tag terminal, including an engine tag. The old restriction to user terminals is gone.",
-    "section": "Engine §§4.2, 9.2"
+    "reason": "Keep the engine key as the boundary target.",
+    "section": "Engine §9.3, Definition checks",
+    "expected": {
+      "kind": "grammar",
+      "document": "main.md",
+      "line": 4,
+      "column": 27,
+      "description": "a boundary target must be a rule, exact instance or user tag"
+    },
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text A %conditions $.followed-by(_L)\n```\n"
+    },
+    "entry": "main.md"
   },
   "engine/notation-r5-engine-tag-preceded-by.json": {
-    "retired": "A boundary target accepts a tag terminal, including an engine tag. The old restriction to user terminals is gone.",
-    "section": "Engine §§4.2, 9.2"
+    "reason": "Keep the engine key as the boundary target.",
+    "section": "Engine §9.3, Definition checks",
+    "expected": {
+      "kind": "grammar",
+      "document": "main.md",
+      "line": 4,
+      "column": 27,
+      "description": "a boundary target must be a rule, exact instance or user tag"
+    },
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text A %conditions $.preceded-by(_L)\n```\n"
+    },
+    "entry": "main.md"
   },
   "engine/stage-features-illegal-emitted.json": {
     "documents": {
@@ -9624,7 +10026,7 @@
       "kind": "grammar",
       "document": "p.md",
       "line": 8,
-      "column": 13
+      "column": 14
     },
     "section": "Engine §13",
     "native": true
@@ -9778,11 +10180,11 @@
       "pipeline.md": "```jbogenbau\n%stage main\n%include \"main.md\"\n```\n"
     },
     "entry": "pipeline.md",
-    "reason": "The explicit predicate still needs both capture lists. Each alternative declares only one list.",
+    "reason": "No expansion can supply the captures of this condition after simplification. The clause uses its declaration's position.",
     "expected": {
       "kind": "grammar",
       "document": "main.md",
-      "line": 4,
+      "line": 3,
       "column": 1
     },
     "section": "Engine §§3.5–3.6",
@@ -9807,7 +10209,7 @@
     "expected": {
       "document": "notation.md",
       "line": 3,
-      "column": 21,
+      "column": 15,
       "description": "a repeated child list cannot contain a sibling gap"
     },
     "document": "```jbogenbau\n%rule probe(@X, @P, @Q, @Value, @High) A\n%conditions $ ≅ #⁅ {⋯ @X} ⁆\n```\n"
@@ -9817,7 +10219,7 @@
     "expected": {
       "document": "notation.md",
       "line": 3,
-      "column": 27,
+      "column": 15,
       "description": "a repeated child list cannot contain a sibling gap"
     },
     "document": "```jbogenbau\n%rule probe(@X, @P, @Q, @Value, @High) A\n%conditions $ ≅ #⁅ {@X / [⋯]} ⁆\n```\n"
@@ -10015,5 +10417,643 @@
       "column": 11,
       "description": "∩ requires compatible operands"
     }
+  },
+  "engine/i276-message-item.json": {
+    "reason": "Map each repeated binding to its string, then join the strings in input order.",
+    "section": "Engine §§3.5, 10",
+    "native": true,
+    "load": true,
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text {$x:A} %error $x!'value.join()\n```\n"
+    },
+    "entry": "main.md"
+  },
+  "engine/issue314-order-alternative-tags.json": {
+    "reason": "Use an ordered map and reduce the repeated capture in its original clause.",
+    "section": "Engine §§3.5, 10",
+    "native": true,
+    "load": true,
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text\n | {$c:A} {$e:B} → {*($e!.flags.union ∪ $c!.flags.union)}\n | C\n```\n"
+    },
+    "entry": "main.md"
+  },
+  "engine/issue314-order-alternative-value.json": {
+    "reason": "Use an ordered map and reduce the repeated capture in its original clause.",
+    "section": "Engine §§3.5, 10",
+    "native": true,
+    "load": true,
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text\n | {$c:A} {$e:B} → {value: $e!'value.join() ++ $c!'value.join()}\n | C\n```\n"
+    },
+    "entry": "main.md"
+  },
+  "engine/issue314-order-error-single.json": {
+    "reason": "Map each repeated binding to its string, then join the strings in input order.",
+    "section": "Engine §§3.5, 10",
+    "native": true,
+    "load": true,
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text {$c:A}\n%error $c!'value.join()\n```\n"
+    },
+    "entry": "main.md"
+  },
+  "engine/issue314-order-error-two.json": {
+    "reason": "Map each repeated binding to its string, then join the strings in input order.",
+    "section": "Engine §§3.5, 10",
+    "native": true,
+    "load": true,
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text {$c:A} {$e:B}\n%error $e!'value.join() ++ $c!'value.join()\n```\n"
+    },
+    "entry": "main.md"
+  },
+  "engine/issue314-order-rule-tags.json": {
+    "reason": "Use an ordered map and reduce the repeated capture in its original clause.",
+    "section": "Engine §§3.5, 10",
+    "native": true,
+    "load": true,
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text {$c:A} {$e:B} → {*($e!.flags.union ∪ $c!.flags.union)}\n```\n"
+    },
+    "entry": "main.md"
+  },
+  "engine/issue314-order-rule-value.json": {
+    "reason": "Use an ordered map and reduce the repeated capture in its original clause.",
+    "section": "Engine §§3.5, 10",
+    "native": true,
+    "load": true,
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text {$c:A} {$e:B} → {value: $e!'value.join() ++ $c!'value.join()}\n```\n"
+    },
+    "entry": "main.md"
+  },
+  "engine/issue314-order-warning-single.json": {
+    "reason": "Map each repeated binding to its string, then join the strings in input order.",
+    "section": "Engine §§3.5, 10",
+    "native": true,
+    "load": true,
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text {$c:A}\n%warning $c!'value.join()\n```\n"
+    },
+    "entry": "main.md"
+  },
+  "engine/issue315-item-capture-alternative-tags-before-error.json": {
+    "reason": "Use an ordered map and reduce the repeated capture in its original clause.",
+    "section": "Engine §§3.5, 10",
+    "native": true,
+    "load": true,
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text\n | {$c:A} {$e:B} → {*($c!.flags.union)}\n%error $e!'value.join()\n```\n"
+    },
+    "entry": "main.md"
+  },
+  "engine/issue315-item-capture-error-before-emits.json": {
+    "reason": "Map the repeated binding to its strings before joining them in input order.",
+    "section": "Engine §§3.5, 10",
+    "native": true,
+    "load": true,
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text {$c:A} {$e:B}\n%error $c!'value.join()\n%emit $e\n```\n"
+    },
+    "entry": "main.md"
+  },
+  "engine/issue315-item-capture-guarded-tags.json": {
+    "reason": "Use an ordered map and reduce the repeated capture in its original clause.",
+    "section": "Engine §§3.5, 10",
+    "native": true,
+    "load": true,
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text {$c:A} {$e:B} → {($e)? *$c!.flags.union}\n```\n"
+    },
+    "entry": "main.md"
+  },
+  "engine/item-capture-in-tag-term.json": {
+    "reason": "Use an ordered map and reduce the repeated capture in its original clause.",
+    "section": "Engine §§3.5, 10",
+    "native": true,
+    "load": true,
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text {$c:A} → {*($c!.flags.union)}\n```\n"
+    },
+    "entry": "main.md"
+  },
+  "engine/i276-message-query.json": {
+    "reason": "Keep the query in the diagnostic expression.",
+    "section": "Engine §9.3, Templates and feature conditions",
+    "expected": {
+      "kind": "grammar",
+      "document": "main.md",
+      "line": 4,
+      "column": 22,
+      "description": "a message cannot read a query"
+    },
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text A %error $.parse(probe)\n%rule probe A\n```\n"
+    },
+    "entry": "main.md"
+  },
+  "engine/notation-r4-recipe-alternative-image-invalid-group.json": {
+    "reason": "The recipe now accepts a general expression. Its list result still cannot supply a string field.",
+    "section": "Engine §3.7, Rule bags",
+    "expected": {
+      "kind": "grammar",
+      "document": "main.md",
+      "line": 5,
+      "column": 22,
+      "description": "a value or image needs a string"
+    },
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%const $S \"b\"\n%rule text $a:\"x\" → {image: [\"a\", \"b\"]}\n%emit\n```\n"
+    },
+    "entry": "main.md"
+  },
+  "engine/notation-r4-recipe-alternative-value-invalid-group.json": {
+    "reason": "The recipe now accepts a general expression. Its list result still cannot supply a string field.",
+    "section": "Engine §3.7, Rule bags",
+    "expected": {
+      "kind": "grammar",
+      "document": "main.md",
+      "line": 5,
+      "column": 22,
+      "description": "a value or image needs a string"
+    },
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%const $S \"b\"\n%rule text $a:\"x\" → {value: [\"a\", \"b\"]}\n%emit\n```\n"
+    },
+    "entry": "main.md"
+  },
+  "engine/notation-r4-recipe-header-image-invalid-group.json": {
+    "reason": "The recipe now accepts a general expression. Its list result still cannot supply a string field.",
+    "section": "Engine §3.7, Rule bags",
+    "expected": {
+      "kind": "grammar",
+      "document": "main.md",
+      "line": 5,
+      "column": 15,
+      "description": "a value or image needs a string"
+    },
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%const $S \"b\"\n%rule text → {image: [\"a\", \"b\"]}\n  | $a:\"x\"\n%emit\n```\n"
+    },
+    "entry": "main.md"
+  },
+  "engine/notation-r4-recipe-header-value-invalid-group.json": {
+    "reason": "The recipe now accepts a general expression. Its list result still cannot supply a string field.",
+    "section": "Engine §3.7, Rule bags",
+    "expected": {
+      "kind": "grammar",
+      "document": "main.md",
+      "line": 5,
+      "column": 15,
+      "description": "a value or image needs a string"
+    },
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%const $S \"b\"\n%rule text → {value: [\"a\", \"b\"]}\n  | $a:\"x\"\n%emit\n```\n"
+    },
+    "entry": "main.md"
+  },
+  "engine/notation-r4-recipe-invalid-ngrams.json": {
+    "reason": "The recipe now accepts a general expression. Its list result still cannot supply a string field.",
+    "section": "Engine §3.7, Rule bags",
+    "expected": {
+      "kind": "grammar",
+      "document": "main.md",
+      "line": 5,
+      "column": 32,
+      "description": "a value or image needs a string"
+    },
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%const $S \"b\"\n%rule text $a:\"x\" → {value: \"a\".ngrams(1)}\n%emit\n```\n"
+    },
+    "entry": "main.md"
+  },
+  "engine/notation-r4-recipe-item-image-invalid-group.json": {
+    "reason": "The recipe now accepts a general expression. Its list result still cannot supply a string field.",
+    "section": "Engine §3.7, Rule bags",
+    "expected": {
+      "kind": "grammar",
+      "document": "main.md",
+      "line": 6,
+      "column": 10,
+      "description": "a value or image needs a string"
+    },
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%const $S \"b\"\n%rule text $a:\"x\"\n%emit $a{image: [\"a\", \"b\"]}\n```\n"
+    },
+    "entry": "main.md"
+  },
+  "engine/notation-r4-recipe-item-value-invalid-group.json": {
+    "reason": "The recipe now accepts a general expression. Its list result still cannot supply a string field.",
+    "section": "Engine §3.7, Rule bags",
+    "expected": {
+      "kind": "grammar",
+      "document": "main.md",
+      "line": 6,
+      "column": 10,
+      "description": "a value or image needs a string"
+    },
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%const $S \"b\"\n%rule text $a:\"x\"\n%emit $a{value: [\"a\", \"b\"]}\n```\n"
+    },
+    "entry": "main.md"
+  },
+  "engine/issue314-item-image.json": {
+    "reason": "Keep the direct property read on the repeated binding.",
+    "section": "Engine §10, Method signatures",
+    "expected": {
+      "kind": "grammar",
+      "document": "main.md",
+      "line": 5,
+      "column": 19,
+      "description": "a property read needs a node or bag"
+    },
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text {$c:A} $d:B\n%emit $d{image: $c'value}\n```\n"
+    },
+    "entry": "main.md"
+  },
+  "engine/issue314-item-tags-guard.json": {
+    "reason": "Reduce the repeated bindings to one key set in the output bag.",
+    "section": "Engine §11.1",
+    "native": true,
+    "load": true,
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text {$c:A} $d:B\n%emit $d{value: $d'value, image: $d'image, ($c!.flags.union)? *{X}}\n```\n"
+    },
+    "entry": "main.md"
+  },
+  "engine/issue314-item-tags-union.json": {
+    "reason": "Reduce the repeated bindings to one key set in the output bag.",
+    "section": "Engine §11.1",
+    "native": true,
+    "load": true,
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text {$c:A} $d:B\n%emit $d{value: $d'value, image: $d'image, *({X} ∪ $c!.flags.union)}\n```\n"
+    },
+    "entry": "main.md"
+  },
+  "engine/issue314-item-tags.json": {
+    "reason": "Reduce the repeated bindings to one key set in the output bag.",
+    "section": "Engine §11.1",
+    "native": true,
+    "load": true,
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text {$c:A} $d:B\n%emit $d{value: $d'value, image: $d'image, *($c!.flags.union)}\n```\n"
+    },
+    "entry": "main.md"
+  },
+  "engine/issue314-item-value.json": {
+    "reason": "Keep the direct property read on the repeated binding.",
+    "section": "Engine §10, Method signatures",
+    "expected": {
+      "kind": "grammar",
+      "document": "main.md",
+      "line": 5,
+      "column": 19,
+      "description": "a property read needs a node or bag"
+    },
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text {$c:A} $d:B\n%emit $d{value: $c'value}\n```\n"
+    },
+    "entry": "main.md"
+  },
+  "engine/issue314-order-emission-channels.json": {
+    "reason": "Keep the direct property read on the repeated binding.",
+    "section": "Engine §10, Method signatures",
+    "expected": {
+      "kind": "grammar",
+      "document": "main.md",
+      "line": 5,
+      "column": 37,
+      "description": "a property read needs a node or bag"
+    },
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text {$c:A} {$e:B} $d:C\n%emit $d{*$e!.flags.union, value: $c'value}\n```\n"
+    },
+    "entry": "main.md"
+  },
+  "engine/issue314-order-emission-tags.json": {
+    "reason": "Reduce the repeated bindings to one key set in the output bag.",
+    "section": "Engine §11.1",
+    "native": true,
+    "load": true,
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text {$c:A} {$e:B} $d:C\n%emit $d{value: $d'value, image: $d'image, *($e!.flags.union ∪ $c!.flags.union)}\n```\n"
+    },
+    "entry": "main.md"
+  },
+  "engine/issue314-whole-tags.json": {
+    "reason": "Reduce the repeated bindings to one key set in the output bag.",
+    "section": "Engine §11.1",
+    "native": true,
+    "load": true,
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%const $DEFAULTS $n ↦ {value: $n.children!'value.join(), image: $n.children!'image.join()}\n%rule text {$c:A} $d:B\n%emit ${value: $'value, image: $'image, *($c!.flags.union)}\n```\n"
+    },
+    "entry": "main.md"
+  },
+  "engine/issue315-item-capture-carrier-before-attachment.json": {
+    "retired": "The output list cannot name attachment lists or an attached carrier.",
+    "section": "Engine §11.3"
+  },
+  "engine/issue315-item-capture-emission-item-order.json": {
+    "reason": "Reduce the repeated bindings to one key set in the output bag.",
+    "section": "Engine §11.1",
+    "native": true,
+    "load": true,
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text {$c:A} {$e:B} $d:C\n%emit $d{value: $d'value, image: $d'image, *($e!.flags.union)}, $c\n```\n"
+    },
+    "entry": "main.md"
+  },
+  "engine/issue315-item-capture-emission-recipe-before-attachment.json": {
+    "reason": "Keep the direct property read on the repeated binding.",
+    "section": "Engine §10, Method signatures",
+    "expected": {
+      "kind": "grammar",
+      "document": "main.md",
+      "line": 5,
+      "column": 18,
+      "description": "a property read needs a node or bag"
+    },
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text {$c:A} {$e:B} ^$d:C\n%emit ${image: $c'value}\n```\n"
+    },
+    "entry": "main.md"
+  },
+  "engine/issue315-item-capture-emission-tags-before-attachment.json": {
+    "reason": "The primary supplies both strings. The capture list reduces to a key set for the selected bag.",
+    "section": "Engine §§10, 11.3",
+    "native": true,
+    "load": true,
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text {$c:A} {$e:B} ^$d:C\n%emit ${*$c!.flags.union}\n```\n"
+    },
+    "entry": "main.md"
+  },
+  "engine/item-capture-in-emission.json": {
+    "reason": "An emission item can forward an entire capture list.",
+    "section": "Engine §11.1",
+    "native": true,
+    "load": true,
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text {$c:A}\n%emit $c\n```\n"
+    },
+    "entry": "main.md"
+  },
+  "engine/issue314-item-condition-whole.json": {
+    "reason": "Map each capture list to ordered values or a key set. Keep the written operands and their order.",
+    "section": "Engine §§3.5–3.6",
+    "native": true,
+    "load": true,
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%const $DEFAULTS $n ↦ {value: $n.children!'value.join(), image: $n.children!'image.join()}\n%rule text {$c:A}\n%conditions ($c!.flags.union ∩ $.flags)\n```\n"
+    },
+    "entry": "main.md"
+  },
+  "engine/issue314-order-whole-repeated.json": {
+    "reason": "Map each capture list to ordered values or a key set. Keep the written operands and their order.",
+    "section": "Engine §§3.5–3.6",
+    "native": true,
+    "load": true,
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%const $DEFAULTS $n ↦ {value: $n.children!'value.join(), image: $n.children!'image.join()}\n%rule text {$e:A $c:B}\n%conditions ($e!.flags.union ∩ $c!.flags.union ∩ $e!.flags.union ∩ $.flags)\n```\n"
+    },
+    "entry": "main.md"
+  },
+  "engine/issue314-order-whole-tags.json": {
+    "reason": "Map each capture list to ordered values or a key set. Keep the written operands and their order.",
+    "section": "Engine §§3.5–3.6",
+    "native": true,
+    "load": true,
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%const $DEFAULTS $n ↦ {value: $n.children!'value.join(), image: $n.children!'image.join()}\n%rule text {$e:A $c:B}\n%conditions ($e!.flags.union ∩ $c!.flags.union ∩ $.flags)\n```\n"
+    },
+    "entry": "main.md"
+  },
+  "engine/issue314-order-whole-values.json": {
+    "reason": "Map each capture list to ordered values or a key set. Keep the written operands and their order.",
+    "section": "Engine §§3.5–3.6",
+    "native": true,
+    "load": true,
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%const $DEFAULTS $n ↦ {value: $n.children!'value.join(), image: $n.children!'image.join()}\n%rule text {$e:A $c:B}\n%conditions $e!'value.join() = $c!'value.join() ++ $'value\n```\n"
+    },
+    "entry": "main.md"
+  },
+  "engine/issue315-item-condition-guard-whole.json": {
+    "reason": "Map each capture list to ordered values or a key set. Keep the written operands and their order.",
+    "section": "Engine §§3.5–3.6",
+    "native": true,
+    "load": true,
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%const $DEFAULTS $n ↦ {value: $n.children!'value.join(), image: $n.children!'image.join()}\n%rule text {$c:A $e:B}\n%conditions ($e ⟹ $c!'value.join() = $'value)\n```\n"
+    },
+    "entry": "main.md"
+  },
+  "engine/item-condition-with-whole.json": {
+    "reason": "Map each capture list to ordered values or a key set. Keep the written operands and their order.",
+    "section": "Engine §§3.5–3.6",
+    "native": true,
+    "load": true,
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%const $DEFAULTS $n ↦ {value: $n.children!'value.join(), image: $n.children!'image.join()}\n%rule text {$c:A} B\n%conditions $c!'value.join() = $'value\n```\n"
+    },
+    "entry": "main.md"
+  },
+  "engine/issue314-order-late-body-order.json": {
+    "reason": "Map each capture list to ordered values or a key set. Keep the written operands and their order.",
+    "section": "Engine §§3.5–3.6",
+    "native": true,
+    "load": true,
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text {$c:A} $y:B $z:C\n%conditions ($c!.flags.union ∩ $z.flags ∩ $y.flags)\n```\n"
+    },
+    "entry": "main.md"
+  },
+  "engine/issue314-order-late-tags.json": {
+    "reason": "Map each capture list to ordered values or a key set. Keep the written operands and their order.",
+    "section": "Engine §§3.5–3.6",
+    "native": true,
+    "load": true,
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text {$c:A} $z:B $y:C\n%conditions ($c!.flags.union ∩ $z.flags ∩ $y.flags)\n```\n"
+    },
+    "entry": "main.md"
+  },
+  "engine/issue314-order-late-values.json": {
+    "reason": "Map each capture list to ordered values or a key set. Keep the written operands and their order.",
+    "section": "Engine §§3.5–3.6",
+    "native": true,
+    "load": true,
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text {$c:A} $z:B $y:C\n%conditions $c!'value.join() = $z'value ++ $y'value\n```\n"
+    },
+    "entry": "main.md"
+  },
+  "engine/item-condition-outer-after-braces-in-list.json": {
+    "reason": "Map each capture list to ordered values or a key set. Keep the written operands and their order.",
+    "section": "Engine §§3.5–3.6",
+    "native": true,
+    "load": true,
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text { {D} C } {$c:A} $b:B\n%conditions $c!'value.join() = $b'value\n```\n"
+    },
+    "entry": "main.md"
+  },
+  "engine/item-condition-outer-after-braces.json": {
+    "reason": "Map each capture list to ordered values or a key set. Keep the written operands and their order.",
+    "section": "Engine §§3.5–3.6",
+    "native": true,
+    "load": true,
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text {$c:A} $b:B\n%conditions $c!'value.join() = $b'value\n```\n"
+    },
+    "entry": "main.md"
+  },
+  "engine/item-condition-outer-after-elidable-braces.json": {
+    "reason": "Map each capture list to ordered values or a key set. Keep the written operands and their order.",
+    "section": "Engine §§3.5–3.6",
+    "native": true,
+    "load": true,
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text [+KU {D}] {$c:A} $b:B\n%conditions $c!'value.join() = $b'value\n```\n"
+    },
+    "entry": "main.md"
+  },
+  "engine/item-condition-outer-after-nested-braces.json": {
+    "reason": "Map each capture list to ordered values or a key set. Keep the written operands and their order.",
+    "section": "Engine §§3.5–3.6",
+    "native": true,
+    "load": true,
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text { C {$c:A} } $b:B\n%conditions $c!'value.join() = $b'value\n```\n"
+    },
+    "entry": "main.md"
+  },
+  "engine/issue314-item-condition-two-braces.json": {
+    "reason": "Map each capture list to ordered values or a key set. Keep the written operands and their order.",
+    "section": "Engine §§3.5–3.6",
+    "native": true,
+    "load": true,
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text {$c:A} {$d:B}\n%conditions ($c!.flags.union ∩ $d!.flags.union)\n```\n"
+    },
+    "entry": "main.md"
+  },
+  "engine/issue314-order-three-braces.json": {
+    "reason": "Map each capture list to ordered values or a key set. Keep the written operands and their order.",
+    "section": "Engine §§3.5–3.6",
+    "native": true,
+    "load": true,
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text {$m:A} {$b:B} {$a:C}\n%conditions ($m!.flags.union ∩ $b!.flags.union ∩ $a!.flags.union)\n```\n"
+    },
+    "entry": "main.md"
+  },
+  "engine/issue314-order-two-disjunction.json": {
+    "reason": "Map each capture list to ordered values or a key set. Keep the written operands and their order.",
+    "section": "Engine §§3.5–3.6",
+    "native": true,
+    "load": true,
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text {$c:A} {$e:B}\n%conditions ($e!'value.join() = \"x\" ∨ $c!'value.join() = \"x\")\n```\n"
+    },
+    "entry": "main.md"
+  },
+  "engine/issue314-order-two-negated.json": {
+    "reason": "Map each capture list to ordered values or a key set. Keep the written operands and their order.",
+    "section": "Engine §§3.5–3.6",
+    "native": true,
+    "load": true,
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text {$c:A} {$e:B}\n%conditions ¬($e!.flags.union ∩ $c!.flags.union)\n```\n"
+    },
+    "entry": "main.md"
+  },
+  "engine/issue314-order-two-split.json": {
+    "reason": "Map each capture list to ordered values or a key set. Keep the written operands and their order.",
+    "section": "Engine §§3.5–3.6",
+    "native": true,
+    "load": true,
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text {$c:A} {$e:B}\n%conditions $e!'value.join().split($c!'value.join())\n```\n"
+    },
+    "entry": "main.md"
+  },
+  "engine/issue314-order-two-tags.json": {
+    "reason": "Map each capture list to ordered values or a key set. Keep the written operands and their order.",
+    "section": "Engine §§3.5–3.6",
+    "native": true,
+    "load": true,
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text {$c:A} {$d:B}\n%conditions ($d!.flags.union ∩ $c!.flags.union)\n```\n"
+    },
+    "entry": "main.md"
+  },
+  "engine/issue314-order-two-values.json": {
+    "reason": "Map each capture list to ordered values or a key set. Keep the written operands and their order.",
+    "section": "Engine §§3.5–3.6",
+    "native": true,
+    "load": true,
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text {$c:A} {$d:B}\n%conditions $d!'value.join() = $c!'value.join()\n```\n"
+    },
+    "entry": "main.md"
+  },
+  "engine/issue315-item-capture-condition-before-error.json": {
+    "reason": "Map each capture list to ordered values or a key set. Keep the written operands and their order.",
+    "section": "Engine §§3.5–3.6",
+    "native": true,
+    "load": true,
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text {$c:A} {$e:B}\n%conditions ($c!.flags.union ∩ $e!.flags.union)\n%error $e!'value.join()\n```\n"
+    },
+    "entry": "main.md"
+  },
+  "engine/issue315-item-condition-guard-order.json": {
+    "reason": "Map each capture list to ordered values or a key set. Keep the written operands and their order.",
+    "section": "Engine §§3.5–3.6",
+    "native": true,
+    "load": true,
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text {$c:A} {$e:B}\n%conditions ($e ⟹ $c!'value.join() = \"x\")\n```\n"
+    },
+    "entry": "main.md"
+  },
+  "engine/item-condition-two-braces.json": {
+    "reason": "Map each capture list to ordered values or a key set. Keep the written operands and their order.",
+    "section": "Engine §§3.5–3.6",
+    "native": true,
+    "load": true,
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text {$c:A} {$d:B}\n%conditions $c!'value.join() = $d!'value.join()\n```\n"
+    },
+    "entry": "main.md"
+  },
+  "engine/attach-aggregate-opaque.json": {
+    "reason": "The prohibition on aggregating a token with attachments and another token is gone. The new output covers both inputs and presents through its own face.",
+    "section": "Engine §§11.1, 11.3",
+    "native": true,
+    "load": true,
+    "documents": {
+      "a.md": "```jbogenbau\n%ambiguity-resolution greedy\n%const $DEFAULTS $n ↦ {value: $n.children!'value.join(), image: $n.children!'image.join()}\n%const $OUTPUTS {W,Z,B,I}\n%rule text {item}\n%rule item ^$w:word | ($b:bb ^$w:word) | (^$w:word $a:ii) | ($b:bb ^$w:word $a:ii)\n%emit\n%rule word \"w\" → {W} | \"z\" → {Z}\n%rule bb ^\"b\" → {B}\n%emit\n%rule ii ^\"i\" → {I}\n%emit\n```\n",
+      "b.md": "```jbogenbau\n%ambiguity-resolution greedy\n%const $DEFAULTS $n ↦ {value: $n.children!'value.join(), image: $n.children!'image.join()}\n%const $OUTPUTS {P}\n%rule text $x:pair\n%emit $x\n%rule pair (W fz) → {P}\n%rule fz ^Z → {image: $.verbatim-text}\n```\n",
+      "p.md": "```jbogenbau\n%stage a\n%include \"a.md\"\n%stage b\n%include \"b.md\"\n```\n"
+    },
+    "entry": "p.md"
+  },
+  "engine/attach-aggregate-ordinary.json": {
+    "reason": "The prohibition on aggregating a token with attachments and another token is gone. The new output covers both inputs and presents through its own face.",
+    "section": "Engine §§11.1, 11.3",
+    "native": true,
+    "load": true,
+    "documents": {
+      "a.md": "```jbogenbau\n%ambiguity-resolution greedy\n%const $DEFAULTS $n ↦ {value: $n.children!'value.join(), image: $n.children!'image.join()}\n%const $OUTPUTS {W,Z,B,I}\n%rule text {item}\n%rule item ^$w:word | ($b:bb ^$w:word) | (^$w:word $a:ii) | ($b:bb ^$w:word $a:ii)\n%emit\n%rule word \"w\" → {W} | \"z\" → {Z}\n%rule bb ^\"b\" → {B}\n%emit\n%rule ii ^\"i\" → {I}\n%emit\n```\n",
+      "b.md": "```jbogenbau\n%ambiguity-resolution greedy\n%const $DEFAULTS $n ↦ {value: $n.children!'value.join(), image: $n.children!'image.join()}\n%const $OUTPUTS {P}\n%rule text $x:pair\n%emit $x\n%rule pair (W Z) → {P}\n```\n",
+      "p.md": "```jbogenbau\n%stage a\n%include \"a.md\"\n%stage b\n%include \"b.md\"\n```\n"
+    },
+    "entry": "p.md"
   }
 }

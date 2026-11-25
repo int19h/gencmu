@@ -3060,7 +3060,7 @@ In a supplied tree, read the immediate operands before reporting a missing combi
 
 A constructor reads only the immediate operand kinds in its row. A part from a different layer cannot supply a missing operand. For example, a grouped item sequence cannot supply a whole-pattern operand of a path. A child set can read both child intersections and child paths. Its operator must follow the operand checks.
 
-A wildcard needs its token. A tested pattern constant must resolve to a string terminal. An attached list needs a rule atom, call or compatible parameter. Report a forbidden list at its opening bracket unless substitution supplies the invalid operand.
+A wildcard needs its token. A tested pattern constant must resolve to a string terminal. An attached list needs a rule atom, call or compatible parameter. Report a forbidden list at the target unless substitution supplies the invalid operand.
 
 The reader maps decomposed comparators to their canonical spellings. It preserves decoded string scalars. For resource paths, it decodes escapes within the original literal runs.
 
@@ -3098,7 +3098,7 @@ A written elidable optional starts with its ungrouped user terminal or parameter
 
 A group, optional or repetition cannot take a capture label, even around one symbol. A capture inside a repetition binds a flat list of nodes in input order. Conditions, terms and emission items can use a list under their own rules. See §10 for recognition reductions and §11.1 for forwarding.
 
-A chain occupies one whole alternative and cannot be the query target. A chain marker cannot label a separator. An ordered subset accepts at most sixteen operands. A default outside an elidable head or on a head whose omission predicate is false fails at its `≝`.
+A chain occupies one whole alternative and cannot be the query target. A chain marker cannot label a separator. An ordered subset accepts at most sixteen operands. A written default outside an elidable head fails at its `≝`. The default record owns a failed omission test.
 
 A stage selector takes one name. An include or names directive takes one path. A features directive takes at least one feature name. The elision directive takes no operand.
 
@@ -3185,6 +3185,8 @@ Reject unknown fields in structural DOM records and malformed record shapes. Dir
 All three declaration arrays must exist and retain written order. A declaration has one source position, distinct from those of other declarations in the document. Format 50 is required for a supplied DOM or the mandatory bootstrap. A missing, invalid or obsolete optional cache file can miss. Once the loader selects a current document for decoding, an invalid record fails at the same site as a supplied DOM.
 
 Reject wrong forms at the same logical position for source, cache and supplied input. A syntactic origin test uses a requirement record. It is separate from engine class membership. Ordinary membership tests can inspect a rule’s visible keys. [Output formats](output.md#a-grammar-dom) defines each record.
+
+A DOM fault uses the position of the faulty record or its closest owner with a position. A method uses the position of its dot. A fault that needs a written token uses that token's position.
 
 #### Strings and ranges
 

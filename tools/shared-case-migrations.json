@@ -34,7 +34,7 @@
     }
   },
   "notation/pattern-rule-positive-elided.json": {
-    "reason": "The origin requirement remains a load error on a rule atom. The counterpart reports the written origin mark.",
+    "reason": "The origin requirement remains a load error on a rule atom. The filter owns the origin requirement's position.",
     "oldPath": true,
     "document": "```jbogenbau\n%rule text $x:w\n%conditions $x ≅ #w<_Elided>\n%rule w A\n```\n",
     "expectedSourceError": "the _Elided origin test applies only to a terminal",
@@ -48,7 +48,7 @@
         "to": {
           "document": "notation.md",
           "line": 3,
-          "column": 21
+          "column": 20
         }
       }
     ]
@@ -1103,16 +1103,6 @@
     },
     "section": "Engine §§3.7, 9.3"
   },
-  "engine/attach-aggregate-opaque.json": {
-    "retired": true,
-    "section": "Engine §§11.1, 11.3",
-    "reason": "The prohibition on aggregating a token with attachments and another token is gone. The new output covers both inputs and presents through its own face."
-  },
-  "engine/attach-aggregate-ordinary.json": {
-    "retired": true,
-    "section": "Engine §§11.1, 11.3",
-    "reason": "The prohibition on aggregating a token with attachments and another token is gone. The new output covers both inputs and presents through its own face."
-  },
   "engine/backward-ends-bare-template.json": {
     "reason": "The stage retains a bare template name as an exact suffix target. A reference in a parse body must name a rule or a bound instance.",
     "section": "Engine §§2.3, 7",
@@ -1120,7 +1110,7 @@
       "kind": "grammar",
       "document": "p.md",
       "line": 11,
-      "column": 23
+      "column": 14
     },
     "fixture": {
       "documents": {
@@ -1136,7 +1126,7 @@
       "kind": "grammar",
       "document": "p.md",
       "line": 11,
-      "column": 39
+      "column": 30
     },
     "fixture": {
       "documents": {
@@ -1180,6 +1170,71 @@
         "b.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text W\n%emit ${T}, ${U}\n```\n"
       },
       "pipelineDocument": "p.md"
+    }
+  },
+  "engine/item-condition-presence.json": {
+    "reason": "The item has a route without the original capture. Label that route so its items still enter the condition.",
+    "fixture": {
+      "pipelineDocument": "main.md",
+      "documents": {
+        "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text {$a:A | $c:B}\n%conditions ¬$a\n```\n"
+      }
+    }
+  },
+  "engine/item-condition-presence-holds.json": {
+    "reason": "The item has a route without the original capture. Label that route so its items still enter the condition.",
+    "fixture": {
+      "pipelineDocument": "main.md",
+      "documents": {
+        "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text {$a:A | $c:B}\n%conditions ¬$a\n```\n"
+      }
+    }
+  },
+  "engine/item-condition-simplified-without-item.json": {
+    "reason": "The item has a route without the original capture. Label that route so its items still enter the condition.",
+    "fixture": {
+      "pipelineDocument": "main.md",
+      "documents": {
+        "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text $o:O {$a:A | $c:B}\n%conditions $a ⟹ $o'value = \"x\"\n```\n"
+      }
+    }
+  },
+  "engine/item-condition-simplified-without-item-holds.json": {
+    "reason": "The item has a route without the original capture. Label that route so its items still enter the condition.",
+    "fixture": {
+      "pipelineDocument": "main.md",
+      "documents": {
+        "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text $o:O {$a:A | $c:B}\n%conditions $a ⟹ $o'value = \"x\"\n```\n"
+      }
+    }
+  },
+  "engine/helper-tags.json": {
+    "retired": true,
+    "section": "Engine §3.7, Rule bags",
+    "reason": "A whole optional no longer copies the bag of its only symbol.",
+    "counterpart": {
+      "status": "native-pending",
+      "section": "Engine §3.7, Rule bags",
+      "fixture": {
+        "pipelineDocument": "main.md",
+        "documents": {
+          "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%const $OUTPUTS {A}\n%const $DEFAULTS $n ↦ {value: $n.children!'value.join(), image: $n.children!'image.join()}\n%rule text w\n%rule w [A]\n%emit\n```\n"
+        },
+        "tokens": [
+          {
+            "text": "a",
+            "props": {
+              "A": true
+            }
+          }
+        ]
+      },
+      "expected": {
+        "props": {
+          "value": "a",
+          "image": "a"
+        }
+      }
     }
   }
 }

@@ -105,12 +105,17 @@ test("resource generation keeps scoped documents and separates the bootstrap fam
     write(base + "other/" + name, "unicode-names 15.1.0\n");
   }
   write(base + "other/a.md", fenced('%names "a.txt"\n%names "\u{10000}.txt"\n%names "‹U+E000›.txt"\n%include "middle.md"'));
+  const orphan = base + "other/orphan.md";
+  write(orphan, fenced('%rule text "‹LOCAL NAME›"'));
   const resources = notation50Resources(temporary);
   const file = base + "other/shared.md";
   assert.equal(resources.sourceDocuments[file].dom.rules[0].alternatives[0].expr.literal.string, "\uE000");
   const caches = resources.cacheFiles();
   const optional = JSON.parse(caches.get("data/preparsed50/gencmu-optional.json"));
   assert.ok(Object.hasOwn(optional.documents, base + "other/pipeline.md"));
+  assert.ok(resources.sources.includes(orphan));
+  assert.equal(Object.hasOwn(resources.sourceDocuments, orphan), false);
+  assert.equal(Object.hasOwn(optional.documents, orphan), false);
   assert.equal(Object.hasOwn(optional.documents, file), false);
   const names = Object.keys(optional.bundledNames);
   assert.ok(names.includes(base + "other/a.txt"));
