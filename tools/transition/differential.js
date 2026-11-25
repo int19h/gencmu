@@ -111,13 +111,15 @@ function mutate(dom, edits, run) {
   }
 }
 
-export function createDifferential() {
+export function createDifferential(window) {
   const counts = { sources: 0, valid: 0, prefix: 0, invalid: 0, sourceOnly: 0, single: 0, paired: 0 };
   const differences = [];
   const seen = new Set();
   const environments = new WeakMap();
   let environmentCount = 0;
   const sourceOnly = {};
+  let operandsSeen = 0;
+  let possiblePairs = 0;
 
   function observe({ markdown, document, inherited, unicode, dom, state, fault }, resources) {
     if (unicode && !environments.has(unicode)) environments.set(unicode, environmentCount++);
@@ -161,24 +163,33 @@ export function createDifferential() {
     const operands = operandMutations(dom);
     const testedPairs = new Set();
     for (const [index, operand] of operands.entries()) {
-      const expected = replay([operand]);
-      assert.ok(expected, `${document}: invalid name at ${operand.path.join("/")} did not fail`);
-      counts.single++;
-      compare(expected, [operand]);
+      const cursor = operandsSeen++;
+      const selected = !window || cursor >= window.start && cursor < window.start + window.count;
+      if (selected) {
+        const expected = replay([operand]);
+        assert.ok(expected, `${document}: invalid name at ${operand.path.join("/")} did not fail`);
+        counts.single++;
+        compare(expected, [operand]);
+      }
       let next = operands.findIndex((other, i) => i > index && canPair(operand, other));
       if (next === -1) next = operands.findIndex(other => canPair(operand, other));
       if (next === -1) continue;
       const identity = `${Math.min(index, next)}:${Math.max(index, next)}`;
       if (testedPairs.has(identity)) continue;
       testedPairs.add(identity);
-      const pair = [operand, operands[next]];
-      counts.paired++;
-      compare(replay(pair), pair);
+      possiblePairs++;
+      if (selected) {
+        const pair = [operand, operands[next]];
+        counts.paired++;
+        compare(replay(pair), pair);
+      }
     }
   }
 
   function finish(label, details = {}) {
-    console.log(JSON.stringify({ differential: label, ...details, ...counts, sourceOnlyPhases: sourceOnly, differences: differences.length }));
+    const coverage = window && { window, operandsSeen, possiblePairs };
+    console.log(JSON.stringify({ differential: label, ...details, ...counts, ...coverage,
+      sourceOnlyPhases: sourceOnly, differences: differences.length }));
     for (const difference of differences) console.log(JSON.stringify(difference));
     assert.equal(differences.length, 0, `${label}: source and reordered DOM diagnostics differ`);
   }

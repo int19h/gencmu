@@ -56,3 +56,5 @@ From `lib/js`, run `npm test -- test/transition-differential.test.js` to test di
 The harness compares the first source diagnostic with two JSON readings. One reverses record members. One uses a fixed random seed. Both preserve all array order.
 
 For a valid source, the harness also replaces operands in the converted records with invalid names. It tests each replacement alone and pairs it with a separate operand when possible. The source reader's declaration checks provide the diagnostic for these replacements because an invalid DOM name can have no legal source spelling. The harness counts source failures that produce no DOM by phase.
+
+If one fixture exceeds the time limit, set `GENCMU_DIFFERENTIAL_BATCH_SIZE` to 1. Set `GENCMU_DIFFERENTIAL_MUTATION_START` and `GENCMU_DIFFERENTIAL_MUTATION_COUNT` to select a range of replacements. Run adjacent ranges until they cover the reported operand count. A count of 0 reports coverage totals with the original source comparison.
