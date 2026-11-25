@@ -404,9 +404,40 @@ function diagramTermText(term) {
   return hasUnresolved(term) ? canonicalArgument(term,unicode) : formatTerm(term);
 }
 
+// Format 50 actuals can pass a constant expression, as in `= {Run-Initial}`.
+function expressionText(expr) {
+  if ("string" in expr) return canonicalArgument(expr,unicode);
+  if ("integer" in expr) return expr.integer;
+  if (expr.const) return "$" + expr.const;
+  if (expr.param) return "@" + expr.param;
+  if (expr.list) {
+    return "[" + expr.list.map(entry => {
+      if (entry.gates.length || entry.guard) throw new Error(`unprintable argument ${JSON.stringify(expr)}`);
+      return (entry.kind === "splat" ? "*" : "") + expressionText(entry.value);
+    }).join(", ") + "]";
+  }
+  if (expr.bag) {
+    return "{" + expr.bag.map(entry => {
+      if (entry.gates.length || entry.guard) throw new Error(`unprintable argument ${JSON.stringify(expr)}`);
+      if (entry.kind === "bare") return entry.key;
+      if (entry.kind === "delete") return "¬" + entry.key;
+      if (entry.kind === "splat") return "*" + expressionText(entry.value);
+      if (entry.kind === "write") return entry.keys.map(key => key + ": ").join("") + expressionText(entry.value);
+      throw new Error(`unprintable argument ${JSON.stringify(expr)}`);
+    }).join(", ") + "}";
+  }
+  throw new Error(`unprintable argument ${JSON.stringify(expr)}`);
+}
+
+function argumentText(arg) {
+  if (arg.expression) return "= " + expressionText(arg.expression);
+  return arg.call ? symbolText(arg) : canonicalArgument(arg,unicode);
+}
+
 function symbolText(expr) {
   if (expr.splice) return "*"+symbolText(expr.splice);
-  if (expr.param || expr.call) return canonicalArgument(expr,unicode);
+  if (expr.call) return `${expr.call}(${expr.args.map(argumentText).join(", ")})`;
+  if (expr.param) return canonicalArgument(expr,unicode);
   if (expr.test) return symbolText(expr.expr) + testText(expr);
   if (expr.literal) return diagramTermText(expr.literal);
   if (expr.wildcard) return "_";
@@ -691,7 +722,7 @@ function hasRankedChoice(rule) {
  * @returns {string}
  */
 export function ruleSvg(rule, omission = unknownOmission) {
-  const title=rule.name+(rule.params ? "("+rule.params.map(name=>"@"+name).join(", ")+")" : rule.args ? "("+rule.args.map(arg=>canonicalArgument(arg,unicode)).join(", ")+")" : "");
+  const title=rule.name+(rule.params ? "("+rule.params.map(name=>"@"+name).join(", ")+")" : rule.args ? "("+rule.args.map(argumentText).join(", ")+")" : "");
   const body = rulePiece(rule, omission);
   const mark = 10;
   const titleWidth = length(title) * CHAR_WIDTH;
