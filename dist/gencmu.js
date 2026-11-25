@@ -26832,15 +26832,20 @@
         }
         /** @type {any} */
         const copy = { test: node.test };
-        if (node.requirements) copy.requirements = node.requirements.map((/** @type {any} */ item) => ({ negated: item.negated, value: this.requirement(item.value) }));
+        // A test of _Elided on a terminal is a test of the hidden key that
+        // every written token carries, with the opposite sign. A template
+        // instance then passes the same check as a written test.
+        if (node.requirements) copy.requirements = node.requirements.map((/** @type {any} */ item) => item.value.tag === "_Elided"
+          ? { negated: !item.negated, value: { tag: WRITTEN } }
+          : { negated: item.negated, value: this.requirement(item.value) });
         if (node.value) copy.value = this.stringOperand(node.value);
         copy.expr = this.body(node.expr, primary);
         return copy;
       }
       if (node.literal) return { literal: this.stringOperand(node.literal) };
       if (node.range) return { range: node.range.map((/** @type {any} */ item) => this.stringOperand(item)) };
-      // The recognizer spells the omitted-only head [+T<_Elided>] as the
-      // value test T="", which a written token of T never passes.
+      // The recognizer spells the omitted-only head [+T<_Elided>] as a test
+      // that the head lacks the hidden key of written tokens.
       if (node.optional && node.elidable) {
         const rewritten = omittedOnlyHead(node.optional);
         if (rewritten !== node.optional) {
@@ -28202,7 +28207,7 @@
       if (ranking === null) {
         const rejection = rejectionOf(chart);
         // The recognizer spells the origin test of a head with a hidden key.
-        rejection.expected = rejection.expected.map(item => ({ ...item, terminal: item.terminal.replaceAll(`¬${WRITTEN}`, "_Elided") }));
+        rejection.expected = rejection.expected.map(item => ({ ...item, terminal: item.terminal.replaceAll(`¬${WRITTEN}`, "_Elided").replaceAll(WRITTEN, "¬_Elided") }));
         report.error = {
           kind: "rejected", stage: this.name, token: rejection.position,
           expected: rejection.expected,
