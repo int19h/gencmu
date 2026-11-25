@@ -894,3 +894,137 @@ test("a Boolean operation and a bare child list reject each other's written payl
   pattern.constants[0].value.pattern.any = [];
   assert.throws(() => validateDocument50(pattern), /"any" must be true on a bareChildren/);
 });
+
+const originHeader = "%rule r A\n%rule f(@X) @X\n";
+for (const [declaration, column] of [
+  ["%rule text f(r<¬_Elided>)", 15],
+  ["%const $P #f(r<¬_Elided>)", 15],
+  ["%const $P #f((r<¬_Elided> A))", 16],
+  ["%const $P #f(r<_Elided>)", 15],
+  ["%const $P #f(A<¬_Elided>)"],
+  ["%const $P #r<¬_Elided>"],
+  ["%const $P #f(= #r<¬_Elided>)"],
+  ["%const $P #f(= #r<_Elided>)", 18],
+]) {
+  test(`origin follows the test slot in ${declaration}`, () => {
+    const source = originHeader + declaration;
+    if (column) {
+      let stored;
+      const observed = createObserved(reading => { stored = reading.dom; });
+      const message = /the _Elided origin test applies only to a terminal/;
+      assertFault(() => observed.compileDocument(fenced(source), "probe.md"), message, 4, column);
+      assert.ok(stored);
+      compareDiagnostics(source, stored, message, [4, column]);
+    } else {
+      const dom = read(source);
+      for (const reading of [dom, reverseMembers(dom)]) {
+        assert.equal(validateDocument50(reading, { unicode: compiler.unicode }), reading);
+      }
+    }
+  });
+}
+
+test("a resolution step applies its origin rule to its pattern", () => {
+  assert.ok(read(originHeader + "%ambiguity-resolution leftmost-longest #·f(A<_Elided>)"));
+  assert.throws(() => read("%ambiguity-resolution leftmost-longest #·A<_Elided>"),
+    /a leftmost-longest pattern cannot require _Elided/);
+});
+
+test("an origin requirement does not grant a sibling slot access to _Elided", () => {
+  const valid = read(originHeader + "%const $P #f(A<_Elided>, A)");
+  valid.constants[0].value.pattern.args[1].tag = "_Elided";
+  assert.throws(() => validateDocument50(valid), /unknown or forbidden engine key _Elided/);
+  assert.throws(() => read(originHeader + "%const $P #f(A<_Elided>, _Elided)"),
+    /unknown or forbidden engine key _Elided/);
+});
+
+test("a child repetition permits a gap only in a separate child list", () => {
+  assert.ok(read("%const $P #⁅ {⁅ ⋯ ⁆ A} ⁆"));
+  assert.throws(() => read("%const $P #⁅ {A [⋯]} ⁆"), /a repeated child list cannot contain a sibling gap/);
+});
+
+test("a query body and a template actual select their own capture restrictions", () => {
+  assert.throws(() => read('%rule f(@X) @X\n%rule text A %conditions $.parse(f(($x:A B)))'),
+    /an argument cannot read or declare captures/);
+  assert.throws(() => read('%rule f(@X) A %conditions @X\n%rule text f(= [1].all($x ↦ $x.parse($cap:A)))'),
+    /a query cannot declare captures/);
+  assert.throws(() => read('%rule f(@X) A %conditions @X\n%rule text f(= $x.parse(A))'),
+    /an argument cannot read or declare captures/);
+});
+
+test("a body actual starts a separate recognition route", () => {
+  assert.ok(read(originHeader + '%rule text [f((^A B))]'));
+  assert.ok(read(originHeader + '%rule text A f({... B / ","})'));
+  assert.ok(read(originHeader + '%rule text {... f(B) / ","}'));
+  assert.throws(() => read(originHeader + '%rule text [+T≝"v" f(A≝"a")]'),
+    /only an elidable head takes a default value/);
+  assert.throws(() => read(originHeader + "%rule text [^A]"), /a primary must mark a mandatory child/);
+});
+
+test("an n-gram width leaves the count range of its sibling intact", () => {
+  const source = '%rule text A %conditions "a".ngrams(256).any($w ↦ $w = "a") ∧ (1 + 0).at-most(255) = 1';
+  assert.ok(read(source));
+  assertFault(() => read(source.replace("255", "256")), /a count literal must be between 0 and 255/,
+    2, source.indexOf(".at-most") + 1);
+});
+
+test("permission for an implicit binder belongs to the predicate slot", () => {
+  const dom = read("%const $P [{A}].all('A)\n%const $V 1");
+  dom.constants[1].value = structuredClone(dom.constants[0].value.args[0]);
+  assert.throws(() => validateDocument50(dom), /a predicate requires an explicit binder/);
+});
+
+test("a marked actual starts its own binding and type scope", () => {
+  const header = '%rule f(@X) A %conditions @X\n';
+  const predicate = '["a"].all($x ↦ $x = "a")';
+  for (const declaration of [
+    `%const $P $x ↦ #f(= ${predicate})`,
+    `%rule text $x:A → {test: $ ≅ #f(= ${predicate})}`,
+    '%rule text A %conditions $ ≅ #f(= "a")',
+  ]) {
+    const dom = read(header + declaration);
+    assert.equal(validateDocument50(dom), dom);
+  }
+  assert.throws(() => read(header + `%const $P $x ↦ ${predicate}`),
+    /a function binder cannot hide a live name/);
+  assert.throws(() => read(header + "%const $P $x ↦ #f(= 'k)"),
+    /an implicit receiver needs a function binding/);
+  assert.throws(() => read(header + "%const $P $x ↦ #f(= $x)"),
+    /an argument cannot read or declare captures/);
+  assert.throws(() => read(header + '%rule text $x:A → {test: $ ≅ #f(= ["a"].all($x ↦ "a"))}'),
+    /this operand does not have a truth value/);
+});
+
+test("a feature condition keeps its input span separate from a rule condition", () => {
+  const source = "%stage s\n%features feature %conditions $.classes\n%rule text $x:A %conditions $x'Flag ∧ $'Flag";
+  assert.ok(read(source));
+  assert.throws(() => read(source.replace("$.classes", () => "$'Flag")), /a property read needs a node or bag/);
+  assert.throws(() => read(source.replace("$.classes", "$x'Flag")), /a feature condition cannot read a named capture/);
+});
+
+test("a closed actual does not add a boundary atom to its containing condition", () => {
+  const header = "%rule f(@X) A\n";
+  assert.ok(read(header + "%rule text $x:A %conditions $x.followed-by(f(= $n ↦ $n.preceded-by(A)))"));
+  assert.throws(() => read(header + "%rule text $x:A %conditions $x.followed-by(A) ∧ $x.preceded-by(A)"),
+    /a condition item cannot have more than one boundary atom/);
+});
+
+test("a message and a template actual use separate expression contexts", () => {
+  const header = "%rule f(@X) A\n";
+  assert.ok(read(header + '%rule text A %error ($ ≅ #f(= $n ↦ $n.parse(A)) ? "one" | "two")'));
+  assert.throws(() => read(header + '%rule text A %error ($.parse(A) ? "one" | "two")'),
+    /a message cannot read a query/);
+});
+
+test("a node term checks its own string fields and leaves nested bags independent", () => {
+  assert.ok(read("%rule text A → {k: {value: 1}}"));
+  assert.throws(() => read("%rule text A → {value: 1}"), /a value or image needs a string/);
+  assert.throws(() => read("%rule text $x:A %emit $x{value: 1}"), /a value or image needs a string/);
+});
+
+test("logical depth follows a pattern call into its actual and starts again at the next root", () => {
+  const list = count => "[".repeat(count) + '"a"' + "]".repeat(count);
+  const source = count => originHeader + `%const $P #f(= ${list(count)})\n%const $V ${list(256)}`;
+  assert.ok(read(source(254)));
+  assertFault(() => read(source(255)), /nested more than 256 deep/, 4, 1);
+});

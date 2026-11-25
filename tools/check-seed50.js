@@ -79,11 +79,11 @@ for (const path of paths) {
 }
 
 function auditCaptureUses(document, value, pointer, slots, owner, key, truth = false, at, slot) {
-  if (!value || typeof value !== "object") return;
+  if (!value || typeof value !== "object" || slot === "argument[]") return;
   const site = value.at ?? at;
   const kind = recordKind50(value, slot);
   if (["capture", "forward", "braced"].includes(kind) && slots.get(value.capture)) {
-    const ok = truth || key === "map" || !value.term && /^\/rules\/\d+\/emit\/items\/\d+$/.test(pointer) || key === "receiver" &&
+    const ok = truth || key === "map" || kind === "forward" || key === "receiver" &&
       listMethods.has(owner.method) && (owner.method !== "any" || owner.args.length === 1);
     if (!ok) process.exitCode = 1;
     console.log(JSON.stringify({ document, pointer, at: site, capture: value.capture,

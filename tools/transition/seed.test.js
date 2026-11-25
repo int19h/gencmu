@@ -85,6 +85,25 @@ test("the seed audit accepts forwarding a list capture", t => {
   assert.match(stdout, /"capture":"list","consumer":"0","ok":true/);
 });
 
+test("the seed audit keeps a list truth test separate from a stored value", t => {
+  const withCapture = bootstrap => {
+    const rules = document(bootstrap, "syntax").rules;
+    const rule = {
+      name: "truth-test", op: "define", at: [10000, 1], conditions: [{ capture: "list" }],
+      alternatives: [{ gates: [], expr: { repeat: { capture: "list", expr: { ref: "A" } } } }],
+    };
+    rules.push(rule);
+    return rule;
+  };
+  const control = audit(t, withCapture);
+  assert.equal(control.status, 0);
+  const invalid = audit(t, bootstrap => {
+    withCapture(bootstrap).term = { bag: [{ kind: "write", keys: ["k"], value: { capture: "list" }, gates: [], at: [10000, 20] }] };
+  });
+  assert.equal(invalid.status, 1);
+  assert.match(invalid.stdout, /"capture":"list","consumer":"value","ok":false/);
+});
+
 test("the seed audit rejects a self include at the directive", t => {
   const { status, stderr } = audit(t, bootstrap => {
     document(bootstrap, "pipeline").directives.push({ name: "include", args: ["pipeline.md"], at: [9999, 1] });
