@@ -17,6 +17,11 @@ export declare const BUNDLE_50: Readonly<{
  * @returns {Map<string, any>} each document's entry
  */
 export declare function readBootstrap50(text: string, unicode: any): Map<string, any>;
+/**
+ * Validates a DOM that did not come from the reader: a cache entry or a
+ * supplied DOM. Every template argument record carries its position.
+ */
+export declare function validateStoredDom(dom: any, path: any, unicode: any): void;
 export declare class Loader50 {
     read: (path: string) => string | undefined;
     unicode: UnicodeTable;
@@ -26,6 +31,17 @@ export declare class Loader50 {
     notationPipeline: Pipeline50 | null;
     /** @type {Map<string, any>} */
     documents: Map<string, any>;
+    /** @type {Map<string, any>} the optional cache entries by document */
+    preparsed: Map<string, any>;
+    /** @type {Set<string>} the cache files read so far */
+    preparsedFiles: Set<string>;
+    /** @type {Map<string, any>} the DOMs that a caller supplies by document */
+    supplied: Map<string, any>;
+    /** @type {string[]} the documents whose DOM came from a cache entry */
+    cacheHits: string[];
+    bootstrapHash: string;
+    unicodeHash: string;
+    propertiesHash: string | null;
     /**
      * @param {(path: string) => string | undefined} read
      */
@@ -48,6 +64,20 @@ export declare class Loader50 {
     namesResource(file: any): string;
     /** The DOM of a document, read from its source. */
     documentDom(path: any, inherited: any): any;
+    findDom(path: any, inherited: any): any;
+    /**
+     * Uses the entries of an optional cache whose fingerprints match this
+     * loader: the bootstrap, the Unicode table, its properties and the format.
+     * @param {any} data
+     */
+    usePreparsed(data: any): void;
+    loadPreparsed(path: any): void;
+    /**
+     * Supplies the DOM of a document in place of its source.
+     * @param {string} path
+     * @param {string} json the DOM as JSON
+     */
+    supplyDom(path: string, json: string): void;
     /**
      * A pipeline from its pipeline document.
      * @param {string} path
