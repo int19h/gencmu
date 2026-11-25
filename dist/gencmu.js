@@ -25528,14 +25528,17 @@
 
   /**
    * Whether an expression is a set of patterns with at least one operator,
-   * such as `#A ∖ ∅` (part 1 §9).
+   * such as `#A ∖ ∅` or `#⁅ a b ⁆ ∪ $P` (part 3 §4). An operand can be a
+   * constant, but one operand at least is a written pattern, so that a set
+   * of key-set constants stays a key set.
    * @param {any} node
    */
   function isPatternSet(node) {
-    const operands = node.union ?? node.intersection ?? node.difference;
+    const operands = node?.union ?? node?.intersection ?? node?.difference;
     if (!operands) return false;
-    const operand = (/** @type {any} */ item) => item.pattern !== undefined || item.emptySet || isPatternSet(item);
-    return operands.every(operand);
+    const operand = (/** @type {any} */ item) => item.pattern !== undefined || item.emptySet || item.const !== undefined || isPatternSet(item);
+    const written = (/** @type {any} */ item) => item.pattern !== undefined || isPatternSet(item);
+    return operands.every(operand) && operands.some(written);
   }
 
   class Evaluator {
@@ -27829,6 +27832,8 @@
    */
   function patternSet(node) {
     if (node.pattern !== undefined) return node.pattern;
+    // A constant inside a pattern of the recognizer is a constant atom.
+    if (node.const !== undefined) return { constant: node.const };
     if (node.emptySet) return EMPTY_PATTERN;
     if (node.difference) {
       const [left, right] = node.difference.map(patternSet);
