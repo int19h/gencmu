@@ -51,12 +51,32 @@ The optional start and count select a slice of the sorted case filenames. Each o
 
 ## Diagnostic parity
 
-From `lib/js`, run `npm test -- test/transition-differential.test.js` to test diagnostic order. Use `--test-name-pattern` to select bounded batches, for example `^transition differential shared engine 0$`. The number at the end of the test name is the first case index. Each shared batch covers up to 120 fixtures. Set `GENCMU_DIFFERENTIAL_BATCH_SIZE` to a smaller number to split a long batch.
+From `lib/js`, run `npm test` for the regular suite. It runs compiler, validator and translator checks in separate processes. It tests four shared fixtures and one applicable context for each matrix row. The translator runs its focused tests and samples the negative catalog and written migrations.
+
+Run the full sweeps of the shared fixtures, matrix, negative catalog and written migrations from `lib/js`.
+
+```sh
+npm run test:transition
+```
+
+Each batch starts a fresh Node process with a 2 GiB old-space limit. Old space holds objects that survive garbage collection. The runner splits a batch if it takes more than three minutes.
+
+To run one suite or slice, give its name and, for a slice, the first case index and count.
+
+```sh
+npm run test:transition -- notation
+npm run test:transition -- engine 0 30
+npm run test:transition -- matrix 0 120
+npm run test:transition -- catalog 0 50
+npm run test:transition -- written 0 5
+```
+
+The shared indices follow sorted filenames. The matrix indices follow the order of applicable pairs in the test table. Each batch prints its case count and the total for its suite.
 
 The harness compares the first source diagnostic with two JSON readings. One reverses record members. One uses a fixed random seed. Both preserve all array order.
 
 For a valid source, the harness also replaces operands in the converted records with invalid names. It tests each replacement alone and pairs it with a separate operand when possible. The source reader's declaration checks provide the diagnostic for these replacements because an invalid DOM name can have no legal source spelling. The harness counts source failures that produce no DOM by phase.
 
-If one fixture exceeds the time limit, set `GENCMU_DIFFERENTIAL_BATCH_SIZE` to 1. Set `GENCMU_DIFFERENTIAL_MUTATION_START` and `GENCMU_DIFFERENTIAL_MUTATION_COUNT` to select a range of replacements. Run adjacent ranges until they cover the reported operand count. A count of 0 reports coverage totals with the original source comparison.
+If one fixture exceeds the time limit, select it with a case count of 1. Set `GENCMU_DIFFERENTIAL_MUTATION_START` and `GENCMU_DIFFERENTIAL_MUTATION_COUNT` to select a range of replacements. Run adjacent ranges until they cover the reported operand count. A mutation count of 0 reports coverage totals with the original source comparison.
 
 For large documents, the harness reuses validation of declarations that the replacement leaves unchanged. It preserves the names preamble and compares the full document for each set of edited declarations.

@@ -3,12 +3,19 @@ import fs from "node:fs";
 import { after, test } from "node:test";
 import { translateSharedCase as translate } from "../translate-shared-cases.js";
 import { createDifferential, fixtureDifferential } from "./differential.js";
+import { transitionBatch } from "./sweep.js";
 import { operandFields50 } from "../../lib/js/src/format50/records.js";
 import { Token } from "../../lib/js/src/node.js";
 import { loaderWith } from "../../lib/js/test/shared.js";
 
+const batch = transitionBatch();
+assert.ok(!batch || batch.suite === "catalog" || batch.suite === "written", "select a translator suite");
 const differential = createDifferential();
-after(() => differential.finish("translator inputs"));
+after(() => {
+  const details = batch?.suite === "catalog" ? { total: catalog.length, cases: selectedNegatives.length } :
+    batch?.suite === "written" ? { total: written.length, cases: selectedWritten.length } : {};
+  differential.finish("translator inputs", details);
+});
 const compiler = differential.compiler();
 const inspectTranslation = fixtureDifferential(differential);
 const translateSharedCase = (family, file, fixture) => {
@@ -144,7 +151,12 @@ const definitionOrder = new Set([
   "notation/values-include-method-syntax-first.json",
   "notation/values-include-method-syntax.json",
 ]);
-for (const [id, record] of Object.entries(negatives)) {
+const catalog = Object.entries(negatives);
+const sampleNegatives = [...catalog.slice(0, 12), ["notation/nested-head-parameter-before-body.json",
+  negatives["notation/nested-head-parameter-before-body.json"]]];
+const selectedNegatives = !batch ? sampleNegatives :
+  batch.suite === "catalog" ? catalog.slice(batch.start, batch.start + batch.count) : [];
+for (const [id, record] of selectedNegatives) {
   test(definitionOrder.has(id) ? `§9.3 order ${id}` : id, () => {
     const [family, name] = id.split("/");
     const migrated = translateSharedCase(family, name, legacyFixture(family, name));
@@ -260,11 +272,14 @@ test("the hand-written implication writes the extra key only at publication", ()
   assert.equal(rules[1].alternatives[0].term.bag.some(entry => entry.key === "M"), false);
 });
 
+const migrations = JSON.parse(fs.readFileSync(new URL("../shared-case-migrations.json", import.meta.url), "utf8"));
+const written = Object.entries(migrations).filter(([, record]) => !record.expectedSourceError && !record.retired);
+const selectedWritten = batch ? written.slice(batch.start, batch.start + batch.count) : [written[0], written.at(-1)];
+
 test("each written migration has format 50 source or an expected source error", () => {
-  const migrations = JSON.parse(fs.readFileSync(new URL("../shared-case-migrations.json", import.meta.url), "utf8"));
   const root = new URL("../../", import.meta.url);
-  for (const [id, record] of Object.entries(migrations)) {
-    if (record.expectedSourceError || record.retired) continue;
+  for (const [id, record] of selectedWritten) {
+    if (batch) console.log(JSON.stringify({ writtenMigration: id }));
     const [family, name] = id.split("/");
     const { document, fixture, diagnostics } = translateSharedCase(family, name, legacyFixture(family, name));
     if (fixture?.documents) {
