@@ -28054,6 +28054,8 @@
 
 
 
+
+
   /**
    * The ranker of a chart, configured as the format 49 stage configures it.
    * @param {any} chart
@@ -28110,7 +28112,12 @@
         tags.add(payloadTag(key));
         if (typeof value === "string" || typeof value === "number") tags.add(payloadTag(key, value));
       }
-      return new Token(tags, this.span, this.source, this.text, this.value, this.insertedBy, this.image);
+      const token = new Token(tags, this.span, this.source, this.text, this.value, this.insertedBy, this.image);
+      // A query such as .error-free reads the reports that a token carries.
+      const self = /** @type {any} */ (this);
+      if (self.errors?.length) token.errors = self.errors;
+      if (self.warnings?.length) token.warnings = self.warnings;
+      return token;
     }
   }
 
@@ -28328,6 +28335,7 @@
         chart = recognize(context, "text", 0, recognizerTokens.length);
         roots = rootItems(chart, "text");
         data.context = context;
+        data.chart = chart;
       } catch (error) {
         if (error instanceof GencmuError) {
           report.error = runtimeGrammarError(error.withLocation({ stage: undefined }), this.name);
@@ -28343,7 +28351,13 @@
         rejection.expected = rejection.expected.map(item => ({ ...item, terminal: item.terminal.replaceAll(`¬${WRITTEN}`, "_Elided").replaceAll(WRITTEN, "¬_Elided") }));
         report.error = {
           kind: "rejected", stage: this.name, token: rejection.position,
+          // The place of the token that could not continue, or the end of the
+          // last token at the end of the input, as in format 49.
+          source: rejection.position < tokens.length ? [...tokens[rejection.position].source]
+            : [tokens.at(-1)?.source[1] ?? 0, tokens.at(-1)?.source[1] ?? 0],
+          ...lineAndColumn(sourceText, rejection.position < tokens.length ? tokens[rejection.position].source[0] : tokens.at(-1)?.source[1] ?? 0),
           expected: rejection.expected,
+          ...(rejection.boundary ? { boundary: rejection.boundary } : {}),
           message: `the ${this.name} stage could not continue at token ${rejection.position}` +
             (rejection.expected.length ? `; expected ${rejection.expected.map(item => item.terminal).join(", ")}` : ""),
         };
@@ -28353,6 +28367,17 @@
         report.verdict = "tie";
         report.readings = [ranking.first, ranking.second].map(rope => this.tree(derivationTree(/** @type {any} */ (rope)), data, context));
         report.witness = /** @type {any[]} */ (ranking.witness).map(wireAction);
+        // A tie evaluates the messages and competitor evidence of the first
+        // reading and then of the second (engine §6). A message that fails
+        // there is a grammar error, which keeps the verdict and the witness.
+        try {
+          report.readingOwn = report.readings.map((/** @type {any} */ reading) => this.diagnostics(reading, data));
+        } catch (error) {
+          if (!(error instanceof GencmuError)) throw error;
+          report.readingOwn = null;
+          report.error = runtimeGrammarError(error.withLocation({ stage: undefined }), this.name);
+          return report;
+        }
         report.error = { kind: "ambiguous", stage: this.name, reason: "tie", message: `the ${this.name} stage's text has two best readings, a tie` };
         return report;
       }
@@ -28504,24 +28529,73 @@
      */
     diagnostics(root, data) {
       const found = [];
-      /** @type {{node: any, suppressed: Set<any>, up: any}[]} */
+      // The recognizer of format 49 ranks a later stage by the fixed charge of
+      // each report that its tokens carry, and tells reports apart by identity.
+      // Occurrences are numbered in preorder, erased ones too (engine §6).
+      const measures = data.context ? new Measures(data.context.tokens, data.context.sources) : null;
+      const identityScope = {};
+      let ordinal = 0;
+      /** @type {{node: any, suppressed: Set<any>, up: any, erased?: boolean}[]} */
       const stack = [{ node: root, suppressed: new Set(), up: null }];
       while (stack.length) {
-        const { node, suppressed: inherited, up } = /** @type {{node: any, suppressed: Set<any>, up: any}} */ (stack.pop());
-        if ((node.kind !== "rule" && node.kind !== "splice") || node.erased) continue;
+        const { node, suppressed: inherited, up, erased } = /** @type {{node: any, suppressed: Set<any>, up: any, erased?: boolean}} */ (stack.pop());
+        if (node.kind !== "rule" && node.kind !== "splice") continue;
+        if (erased || node.erased) {
+          if (node.origin?.rule.error || node.origin?.rule.warning) ordinal++;
+          for (let index = node.children.length - 1; index >= 0; index--) stack.push({ node: node.children[index], suppressed: inherited, up: null, erased: true });
+          continue;
+        }
         const rule = node.origin?.rule;
+        const occurrence = rule?.error || rule?.warning ? ordinal++ : -1;
         const suppressed = rule?.suppressWarnings?.length ? new Set([...inherited, ...rule.suppressWarnings]) : inherited;
         const code = node.rule;
         const kind = rule?.error ? "errors" : rule?.warning && data.features.has(code) && !suppressed.has("_") && !suppressed.has(code) ? "warnings" : null;
         if (kind) {
           const scope = { node, captures: present(node.captures), declared: new Set(node.captures.keys()), items: [], names: new Map(), document: node.origin.document };
           const message = data.evaluator.string(kind === "errors" ? rule.error : rule.warning, scope);
-          found.push({ kind, node, ancestry: { node, up }, diagnostic: { stage: this.name, code, rule: code, span: [...node.span], source: [...node.source], message } });
+          const diagnostic = { stage: this.name, code, rule: code, span: [...node.span], source: [...node.source], message };
+          recordDiagnostic(diagnostic, kind === "errors" && measures ? measures.own(node.span[0], node.span[1]) : ZERO_MEASURE,
+            { scope: identityScope, stage: this.name, ordinal: occurrence, rule: code });
+          found.push({ kind, node, ancestry: { node, up }, diagnostic });
         }
         const ancestry = { node, up };
         for (let index = node.children.length - 1; index >= 0; index--) stack.push({ node: node.children[index], suppressed, up: ancestry });
       }
+      this.competitorEvidence(found, root, data);
       return found;
+    }
+
+    /**
+     * Competitor rejection evidence (engine §6, as in format 49): an error
+     * whose rule is itself one ranked option gets the expected terminals of
+     * the other options of its definition, up to the end of the error.
+     * @param {any[]} found
+     * @param {any} root
+     * @param {any} data
+     */
+    competitorEvidence(found, root, data) {
+      const errors = found.filter(entry => entry.kind === "errors" && entry.node.derivation && !entry.node.derivation.production.spliceOf);
+      if (!errors.length || !data.chart || !root.derivation) return;
+      // The ranked option is a helper of the recognizer, so it is not a node
+      // of the tree. The parents come from the derivation.
+      /** @type {Map<any, any>} */
+      const parents = new Map();
+      const stack = [root.derivation];
+      while (stack.length) {
+        const node = stack.pop();
+        if ("read" in node) continue;
+        for (const child of node.children) {
+          parents.set(child, node);
+          stack.push(child);
+        }
+      }
+      for (const entry of errors) {
+        const derivation = entry.node.derivation;
+        const parent = parents.get(derivation);
+        if (!parent || "read" in parent || !parent.production.rankedGroup || parent.children.length !== 1) continue;
+        const rejection = competitorSlice(data.chart, derivation.start, derivation.end, parent.production);
+        if (rejection) entry.diagnostic.rejection = rejection;
+      }
     }
 
     /**
@@ -29267,6 +29341,27 @@
       else return true;
     }
     return false;
+  }
+
+  /**
+   * The line and column of a source offset, as format 49 counts them: a line
+   * ends at a line feed, or at a carriage return without a line feed after it.
+   * @param {string[]} sourceText
+   * @param {number} offset
+   */
+  function lineAndColumn(sourceText, offset) {
+    let line = 1;
+    let column = 1;
+    for (let index = 0; index < offset && index < sourceText.length; index++) {
+      const character = sourceText[index];
+      if (character === "\n" || (character === "\r" && sourceText[index + 1] !== "\n")) {
+        line++;
+        column = 1;
+      } else {
+        column++;
+      }
+    }
+    return { line, column };
   }
 
   // ---- format50/validate.js
@@ -33384,6 +33479,34 @@
       // A failed stage collects the reports of its input: through the
       // furthest token on a rejection, and all of it on other failures.
       const failedStage = stages.find(stage => stage.error);
+      if (failedStage?.error.kind === "ambiguous" && failedStage.readingOwn) {
+        // A tie collects the first reading, then what the second adds. A
+        // carried report counts once. An own report is new only beyond the
+        // number of equal reports that the first reading gave (engine §12.1).
+        const carried = new Set();
+        /** @type {Map<string, number>} */
+        const seen = new Map();
+        failedStage.readings.forEach((/** @type {any} */ reading, /** @type {number} */ index) => {
+          /** @type {Map<string, number>} */
+          const own = new Map();
+          for (const { kind, diagnostic } of readingCollection(reading, failedStage.input, failedStage.readingOwn[index])) {
+            if (diagnostic.own) {
+              const key = kind + JSON.stringify(diagnostic.record);
+              const count = (own.get(key) ?? 0) + 1;
+              own.set(key, count);
+              if (count <= (seen.get(key) ?? 0)) continue;
+              collected[kind].push(diagnostic.record);
+            } else {
+              if (carried.has(diagnostic.record)) continue;
+              carried.add(diagnostic.record);
+              collected[kind].push(diagnostic.record);
+            }
+          }
+          for (const [key, count] of own) seen.set(key, Math.max(seen.get(key) ?? 0, count));
+        });
+        if (collected.errors.length) failedStage.error.errors = collected.errors;
+        if (collected.warnings.length) failedStage.error.warnings = collected.warnings;
+      }
       if (failedStage && failedStage.error.kind !== "ambiguous") {
         const end = failedStage.error.kind === "rejected" ? Math.min(failedStage.input.length, (failedStage.error.token ?? failedStage.input.length) + 1) : failedStage.input.length;
         for (const token of failedStage.input.slice(0, end)) {
@@ -33482,6 +33605,36 @@
       originKeyCache.set(unicode, keys);
     }
     return keys;
+  }
+
+  /**
+   * The reports of one reading in preorder (engine §12.1): each live rule
+   * node supplies its own reports, and each live input leaf the reports
+   * that its token carries. Erased subtrees supply nothing.
+   * @param {any} root
+   * @param {any[]} input the input tokens of the stage
+   * @param {{kind: string, node: any, diagnostic: any}[]} own
+   * @returns {{kind: string, diagnostic: {own: boolean, record: any}}[]}
+   */
+  function readingCollection(root, input, own) {
+    /** @type {Map<any, {kind: string, diagnostic: any}[]>} */
+    const byNode = new Map();
+    for (const entry of own) {
+      if (!byNode.has(entry.node)) byNode.set(entry.node, []);
+      /** @type {any[]} */ (byNode.get(entry.node)).push(entry);
+    }
+    const result = [];
+    const stack = [root];
+    while (stack.length) {
+      const node = stack.pop();
+      if (node.erased) continue;
+      for (const entry of byNode.get(node) ?? []) result.push({ kind: entry.kind, diagnostic: { own: true, record: entry.diagnostic } });
+      if (node.kind === "token") {
+        for (const kind of ["errors", "warnings"]) for (const record of input[node.token][kind] ?? []) result.push({ kind, diagnostic: { own: false, record } });
+      }
+      for (let index = node.children.length - 1; index >= 0; index--) stack.push(node.children[index]);
+    }
+    return result;
   }
 
   // ---- format50/result.js

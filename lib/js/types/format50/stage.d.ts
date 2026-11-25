@@ -175,6 +175,15 @@ export declare class Stage50 {
         };
     }[];
     /**
+     * Competitor rejection evidence (engine §6, as in format 49): an error
+     * whose rule is itself one ranked option gets the expected terminals of
+     * the other options of its definition, up to the end of the error.
+     * @param {any[]} found
+     * @param {any} root
+     * @param {any} data
+     */
+    competitorEvidence(found: any[], root: any, data: any): void;
+    /**
      * Gives each report an owner among the output tokens (engine §6). The
      * support of a node is the set of live input leaves under it.
      *
