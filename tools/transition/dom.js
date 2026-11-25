@@ -1,10 +1,19 @@
 import { GencmuError } from "../../lib/js/src/errors.js";
-import { CAPTURE_NAME, KEY_STEPS, validSteps } from "../../lib/js/src/dom.js";
-import { methods50 } from "./signatures.js";
-import { validateBag50, validateBindings50, validateBody50, validateDocument50 } from "./validate-dom50.js";
+import { KEY_STEPS, validSteps } from "../../lib/js/src/dom.js";
+import { methods50 } from "../../lib/js/src/format50/signatures.js";
+import { documentFault50, elidableForm50, validateArgument50, validateBag50, validateBody50, validateDeclarationShape50,
+  validateDocumentDefinitions50, validateDocumentDepth50, validateOrigin50, validatePatternChildren50, validateQuery50,
+  validateSubsetSize50, withOwner50 } from "../../lib/js/src/format50/validate.js";
 
 const EXPRESSION_WRAPPERS = new Set([
   "expr", "disj", "conj", "comparison", "union", "inter", "sum", "post", "atom", "grouped-expr",
+]);
+const BODY_WRAPPERS = new Set([
+  "factor", "untested-factor", "splice-target", "chain-separator", "body-argument",
+  "symbol-argument", "group", "choice", "some-of", "sequence",
+]);
+const PATTERN_WRAPPERS = new Set([
+  "pattern-literal", "pattern-primary", "pattern-union", "pattern-intersection", "pattern-path",
 ]);
 const RULE_NAME = /^[a-z][A-Za-z0-9_-]*$/;
 const FEATURE_NAME = /^[a-zA-Z][a-zA-Z0-9-]*$/;
@@ -23,10 +32,10 @@ function baseFactor(node) {
   while (["factor", "tested-factor", "untested-factor", "symbol-argument"].includes(node.rule)) node = rules(node)[0];
   return node;
 }
-function walks(node, pred) {
-  return pred(node) || rules(node).some(child => walks(child, pred));
-}
 
+function containsCapture(node) {
+  return ["capture", "captured-terminator"].includes(node.rule) || rules(node).some(containsCapture);
+}
 const isSymbol = body => ["ref", "call", "param", "literal", "range", "wildcard", "splice", "test"]
   .some(key => Object.hasOwn(body, key));
 
@@ -37,7 +46,7 @@ export class DomBuilder {
     this.document = document;
     this.unicode = unicode;
     this.strings = strings;
-    this.origins = new WeakMap();
+    this.domFault = documentFault50(document);
   }
 
   token(node) {
@@ -58,42 +67,46 @@ export class DomBuilder {
     throw new GencmuError("grammar", description, { document: this.document, line, column });
   }
 
-  remember(record, node) {
-    this.origins.set(record, node);
-    return record;
-  }
-
   build(tree) {
     const dom = { format: 50, rules: [], directives: [], constants: [] };
+    const emptyDelimiters = [];
     let preamble = true;
     for (const statement of parts(tree, "statement")) {
       const node = rules(statement)[0];
+      let category, record;
       switch (node.rule) {
         case "rule":
-          dom.rules.push(this.rule(node));
+          category = "rules";
+          record = this.rule(node);
           break;
         case "constant-definition":
           {
             const name = this.value(part(node, "constant-name")).slice(1);
             if (name === "INPUTS") this.fail(node, "$INPUTS is supplied by the engine");
-            dom.constants.push({ name, op: operation(this.value(node)),
-              value: this.expression(part(node, "expr")), at: this.at(node) });
+            category = "constants";
+            record = { name, op: operation(this.value(node)), value: this.expression(part(node, "expr")), at: this.at(node) };
           }
           break;
         case "directive":
           if (this.value(node) === "%names" && !preamble) this.fail(node, "%names must precede all other declarations");
-          dom.directives.push(this.directive(node));
+          category = "directives";
+          record = this.directive(node);
           break;
         case "ranking-directive":
-          dom.directives.push(this.ranking(node));
+          category = "directives";
+          record = this.ranking(node);
           break;
         default:
           this.fail(node, "expected a declaration");
       }
+      validateDeclarationShape50(record, this.domFault, this.unicode, emptyDelimiters);
+      dom[category].push(record);
       preamble &&= this.value(node) === "%names";
     }
-    return validateDocument50(dom, { document: this.document, unicode: this.unicode,
-      location: record => this.origins.has(record) ? this.at(this.origins.get(record)) : record.at });
+    if (emptyDelimiters.length) this.domFault(emptyDelimiters[0], "a split delimiter cannot be empty");
+    validateDocumentDefinitions50(dom, { document: this.document });
+    validateDocumentDepth50(dom, { document: this.document });
+    return dom;
   }
 
   directive(node) {
@@ -131,7 +144,7 @@ export class DomBuilder {
       if (!patternNode) return { step };
       const pattern = patternNode.rule === "constant-reference" ?
         this.expression(patternNode) : this.pattern(patternNode);
-      return { step, pattern: this.remember(pattern, patternNode) };
+      return { step, pattern };
     });
     if (!validSteps(steps)) this.fail(node, "invalid resolution policy");
     return { name: "ambiguity-resolution", steps, at: this.at(node) };
@@ -143,10 +156,10 @@ export class DomBuilder {
     const call = part(node, "call");
     const head = plain ?? call;
     const name = this.value(head);
-    if (plain && !RULE_NAME.test(name) && !this.unicode.isEmojiName(name)) {
-      this.fail(plain, "a rule name must begin with a lowercase letter or be an emoji name");
-    }
     const at = this.at(node);
+    if (plain && !RULE_NAME.test(name) && !this.unicode.isEmojiName(name)) {
+      this.domFault({ at }, "a rule name must begin with a lowercase letter or be an emoji name");
+    }
     if (leaves(node).some(token => this.value(token) === "=")) {
       if (!plain) this.fail(head, "an instance binding needs a plain rule name");
       if (op === "extend") this.fail(node, "an instance binding cannot extend a rule");
@@ -158,13 +171,13 @@ export class DomBuilder {
       if (args.every(arg => Object.hasOwn(arg, "param"))) {
         const params = [];
         for (const arg of args) {
-          if (params.includes(arg.param)) this.fail(this.origins.get(arg), `duplicate parameter @${arg.param}`);
+          if (params.includes(arg.param)) this.domFault({ at }, `duplicate parameter @${arg.param}`);
           params.push(arg.param);
         }
         category = { params };
       } else {
         if (op === "define" || args.some(arg => Object.hasOwn(arg, "param"))) {
-          this.fail(head, "a rule head needs all parameters or an exact instance edit");
+          this.domFault({ at }, "a rule head needs all parameters or an exact instance edit");
         }
         category = { args };
       }
@@ -172,19 +185,20 @@ export class DomBuilder {
     const termNode = part(node, "statement-term");
     const term = termNode && this.expression(part(termNode, "bag"));
     const body = rules(part(node, "body") ?? part(node, "headed-body"))[0];
+    const owner = { at };
     const alternatives = body.rule === "ranked-body" ?
-      [this.alternative(body, "ranked-choice")] : rules(body).map(alt => this.alternative(alt, "some-of"));
+      [this.alternative(body, "ranked-choice", owner)] : rules(body).map(alt => this.alternative(alt, "some-of", owner));
     const conditions = this.conditions(part(node, "conditions-clause"));
     const diagnostic = part(node, "diagnostic-clause");
     const diagnosticNode = diagnostic && rules(diagnostic)[0];
-    if (diagnostic && category.params) this.fail(diagnosticNode, "a template cannot declare an error or warning");
+    if (diagnostic && category.params) this.domFault({ at }, "a template cannot declare an error or warning");
     const key = diagnosticNode?.rule.split("-")[0];
     const message = diagnosticNode && this.expression(part(diagnosticNode, "expr"));
     const suppression = part(node, "suppress-warnings-clause");
     const suppressWarnings = suppression && (parts(suppression, "suppression-code").length ?
       parts(suppression, "suppression-code").map(code => {
         const name = this.value(code);
-        if (!FEATURE_NAME.test(name)) this.fail(code, "invalid warning code");
+        if (!FEATURE_NAME.test(name)) this.domFault({ at }, "invalid warning code");
         return name;
       }) : ["_"]);
     const output = part(node, "output-clause");
@@ -199,98 +213,105 @@ export class DomBuilder {
     return node ? parts(node, "expr").map(item => this.expression(item)) : [];
   }
 
-  alternative(node, kind) {
+  alternative(node, kind, owner) {
     const gates = parts(node, "feature-gate").map(gate => this.gate(gate));
     const source = part(node, kind);
-    const expr = this.body(source, true);
-    validateBody50(expr, (record, message) => this.fail(this.origins.get(record) ?? source, message));
+    const expr = this.ownedBody(source, owner, true);
+    validateBody50(expr, withOwner50(expr, this.domFault, owner));
     const term = part(node, "alternative-term");
     return { gates, expr, ...(term && { term: this.expression(part(term, "bag")) }) };
   }
 
-  name(node, origin = false) {
+  name(node) {
     const name = this.value(node);
     if (!name.startsWith("_")) return name;
-    if (origin && name === "_Elided") return name;
+    if (name === "_Elided") return name;
     const canonical = this.unicode.canonicalTag(name);
     if (!canonical || canonical === "_Elided") this.fail(node, `unknown or forbidden engine key ${name}`);
     return canonical;
   }
 
   binder(node) {
-    const name = this.value(node).slice(1);
-    if (!CAPTURE_NAME.test(name)) this.fail(node, "a capture name must use lowercase letters, digits, hyphens or underscores");
-    return name;
+    return this.value(node).slice(1);
   }
 
   gate(node) {
     const negated = this.value(node) === "¬";
     const feature = this.value(leaves(node)[Number(negated)]);
-    if (!FEATURE_NAME.test(feature)) this.fail(node, "invalid feature name");
     return { feature, kind: "gate", negated };
   }
 
-  body(node, whole = false, elidable = false, chain = false, blockedPrimary = false) {
-    const children = rules(node);
+  ownedBody(node, owner, whole = false) {
+    const previous = this.bodyOwner;
+    this.bodyOwner = owner;
+    try {
+      return this.body(node, whole);
+    } finally {
+      this.bodyOwner = previous;
+    }
+  }
+
+  body(node, whole = false, elidable = false) {
+    let children = rules(node);
+    let optionals = 0;
+    let grouped = false;
+    while (children.length === 1 && (BODY_WRAPPERS.has(node.rule) || node.rule === "optional" &&
+        children[0].rule !== "captured-terminator" && leaves(node).every(leaf => this.value(leaf) !== "+"))) {
+      if (node.rule === "group" && whole) grouped = true;
+      if (node.rule === "optional") optionals++;
+      node = children[0];
+      children = rules(node);
+    }
+    if (optionals) {
+      let result = this.body(node);
+      for (let i = 0; i < optionals; i++) result = { optional: result };
+      return result;
+    }
     const first = children[0];
-    const expr = (child = first, top = whole, isElidable = elidable, insideChain = chain, blocked = blockedPrimary) =>
-      this.body(child, top, isElidable, insideChain, blocked);
+    const expr = (child = first, top = whole, isElidable = elidable) =>
+      this.body(child, top, isElidable);
     switch (node.rule) {
-      case "factor":
-      case "untested-factor":
-      case "splice-target":
-      case "chain-separator":
-      case "body-argument":
-      case "symbol-argument":
-      case "group":
-        return expr();
       case "choice":
-        return first.rule === "ranked-choice" ? expr() :
-          collapse("choice", children.map(child => expr(child, whole && children.length === 1, elidable)));
+        return { choice: children.map(child => expr(child, false, elidable)) };
       case "ranked-choice":
-        return { ranked: children.map(child => expr(child, false, false, chain, true)) };
+        return { ranked: children.map(child => expr(child, false, false)) };
       case "some-of":
-        if (children.length > 16) this.fail(first, "an ordered subset takes at most sixteen operands");
-        return collapse("and", children.map(child => expr(child, whole && children.length === 1, elidable)));
+        validateSubsetSize50(children.length, this.bodyOwner, this.domFault);
+        return { and: children.map(child => expr(child, false, elidable)) };
       case "sequence":
-        return collapse("seq", children.map((child, index) =>
-          expr(child, whole && children.length === 1, elidable && index === 0)));
+        return { seq: children.map((child, index) => expr(child, false, elidable && index === 0)) };
       case "optional":
-        return this.optional(node, first, chain);
+        return this.optional(node, first);
       case "repetition": {
         const marks = leaves(node).filter(leaf => this.value(leaf) === "...");
         if (marks.length > 1) this.fail(marks[1], "a chain can have only one marker");
-        if (marks.length && !whole) this.fail(node, "a chain must occupy a whole alternative");
+        if (marks.length && grouped) this.fail(node, "a chain must occupy a whole alternative");
         const separatorMark = children[1] && leaves(children[1]).find(leaf => this.value(leaf) === "...");
         if (separatorMark) this.fail(separatorMark, "a chain marker cannot label a separator");
-        return { repeat: expr(first, false, false, !!marks.length, true),
-          ...(children[1] && { separator: expr(children[1], false, false, !!marks.length, true) }),
+        return { repeat: expr(first, false, false),
+          ...(children[1] && { separator: expr(children[1], false, false) }),
           ...(marks.length && { chain: marks[0].span[0] < first.span[0] ? "left" : "right" }) };
       }
       case "capture":
       case "captured-terminator": {
-        if (chain) this.fail(first, "a chain item or separator cannot bind a capture directly");
         const capture = this.binder(first);
         if (GROUPS.has(baseFactor(children[1]).rule)) this.fail(first, "a capture wraps one symbol");
         const target = expr(children[1], false, elidable);
         if (!isSymbol(target)) this.fail(first, "a capture wraps one symbol");
-        return this.remember({ capture, expr: target }, first);
+        return { capture, expr: target };
       }
       case "marked-factor": {
-        if (blockedPrimary) this.fail(node, "a primary must mark a mandatory child that is not a splice");
         const atom = baseFactor(first.rule === "capture" ? rules(first)[1] : first);
-        if (GROUPS.has(atom.rule) || atom.rule === "splice") this.fail(node, "a primary marks one ungrouped symbol or capture that is not a splice");
+        if (GROUPS.has(atom.rule)) this.fail(node, "a primary marks one ungrouped symbol or capture that is not a splice");
         const target = expr(first, false, elidable);
-        if (!isSymbol(target) && !Object.hasOwn(target, "capture")) this.fail(node, "a primary marks one symbol or capture");
-        return this.remember({ primary: target }, node);
+        return { primary: target };
       }
       case "tested-factor": {
         if (GROUPS.has(baseFactor(first).rule)) this.fail(children[1], "a test applies to one symbol");
         const tests = this.testOrder(children.slice(1), elidable);
-        const targetIsRule = ["rule-reference", "call", "splice"].includes(baseFactor(first).rule);
         const base = expr();
         if (!isSymbol(base)) this.fail(children[1], "a test applies to one symbol");
-        return this.tests(base, tests, false, targetIsRule);
+        return this.tests(base, tests, false);
       }
       case "ref":
       case "rule-reference":
@@ -316,21 +337,22 @@ export class DomBuilder {
     }
   }
 
-  optional(node, route, chain) {
+  optional(node, route) {
     const captured = route.rule === "captured-terminator";
     const elidable = captured || leaves(node).some(leaf => this.value(leaf) === "+");
-    if (!elidable) return { optional: this.body(route, false, false, chain, true) };
-    const choice = rules(route);
-    const sequence = captured ? choice.slice(1) : rules(rules(choice[0])[0]);
+    if (!elidable) return { optional: this.body(route) };
+    const parts = rules(route);
+    const sequence = captured ? parts.slice(1) : rules(rules(parts[0])[0]);
     const head = sequence[0] && baseFactor(sequence[0]);
-    if (!head || !["tag", "parameter"].includes(head.rule) ||
-        head.rule === "tag" && !/^[A-Z]/.test(this.value(head)) ||
-        !captured && this.value(route) !== this.value(sequence[0]) ||
-        !captured && (choice.length !== 1 || choice[0].rule !== "some-of" ||
-          rules(choice[0]).length !== 1 || sequence.some(factor => walks(factor, item => item.rule === "capture" || item.rule === "captured-terminator")))) {
-      this.fail(route, "an elidable optional starts with an ungrouped user terminal or parameter and can bind only its sole terminator");
+    if (head?.rule === "group" ||
+        !captured && (parts.length !== 1 || parts[0].rule !== "some-of" || rules(parts[0]).length !== 1 ||
+          !sequence[0] || this.value(route) !== this.value(sequence[0]) ||
+          sequence.length === 1 && head.rule === "capture")) {
+      this.fail(route, elidableForm50);
     }
-    const optional = this.body(route, false, true, chain, true);
+    if (!head || !["tag", "parameter"].includes(head.rule) || head.rule === "tag" && !/^[A-Z]/.test(this.value(head)) ||
+        sequence.slice(1).some(containsCapture)) this.domFault(this.bodyOwner, elidableForm50);
+    const optional = this.body(route, false, true);
     const symbol = captured ? optional.expr : optional.seq?.[0] ?? optional;
     const value = this.defaults?.get(symbol);
     return { optional, elidable: true, ...(value && { default: value }) };
@@ -349,24 +371,20 @@ export class DomBuilder {
     return tests;
   }
 
-  tests(base, tests, pattern, targetIsRule) {
+  tests(base, tests, pattern) {
     let result = base;
     for (const test of tests) {
       const at = this.at(test);
       if (test.rule === "tag-test") {
         const requirements = this.requirements(test);
-        const originTest = requirements.findIndex(req => req.value.tag === "_Elided" && (!pattern || !req.negated));
-        if (originTest !== -1 && targetIsRule) {
-          const site = pattern ? part(parts(test, "tag-requirement")[originTest], "test-operand") : test;
-          this.fail(site, "the _Elided origin test applies only to a terminal");
-        }
-        result = this.remember({ test: "tags", requirements, expr: result, at }, test);
+        result = { test: "tags", requirements, expr: result, at };
+        validateOrigin50(result, this.domFault, pattern);
       } else {
         const value = this.stringOperand(rules(test)[0], true);
-        if (test.rule === "value-test") result = this.remember({ test: this.value(test), value, expr: result, at }, test);
+        if (test.rule === "value-test") result = { test: this.value(test), value, expr: result, at };
         else {
           this.defaults ??= new WeakMap();
-          this.defaults.set(result, this.remember(value, test));
+          this.defaults.set(result, value);
         }
       }
     }
@@ -377,7 +395,7 @@ export class DomBuilder {
     return parts(node, "tag-requirement").map(requirement => {
       const operand = rules(rules(requirement)[0])[0];
       const negated = this.value(requirement) === "¬";
-      if (operand.rule === "tag") return { negated, value: { tag: this.name(operand, true) } };
+      if (operand.rule === "tag") return { negated, value: { tag: this.name(operand) } };
       const value = this.stringOperand(operand, true, "a key requirement needs a tag, key-set constant or parameter");
       if (value.string !== undefined) this.fail(operand, "a key requirement needs a tag, key-set constant or parameter");
       return { negated, value };
@@ -416,15 +434,15 @@ export class DomBuilder {
     else if (first.rule === "requirement-argument") result = { requirements: this.requirements(first), at };
     else if (first.rule === "target-argument") result = { targets: rules(first).map(target => this.target(target)), at };
     else {
-      const body = this.body(first);
+      const body = this.ownedBody(first, { at });
       if (body.ref !== undefined) {
-        const key = baseFactor(first).rule === "tag" ? "tag" : "rule";
+        const key = /^[A-Z_]/.test(body.ref) ? "tag" : "rule";
         result = { [key]: body.ref, at };
       } else if (isSymbol(body)) result = { ...body, at: body.at ?? at };
       else result = { body, at };
     }
-    validateBindings50(result, (record, message) => this.fail(this.origins.get(record) ?? first, message), { closed: true });
-    return this.remember(result, first);
+    validateArgument50(result, withOwner50(result, this.domFault, result));
+    return result;
   }
 
   expression(node) {
@@ -451,16 +469,20 @@ export class DomBuilder {
         return values.length === 1 ? values[0] : { [key]: values,
           at: this.at(operators.find(operator => operator.span[0] >= first.span[1])) };
       }
-      case "neg":
-        return operators.length ? { not: expr(first), at: this.at(operators[0]) } : expr(first);
+      case "neg": {
+        const positions = [];
+        while (node.rule === "neg") {
+          const operator = leaves(node)[0];
+          if (operator) positions.push(this.at(operator));
+          node = rules(node)[0];
+        }
+        return positions.reduceRight((not, at) => ({ not, at }), expr(node));
+      }
       case "comparison": {
         if (children.length === 1) return expr(first);
         const op = this.value(children[1]);
         const left = expr(first);
         const right = expr(children[2]);
-        if ((op === "≅" || op === "≇") && left.capture === undefined && !left.item) {
-          this.fail(children[1], "a structural comparison needs one capture or bound item on its left");
-        }
         return { op, left, right, at: this.at(children[1]) };
       }
       case "union":
@@ -495,7 +517,7 @@ export class DomBuilder {
       case "atom":
         if (first) return expr(first);
         if (this.value(node) === "∅") return { emptySet: true };
-        return this.remember({ capture: this.value(node) === "$" ? "" : this.binder(node) }, node);
+        return { capture: this.value(node) === "$" ? "" : this.binder(node) };
       case "grouped-expr":
         return children.length === 1 ? expr(first) :
           { if: expr(first), then: expr(children[1]), else: expr(children[2]), at: this.at(operators[1]) };
@@ -505,11 +527,8 @@ export class DomBuilder {
         return this.method(node, { item: true });
       case "string":
         return { string: this.strings.decode(this.token(node)) };
-      case "integer": {
-        const integer = this.value(node);
-        if (!/^(?:0|[1-9][0-9]*)$/.test(integer)) this.fail(node, "an integer cannot start with a leading zero");
-        return this.remember({ integer }, node);
-      }
+      case "integer":
+        return { integer: this.value(node) };
       case "constant-reference":
         return { const: this.value(node).slice(1), at: this.at(node) };
       case "application":
@@ -520,7 +539,7 @@ export class DomBuilder {
         return { pattern: this.pattern(node) };
       case "bag": {
         const entries = children.map(child => this.entry(child));
-        validateBag50(entries, (entry, message) => this.fail(children[entries.indexOf(entry)], message));
+        validateBag50(entries, this.domFault);
         return { bag: entries };
       }
       case "list":
@@ -568,13 +587,11 @@ export class DomBuilder {
       case "width-selector": {
         const at = part(selector, "integer");
         const integer = this.expression(at).integer;
-        if (method === "ngrams" && integer === "0") this.fail(at, "a width must be positive");
-        args.push(this.remember({ integer }, at));
+        args.push({ integer });
         break;
       }
       case "predicate-selector": {
         const predicate = part(selector, "predicate");
-        if (!predicate && method === "all") this.fail(node, ".all takes one predicate");
         if (predicate) args.push(this.predicate(predicate));
         break;
       }
@@ -587,9 +604,7 @@ export class DomBuilder {
       case "parse-selector": {
         const query = part(selector, "query-body");
         const choice = part(query, "choice");
-        const body = this.body(choice, true);
-        if (body.chain) this.fail(choice, "a chain cannot be the query target");
-        validateBindings50(body, (record, message) => this.fail(this.origins.get(record) ?? choice, message), { query: true });
+        const body = this.ownedBody(choice, { at: this.at(node) });
         const sequence = [];
         if (this.value(query) === "…") sequence.push({ remainder: true });
         for (const operand of body.seq ?? [body]) sequence.push(operand);
@@ -598,7 +613,9 @@ export class DomBuilder {
         break;
       }
     }
-    return { method, ...(receiver !== undefined && { receiver }), args, at: this.at(node) };
+    const result = { method, ...(receiver !== undefined && { receiver }), args, at: this.at(node) };
+    if (method === "parse") validateQuery50(result, withOwner50(result, this.domFault, result));
+    return result;
   }
 
   predicate(node) {
@@ -629,7 +646,7 @@ export class DomBuilder {
       const term = bag && this.expression(bag);
       const value = this.value(selector);
       if (value === "ε") return { insert: true, term, ...suffix };
-      if (value === "$" && !bag) this.fail(selector, "only a braced item can select the whole rule");
+      if (value === "$" && !bag) this.domFault(suffix, "only a braced item can select the whole rule");
       const capture = value === "$" ? "" : this.binder(selector);
       return { capture, ...(term && { term }), ...suffix };
     }
@@ -657,25 +674,27 @@ export class DomBuilder {
   }
 
   pattern(node) {
-    const children = rules(node);
+    let children = rules(node);
+    const paths = [];
+    while (children.length === 1 && PATTERN_WRAPPERS.has(node.rule)) {
+      if (node.rule === "pattern-path") paths.push(node);
+      node = children[0];
+      children = rules(node);
+    }
+    if (paths.length) {
+      return paths.reduceRight((pattern, path) => this.patternPath(path, pattern), this.pattern(node));
+    }
     const first = children[0];
     const operators = leaves(node);
     switch (node.rule) {
-      case "pattern-literal":
-      case "pattern-primary":
-        return this.pattern(first);
       case "pattern-union":
       case "pattern-intersection":
         return this.binary(node, child => this.pattern(child), true);
-      case "pattern-path":
-        return this.patternPath(node, this.pattern(first));
       case "bare-child-list":
         return { any: true, ...(operators.length && { exact: true }), children: this.items(first) };
       case "pattern-node": {
         const { at, ...atom } = this.pattern(first);
-        if (children[1] && !atom.name && !atom.call && !atom.param) {
-          this.fail(children[1], "only a rule atom, call or parameter can have a child list");
-        }
+        if (children[1]) validatePatternChildren50({ ...atom, at: at ?? this.at(first) }, this.domFault);
         return { ...atom, ...(operators.length && { exact: true }),
           ...(children[1] && { children: this.items(children[1]) }), at };
       }
@@ -709,7 +728,7 @@ export class DomBuilder {
             atom = { constant: this.value(first).slice(1), at };
             break;
         }
-        return this.tests(atom, tests, true, ["pattern-rule", "call"].includes(first.rule));
+        return this.tests(atom, tests, true);
       }
       case "parameter":
         return this.parameter(node);

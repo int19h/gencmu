@@ -10,6 +10,24 @@ const scopedCompiler = createTransitionCompiler(file => activeDocuments[file]);
 const legacyFixture = (family, name) =>
   JSON.parse(fs.readFileSync(new URL(`../../tests/${family}/${name}`, import.meta.url), "utf8"));
 
+function hasSite(root, line, column) {
+  const pending = [root];
+  while (pending.length) {
+    const record = pending.pop();
+    if (!record || typeof record !== "object") continue;
+    if (Array.isArray(record.at) && record.at[0] === line && record.at[1] === column) return true;
+    for (const [key, child] of Object.entries(record)) if (key !== "at") pending.push(child);
+  }
+  return false;
+}
+
+function matchesSite(record, expected) {
+  const dom = record?.dom ?? record;
+  if (!expected.owner) return hasSite(dom, expected.line, expected.column);
+  const owner = expected.owner.split("/").slice(1).reduce((node, part) => node?.[part], dom);
+  return owner?.at?.[0] === expected.line && owner.at[1] === expected.column;
+}
+
 test("the translator keeps statement, alternative and emission terms on their owners", () => {
   const grammar = '%rule text :- "head"\n  | $x:A := "body"\n%emits $x :: Result';
   const { fixture, status, diagnostics } = translateSharedCase("engine", "probe", {
@@ -24,6 +42,21 @@ test("the translator keeps statement, alternative and emission terms on their ow
   assert.equal(rule.alternatives[0].term.bag[0].value.string, "body");
   assert.equal(rule.emit.items[0].capture, "x");
   assert.equal(rule.emit.items[0].term.bag[0].key, "Result");
+});
+
+test("the input value join excludes nonempty elidable defaults", () => {
+  for (const name of [
+    "267-default-emission", "267-default-image", "267-default-template-constant",
+    "267-default-template-head", "267-default-template-string", "reparse-original-rule-test",
+  ]) {
+    const file = name + ".json";
+    const migrated = translateSharedCase("engine", file, legacyFixture("engine", file));
+    const { documents, pipelineDocument } = migrated.fixture;
+    const pipeline = documents[pipelineDocument];
+    assert.match(pipeline, /value: \$node\.span\.tokens!'value\.join\(\)/, name);
+    assert.match(pipeline, /image: \$node\.children!'image\.join\(\)/, name);
+    assert.ok(migrated.changes.some(change => change.reason.includes("omitted defaults")), name);
+  }
 });
 
 test("the translator follows an old span receiver and keeps its literal operands", () => {
@@ -61,17 +94,57 @@ test("a custom table can make punctuation an emoji rule name", () => {
 });
 
 const negatives = JSON.parse(fs.readFileSync(new URL("../shared-negative-migrations.json", import.meta.url), "utf8"));
+const definitionOrder = new Set([
+  "engine/definition-alternative-tags-name-absent-capture.json",
+  "engine/definition-rule-tags-before-alternative-tags.json",
+  "engine/issue314-alternative-tags.json",
+  "engine/issue314-split-order-a-alternative.json",
+  "engine/issue314-split-order-b-alternative.json",
+  "engine/notation-r2-stage-integer-zero-discarded.json",
+  "engine/notation-r2-stage-integer-zero-surviving.json",
+  "notation/267-default-off-head.json",
+  "notation/braces-257-deep.json",
+  "notation/chain-alone-in-group.json",
+  "notation/chain-alone-in-groups.json",
+  "notation/deep-groups-syntax-later.json",
+  "notation/deep-optionals-then-error.json",
+  "notation/deep-optionals.json",
+  "notation/deep-template-before-later-reader-error.json",
+  "notation/deep-template-capture-before-depth.json",
+  "notation/deep-template-depth-limit.json",
+  "notation/definition-order-alternative-tags.json",
+  "notation/definition-order-clause-definition.json",
+  "notation/definition-order-tags-conditions.json",
+  "notation/marked-optional-order-chain-first.json",
+  "notation/nesting-257.json",
+  "notation/nesting-too-deep-paired-later.json",
+  "notation/nesting-too-deep-paired.json",
+  "notation/nesting-too-deep-then-error.json",
+  "notation/range-tag-set.json",
+  "notation/range-wide-before-called-parameter.json",
+  "notation/range-wide-before-parameter.json",
+  "notation/reader-order-range-descending-tag.json",
+  "notation/reader-order-range-descending-value.json",
+  "notation/reader-order-range-multiple-scalars-tag.json",
+  "notation/reader-order-range-multiple-scalars-value.json",
+  "notation/tag-bare-name.json",
+  "notation/tags-unguarded.json",
+  "notation/test-nesting-257.json",
+  "notation/values-include-method-syntax-first.json",
+  "notation/values-include-method-syntax.json",
+]);
 for (const [id, record] of Object.entries(negatives)) {
-  test(id, () => {
+  test(definitionOrder.has(id) ? `§9.3 order ${id}` : id, () => {
     const [family, name] = id.split("/");
     const migrated = translateSharedCase(family, name, legacyFixture(family, name));
     assert.equal(migrated.oldPath, true);
     if (record.retired) {
       assert.equal(migrated.status, "retired");
       assert.equal(migrated.reason, record.retired);
+      assert.equal(migrated.section, record.section);
+      assert.match(migrated.section, /^Engine §/);
       return;
     }
-    assert.equal(migrated.status, "retained-negative");
     const { expected } = migrated;
     const compile = () => {
       if (!migrated.fixture) return compiler.compileDocument(migrated.document, "notation.md");
@@ -82,6 +155,21 @@ for (const [id, record] of Object.entries(negatives)) {
       const reader = hasTables ? createTransitionCompiler(file => documents[file]) : scopedCompiler;
       return reader.compilePipeline(pipelineDocument);
     };
+    if (record.native) {
+      assert.equal(migrated.status, "native-pending");
+      assert.match(migrated.section, /^Engine §/);
+      const compiled = compile();
+      if (record.load) {
+        assert.equal(migrated.load, true);
+        assert.equal(expected, undefined);
+      } else {
+        assert.equal(expected.kind, "grammar");
+        assert.ok(matchesSite(compiled[expected.document], expected),
+          `${expected.document}:${expected.line}:${expected.column} needs a DOM record at the expected site`);
+      }
+      return;
+    }
+    assert.equal(migrated.status, "retained-negative");
     assert.throws(compile, error => {
       assert.equal(error.kind, "grammar");
       for (const key of ["document", "line", "column", "stage"]) {
@@ -106,6 +194,50 @@ test("the hand-written origin counterpart keeps its recorded diagnostic position
   });
 });
 
+test("the translator retains the list frame for its item comparison", () => {
+  const id = "item-condition-outer-capture.json";
+  const { fixture, status } = translateSharedCase("engine", id, legacyFixture("engine", id));
+  assert.equal(status, "translated");
+  const [condition] = compiler.compileDocument(fixture.documents["main.md"]).rules[0].conditions;
+  assert.equal(condition.receiver.capture, "c");
+  assert.equal(condition.method, "all");
+  const [predicate] = condition.args;
+  assert.equal(predicate.lambda, "item");
+  assert.equal(predicate.body.op, "≠");
+  assert.equal(predicate.body.left.receiver.map.receiver.receiver.capture, "item");
+  assert.equal(predicate.body.right.receiver.map.receiver.receiver.capture, "o");
+});
+
+test("the translator places the carrier on the mandatory primary", () => {
+  const id = "attach-branch-names.json";
+  const { fixture, status } = translateSharedCase("engine", id, legacyFixture("engine", id));
+  assert.equal(status, "translated");
+  const [rule] = compiler.compileDocument(fixture.documents["main.md"]).rules;
+  assert.deepEqual(rule.emit.items, []);
+  assert.equal(rule.alternatives[0].expr.seq[1].primary.capture, "w");
+  assert.equal(rule.alternatives[1].expr.seq[0].primary.capture, "w");
+});
+
+test("the translator keeps a constant receiver in a native method counterpart", () => {
+  const id = "notation-r2-begins-constant.json";
+  const { fixture, status, expected } = translateSharedCase("engine", id, legacyFixture("engine", id));
+  assert.equal(status, "native-pending");
+  const source = fixture.documents["main.md"];
+  const [condition] = compiler.compileDocument(source).rules[0].conditions;
+  assert.equal(source.split("\n")[expected.line - 1][expected.column - 1], ".");
+  assert.equal(condition.any[0].method, "parse");
+  assert.equal(condition.any[0].receiver.const, "S");
+});
+
+test("a predicate receiver fails before the migrated list test", () => {
+  const id = "notation-r2-ngrams-predicate.json";
+  const { fixture, status, expected } = translateSharedCase("engine", id, legacyFixture("engine", id));
+  assert.equal(status, "retained-negative");
+  assert.equal(expected.description, "a method has the wrong receiver or arguments");
+  const source = fixture.documents["main.md"];
+  const line = source.split("\n")[expected.line - 1];
+  assert.equal(line.slice(expected.column - 1), ".ngrams(1))");
+});
 test("the hand-written implication writes the extra key only at publication", () => {
   const name = "implies-emitted-only.json";
   const migrated = translateSharedCase("engine", name, legacyFixture("engine", name));
@@ -121,7 +253,7 @@ test("each written migration has format 50 source or an expected source error", 
   const migrations = JSON.parse(fs.readFileSync(new URL("../shared-case-migrations.json", import.meta.url), "utf8"));
   const root = new URL("../../", import.meta.url);
   for (const [id, record] of Object.entries(migrations)) {
-    if (record.expectedSourceError) continue;
+    if (record.expectedSourceError || record.retired) continue;
     const [family, name] = id.split("/");
     const { document, fixture, diagnostics } = translateSharedCase(family, name, legacyFixture(family, name));
     if (fixture?.documents) {
@@ -135,11 +267,19 @@ test("each written migration has format 50 source or an expected source error", 
           assert.equal(first.rules[0].alternatives[0].expr.literal.string, "\uE000");
           assert.equal(second.rules[0].alternatives[0].expr.literal.string, "\uE001");
           assert.deepEqual(first.rules[0].term.bag[0].value.at, [diagnostics[0].to.line, diagnostics[0].to.column]);
-        } else assert.equal(scoped.compileDocument(text, file).format, 50, id);
+        } else {
+          const dom = scoped.compileDocument(text, file);
+          assert.equal(dom.format, 50, id);
+          if (record.expected?.document === file && record.expected.line) {
+            assert.ok(matchesSite(dom, record.expected), id);
+          }
+        }
       }
     } else {
       const source = document ?? ["```jbogenbau", ...fixture.source, "```"].join("\n");
-      assert.equal(compiler.compileDocument(source, id).format, 50, id);
+      const dom = compiler.compileDocument(source, id);
+      assert.equal(dom.format, 50, id);
+      if (record.expected?.line) assert.ok(matchesSite(dom, record.expected), id);
     }
   }
 });
@@ -183,7 +323,7 @@ test("stage feature reads address the input span and a guarded literal gives a l
   }
 });
 
-test("stage-dependent argument categories and repeated string reads require a decision", () => {
+test("stage-dependent arguments and co-bound repeated captures require a decision", () => {
   const fenced = text => "\x60\x60\x60jbogenbau\n" + text + "\n\x60\x60\x60";
   const aliases = translateSharedCase("engine", "constant-scope-probe", { pipelineDocument: "p.md", documents: {
     "p.md": fenced('%stage main\n%include "a.md"\n%include "b.md"'),
@@ -193,10 +333,10 @@ test("stage-dependent argument categories and repeated string reads require a de
   assert.equal(aliases.status, "needs-hand");
   assert.match(aliases.reason, /argument's stage and version/);
   const repeated = translateSharedCase("engine", "repeat-read-probe", {
-    grammar: '%rule text {$x:A} %conditions $x.value = "a"',
+    grammar: "%rule text {$x:A $y:B} %conditions $x.value = $y.value",
   });
   assert.equal(repeated.status, "needs-hand");
-  assert.match(repeated.reason, /repeated capture/);
+  assert.match(repeated.reason, /co-bound operands/);
 });
 
 test("an insertion gets both explicit strings and an unproved singleton inheritance goes to hand", () => {
@@ -253,4 +393,112 @@ test("invalid pipeline names are portable and language deferrals name the bundle
   }
   const deferred = translateSharedCase("engine", "bundle-probe", { pipeline: "lojban/cll", input: "mi" });
   assert.match(deferred.reason, /lojban\/cll/);
+  const catalog = translateSharedCase("engine", "pipeline-catalog.json", legacyFixture("engine", "pipeline-catalog.json"));
+  assert.equal(catalog.status, "deferred");
+  assert.match(catalog.reason, /eberban\/refgram/);
+  assert.doesNotMatch(catalog.reason, /gencmu\/jbogenbau/);
+});
+
+test("an item without the tested capture needs a hand migration", () => {
+  const grammar = "%rule text {A | $c:B}\n%conditions $c";
+  const probe = translateSharedCase("engine", "partial-item-probe", { grammar });
+  assert.equal(probe.status, "needs-hand");
+  assert.match(probe.reason, /an item route can omit/i);
+
+  for (const [name, condition] of [
+    ["presence", "not"], ["presence-holds", "not"],
+    ["simplified-without-item", "if"], ["simplified-without-item-holds", "if"],
+  ]) {
+    const file = `item-condition-${name}.json`;
+    const { fixture, status } = translateSharedCase("engine", file, legacyFixture("engine", file));
+    assert.equal(status, "hand-migrated");
+    const [rule] = compiler.compileDocument(fixture.documents["main.md"]).rules;
+    const body = rule.alternatives[0].expr;
+    const repetition = body.seq?.at(-1) ?? body;
+    assert.equal(repetition.repeat.choice[0].capture, "a");
+    assert.equal(rule.conditions[0][condition].capture, "a");
+  }
+});
+
+test("the whole optional retains its body in its format 50 counterpart", () => {
+  const name = "helper-tags.json";
+  const { fixture, status, load, expected } = translateSharedCase("engine", name, legacyFixture("engine", name));
+  assert.equal(status, "native-pending");
+  assert.equal(load, true);
+  const [text, rule] = compiler.compileDocument(fixture.documents["main.md"]).rules;
+  assert.equal(text.alternatives[0].expr.ref, "w");
+  assert.equal(rule.alternatives[0].expr.optional.ref, "A");
+  assert.deepEqual(rule.emit.items, []);
+  assert.deepEqual(expected, { props: { value: "a", image: "a" } });
+});
+
+for (const suffix of ["", "-not", "-reject", "-not-reject"]) {
+  test(`the optional list preserves the outer comparison${suffix}`, () => {
+    const name = `item-comparison-optional-pattern${suffix}.json`;
+    const migrated = translateSharedCase("engine", name, legacyFixture("engine", name));
+    assert.equal(migrated.status, "translated");
+    const { rules } = compiler.compileDocument(migrated.fixture.documents["main.md"]);
+    const rule = rules.find(rule => rule.name === "text");
+    assert.ok(rule.alternatives[0].expr.seq[2].optional);
+    const [outer, list] = rule.conditions[0].all;
+    assert.deepEqual([outer.left.capture, outer.right.capture], ["x", "y"]);
+    assert.equal(outer.op, "≅");
+    assert.equal(list.method, "all");
+    assert.equal(list.receiver.capture, "c");
+    assert.equal(list.args[0].body.left.capture, list.args[0].lambda);
+    assert.ok(migrated.changes.some(change => change.reason.includes("run on an empty list")));
+  });
+}
+
+for (const name of [
+  "item-condition-optional-braces-empty", "item-condition-optional-braces-fails",
+  "item-condition-through-helper", "item-condition-through-helper-holds",
+  "item-comparison-optional-tree", "item-comparison-optional-tree-reject",
+]) {
+  test(`the optional list keeps the item-only condition in ${name}`, () => {
+    const file = name + ".json";
+    const moved = translateSharedCase("engine", file, legacyFixture("engine", file));
+    assert.equal(moved.status, "translated");
+    const { rules } = compiler.compileDocument(moved.fixture.documents["main.md"]);
+    const predicates = rules.flatMap(rule => rule.conditions).filter(condition => condition.method === "all");
+    assert.ok(predicates.length);
+  });
+}
+
+test("mixed recipes join the written child values and skip synthetic values", () => {
+  const migrated = translateSharedCase("engine", "omission-with-recipe", {
+    grammar: '%rule text item [$end:+T ≝ "end"]\n%emits\n%rule item A := "cooked"',
+  });
+  assert.equal(migrated.status, "translated");
+  const { documents, pipelineDocument } = migrated.fixture;
+  const { constants } = compiler.compileDocument(documents[pipelineDocument]);
+  const defaults = constants.find(item => item.name === "DEFAULTS").value;
+  const [value, image] = defaults.body.bag;
+  const map = value.value.receiver;
+  assert.equal(map.map.method, "children");
+  assert.equal(map.by.body.if.right.pattern.requirements[0].value.tag, "_Elided");
+  assert.equal(map.by.body.then.string, "");
+  assert.equal(map.by.body.else.property, "value");
+  assert.equal(image.value.receiver.map.method, "children");
+});
+
+test("the translator records changes to output, display and working reads", () => {
+  const migrated = translateSharedCase("engine", "recipe-record", {
+    grammar: '%rule text $x:r\n%conditions $x.emitted.value = "a"\n%rule r A',
+  });
+  // The old grammar rejects this recognition demand, so a recorded
+  // migration is required for it. A late read prints the working property.
+  const valid = translateSharedCase("engine", "recipe-record-late", {
+    grammar: '%rule text (A | B) := "a"\n%emits $ := $.emitted.value',
+  });
+  assert.equal(migrated.status, "needs-negative");
+  assert.equal(valid.status, "translated");
+  assert.ok(valid.changes.some(change => change.reason.includes("$OUTPUTS")));
+  assert.ok(valid.changes.some(change => change.reason.includes("display primary")));
+  assert.ok(valid.changes.some(change => change.reason.includes("working value property")));
+  const { rules: [rule] } = compiler.compileDocument(valid.fixture.documents["main.md"]);
+  assert.equal(rule.alternatives.length, 1);
+  assert.equal(rule.alternatives[0].expr.choice.length, 2);
+  assert.deepEqual(rule.alternatives[0].expr.choice.map(node => node.primary.ref), ["A", "B"]);
+  assert.equal(rule.alternatives[0].term.bag[0].value.string, "a");
 });

@@ -25,6 +25,7 @@ Names end before layout or comments. A name immediately before an opening parent
   _Emoji_Presentation<¬_Emoji_Component>≠"#"
 %conditions
   ¬$.parse(letter),
+  ¬$.parse("@"),
   ¬$.following-tokens.parse(call-open …)
 %emits
   $ :: Emoji-Name
@@ -119,6 +120,7 @@ A call name ends just before its opening parenthesis. Parameter and capture pref
   | $emoji:_Emoji_Presentation<¬_Emoji_Component>≠"#"
 %conditions
   $emoji ⟹ ¬$emoji.parse("a".."z"),
+  $emoji ⟹ ¬$emoji.parse("@"),
   $.following-tokens.parse(call-open …)
 %emits
   $ :: Call-Name

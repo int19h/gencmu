@@ -18387,6 +18387,1034 @@
     }
   }
 
+  // ---- format50/signatures.js
+  // @ts-nocheck
+
+
+  // Method arities from Engine §10, including short map selectors.
+  const zero = [
+    "span", "children", "present", "without-elision", "tokens", "flags", "classes",
+    "first-token", "last-token", "tokens-after-first", "onward", "following-tokens",
+    "preceding-tokens", "starts-input", "ends-input", "source-text",
+    "decomposed-source-text", "verbatim-text", "keys", "union", "error-free",
+  ];
+  const unary = [
+    "without-elision-except", "parse", "has", "has-value", "select", "overlaps",
+    "classify", "all", "split", "ngrams", "at-most",
+  ];
+
+  const methods50 = new Map([
+    ...zero.map(name => [name, { min: 0, max: 0 }]),
+    ...unary.map(name => [name, { min: 1, max: 1 }]),
+    ...["any", "join"].map(name => [name, { min: 0, max: 1 }]),
+    ...["followed-by", "preceded-by"].map(name => [name, { min: 1, max: Infinity }]),
+  ]);
+
+  function validProperty50(name, unicode) {
+    return typeof name === "string" && (/^(?!.*--)[a-zA-Z][a-zA-Z0-9_-]*$/.test(name) ||
+      (name !== "_Elided" && (unicode ? unicode.canonicalTag(name) === name :
+        Object.hasOwn(PROPERTY_CATALOG.tags, name))));
+  }
+
+  // ---- format50/validate.js
+  // @ts-nocheck
+
+
+
+
+
+  const argumentsError = "an argument cannot read or declare captures";
+  const baseSymbol = node => ["ref", "call", "param", "literal", "range", "wildcard", "splice", "test"]
+    .some(key => Object.hasOwn(node, key));
+  const ruleName50 = /^(?!.*--)[a-z][A-Za-z0-9_-]*$/;
+  const featureName = /^(?!.*--)[A-Za-z][A-Za-z0-9-]*$/;
+  const terminalName = /^[A-Z_]/;
+  const userTag = /^(?!.*--)[A-Z][A-Za-z0-9_-]*$/;
+  const parameterName = /^(?!.*--)[A-Za-z][A-Za-z0-9_-]*$/;
+  // A custom Unicode table can grant an emoji name to any permitted scalar.
+  const validRule = (name, unicode) => ruleName50.test(name) ||
+    typeof name === "string" && (unicode ? unicode.isEmojiName(name) :
+      name !== "#" && name !== "@" && [...name].length === 1 && !/^[\uD800-\uDFFF]$/.test(name));
+  const validTag = (name, unicode) => userTag.test(name) || name.startsWith("_") && validProperty50(name, unicode);
+  /** @typedef {{ document?: string, unicode?: import("../unicode.js").UnicodeTable }} DocumentValidation */
+  const atomOf = node => {
+    while (node.test) node = node.expr;
+    return node;
+  };
+
+  function validateOrigin50(node, fail, pattern) {
+    if (!node.requirements || !node.test) return;
+    const atom = atomOf(node);
+    const rule = atom.name || atom.call || atom.splice || atom.ref && !terminalName.test(atom.ref);
+    if (rule && node.requirements.some(req => req.value.tag === "_Elided" && (!pattern || !req.negated))) {
+      fail(node, "the _Elided origin test applies only to a terminal");
+    }
+  }
+
+  function validatePatternChildren50(node, fail) {
+    if (node.test || !node.any && !node.name && !node.call && !node.param) {
+      fail(node, "only an untested rule atom, call or parameter can have a child list");
+    }
+  }
+
+  function documentFault50(document) {
+    return (node, description) => {
+      const [line, column] = Array.isArray(node?.at) ? node.at : [];
+      throw new GencmuError("grammar", description, { document, line, column });
+    };
+  }
+
+  function withOwner50(root, fail, owner) {
+    const sites = new WeakMap();
+    const pending = [[root, owner]];
+    while (pending.length) {
+      const [node, parent] = pending.pop();
+      if (!node || typeof node !== "object") continue;
+      const site = Array.isArray(node.at) ? node : parent;
+      sites.set(node, site);
+      for (const [key, child] of Object.entries(node)) {
+        if (key !== "at") pending.push([child, site]);
+      }
+    }
+    return (node, message) => fail(Array.isArray(node?.at) ? node : sites.get(node) ?? owner, message);
+  }
+
+  /** @param {{ closed?: boolean, query?: boolean, bindings?: Iterable<string> }} [configuration] */
+  function validateBindings50(root, fail, configuration = {}) {
+    const { closed = false, query = false, bindings = [] } = configuration;
+    const pending = [[root, new Set(bindings), false]];
+    while (pending.length) {
+      const [node, scope, implicit] = pending.pop();
+      if (!node || typeof node !== "object") continue;
+      if (node.lambda !== undefined) {
+        const name = node.lambda;
+        if (name && scope.has(name)) fail(node, "a function binder cannot hide a live name");
+        pending.push([node.body, name ? new Set([...scope, name]) : scope, true]);
+        continue;
+      }
+      if (node.capture !== undefined) {
+        if (node.expr && (closed || query)) {
+          fail(node, query ? "a query cannot declare captures" : argumentsError);
+        }
+        if (closed && !scope.has(node.capture)) fail(node, argumentsError);
+      }
+      if (node.item && !implicit) fail(node, "an implicit receiver needs a function binding");
+      const children = Object.values(node);
+      for (let i = children.length - 1; i >= 0; i--) pending.push([children[i], scope, implicit]);
+    }
+  }
+
+  function validateArgument50(argument, fail) {
+    validateBindings50(argument, fail, { closed: true });
+    if (argument.body) validateBody50(argument.body, fail);
+  }
+
+  function validateQuery50(method, fail) {
+    const body = method.args[0]?.body;
+    if (!body) return fail(method, "a query needs a body");
+    const items = body.seq ?? [body];
+    const first = Number(Boolean(items[0]?.remainder));
+    const end = items.length - Number(Boolean(items.at(-1)?.remainder));
+    const parts = items.slice(first, end);
+    if (!parts.length) fail(method, "a query needs a body");
+    const pending = parts.slice().reverse();
+    while (pending.length) {
+      const node = pending.pop();
+      if (!node || typeof node !== "object") continue;
+      if (node.remainder) fail(method, "a query permits a remainder only at each outer edge");
+      if (node.chain) fail(method, "a chain cannot be the query target");
+      const children = node.seq ?? node.choice ?? node.ranked ?? node.and ??
+        [node.optional, node.repeat, node.separator, node.primary, node.expr];
+      for (let i = children.length - 1; i >= 0; i--) pending.push(children[i]);
+    }
+    validateBindings50(body, fail, { query: true });
+    validateBody50(parts.length === 1 ? parts[0] : { seq: parts }, fail);
+  }
+
+  const elidableForm50 = "an elidable optional starts with an ungrouped user terminal or parameter and can bind only its sole terminator";
+
+  function validateSubsetSize50(size, node, fail) {
+    if (size > 16) fail(node, "an ordered subset takes at most sixteen operands");
+  }
+
+  function validateOmission(node, fail) {
+    if (!node.elidable) return;
+    const optional = node.optional;
+    const start = optional.seq?.[0] ?? optional;
+    let head = start.capture !== undefined ? start.expr : start;
+    const tests = [];
+    while (head?.test) {
+      tests.push(head);
+      head = head.expr;
+    }
+    if (!head?.param && !/^[A-Z]/.test(head?.ref ?? "") ||
+        start.capture !== undefined && optional.seq || optional.seq?.slice(1).some(part => captureSlots50(part).size)) {
+      fail(node, elidableForm50);
+    }
+    const value = node.default?.string;
+    if (value === undefined) return;
+    for (const test of tests) {
+      if (test.value?.string !== undefined && (test.value.string === value) !== (test.test === "=") ||
+          test.requirements?.some(({ negated, value }) => value.tag && (head.ref || value.tag === "_Elided") &&
+            (value.tag === "_Elided" || value.tag === head.ref) === negated)) {
+        fail(node.default, "the default does not pass the omission predicate");
+      }
+    }
+  }
+
+  // Each slot is a node if the alternative binds it once on every route.
+  function captureSlots50(body) {
+    return run(bindingSlots(body, false));
+  }
+
+  function* bindingSlots(body, list) {
+    if (body.capture !== undefined) return new Map([[body.capture, list]]);
+    if (body.primary) return yield bindingSlots(body.primary, list);
+    if (body.optional) return yield bindingSlots(body.optional, true);
+    const routes = body.choice ?? body.ranked;
+    const children = routes ?? body.seq ?? body.and ??
+      (body.repeat ? [body.repeat, ...(body.separator ? [body.separator] : [])] : []);
+    const slots = [];
+    for (const child of children) slots.push(yield bindingSlots(child, list || !!body.repeat || body.and?.length > 1));
+    const result = new Map();
+    for (const child of slots) for (const [name, childList] of child) {
+      result.set(name, !!result.get(name) || childList || !!body.choice && slots.some(slot => !slot.has(name)));
+    }
+    return result;
+  }
+
+  function validateBody50(body, fail) {
+    const zero = () => ({ names: new Map(), min: 0, max: 0 });
+    function* visit(node, blocked = false, chain = false, whole = true) {
+      if (node.primary) {
+        const symbol = node.primary.expr && node.primary.capture !== undefined ? node.primary.expr : node.primary;
+        const base = atomOf(symbol);
+        if (!baseSymbol(base)) fail(node, "a primary marks one symbol or capture");
+        if (blocked || base.splice) fail(node, "a primary must mark a mandatory child that is not a splice");
+        const route = yield visit(node.primary, blocked, chain, false);
+        route.min++;
+        route.max++;
+        return route;
+      }
+      if (node.capture !== undefined && node.expr) {
+        if (chain) fail(node, "a chain item or separator cannot bind a capture directly");
+        if (!CAPTURE_NAME.test(node.capture)) fail(node, "a capture name must use lowercase letters, digits, hyphens or underscores");
+        if (!baseSymbol(node.expr)) fail(node, "a capture wraps one symbol");
+        const route = yield visit(node.expr, blocked, chain, false);
+        if (route.names.has(node.capture)) fail(route.names.get(node.capture), "a route binds a capture twice");
+        route.names.set(node.capture, node);
+        return route;
+      }
+      if (node.optional) {
+        do {
+          validateOmission(node, fail);
+          node = node.optional;
+        } while (node.optional);
+        const route = yield visit(node, true, chain, false);
+        route.min = 0;
+        return route;
+      }
+      const children = node.seq ?? node.and ?? node.choice ?? node.ranked ??
+        (node.repeat && [node.repeat, ...(node.separator ? [node.separator] : [])]);
+      if (!children) return zero();
+      if (node.chain && !whole) fail(node, "a chain must occupy a whole alternative");
+      if (node.and) validateSubsetSize50(node.and.length, node, fail);
+      const exclusive = !!(node.choice || node.ranked);
+      const route = zero();
+      for (const [index, child] of children.entries()) {
+        const next = yield visit(child, blocked || !!(node.ranked || node.repeat), node.repeat ? !!node.chain : chain, false);
+        for (const [name, binder] of next.names) {
+          if (!exclusive && route.names.has(name)) fail(binder, `a route binds $${name} twice`);
+          if (!route.names.has(name)) route.names.set(name, binder);
+        }
+        if (exclusive) {
+          route.min = index ? Math.min(route.min, next.min) : next.min;
+          route.max = Math.max(route.max, next.max);
+        } else {
+          route.min = node.and && index ? Math.min(route.min, next.min) : route.min + next.min;
+          route.max += next.max;
+          if (route.max > 1) fail(child, "a route has more than one primary");
+        }
+      }
+      return route;
+    }
+    const route = run(visit(body));
+    if (route.min !== route.max || route.max > 1) fail(body, "each route must have one primary or every route must have none");
+  }
+
+  function validateExactPattern50(pattern, fail, { origin = true } = {}) {
+    if (pattern.const || pattern.constant) return;
+    if (pattern.union || pattern.intersection || pattern.difference) {
+      for (const part of pattern.union ?? pattern.intersection ?? pattern.difference) {
+        validateExactPattern50(part, fail, { origin });
+      }
+      return;
+    }
+    if (!pattern.exact || pattern.path || pattern.children || pattern.any) fail(pattern, "a key step needs an exact local pattern");
+    let atom = pattern;
+    while (atom.test) {
+      if (!origin && atom.requirements?.some(item => !item.negated && item.value.tag === "_Elided")) {
+        fail(atom, "a leftmost-longest pattern cannot require _Elided");
+      }
+      atom = atom.expr;
+    }
+  }
+
+  function validateBag50(entries, fail) {
+    const unconditional = new Set();
+    for (const entry of entries) {
+      const keys = entry.kind === "write" ? entry.keys : ["copy", "bare"].includes(entry.kind) ? [entry.key] : [];
+      const chain = new Set();
+      for (const key of keys) {
+        const direct = !entry.guard && !entry.gates.length;
+        if (chain.has(key) || direct && unconditional.has(key)) fail(entry, `duplicate direct write for ${key}`);
+        chain.add(key);
+        if (direct) unconditional.add(key);
+      }
+    }
+  }
+
+  function validateRange(range, site, fail) {
+    for (const endpoint of range) {
+      if (endpoint.string !== undefined && [...endpoint.string].length !== 1) {
+        fail(site, "a range endpoint must be one scalar");
+      }
+    }
+    const [left, right] = range;
+    if (left.string !== undefined && right.string !== undefined &&
+        left.string.codePointAt(0) > right.string.codePointAt(0)) {
+      fail(site, "a range starts above its end");
+    }
+  }
+
+  // A name that the definition never binds is an error even behind a guard.
+  function validateDefinitionNames50(rule, slots, fail) {
+    const bindings = new Set(["", ...slots.flatMap(slot => [...slot.keys()])]);
+    const roots = [rule.term, ...rule.conditions ?? [],
+      rule.error, rule.warning, ...rule.emit?.items ?? []];
+    const terms = rule.alternatives.map((alt, index) => [alt.term, new Set(["", ...slots[index].keys()]), false]);
+    const pending = [[rule.term, bindings, false], ...terms,
+      ...roots.slice(1).map(root => [root, bindings, false])].reverse();
+    while (pending.length) {
+      const [part, scope, implicit] = pending.pop();
+      if (!part || typeof part !== "object") continue;
+      if (part.lambda !== undefined) {
+        if (part.lambda && scope.has(part.lambda)) fail(part, "a function binder cannot hide a live name");
+        pending.push([part.body, part.lambda ? new Set([...scope, part.lambda]) : scope, true]);
+        continue;
+      }
+      if (!implicit && part.item) fail(part, "an implicit receiver needs a function binding");
+      if (part.capture !== undefined && !part.expr && !scope.has(part.capture) && !bindings.has(part.capture)) {
+        fail(part, `$${part.capture} is captured by no alternative of ${rule.name}`);
+      }
+      const children = Object.values(part);
+      for (let i = children.length - 1; i >= 0; i--) pending.push([children[i], scope, implicit]);
+    }
+  }
+
+  // Inspect every branch that can be reached with these slots. An unknown
+  // predicate alone cannot prove that a missing capture is safe to read.
+  function checkExpansionScope(root, slots, fail, truth = false) {
+    return run(expansionScope(root, slots, fail, new Set([""]), truth));
+  }
+
+  function* expansionScope(root, slots, fail, bindings, truth = false) {
+    if (!root || typeof root !== "object") return;
+    if (root.method === "present" && root.receiver?.capture !== undefined) {
+      return yield expansionScope(root.receiver, slots, fail, bindings, true);
+    }
+    if (root.capture !== undefined && !root.expr) {
+      const name = root.capture;
+      if (!bindings.has(name) && !slots.has(name)) {
+        if (truth) return false;
+        fail(root, `$${name} is absent from this expansion`);
+      }
+      if (truth && slots.get(name) === false) return true;
+      return;
+    }
+    if (root.lambda !== undefined) {
+      yield expansionScope(root.body, slots, fail, new Set([...bindings, root.lambda]));
+      return;
+    }
+    if (root.guard) {
+      const guard = yield expansionScope(root.guard, slots, fail, bindings, true);
+      if (guard === false) return;
+    }
+    if (root.if) {
+      const condition = yield expansionScope(root.if, slots, fail, bindings, true);
+      if (condition === undefined) {
+        const then = yield expansionScope(root.then, slots, fail, bindings, truth || !root.else);
+        const other = root.else ? yield expansionScope(root.else, slots, fail, bindings, truth) : true;
+        return then === other ? then : undefined;
+      }
+      if (!condition && !root.else) return true;
+      return yield expansionScope(condition ? root.then : root.else, slots, fail, bindings, truth || !root.else);
+    }
+    if (root.not) {
+      const value = yield expansionScope(root.not, slots, fail, bindings, true);
+      return value === undefined ? value : !value;
+    }
+    if (root.all || root.any) {
+      const result = !!root.any;
+      let unknown = false;
+      for (const part of root.all ?? root.any) {
+        const value = yield expansionScope(part, slots, fail, bindings, true);
+        if (value === result) return value;
+        unknown ||= value === undefined;
+      }
+      return unknown ? undefined : !result;
+    }
+    for (const [key, child] of Object.entries(root)) {
+      if (key !== "at" && key !== "guard") yield expansionScope(child, slots, fail, bindings);
+    }
+  }
+
+  // The caller supplies the expansion in grammar order. A native caller can
+  // extend each operand check with its stage types and presence witness.
+  function directKeys(entries = []) {
+    const keys = new Set();
+    for (const entry of entries) {
+      if (entry.guard || entry.gates.length) continue;
+      if (entry.kind === "write") for (const key of entry.keys) keys.add(key);
+      if (entry.kind === "delete" || entry.kind === "bare") keys.add(entry.key);
+    }
+    return keys;
+  }
+
+  function validateDefinitionExpansion50(rule, alternative, slots, fail, check = validateClosedTypes, afterTerms) {
+    const visit = (node, forwarding = false, message = false) => {
+      if (!node) return;
+      if (forwarding) {
+        if (node.term && slots.get(node.capture)) fail(node, "a braced output item needs a node");
+        const reached = !node.guard || checkExpansionScope(node.guard, slots, fail, true) !== false;
+        if (reached && (slots.has(node.capture) || node.insert || node.capture === "")) {
+          checkExpansionScope(node.term, slots, fail);
+        }
+      } else {
+        checkExpansionScope(node, slots, fail);
+      }
+      const hiddenKeys = node === rule.term ? directKeys(alternative.term?.bag) : undefined;
+      check(node, fail, { slots, forwarding, message, nodeTerm: !message, hiddenKeys });
+    };
+    visit(rule.term);
+    check(alternative.expr, fail);
+    visit(alternative.term);
+    afterTerms?.();
+    visit(rule.error ?? rule.warning, false, true);
+    for (const item of rule.emit?.items ?? []) visit(item, true);
+  }
+
+  function boundaryFault(root) {
+    let first, fault;
+    const captures = new Set();
+    const pending = [[root, new Set()]];
+    while (pending.length) {
+      const [node, locals] = pending.pop();
+      if (!node || typeof node !== "object") continue;
+      if (node.lambda !== undefined) {
+        pending.push([node.body, new Set([...locals, node.lambda])]);
+        continue;
+      }
+      if (node.capture !== undefined && !node.expr && !locals.has(node.capture)) captures.add(node.capture);
+      if (node.method === "followed-by" || node.method === "preceded-by") {
+        if (!fault) {
+          if (node.args.some(target => target.terminal?.startsWith("_"))) {
+            fault = { node, message: "a boundary target must be a rule, exact instance or user tag" };
+          } else if (first) {
+            fault = { node, message: "a condition item cannot have more than one boundary atom" };
+          }
+        }
+        first ??= node;
+      }
+      const children = Object.values(node);
+      for (let i = children.length - 1; i >= 0; i--) pending.push([children[i], locals]);
+    }
+    const receiver = first?.receiver?.capture;
+    if (!fault && receiver && [...captures].some(name => name !== receiver)) {
+      return { node: first, message: "a condition with a named boundary receiver cannot read another capture" };
+    }
+    return fault;
+  }
+
+  function validateDefinitionBoundaries50(rule, fail) {
+    for (const condition of rule.conditions ?? []) {
+      const fault = boundaryFault(condition);
+      if (fault) fail(fault.node, fault.message);
+    }
+  }
+
+  function validateDefinitionConditions50(rule, slots, fail, check = validateClosedTypes) {
+    const shared = new Map();
+    for (const slot of slots) for (const [name, type] of slot) {
+      shared.set(name, !shared.has(name) || shared.get(name) === type ? type : undefined);
+    }
+    const types = new Map([...shared].filter(([, type]) => type !== undefined));
+    for (const condition of rule.conditions ?? []) {
+      const boundary = boundaryFault(condition);
+      check(condition, fail, { slots: types, truth: true, boundary });
+    }
+  }
+
+  // The native loader supplies the expanded productions in order and the
+  // structural nullability result for each one.
+  function validateDefinitionNullability50(productions, nullable, fail) {
+    for (const production of productions) {
+      if (production.errorSource && nullable(production)) {
+        fail(production.errorSource, "an error production can derive an empty sequence");
+      }
+    }
+  }
+
+  const comparable = new Set(["string", "number", "truth", "keys"]);
+  const isBag = type => type === "bag" || type === "keys";
+  const joinTypes = (left, right) => left === right ? left : isBag(left) && isBag(right) ? "bag" : undefined;
+  const spanTypes = ["span", "node"];
+  const bagTypes = ["keys", "bag", "node"];
+  const predicateTypes = ["list", "forest"];
+  const methodTypes = new Map([
+    ["split", ["list", "string"]],
+    ["ngrams", ["list", "string"]],
+    ["parse", ["forest", ...spanTypes]],
+    ["span", ["span", "node"]],
+    ["children", ["list", "node"]],
+    ["tokens", ["list", ...spanTypes]],
+    ["join", ["string", "list"]],
+    ["union", ["keys", "list"]],
+    ["present", ["truth", "node", "list"]],
+    ["all", ["truth", ...predicateTypes]],
+    ["any", ["truth", ...predicateTypes]],
+    ["preceding-tokens", ["span", ...spanTypes]],
+    ["following-tokens", ["span", ...spanTypes]],
+    ["first-token", ["span", ...spanTypes]],
+    ["last-token", ["span", ...spanTypes]],
+    ["tokens-after-first", ["span", ...spanTypes]],
+    ["onward", ["span", ...spanTypes]],
+    ["starts-input", ["truth", ...spanTypes]],
+    ["ends-input", ["truth", ...spanTypes]],
+    ["source-text", ["string", ...spanTypes]],
+    ["decomposed-source-text", ["string", ...spanTypes]],
+    ["verbatim-text", ["string", ...spanTypes]],
+    ["without-elision", ["span", "node"]],
+    ["without-elision-except", ["span", "node"]],
+    ["preceded-by", ["truth", "node"]],
+    ["followed-by", ["truth", "node"]],
+    ["flags", ["keys", ...bagTypes, "span", "forest"]],
+    ["classes", ["keys", ...bagTypes, "span"]],
+    ["keys", ["keys", ...bagTypes]],
+    ["has", ["truth", ...bagTypes]],
+    ["has-value", ["truth", ...bagTypes]],
+    ["select", [undefined, ...bagTypes]],
+    ["overlaps", ["truth", "keys"]],
+    ["classify", ["keys", "keys", "bag"]],
+    ["at-most", ["number", "number"]],
+    ["error-free", ["forest", "forest"]],
+  ]);
+
+  const methodArguments = new Map([
+    ["split", "string"], ["join", "string"], ["classify", "string"],
+    ["select", "keys"], ["overlaps", "keys"], ["all", "function"], ["any", "function"],
+  ]);
+
+  // The document can check closed operand types. A reference that needs the
+  // effective stage, a template binding or an input shape stays unresolved.
+  function validateClosedTypes(root, fail, { closed = false, slots = new Map(), truth = false, forwarding = false,
+    message = false, nodeTerm = false, hiddenKeys = new Set(), boundary, whole = "node" } = {}) {
+    const types = new WeakMap();
+    const elements = new WeakMap();
+    const type = node => node && typeof node === "object" ? types.get(node) : undefined;
+    const remember = (node, value) => {
+      if (value !== undefined) types.set(node, value);
+    };
+    const invalid = (value, allowed) => value !== undefined && !allowed.includes(value);
+    const pending = [[root, false, new Map(), false, truth]];
+    const captureTypes = new Map([...slots].map(([name, list]) => [name, list ? "list" : "node"]));
+    const predicates = new WeakMap();
+    const maps = new WeakMap();
+    while (pending.length) {
+      const [node, ready, scope, implicit, needsTruth] = pending.pop();
+      if (!node || typeof node !== "object") continue;
+      if (!ready) {
+        pending.push([node, true, scope, implicit, needsTruth]);
+        if (["all", "any"].includes(node.method) && node.args[0]?.lambda !== undefined) predicates.set(node.args[0], node.receiver);
+        if (node.map && node.by) maps.set(node.by, node.map);
+        if (node.lambda !== undefined) {
+          const name = node.lambda;
+          if (name && scope.has(name)) fail(node, "a function binder cannot hide a live name");
+          const receiver = predicates.get(node) ?? maps.get(node);
+          const argument = type(receiver) === "forest" ? "node" : elements.get(receiver);
+          const frame = new Map(scope);
+          frame.set("", argument);
+          if (name) frame.set(name, argument);
+          pending.push([node.body, false, frame, true, predicates.has(node)]);
+          continue;
+        }
+        const children = Object.entries(node);
+        for (let i = children.length - 1; i >= 0; i--) {
+          const [key, child] = children[i];
+          const childTruth = key === "if" || key === "guard" || key === "not" ||
+            key === "then" && (!node.else || needsTruth) || key === "else" && needsTruth ||
+            (key === "all" || key === "any") && Array.isArray(child) || Array.isArray(node) && needsTruth;
+          pending.push([child, false, scope, implicit, childTruth]);
+        }
+        continue;
+      }
+      if (Array.isArray(node)) continue;
+      if (boundary?.node === node) fail(node, boundary.message);
+      if (closed && node.capture !== undefined && !scope.has(node.capture)) {
+        fail(node, "a constant cannot read a capture outside its function scope");
+      }
+      if (closed && node.item && !implicit) fail(node, "an implicit receiver needs a function binding");
+      if (node.capture !== undefined && !node.expr && !(forwarding && node === root)) {
+        const inferred = scope.has(node.capture) && node.capture ? scope.get(node.capture) :
+          node.capture === "" ? whole : captureTypes.get(node.capture);
+        remember(node, inferred);
+        if (inferred === "list") elements.set(node, "node");
+      }
+      if (node.item) remember(node, scope.get(""));
+      if (node.string !== undefined) remember(node, "string");
+      if (node.integer !== undefined) remember(node, "number");
+      if (node.lambda !== undefined) {
+        if (type(node.body) === "function") fail(node.body, "a function cannot return a function");
+        remember(node, "function");
+      }
+      if (node.map) {
+        if (invalid(type(node.map), ["list"])) fail(node, "a map needs a list");
+        if (node.by.lambda === undefined && !node.by.method && !node.by.property &&
+            invalid(type(node.by), ["function"])) fail(node, "a map needs a function or selector");
+        remember(node, "list");
+        elements.set(node, type(node.by.lambda !== undefined ? node.by.body : node.by));
+      }
+      if (node.flatten) {
+        if (invalid(type(node.flatten), ["list"]) || invalid(elements.get(node.flatten), ["list"])) {
+          fail(node, "flatten needs a list of lists");
+        }
+        remember(node, "list");
+      }
+      if (node.list) {
+        remember(node, "list");
+        const members = new Set();
+        for (const entry of node.list) {
+          if (entry.kind === "splat") {
+            if (invalid(type(entry.value), ["list"])) fail(entry, "a list splat needs a list");
+            members.add(elements.get(entry.value));
+          } else {
+            const member = type(entry.value);
+            if (member === "function") fail(entry.value, "a list cannot store a function");
+            members.add(member);
+          }
+        }
+        const member = members.size && [...members].reduce(joinTypes);
+        if (member) elements.set(node, member);
+      }
+      if (node.emptySet || node.pattern) remember(node, "pattern");
+      if (node.bag) {
+        const definiteKeys = node.bag.every(entry => entry.kind === "bare" || entry.kind === "delete" ||
+          entry.kind === "splat" && type(entry.value) === "keys");
+        const payloads = new Map();
+        let open = false;
+        for (const entry of node.bag) {
+          if (entry.kind === "write" && !entry.guard && !entry.gates.length) {
+            for (const key of entry.keys) payloads.set(key, true);
+          } else if (entry.kind === "write" || entry.kind === "copy" || entry.kind === "splat" && type(entry.value) !== "keys") {
+            open = true;
+            payloads.clear();
+          } else if ((entry.kind === "delete" || entry.kind === "bare") && !entry.guard && !entry.gates.length) {
+            payloads.delete(entry.key);
+          }
+        }
+        if (definiteKeys || !open && !payloads.size) remember(node, "keys");
+        else if (payloads.size) remember(node, "bag");
+        const writesNode = nodeTerm && node === (forwarding ? root.term : root);
+        const hidden = new Set(hiddenKeys);
+        const effective = new Set();
+        if (writesNode) for (const entry of node.bag.slice().reverse()) {
+          if (entry.kind === "write" || entry.kind === "bare") {
+            const keys = entry.keys ?? [entry.key];
+            if (keys.some(key => !hidden.has(key) && (key === "image" || key === "value" || key.startsWith("_")))) {
+              effective.add(entry);
+            }
+          }
+          if (!entry.guard && !entry.gates.length) {
+            if (entry.kind === "write") for (const key of entry.keys) hidden.add(key);
+            if (entry.kind === "bare" || entry.kind === "delete") hidden.add(entry.key);
+          }
+        }
+        for (const entry of node.bag) {
+          if (entry.kind === "splat" && invalid(type(entry.value), ["keys", "node", "bag"])) {
+            fail(entry, "a bag splat needs a bag or node");
+          }
+          if (entry.kind === "bare" && effective.has(entry) && entry.key.startsWith("_")) {
+            fail(entry, "a constructor cannot write an engine key without provenance");
+          }
+          if (entry.kind !== "write") continue;
+          const value = type(entry.value);
+          if (value === "function") fail(entry.value, "a key cannot store a function");
+          if (entry.keys.some(key => key.startsWith("_"))) fail(entry, "a constructor cannot write an engine key");
+          if (effective.has(entry) && entry.keys.some(key => key === "image" || key === "value") &&
+              invalid(value, ["string"])) {
+            fail(entry.value, "a value or image needs a string");
+          }
+        }
+      }
+      if (message && node.method === "parse") fail(node, "a message cannot read a query");
+      const mapped = maps.get(node);
+      const receiver = type(node.receiver) ?? elements.get(mapped);
+      if (node.property && invalid(receiver, bagTypes)) fail(node, "a property read needs a node or bag");
+      const signature = methodTypes.get(node.method);
+      if (signature) {
+        const [result, ...receivers] = signature;
+        const wrong = () => fail(node, "a method has the wrong receiver or arguments");
+        if (invalid(receiver, receivers)) wrong();
+        const argumentType = methodArguments.get(node.method);
+        if (argumentType && invalid(type(node.args[0]), [argumentType])) wrong();
+        if (node.method === "any" && receiver === "list" && !node.args.length) wrong();
+        const member = elements.get(node.receiver);
+        if (node.method === "join" && invalid(member, ["string"]) ||
+            node.method === "union" && invalid(member, ["keys"])) wrong();
+        if (["split", "ngrams"].includes(node.method)) elements.set(node, "string");
+        if (["children", "tokens"].includes(node.method)) elements.set(node, "node");
+        remember(node, node.method === "select" && receiver === "keys" ? "keys" : result);
+      }
+      if (node.concat) {
+        if (node.concat.some(part => invalid(type(part), ["string"]))) fail(node, "++ requires string operands");
+        remember(node, "string");
+      }
+      if (node.if) {
+        const yes = type(node.then);
+        const no = type(node.else);
+        const result = joinTypes(yes, no);
+        if (yes && no && result === undefined) {
+          fail(node, "a conditional requires compatible branch types");
+        }
+        if (!node.else) remember(node, "truth");
+        else remember(node, result);
+      }
+      const group = node.union ?? node.intersection ?? node.difference;
+      if (group && node.at) {
+        const known = group.map(type).filter(value => value !== undefined);
+        const listDifference = node.difference && type(group[0]) === "list";
+        const openDifference = node.difference && type(group[0]) === undefined;
+        if (listDifference) {
+          const [left, right] = group;
+          const member = elements.get(left);
+          const removed = type(right) === "list" ? elements.get(right) : type(right);
+          if (member && removed && !joinTypes(member, type(right)) && !joinTypes(member, removed)) {
+            fail(node, "∖ requires compatible operands");
+          }
+          if (member) elements.set(node, member);
+        }
+        if (!listDifference && !openDifference &&
+            (known.some(value => value !== "keys" && value !== "pattern") || new Set(known).size > 1)) {
+          const op = node.union ? "∪" : node.intersection ? "∩" : "∖";
+          fail(node, `${op} requires compatible operands`);
+        }
+        if (!openDifference) remember(node, known[0]);
+      }
+      if (needsTruth && ["string", "number", "pattern", "function"].includes(type(node))) {
+        fail(node, "this operand does not have a truth value");
+      }
+      if (!node.op) continue;
+      const left = type(node.left);
+      const right = type(node.right);
+      if (["+", "<", "≤", ">", "≥"].includes(node.op) && [left, right].some(value => invalid(value, ["number"]))) {
+        fail(node, `${node.op} requires number operands`);
+      }
+      if (needsTruth && node.op === "+") fail(node, "this operand does not have a truth value");
+      if (["=", "≠"].includes(node.op)) {
+        if ([left, right].some(value => value !== undefined && !comparable.has(value)) ||
+            left !== undefined && right !== undefined && left !== right) {
+          fail(node, `${node.op} requires comparable operands of one type`);
+        }
+      }
+      if (["⊆", "⊈"].includes(node.op) && [left, right].some(value => invalid(value, ["keys"]))) {
+        fail(node, `${node.op} requires key sets`);
+      }
+      if (["∈", "∉"].includes(node.op)) {
+        if (invalid(right, ["list"])) fail(node, `${node.op} requires a list on its right`);
+        const member = elements.get(node.right);
+        if (left && member && left !== member) fail(node, `${node.op} requires compatible operands`);
+      }
+      if (["≅", "≇"].includes(node.op)) {
+        if (node.left.capture === undefined && !node.left.item) {
+          fail(node, "a structural comparison needs one capture or bound item on its left");
+        }
+        if (node.left.capture !== undefined && node.left.capture === node.right.capture ||
+            node.left.item && node.right.item) {
+          fail(node, "a structural comparison cannot compare a binding with itself");
+        }
+        if (invalid(left, ["node"])) fail(node, "a structural comparison needs a bound node on its left");
+        if (invalid(right, ["pattern", "node"])) {
+          fail(node, "a structural comparison needs a pattern or a bound node on its right");
+        }
+      }
+      remember(node, node.op === "+" ? "number" : "truth");
+    }
+    if (message && invalid(type(root), ["string"])) fail(root, "a message needs a string");
+  }
+
+  const stageDirectives = new Set(["stage", "extend-stage", "redefine-stage"]);
+
+  function validateHeader(declaration, fail, unicode) {
+    const { name, args, conditions, steps, instance, params, op } = declaration;
+    if (declaration.alternatives || instance) {
+      if (!validRule(name, unicode)) {
+        fail(declaration, "a rule name must begin with a lowercase letter or be an emoji name");
+      }
+      if (instance && (args || params)) fail(declaration, "an instance binding needs a plain rule name");
+      if (instance && op === "extend") fail(declaration, "an instance binding cannot extend a rule");
+      if (args && (op === "define" || args.some(arg => arg.param))) {
+        fail(declaration, "a rule head needs all parameters or an exact instance edit");
+      }
+      if (params) {
+        const seen = new Set();
+        for (const param of params) {
+          if (!parameterName.test(param)) fail(declaration, "invalid parameter name");
+          if (seen.has(param)) fail(declaration, `duplicate parameter @${param}`);
+          seen.add(param);
+        }
+        if (declaration.error || declaration.warning) fail(declaration, "a template cannot declare an error or warning");
+      }
+      if (declaration.suppressWarnings?.some(code => code !== "_" && !featureName.test(code))) {
+        fail(declaration, "invalid warning code");
+      }
+    } else if (declaration.value) {
+      if (!CONSTANT_NAME.test(name)) fail(declaration, "invalid constant name");
+    } else if (name === "include" || name === "names") {
+      if (conditions || args?.length !== 1 || typeof args[0] !== "string") fail(declaration, `%${name} takes one quoted path`);
+    } else if (name === "features") {
+      if (!args?.length || args.some(arg => !featureName.test(arg))) fail(declaration, "%features takes feature names");
+    } else if (name === "elision-only") {
+      if (conditions || args?.length !== 0) fail(declaration, "%elision-only takes no operands");
+    } else if (stageDirectives.has(name)) {
+      if (conditions || args?.length !== 1 || !ruleName50.test(args[0])) fail(declaration, `%${name} takes one stage name`);
+    } else if (name === "ambiguity-resolution") {
+      for (const step of steps ?? []) {
+        if (Boolean(step.pattern) !== KEY_STEPS.has(step.step)) fail(step, "invalid resolution step operand");
+      }
+      if (!validSteps(steps)) fail(declaration, "invalid resolution policy");
+    }
+  }
+
+  function validateDeclarationShape50(declaration, fail, unicode, emptyDelimiters = []) {
+    const locate = withOwner50(declaration, fail, declaration);
+    validateHeader(declaration, locate, unicode);
+    if (declaration.value && declaration.name === "INPUTS") fail(declaration, "$INPUTS is supplied by the engine");
+    for (const step of declaration.steps ?? []) {
+      if (step.pattern) validateExactPattern50(step.pattern, locate, { origin: step.step !== "leftmost-longest" });
+    }
+
+    const ruleBodies = new WeakSet((declaration.alternatives ?? []).map(alt => alt.expr));
+    const outputItems = new WeakSet(declaration.emit?.items ?? []);
+    const predicateSlots = new WeakSet();
+    const pending = [[declaration, false, false, false, false]];
+    while (pending.length) {
+      const [node, width, inRepeat, inPattern, requirement] = pending.pop();
+      if (!node || typeof node !== "object") continue;
+      if (ruleBodies.has(node)) validateBody50(node, locate);
+      if (outputItems.has(node) && node.capture === "" && !node.term) locate(node, "only a braced item can select the whole rule");
+      if (node.range) validateRange(node.range, node, locate);
+      if (node.integer !== undefined && (width ? !/^[1-9][0-9]*$/.test(node.integer) :
+        !/^(0|[1-9][0-9]*)$/.test(node.integer) || Number(node.integer) > 255)) {
+        locate(node, width ? "a width must be positive" : "a count literal must be between 0 and 255");
+      }
+      if (node.capture !== undefined && (node.capture !== "" || node.expr) && !CAPTURE_NAME.test(node.capture)) {
+        locate(node, "a capture name must use lowercase letters, digits, hyphens or underscores");
+      }
+      if (node.lambda === "" && !predicateSlots.has(node)) locate(node, "a predicate requires an explicit binder");
+      if (node.lambda && !CAPTURE_NAME.test(node.lambda)) {
+        locate(node, "a capture name must use lowercase letters, digits, hyphens or underscores");
+      }
+      if (node.by?.lambda === "") predicateSlots.add(node.by);
+      if (node.feature && !featureName.test(node.feature)) locate(node, "invalid feature name");
+      if (node.ref === "_Elided" || node.terminal === "_Elided" || node.property === "_Elided" ||
+          node.key === "_Elided" || !requirement && node.tag === "_Elided" ||
+          Array.isArray(node.keys) && node.keys.includes("_Elided") ||
+          ["has", "has-value"].includes(node.method) && node.args?.[0]?.key === "_Elided") {
+        locate(node, "unknown or forbidden engine key _Elided");
+      }
+      if (node.property !== undefined && !validProperty50(node.property, unicode)) locate(node, "invalid property name");
+      for (const value of [node.const, node.constant, node.apply]) {
+        if (typeof value === "string" && !CONSTANT_NAME.test(value)) locate(node, "invalid constant name");
+      }
+      if (node.param !== undefined && !parameterName.test(node.param)) locate(node, "invalid parameter name");
+      if (typeof node.call === "string" && !validRule(node.call, unicode) ||
+          typeof node.rule === "string" && !validRule(node.rule, unicode) ||
+          inPattern && typeof node.name === "string" && !validRule(node.name, unicode)) {
+        locate(node, "invalid rule name");
+      }
+      for (const name of [node.tag, node.terminal, typeof node.ref === "string" && terminalName.test(node.ref) ? node.ref : undefined]) {
+        if (typeof name === "string" && !(requirement && name === "_Elided") && !validTag(name, unicode)) {
+          locate(node, "invalid tag name");
+        }
+      }
+      if (typeof node.ref === "string" && !terminalName.test(node.ref) && !validRule(node.ref, unicode)) locate(node, "invalid rule name");
+      for (const key of Array.isArray(node.keys) ? node.keys : [node.key]) {
+        if (typeof key === "string" && !validProperty50(key, unicode)) locate(node, "invalid key name");
+      }
+      if (node.method) {
+        const sig = methods50.get(node.method);
+        if (!sig) locate(node, `unknown method .${node.method}`);
+        if (!node.args || node.args.length < sig.min || node.args.length > sig.max) {
+          locate(node, `method .${node.method} has the wrong number of arguments`);
+        }
+        if (["all", "any"].includes(node.method) && node.args[0]?.lambda === "") predicateSlots.add(node.args[0]);
+        if (node.method === "split" && node.args[0].string === "") emptyDelimiters.push(node);
+        if (node.method === "parse") validateQuery50(node, locate);
+      }
+      if ((node.call || node === declaration && declaration.alternatives) && node.args) for (const arg of node.args) {
+        validateArgument50(arg, locate);
+      }
+      validateOrigin50(node, locate, inPattern);
+      if (node.children) validatePatternChildren50(node, locate);
+      if (node.bag) validateBag50(node.bag, locate);
+      if (inRepeat && node.siblings) locate(node, "a repeated child list cannot contain a sibling gap");
+      const parts = node === declaration && declaration.alternatives ?
+        [["args", node.args], ["term", node.term], ["alternatives", node.alternatives], ["conditions", node.conditions],
+          ["error", node.error], ["warning", node.warning], ["emit", node.emit]] : Object.entries(node);
+      for (const [key, value] of parts.reverse()) {
+        if (key === "at") continue;
+        const repeated = inRepeat && key !== "child" || Array.isArray(node.repeat) && (key === "repeat" || key === "separator");
+        pending.push([value, node.method === "ngrams" && key === "args" || width && Array.isArray(node),
+          repeated, key === "pattern" || inPattern && key !== "body", key === "value" && Object.hasOwn(node, "negated")]);
+      }
+    }
+  }
+
+  const orderedDeclarations = dom => [...dom.rules, ...dom.directives, ...dom.constants]
+    .sort((a, b) => a.at[0] - b.at[0] || a.at[1] - b.at[1]);
+
+  /** @param {DocumentValidation} [configuration] */
+  function validateDocumentShape50(dom, configuration = {}) {
+    const { document, unicode } = configuration;
+    const fail = documentFault50(document);
+    const emptyDelimiters = [];
+    let preamble = true;
+    for (const declaration of orderedDeclarations(dom)) {
+      if (declaration.name === "names" && declaration.args) {
+        if (!preamble) fail(declaration, "%names must precede all other declarations");
+      } else {
+        preamble = false;
+      }
+      validateDeclarationShape50(declaration, fail, unicode, emptyDelimiters);
+    }
+    if (emptyDelimiters.length) fail(emptyDelimiters[0], "a split delimiter cannot be empty");
+  }
+
+  /** @param {DocumentValidation} [configuration] */
+  function validateDocumentDefinitions50(dom, configuration = {}) {
+    const { document } = configuration;
+    const fail = documentFault50(document);
+    for (const declaration of orderedDeclarations(dom)) {
+      const locate = withOwner50(declaration, fail, declaration);
+      if (declaration.args && declaration.alternatives) validateClosedTypes(declaration.args, locate);
+      if (declaration.instance) validateClosedTypes(declaration.instance, locate);
+      if (declaration.alternatives) {
+        const slots = declaration.alternatives.map(alt => captureSlots50(alt.expr));
+        validateDefinitionNames50(declaration, slots, locate);
+        let earlier;
+        for (const [index, alternative] of declaration.alternatives.entries()) {
+          let checkingTerms = true;
+          try {
+            validateDefinitionExpansion50(declaration, alternative, slots[index], locate, validateClosedTypes,
+              () => { checkingTerms = false; });
+          } catch (error) {
+            if (checkingTerms || !(error instanceof GencmuError)) throw error;
+            // Conditions precede the message and outputs in the declaration.
+            // Remember the winning expansion fault before checking conditions.
+            earlier = error;
+            break;
+          }
+        }
+        validateDefinitionConditions50(declaration, slots, locate);
+        if (earlier) throw earlier;
+      } else if (declaration.name === "features") {
+        for (const condition of declaration.conditions ?? []) {
+          validateBindings50(condition, (node, message) =>
+            locate(node, message === argumentsError ? "a feature condition cannot read a named capture" : message),
+            { closed: true, bindings: [""] });
+          validateClosedTypes(condition, locate, { truth: true, whole: "span" });
+        }
+      } else if (declaration.value) {
+        validateClosedTypes(declaration.value, locate, { closed: true });
+      }
+    }
+  }
+
+  /** @param {DocumentValidation} [configuration] */
+  function validateDocumentDepth50(dom, configuration = {}) {
+    const { document } = configuration;
+    const fail = documentFault50(document);
+    for (const declaration of orderedDeclarations(dom)) {
+      if (tooDeep(declaration)) fail(declaration, `an expression, term or condition is nested more than ${DOM_MAX_DEPTH} deep`);
+    }
+  }
+
+  /** @param {DocumentValidation} [configuration] */
+  function validateDocument50(dom, configuration) {
+    validateDocumentShape50(dom, configuration);
+    validateDocumentDefinitions50(dom, configuration);
+    validateDocumentDepth50(dom, configuration);
+    return dom;
+  }
+
+  function tooDeep(declaration) {
+    const pending = [];
+    const push = (value, depth) => {
+      if (value && typeof value === "object") pending.push([value, depth]);
+    };
+    const entries = (items, depth) => {
+      for (const item of items) for (const key of ["guard", "source", "value"]) push(item[key], depth);
+    };
+    push(declaration.term, 0);
+    push(declaration.value, 0);
+    push(declaration.error, 0);
+    push(declaration.warning, 0);
+    for (const condition of declaration.conditions ?? []) push(condition, 0);
+    for (const alt of declaration.alternatives ?? []) {
+      push(alt.expr, 0);
+      push(alt.term, 0);
+    }
+    for (const item of declaration.emit?.items ?? []) {
+      push(item.guard, 0);
+      push(item.term, 0);
+    }
+    for (const step of declaration.steps ?? []) push(step.pattern, 0);
+    if (declaration.instance) push(declaration.instance, 0);
+    for (const arg of declaration.args ?? []) push(arg, 1);
+    while (pending.length) {
+      const [node, depth] = pending.pop();
+      if (depth > DOM_MAX_DEPTH) return true;
+      if (Array.isArray(node)) {
+        for (const child of node) push(child, depth);
+        continue;
+      }
+      if (node.primary || node.expression || node.kind || node.body && node.lambda === undefined) {
+        push(node.primary ?? node.expression ?? node.body, depth);
+        if (node.kind) entries([node], depth);
+        continue;
+      }
+      if (node.targets || Object.hasOwn(node, "negated") && node.value) {
+        push(node.targets ?? node.value, depth);
+        continue;
+      }
+      if (node.bag || node.list) {
+        entries(node.bag ?? node.list, depth + 1);
+        continue;
+      }
+      if (node.map) {
+        push(node.map, depth + 1);
+        if (node.by.method) push(node.by.args, depth + 1);
+        else if (!node.by.property) push(node.by, depth + 1);
+        continue;
+      }
+      for (const [key, child] of Object.entries(node)) {
+        if (key === "at") continue;
+        push(child, key === "literal" || key === "range" || key === "requirements" ? depth : depth + 1);
+      }
+    }
+    return false;
+  }
+
   // ---- hash.js
   // FNV-1a over the text's UTF-8 bytes, 64 bits, as 16 hexadecimal digits:
   // the hash that keys the preparsed DOMs in every library.

@@ -34,7 +34,7 @@
     }
   },
   "notation/pattern-rule-positive-elided.json": {
-    "reason": "The origin requirement remains a load error on a rule atom. The counterpart reports the written origin mark.",
+    "reason": "The origin requirement remains a load error on a rule atom. The filter owns the origin requirement's position.",
     "oldPath": true,
     "document": "```jbogenbau\n%rule text $x:w\n%conditions $x ≅ #w<_Elided>\n%rule w A\n```\n",
     "expectedSourceError": "the _Elided origin test applies only to a terminal",
@@ -48,7 +48,7 @@
         "to": {
           "document": "notation.md",
           "line": 3,
-          "column": 21
+          "column": 20
         }
       }
     ]
@@ -974,6 +974,269 @@
     },
     "expectedNative": {
       "outcome": "accept"
+    }
+  },
+  "engine/item-condition-per-alternative.json": {
+    "reason": "Bind the two operands in one item rule. The single-A alternative has no comparison.",
+    "fixture": {
+      "source": [
+        "%stage main",
+        "%ambiguity-resolution greedy",
+        "%rule text {A} | {pair}",
+        "%rule pair $c:A $d:B",
+        "%conditions $c.span.tokens!'value.join() = $d.span.tokens!'value.join()"
+      ]
+    }
+  },
+  "engine/item-condition-per-alternative-holds.json": {
+    "reason": "Bind the two operands in one item rule. The single-A alternative has no comparison.",
+    "fixture": {
+      "source": [
+        "%stage main",
+        "%ambiguity-resolution greedy",
+        "%rule text {A} | {pair}",
+        "%rule pair $c:A $d:B",
+        "%conditions $c.span.tokens!'value.join() = $d.span.tokens!'value.join()"
+      ]
+    }
+  },
+  "engine/elidable-table-equal-sound.json": {
+    "reason": "Keep the written empty terminal and the omission with its saved nonempty value.",
+    "fixture": {
+      "source": [
+        "%stage main",
+        "%ambiguity-resolution late #·_<_Elided>",
+        "%rule text (A [+T=\"t\"]) | (A [+OTHER] [+OTHER]) | (A [+OTHER] [+OTHER] [+OTHER])",
+        "%conditions $ ≅ #⁅ A T=\"\" ⁆ ∨ $ ≅ #⁅ A T<_Elided> ⁆ ∨ $ ≅ #⁅ A OTHER OTHER [OTHER] ⁆"
+      ]
+    }
+  },
+  "engine/overlap-whole-optional-capture.json": {
+    "reason": "The optional slot can forward the published child. The braced item also selects the enclosing occurrence that covers the child.",
+    "fixture": {
+      "source": [
+        "%stage main",
+        "%ambiguity-resolution greedy",
+        "%const $OUTPUTS {}",
+        "%rule text [$a:leaf]",
+        "%emit ${image: value: \"a\"}, $a",
+        "%rule leaf \"a\"",
+        "%emit"
+      ]
+    },
+    "expected": {
+      "kind": "grammar",
+      "document": "main.md",
+      "line": 6,
+      "column": 29,
+      "owner": "/rules/0/emit/items/1"
+    },
+    "section": "Engine §§9.3, 11.1"
+  },
+  "engine/ranked-recipe-export-absent-option-image.json": {
+    "reason": "The late value expression still reads the private slot unguarded. Its B route has no binding.",
+    "fixture": {
+      "source": [
+        "%stage main",
+        "%ambiguity-resolution greedy",
+        "%rule text ($x:A ≻ B)",
+        "%emit ${image: $x.span.tokens!'image.join()}"
+      ]
+    },
+    "expected": {
+      "kind": "grammar",
+      "document": "main.md",
+      "line": 5,
+      "column": 18
+    },
+    "section": "Engine §§2.1, 9.3"
+  },
+  "engine/ranked-recipe-export-earlier-cycle-image.json": {
+    "reason": "A late expression can read a private binding. Keep the earlier reference to the unfinished working entry in its own supplier.",
+    "fixture": {
+      "source": [
+        "%stage main",
+        "%ambiguity-resolution greedy",
+        "%rule text → {image: $'image ++ $x.span.tokens!'image.join()}",
+        "  | ($x:A ≻ $x:B)",
+        "%emit"
+      ]
+    },
+    "expected": {
+      "kind": "grammar",
+      "document": "main.md",
+      "line": 4,
+      "column": 23
+    },
+    "section": "Engine §§3.7, 9.3"
+  },
+  "engine/ranked-recipe-export-absent-option-value.json": {
+    "reason": "The late value expression still reads the private slot unguarded. Its B route has no binding.",
+    "fixture": {
+      "source": [
+        "%stage main",
+        "%ambiguity-resolution greedy",
+        "%rule text ($x:A ≻ B)",
+        "%emit ${value: $x.span.tokens!'value.join()}"
+      ]
+    },
+    "expected": {
+      "kind": "grammar",
+      "document": "main.md",
+      "line": 5,
+      "column": 18
+    },
+    "section": "Engine §§2.1, 9.3"
+  },
+  "engine/ranked-recipe-export-earlier-cycle-value.json": {
+    "reason": "A late expression can read a private binding. Keep the earlier reference to the unfinished working entry in its own supplier.",
+    "fixture": {
+      "source": [
+        "%stage main",
+        "%ambiguity-resolution greedy",
+        "%rule text → {value: $'value ++ $x.span.tokens!'value.join()}",
+        "  | ($x:A ≻ $x:B)",
+        "%emit"
+      ]
+    },
+    "expected": {
+      "kind": "grammar",
+      "document": "main.md",
+      "line": 4,
+      "column": 23
+    },
+    "section": "Engine §§3.7, 9.3"
+  },
+  "engine/backward-ends-bare-template.json": {
+    "reason": "The stage retains a bare template name as an exact suffix target. A reference in a parse body must name a rule or a bound instance.",
+    "section": "Engine §§2.3, 7",
+    "expected": {
+      "kind": "grammar",
+      "document": "p.md",
+      "line": 11,
+      "column": 14
+    },
+    "fixture": {
+      "documents": {
+        "p.md": "```jbogenbau\n%stage first\n%ambiguity-resolution greedy\n%rule text\n  | _\n  | _ _ [{_}]\n%emit\n%stage second\n%ambiguity-resolution greedy\n%rule text A\n%conditions $.parse(… tail)\n%rule tail(@X) @X\n```\n\n```jbogenbau\n%extend-stage first\n%const $DEFAULTS $node ↦ {value: $node.children!'value.join(), image: $node.children!'image.join()}\n%const $OUTPUTS {*$INPUTS, A, X}\n%extend-stage second\n%const $DEFAULTS $node ↦ {value: $node.children!'value.join(), image: $node.children!'image.join()}\n%const $OUTPUTS {*$INPUTS, A, X}\n```\n"
+      },
+      "pipelineDocument": "p.md"
+    }
+  },
+  "engine/backward-ends-choice-resolution.json": {
+    "reason": "Keep both suffix queries so the later unknown rule remains an error in a written branch.",
+    "section": "Engine §§2.3, 7",
+    "expected": {
+      "kind": "grammar",
+      "document": "p.md",
+      "line": 11,
+      "column": 30
+    },
+    "fixture": {
+      "documents": {
+        "p.md": "```jbogenbau\n%stage first\n%ambiguity-resolution greedy\n%rule text\n  | _\n  | _ _ [{_}]\n%emit\n%stage second\n%ambiguity-resolution greedy\n%rule text A\n%conditions ($.parse(… A) ∨ $.parse(… missing))\n```\n\n```jbogenbau\n%extend-stage first\n%const $DEFAULTS $node ↦ {value: $node.children!'value.join(), image: $node.children!'image.join()}\n%const $OUTPUTS {*$INPUTS, A}\n%extend-stage second\n%const $DEFAULTS $node ↦ {value: $node.children!'value.join(), image: $node.children!'image.join()}\n%const $OUTPUTS {*$INPUTS, A}\n```\n"
+      },
+      "pipelineDocument": "p.md"
+    }
+  },
+  "engine/attach-forward-plain-twice.json": {
+    "reason": "Both items cover the same consuming rule. The conflict precedes publication.",
+    "section": "Engine §§9.3, 11.1",
+    "expected": {
+      "kind": "grammar",
+      "document": "b.md",
+      "line": 4,
+      "column": 13,
+      "owner": "/rules/0/emit/items/1"
+    },
+    "fixture": {
+      "documents": {
+        "p.md": "```jbogenbau\n%stage a\n%include \"a.md\"\n%stage b\n%include \"b.md\"\n%stage c\n%include \"c.md\"\n```\n\n```jbogenbau\n%extend-stage a\n%const $DEFAULTS $node ↦ {value: $node.children!'value.join(), image: $node.children!'image.join()}\n%const $OUTPUTS {*$INPUTS, B, I, T, U, W, Z}\n%extend-stage b\n%const $DEFAULTS $node ↦ {value: $node.children!'value.join(), image: $node.children!'image.join()}\n%const $OUTPUTS {*$INPUTS, B, I, T, U, W, Z}\n%extend-stage c\n%const $DEFAULTS $node ↦ {value: $node.children!'value.join(), image: $node.children!'image.join()}\n%const $OUTPUTS {*$INPUTS, B, I, T, U, W, Z}\n```\n",
+        "a.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text {item}\n%rule item\n  | ^$w:word\n  | $b:bb ^$w:word\n  | ^$w:word $a:ii\n  | $b:bb ^$w:word $a:ii\n%emit\n%rule word\n  | \"w\" → {W}\n  | \"z\" → {Z}\n%rule bb \"b\" → {B}\n%emit\n%rule ii \"i\" → {I}\n%emit\n```\n",
+        "b.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text W\n%emit ${T}, ${U}\n```\n",
+        "c.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text T U\n```\n"
+      },
+      "pipelineDocument": "p.md"
+    }
+  },
+  "engine/attach-forward-twice.json": {
+    "reason": "Both items cover the same consuming rule. The conflict precedes publication of its decorated input.",
+    "section": "Engine §§9.3, 11.1",
+    "expected": {
+      "kind": "grammar",
+      "document": "b.md",
+      "line": 4,
+      "column": 13,
+      "owner": "/rules/0/emit/items/1"
+    },
+    "fixture": {
+      "documents": {
+        "p.md": "```jbogenbau\n%stage a\n%include \"a.md\"\n%stage b\n%include \"b.md\"\n```\n\n```jbogenbau\n%extend-stage a\n%const $DEFAULTS $node ↦ {value: $node.children!'value.join(), image: $node.children!'image.join()}\n%const $OUTPUTS {*$INPUTS, B, I, T, U, W, Z}\n%extend-stage b\n%const $DEFAULTS $node ↦ {value: $node.children!'value.join(), image: $node.children!'image.join()}\n%const $OUTPUTS {*$INPUTS, B, I, T, U, W, Z}\n```\n",
+        "a.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text {item}\n%rule item\n  | ^$w:word\n  | $b:bb ^$w:word\n  | ^$w:word $a:ii\n  | $b:bb ^$w:word $a:ii\n%emit\n%rule word\n  | \"w\" → {W}\n  | \"z\" → {Z}\n%rule bb \"b\" → {B}\n%emit\n%rule ii \"i\" → {I}\n%emit\n```\n",
+        "b.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text W\n%emit ${T}, ${U}\n```\n"
+      },
+      "pipelineDocument": "p.md"
+    }
+  },
+  "engine/item-condition-presence.json": {
+    "reason": "The item has a route without the original capture. Label that route so its items still enter the condition.",
+    "fixture": {
+      "pipelineDocument": "main.md",
+      "documents": {
+        "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text {$a:A | $c:B}\n%conditions ¬$a\n```\n"
+      }
+    }
+  },
+  "engine/item-condition-presence-holds.json": {
+    "reason": "The item has a route without the original capture. Label that route so its items still enter the condition.",
+    "fixture": {
+      "pipelineDocument": "main.md",
+      "documents": {
+        "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text {$a:A | $c:B}\n%conditions ¬$a\n```\n"
+      }
+    }
+  },
+  "engine/item-condition-simplified-without-item.json": {
+    "reason": "The item has a route without the original capture. Label that route so its items still enter the condition.",
+    "fixture": {
+      "pipelineDocument": "main.md",
+      "documents": {
+        "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text $o:O {$a:A | $c:B}\n%conditions $a ⟹ $o'value = \"x\"\n```\n"
+      }
+    }
+  },
+  "engine/item-condition-simplified-without-item-holds.json": {
+    "reason": "The item has a route without the original capture. Label that route so its items still enter the condition.",
+    "fixture": {
+      "pipelineDocument": "main.md",
+      "documents": {
+        "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text $o:O {$a:A | $c:B}\n%conditions $a ⟹ $o'value = \"x\"\n```\n"
+      }
+    }
+  },
+  "engine/helper-tags.json": {
+    "section": "Engine §3.7, Rule bags",
+    "reason": "A whole optional no longer copies the bag of its only symbol.",
+    "load": true,
+    "fixture": {
+      "pipelineDocument": "main.md",
+      "documents": {
+        "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%const $OUTPUTS {A}\n%const $DEFAULTS $n ↦ {value: $n.children!'value.join(), image: $n.children!'image.join()}\n%rule text w\n%rule w [A]\n%emit\n```\n"
+      },
+      "tokens": [
+        {
+          "text": "a",
+          "props": {
+            "A": true
+          }
+        }
+      ]
+    },
+    "expected": {
+      "props": {
+        "value": "a",
+        "image": "a"
+      }
     }
   }
 }

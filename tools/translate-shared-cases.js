@@ -5,15 +5,20 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { GencmuError } from "../lib/js/src/errors.js";
 import { extractGrammarText, resolvePath } from "../lib/js/src/markdown.js";
 import { loaderWith } from "../lib/js/test/shared.js";
+import { createTransitionCompiler } from "./transition-compiler.js";
 import { MigrationRequired, translateDom49 } from "./translate-dom49.js";
+import { retireNegative49, translateNegative49 } from "./translate-negative49.js";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const fence = (text) => "```jbogenbau\n" + text + "\n```\n";
-const defaults = "%const $DEFAULTS $node ↦ {value: $node.children!'value.join(), image: $node.children!'image.join()}";
+const childValue = "$node.children!'value.join()";
+const inputValue = "$node.span.tokens!'value.join()";
+const writtenChildValue = '$node.children!($child ↦ ($child ≅ #·_<_Elided> ? "" | $child\'value)).join()';
 const stageNames = new Set(["stage", "extend-stage", "redefine-stage"]);
 const handMigrations = JSON.parse(fs.readFileSync(new URL("./shared-case-migrations.json", import.meta.url), "utf8"));
 const negativeMigrations = JSON.parse(fs.readFileSync(new URL("./shared-negative-migrations.json", import.meta.url), "utf8"));
 const portableTag = /^[A-Z][A-Za-z0-9_-]*$/;
+let transition;
 
 function coordinate(line, column) {
   return `${line}:${column}`;
@@ -174,6 +179,42 @@ function caseInput(testCase) {
       run.tokens === undefined ? run : { ...run, tokens: tokenInput(run.tokens, expect?.error === "usage") }) }) };
 }
 
+function recordedNegative(id, testCase, documents, entry) {
+  const counterpart = negativeMigrations[id];
+  if (!counterpart) return;
+  const { retired, native, load, expected, reason, section, document, documents: replacement, entry: replacementEntry } = counterpart;
+  if (retired) return { id, status: "retired", oldPath: true, reason: retired, section };
+  const fixture = replacement || documents ? { ...caseInput(testCase),
+    pipelineDocument: replacementEntry ?? entry, documents: { ...documents, ...replacement } } : undefined;
+  return { id, status: native ? "native-pending" : "retained-negative", oldPath: true,
+    expected, ...(load && { load }), reason, ...(section && { section }),
+    ...(fixture ? { fixture } : { document: document ?? testCase.document }),
+    reference: testCase.expect ?? testCase.parses };
+}
+
+function convertedNegative(id, testCase, { source, ...record }) {
+  const document = record.expected.document;
+  const markdown = fence(source.join("\n"));
+  const fixture = { ...caseInput(testCase), pipelineDocument: document, documents: { [document]: markdown } };
+  const result = { id, oldPath: true, ...record, fixture, reference: testCase.expect ?? testCase.parses };
+  transition ??= createTransitionCompiler();
+  try {
+    transition.compileDocument(markdown, document);
+    return { ...result, status: "native-pending" };
+  } catch (error) {
+    if (!(error instanceof GencmuError)) throw error;
+    const expected = record.expected;
+    const { line, column } = error.where;
+    if (line === expected.line && column === expected.column &&
+        (/^a method has the wrong receiver or arguments$/.test(error.description) ||
+          /^[=≠⊆⊈∈∉∪∩∖] requires /.test(error.description))) {
+      return { ...result, status: "retained-negative", expected: { ...expected, description: error.description } };
+    }
+    return { ...result, status: "needs-negative", reason: `A different source fault precedes this operand. ${error.description}`,
+      location: error.where };
+  }
+}
+
 export function translateSharedCase(family, file, testCase) {
   const id = `${family}/${file}`;
   const versioned = overridesFor(id);
@@ -181,26 +222,34 @@ export function translateSharedCase(family, file, testCase) {
     const { fixture, ...record } = versioned;
     const merged = fixture && { ...caseInput(testCase), ...fixture };
     if (fixture?.tokens) merged.tokens = tokenInput(fixture.tokens, testCase.expect?.error === "usage");
-    return { id, status: "hand-migrated", ...record,
+    return { id, status: record.expected ? "native-pending" : record.retired ? "retired" : "hand-migrated", ...record,
+      ...(record.expected || record.retired ? { oldPath: true } : {}),
       ...(merged && { fixture: merged }),
       reference: testCase.expect ?? testCase.parses };
   }
   if (testCase.pipeline !== undefined) {
     const valid = typeof testCase.pipeline === "string" && /^[a-z0-9][a-z0-9-]*(?:\/[a-z0-9][a-z0-9-]*)+$/.test(testCase.pipeline);
-    const exists = valid && fs.existsSync(path.join(root, "grammars", testCase.pipeline, "pipeline.md"));
+    const current = valid && fs.existsSync(path.join(root, "grammars50", testCase.pipeline, "pipeline.md"));
+    const exists = current || valid && fs.existsSync(path.join(root, "grammars", testCase.pipeline, "pipeline.md"));
     if (!valid || !exists && testCase.expect?.error === "usage") {
       return { id, status: "portable-negative", fixture: caseInput(testCase), reference: testCase.expect };
     }
+    if (current && testCase.expect?.bundledPipelines) {
+      const missing = testCase.expect.bundledPipelines.filter(name =>
+        !fs.existsSync(path.join(root, "grammars50", name, "pipeline.md")));
+      if (missing.length) return { id, status: "deferred", reason: `The format 50 catalog still needs ${missing.join(", ")}.` };
+    }
+    if (current) return { id, status: "native-pending", section: "Engine §1, Bundles and bootstraps",
+      fixture: caseInput(testCase), reason: "Run the pipeline with the format 50 bundle.", reference: testCase.expect };
     return { id, status: "deferred", reason: `The case waits for the format 50 migration of ${testCase.pipeline}.` };
   }
+  const authored = negativeMigrations[id];
+  if (authored?.entry && authored.documents) {
+    return recordedNegative(id, testCase, testCase.documents, authored.entry);
+  }
   if (family === "notation" && testCase.expect.error) {
-    const counterpart = negativeMigrations[id];
-    if (counterpart?.expected) {
-      return { id, status: "retained-negative", oldPath: true, document: counterpart.document ?? testCase.document,
-        ...counterpart, reference: testCase.expect };
-    }
-    if (counterpart?.retired) return { id, status: "retired", oldPath: true, reason: counterpart.retired };
-    return { id, status: "needs-negative", oldPath: true, reason: "Identify the retained fault or a removed construct.",
+    return recordedNegative(id, testCase) ?? { id, status: "needs-negative", oldPath: true,
+      reason: "Identify the retained fault or a removed construct.",
       reference: testCase.expect };
   }
   const isNotation = family === "notation";
@@ -217,6 +266,8 @@ export function translateSharedCase(family, file, testCase) {
   const doms = new Map();
   const stages = new Set();
   const active = new Set();
+  let missingArgument;
+  let valueDefault = childValue;
   const visit = (file, inherited = []) => {
     if (active.has(file) || !Object.hasOwn(sources, file)) return;
     const document = `case/${file}`;
@@ -246,13 +297,27 @@ export function translateSharedCase(family, file, testCase) {
       counts.set(item.name, (counts.get(item.name) ?? 0) + 1);
     }
     const uniqueConstants = new Set([...counts].filter(([, count]) => count === 1).map(([name]) => name));
+    const missing = testCase.expect?.error === "grammar" &&
+      /^\$([A-Z][A-Za-z0-9_-]*) is not defined in stage /.exec(testCase.expect.message ?? "")?.[1];
+    const deferredArguments = new Set();
+    const isUndefined = name => {
+      if (!missing || counts.has(name) || ["INPUTS", "OUTPUTS", "DEFAULTS"].includes(name)) return false;
+      deferredArguments.add(name);
+      return true;
+    };
     const omittedValues = possibleOmittedValues(doms.values());
+    if (omittedValues.size) {
+      const usesRecipes = [...doms.values()].some(dom => dom.rules.some(rule =>
+        rule.erased || rule.value || rule.alternatives?.some(alt => alt.value)));
+      valueDefault = usesRecipes ? writtenChildValue : inputValue;
+    }
     for (const [file, dom] of doms) {
-      const declarations = translateDom49(dom, loader.unicode, uniqueConstants, omittedValues);
+      const declarations = translateDom49(dom, loader.unicode, uniqueConstants, omittedValues, isUndefined);
       const rendered = declarationsInSource(declarations, sources[file], file, loader.unicode);
       translated[file] = rendered.markdown;
       maps.set(file, rendered.map);
     }
+    if (deferredArguments.has(missing)) missingArgument = missing;
   } catch (error) {
     if (error instanceof GencmuError) {
       const location = error.where;
@@ -268,16 +333,16 @@ export function translateSharedCase(family, file, testCase) {
           fixture: { ...caseInput(testCase), pipelineDocument: loader ? entry : "p.md", documents },
           expected: { description: error.description, ...location }, reference: testCase.expect ?? testCase.parses };
       }
-      if (error.description === "a query method is a condition, not a term") {
-        return { id, status: "retired", oldPath: true,
-          reason: "Format 50 gives a query a forest value. The old prohibition on query values is absent." };
+      const recorded = recordedNegative(id, testCase, sources, entry);
+      if (recorded) return recorded;
+      const native = translateNegative49(id, testCase);
+      if (native) {
+        if (!native.retired) return convertedNegative(id, testCase, native);
+        const { retired, ...record } = native;
+        return { id, status: "retired", oldPath: true, ...record, reference: testCase.expect ?? testCase.parses };
       }
-      const counterpart = negativeMigrations[id];
-      if (counterpart?.expected) {
-        return { id, status: "retained-negative", oldPath: true, ...counterpart,
-          fixture: { ...caseInput(testCase), pipelineDocument: entry, documents: sources },
-          reference: testCase.expect ?? testCase.parses };
-      }
+      const retired = retireNegative49(error.description);
+      if (retired) return { id, status: "retired", oldPath: true, ...retired, reference: testCase.expect ?? testCase.parses };
       return { id, status: "needs-negative", oldPath: true, reason: error.description, location, reference: testCase.expect ?? testCase.parses };
     }
     if (error instanceof MigrationRequired) return { id, status: "needs-hand", reason: error.message, at: error.at };
@@ -292,9 +357,31 @@ export function translateSharedCase(family, file, testCase) {
   }
   const keys = usedKeys(doms.values(), testCase);
   const outputs = `%const $OUTPUTS {*$INPUTS${keys.length ? ", " + keys.join(", ") : ""}}`;
-  if (stages.size) translated[entry] += "\n" + fence([...stages].map(name =>
-    `%extend-stage ${name}\n${defaults}\n${outputs}`).join("\n"));
+  const defaults = `%const $DEFAULTS $node ↦ {value: ${valueDefault}, image: $node.children!'image.join()}`;
+  if (stages.size && valueDefault !== childValue) {
+    changes.push({ document: entry, reason: valueDefault === inputValue ?
+      "Join the input token values. This excludes omitted defaults and preserves the rule value proof." :
+      "Exclude omitted leaves from the child value join. Keep the values that written children supply." });
+  }
+  if (stages.size) {
+    for (const name of stages) changes.push({ document: entry,
+      reason: `Add $OUTPUTS to stage ${name} to retain its output field and pass the used keys to consumers.` });
+    translated[entry] += "\n" + fence([...stages].map(name =>
+      `%extend-stage ${name}\n${defaults}\n${outputs}`).join("\n"));
+  }
   const fixture = { ...caseInput(testCase), documents: translated, pipelineDocument: entry };
+  if (missingArgument && testCase.expect?.where) {
+    const document = testCase.expect.where.document;
+    const anchor = tokens(translated[document] ?? "").filter(token => token.token === `$${missingArgument}`);
+    if (anchor.length === 1) {
+      const [line, column] = anchor[0].at;
+      return { id, status: "native-pending", oldPath: true, fixture, diagnostics, changes,
+        expected: { kind: "grammar", document, line, column },
+        section: "Engine §§2.3, 9.3",
+        reason: "The argument names an undeclared constant. Inspect the retained operand before substitution.",
+        reference: testCase.expect };
+    }
+  }
   const unreadDocuments = Object.keys(sources).filter(file => file.endsWith(".md") && !doms.has(file));
   return { id, status: "translated", fixture, diagnostics, changes, unreadDocuments, reference: testCase.expect ?? testCase.parses };
 }

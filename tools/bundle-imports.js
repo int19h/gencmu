@@ -1,3 +1,5 @@
+import { posix } from "node:path";
+
 // The browser factory shares one scope, so import names must stay unchanged.
 export function browserModule(file, text) {
   const imports = [];
@@ -5,8 +7,10 @@ export function browserModule(file, text) {
     if (!/^\{\s*(?:[A-Za-z_$][\w$]*(?:\s*,\s*[A-Za-z_$][\w$]*)*\s*,?\s*)?\}$/.test(names.trim())) {
       throw new Error(`${file}: the browser bundle requires named imports without aliases`);
     }
-    if (!target.startsWith("./")) throw new Error(`${file}: the browser bundle requires relative imports`);
-    imports.push(target.slice(2));
+    if (!target.startsWith("./") && !target.startsWith("../")) {
+      throw new Error(`${file}: the browser bundle requires relative imports`);
+    }
+    imports.push(posix.join(posix.dirname(file), target));
     return "";
   });
   if (/^[ \t]*import(?:\s|["'])/m.test(body)) throw new Error(`${file}: unsupported browser import syntax`);

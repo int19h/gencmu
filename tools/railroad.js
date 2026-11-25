@@ -404,27 +404,34 @@ function diagramTermText(term) {
   return hasUnresolved(term) ? canonicalArgument(term,unicode) : formatTerm(term);
 }
 
-// A format 50 template argument can pass an expression, as `= {Run-Initial}`.
-// The diagrams print the constant forms that template arguments use.
-function expressionText(e) {
-  if ("string" in e) return canonicalArgument(e,unicode);
-  if ("integer" in e) return e.integer;
-  if (e.const) return "$"+e.const;
-  if (e.param) return "@"+e.param;
-  if (e.list) return "["+e.list.map(item => (item.kind === "splat" ? "*" : "")+expressionText(item.value)).join(", ")+"]";
-  if (e.bag) return "{"+e.bag.map(entry => {
-    if (entry.gates.length || entry.guard) throw new Error(`unprintable argument ${JSON.stringify(e)}`);
-    if (entry.kind === "bare") return entry.key;
-    if (entry.kind === "delete") return "¬"+entry.key;
-    if (entry.kind === "splat") return "*"+expressionText(entry.value);
-    if (entry.kind === "write") return entry.keys.map(key => key+": ").join("")+expressionText(entry.value);
-    throw new Error(`unprintable argument ${JSON.stringify(e)}`);
-  }).join(", ")+"}";
-  throw new Error(`unprintable argument ${JSON.stringify(e)}`);
+// Format 50 actuals can pass a constant expression, as in `= {Run-Initial}`.
+function expressionText(expr) {
+  if ("string" in expr) return canonicalArgument(expr,unicode);
+  if ("integer" in expr) return expr.integer;
+  if (expr.const) return "$" + expr.const;
+  if (expr.param) return "@" + expr.param;
+  if (expr.list) {
+    return "[" + expr.list.map(entry => {
+      if (entry.gates.length || entry.guard) throw new Error(`unprintable argument ${JSON.stringify(expr)}`);
+      return (entry.kind === "splat" ? "*" : "") + expressionText(entry.value);
+    }).join(", ") + "]";
+  }
+  if (expr.bag) {
+    return "{" + expr.bag.map(entry => {
+      if (entry.gates.length || entry.guard) throw new Error(`unprintable argument ${JSON.stringify(expr)}`);
+      if (entry.kind === "bare") return entry.key;
+      if (entry.kind === "delete") return "¬" + entry.key;
+      if (entry.kind === "splat") return "*" + expressionText(entry.value);
+      if (entry.kind === "write") return entry.keys.map(key => key + ": ").join("") + expressionText(entry.value);
+      throw new Error(`unprintable argument ${JSON.stringify(expr)}`);
+    }).join(", ") + "}";
+  }
+  throw new Error(`unprintable argument ${JSON.stringify(expr)}`);
 }
 
 function argumentText(arg) {
-  return arg.expression ? "= "+expressionText(arg.expression) : canonicalArgument(arg,unicode);
+  if (arg.expression) return "= " + expressionText(arg.expression);
+  return arg.call ? symbolText(arg) : canonicalArgument(arg,unicode);
 }
 
 function symbolText(expr) {

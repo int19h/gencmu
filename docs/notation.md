@@ -1600,7 +1600,7 @@ If a long body line includes its term, break before the term first. Break betwee
 
 End a continued condition line with its operator. In a condition list, indent its continuation two columns past the condition start. Align a guard continuation with the guard's condition. Inside brackets, continue one column past the opening bracket. Break first at the loosest operator. Indent a continuation within a tighter operand more deeply.
 
-Put a long constant value two columns past its header. If a constant breaks at an operator, end the line with that operator. Use one row per entry in an ordered table. For a long child pattern, break between items and indent the continuation two columns. For an overlong bracketed choice, break before one of its own bars. If it is a bracketed sequence, split between its items. Indent either continuation past the alternative.
+Put a long constant value two columns past its header. If a constant breaks at an operator, end the line with that operator. For a long child pattern, break between items and indent the continuation two columns. For an overlong bracketed choice, break before one of its own bars. If it is a bracketed sequence, split between its items. Indent either continuation past the alternative.
 
 A grouped choice and a ranked group can each occupy one alternative line. For example, `("a" | "e") → {Vowel}` and `a ≻ b` each describe one alternative.
 
@@ -1613,7 +1613,7 @@ A grouped choice and a ranked group can each occupy one alternative line. For ex
   $b
 ```
 
-Keep the written order of constructor entries. For a long constructor or list, put one entry on each line. Apply the same break rules to output items.
+Keep the written order of constructor entries. For a long constructor or list, put one entry on each line. In a list, plain string literals can share a line with each other. A gate, guard, splat or grouping makes an entry stand on its own line. Put each item of a long output list on its own line.
 
 A statement term can hold entries common to its alternatives. If an alternative needs a child's whole bag, mark that child as its primary. A statement term prevents an implicit sole-symbol copy.
 
