@@ -123,3 +123,23 @@ test("the seed audit emits the same records after reordering members", t => {
   const records = result => result.stdout.slice(result.stdout.indexOf("\n") + 1);
   assert.equal(records(reordered), records(original));
 });
+
+test("the seed audit ignores directive extensions named after operands", t => {
+  const original = audit(t, () => {});
+  const extended = audit(t, bootstrap => {
+    const stage = document(bootstrap, "pipeline").directives.find(directive => directive.name === "stage");
+    Object.assign(stage, {
+      annotation: { method: "unknown" },
+      call: "metadata",
+      method: "metadata",
+      property: "metadata",
+      value: { const: "not-a-constant", at: [1, 9] },
+      steps: [{ step: "leftmost-longest" }],
+      conditions: [{ property: "bad field", at: [1, 9] }],
+    });
+  });
+  assert.equal(original.status, 0, original.stderr);
+  assert.equal(extended.status, 0, extended.stderr);
+  const records = result => result.stdout.slice(result.stdout.indexOf("\n") + 1);
+  assert.equal(records(extended), records(original));
+});

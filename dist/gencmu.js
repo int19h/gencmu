@@ -18387,6 +18387,142 @@
     }
   }
 
+  // ---- format50/records.js
+  // Walk written operands in semantic order. A declaration's array supplies its
+  // category. In particular, a directive's name supplies its record shape and any
+  // other members belong to its opaque extension data.
+  /** @param {string[]} operands @param {string[]} names */
+  const recordShapeFields50 = (operands = [], names = []) => ({ operands, names });
+  const leafFields50 = recordShapeFields50();
+  /** @param {string} field */
+  const namedLeaf50 = field => recordShapeFields50([], [field]);
+  /** @param {string} field */
+  const singleOperand50 = field => recordShapeFields50([field]);
+  const recordShapes50 = {
+    document: recordShapeFields50(["rules", "directives", "constants"]),
+    rule: recordShapeFields50(["term", "alternatives", "conditions", "error", "warning", "emit"], ["name", "suppressWarnings"]),
+    template: recordShapeFields50(["term", "alternatives", "conditions", "error", "warning", "emit"], ["name", "params", "suppressWarnings"]),
+    edit: recordShapeFields50(["args", "term", "alternatives", "conditions", "error", "warning", "emit"], ["name", "suppressWarnings"]),
+    binding: recordShapeFields50(["instance", "conditions"], ["name"]),
+    constant: recordShapeFields50(["value"], ["name"]),
+    stage: recordShapeFields50([], ["args"]),
+    features: recordShapeFields50(["conditions"], ["args"]),
+    resolution: singleOperand50("steps"),
+    step: recordShapeFields50(["pattern"], ["step"]),
+    alternative: recordShapeFields50(["gates", "expr", "term"]),
+    emission: singleOperand50("items"),
+    insert: recordShapeFields50(["gates", "guard", "term"]),
+    forward: recordShapeFields50(["gates", "guard"], ["capture"]),
+    braced: recordShapeFields50(["gates", "guard", "term"], ["capture"]),
+    gate: namedLeaf50("feature"),
+    bare: recordShapeFields50(["gates", "guard"], ["key"]),
+    delete: recordShapeFields50(["gates", "guard"], ["key"]),
+    copy: recordShapeFields50(["gates", "guard", "source"], ["key"]),
+    write: recordShapeFields50(["gates", "guard", "value"], ["keys"]),
+    splat: recordShapeFields50(["gates", "guard", "value"]),
+    item: recordShapeFields50(["gates", "guard", "value"]),
+    call: recordShapeFields50(["args"], ["call"]),
+    test: recordShapeFields50(["expr", "value"]),
+    tags: recordShapeFields50(["expr", "requirements"]),
+    requirement: singleOperand50("value"),
+    captureSymbol: recordShapeFields50(["expr"], ["capture"]),
+    optional: singleOperand50("optional"),
+    elidable: recordShapeFields50(["optional", "default"]),
+    repeat: recordShapeFields50(["repeat", "separator"]),
+    conditional: recordShapeFields50(["if", "then", "else"]),
+    comparison: recordShapeFields50(["left", "right"]),
+    method: recordShapeFields50(["receiver", "args"], ["method"]),
+    property: recordShapeFields50(["receiver"], ["property"]),
+    map: recordShapeFields50(["map", "by"]),
+    lambda: recordShapeFields50(["body"], ["lambda"]),
+    apply: recordShapeFields50(["arg"], ["apply"]),
+    patternCall: recordShapeFields50(["args", "children"], ["call"]),
+    patternName: recordShapeFields50(["children"], ["name"]),
+    patternParam: recordShapeFields50(["children"], ["param"]),
+  };
+
+  const operatorFields50 = ["any", "all", "not", "union", "intersection", "difference", "concat", "flatten", "bag", "list"];
+  const bodyFields50 = ["primary", "splice", "seq", "choice", "ranked", "and", "literal", "range"];
+  const wrapperFields50 = ["targets", "requirements", "body", "expression", "pattern", "child"];
+  const operandShapes50 = new Map([...operatorFields50, ...bodyFields50, ...wrapperFields50].map(key => [key, singleOperand50(key)]));
+  const nameShapes50 = new Map(["const", "constant", "param", "ref", "rule", "tag", "terminal", "key", "capture"]
+    .map(key => [key, namedLeaf50(key)]));
+  const stageNames50 = new Set(["stage", "extend-stage", "redefine-stage"]);
+
+  /** @param {any} node @param {string} [category] */
+  function recordShape50(node, category) {
+    if (category === "document") return recordShapes50.document;
+    if (category === "rules") {
+      if (node.instance) return recordShapes50.binding;
+      if (node.args) return recordShapes50.edit;
+      return node.params ? recordShapes50.template : recordShapes50.rule;
+    }
+    if (category === "constants") return recordShapes50.constant;
+    if (category === "directives") {
+      if (node.name === "features") return recordShapes50.features;
+      if (node.name === "ambiguity-resolution") return recordShapes50.resolution;
+      return stageNames50.has(node.name) ? recordShapes50.stage : leafFields50;
+    }
+
+    // Structural records have exclusive constructors. Use the constructor to
+    // select operands, and use the surrounding slot for the output variants.
+    if (category === "output" || Object.hasOwn(node, "insert") ||
+        Object.hasOwn(node, "capture") && Object.hasOwn(node, "gates")) {
+      return node.insert ? recordShapes50.insert : node.term ? recordShapes50.braced : recordShapes50.forward;
+    }
+    if (node.kind !== undefined) {
+      const kind = /** @type {keyof typeof recordShapes50} */ (node.kind);
+      switch (kind) {
+        case "gate": case "bare": case "delete": case "copy": case "write": case "splat": case "item":
+          return recordShapes50[kind];
+        default: return leafFields50;
+      }
+    }
+    if (Object.hasOwn(node, "items")) return recordShapes50.emission;
+    if (Object.hasOwn(node, "step")) return recordShapes50.step;
+    if (Object.hasOwn(node, "test")) return node.test === "tags" ? recordShapes50.tags : recordShapes50.test;
+    if (Object.hasOwn(node, "negated")) return recordShapes50.requirement;
+    if (Object.hasOwn(node, "expr")) return Object.hasOwn(node, "capture") ? recordShapes50.captureSymbol : recordShapes50.alternative;
+    if (Object.hasOwn(node, "call")) return Object.hasOwn(node, "children") ? recordShapes50.patternCall : recordShapes50.call;
+    if (Object.hasOwn(node, "name")) return recordShapes50.patternName;
+    if (Object.hasOwn(node, "param")) return recordShapes50.patternParam;
+    if (node.any === true) return bareChildren50;
+    if (Object.hasOwn(node, "optional")) return node.elidable ? recordShapes50.elidable : recordShapes50.optional;
+    if (Object.hasOwn(node, "repeat")) return recordShapes50.repeat;
+    if (Object.hasOwn(node, "if")) return recordShapes50.conditional;
+    if (Object.hasOwn(node, "op")) return recordShapes50.comparison;
+    if (Object.hasOwn(node, "method")) return recordShapes50.method;
+    if (Object.hasOwn(node, "property")) return recordShapes50.property;
+    if (Object.hasOwn(node, "map")) return recordShapes50.map;
+    if (Object.hasOwn(node, "lambda")) return recordShapes50.lambda;
+    if (Object.hasOwn(node, "apply")) return recordShapes50.apply;
+    for (const [key, form] of operandShapes50) if (Object.hasOwn(node, key)) return form;
+    for (const [key, form] of nameShapes50) if (Object.hasOwn(node, key)) return form;
+    return leafFields50;
+  }
+
+  const bareChildren50 = singleOperand50("children");
+
+  /** @internal @param {any} node @param {string} [category] @returns {[string, any, string?][]} */
+  function operandFields50(node, category) {
+    if (Array.isArray(node)) return Array.from(node.entries(), ([index, child]) => [String(index), child, category]);
+    /** @type {[string, any, string?][]} */
+    const children = [];
+    const form = recordShape50(node, category);
+    for (const key of form.operands) {
+      const child = node[key];
+      if (child && typeof child === "object" && Object.hasOwn(node, key)) {
+        children.push([key, child, category === "document" ? key : key === "items" ? "output" : undefined]);
+      }
+    }
+    return children;
+  }
+
+  /** @internal @param {any} node @param {string} [category] */
+  function nameFields50(node, category) {
+    return recordShape50(node, category).names;
+  }
+
   // ---- format50/signatures.js
   // @ts-nocheck
 
@@ -18423,32 +18559,8 @@
 
 
 
+
   const argumentsError = "an argument cannot read or declare captures";
-
-  // DOM member order is for serialization. Walk every record's children in
-  // semantic order, including a guard before its payload and a test's symbol
-  // before its requirements or value. Arrays keep their written order.
-  const operandKeys50 = [
-    "rules", "directives", "constants",
-    "gates", "guard", "receiver", "args", "instance", "steps",
-    "expr", "term", "alternatives", "conditions", "error", "warning", "emit", "items",
-    "if", "then", "else", "left", "right", "map", "by",
-    "all", "any", "not", "union", "intersection", "difference", "concat", "flatten", "arg",
-    "bag", "list", "source", "value", "requirements", "targets", "body", "expression",
-    "primary", "splice", "seq", "choice", "ranked", "and", "optional", "default", "repeat", "separator",
-    "literal", "range", "pattern", "children", "child",
-  ];
-
-  /** @internal */
-  function operandFields50(node) {
-    if (Array.isArray(node)) return Array.from(node.entries(), ([index, child]) => [String(index), child]);
-    const fields = [];
-    for (const key of operandKeys50) {
-      const child = node[key];
-      if (child && typeof child === "object" && Object.hasOwn(node, key)) fields.push([key, child]);
-    }
-    return fields;
-  }
 
   const baseSymbol = node => ["ref", "call", "param", "literal", "range", "wildcard", "splice", "test"]
     .some(key => Object.hasOwn(node, key));
@@ -18490,15 +18602,15 @@
     };
   }
 
-  function withOwner50(root, fail, owner) {
+  function withOwner50(root, fail, owner, category) {
     const sites = new WeakMap();
-    const pending = [[root, owner]];
+    const pending = [[root, owner, category]];
     while (pending.length) {
-      const [node, parent] = pending.pop();
+      const [node, parent, kind] = pending.pop();
       if (!node || typeof node !== "object") continue;
       const site = Array.isArray(node.at) ? node : parent;
       sites.set(node, site);
-      for (const [, child] of operandFields50(node)) pending.push([child, site]);
+      for (const [, child, childKind] of operandFields50(node, kind)) pending.push([child, site, childKind]);
     }
     return (node, message) => fail(Array.isArray(node?.at) ? node : sites.get(node) ?? owner, message);
   }
@@ -19586,8 +19698,9 @@
   const stageDirectives = new Set(["stage", "extend-stage", "redefine-stage"]);
 
   function validateHeader(category, declaration, fail, unicode) {
-    const { name, args, conditions, steps, instance, params, op } = declaration;
+    const { name } = declaration;
     if (category === "rules") {
+      const { args, instance, params, op } = declaration;
       if (!validRule(name, unicode)) {
         fail(declaration, "a rule name must begin with a lowercase letter or be an emoji name");
       }
@@ -19611,14 +19724,18 @@
     } else if (category === "constants") {
       if (!CONSTANT_NAME.test(name)) fail(declaration, "invalid constant name");
     } else if (name === "include" || name === "names") {
-      if (conditions || args?.length !== 1 || typeof args[0] !== "string") fail(declaration, `%${name} takes one quoted path`);
+      const { args } = declaration;
+      if (args?.length !== 1 || typeof args[0] !== "string") fail(declaration, `%${name} takes one quoted path`);
     } else if (name === "features") {
+      const { args } = declaration;
       if (!args?.length || args.some(arg => !featureName.test(arg))) fail(declaration, "%features takes feature names");
     } else if (name === "elision-only") {
-      if (conditions || args?.length !== 0) fail(declaration, "%elision-only takes no operands");
+      if (declaration.args?.length !== 0) fail(declaration, "%elision-only takes no operands");
     } else if (stageDirectives.has(name)) {
-      if (conditions || args?.length !== 1 || !ruleName50.test(args[0])) fail(declaration, `%${name} takes one stage name`);
+      const { args } = declaration;
+      if (args?.length !== 1 || !ruleName50.test(args[0])) fail(declaration, `%${name} takes one stage name`);
     } else if (name === "ambiguity-resolution") {
+      const { steps } = declaration;
       for (const step of steps ?? []) {
         if (Boolean(step.pattern) !== KEY_STEPS.has(step.step)) fail(step, "invalid resolution step operand");
       }
@@ -19627,10 +19744,11 @@
   }
 
   function validateDeclarationShape50(category, declaration, fail, unicode, emptyDelimiters = []) {
-    const locate = withOwner50(declaration, fail, declaration);
+    const locate = withOwner50(declaration, fail, declaration, category);
     validateHeader(category, declaration, locate, unicode);
     if (category === "constants" && declaration.name === "INPUTS") fail(declaration, "$INPUTS is supplied by the engine");
-    for (const step of category === "directives" ? declaration.steps ?? [] : []) {
+    const resolution = category === "directives" && declaration.name === "ambiguity-resolution";
+    for (const step of resolution ? declaration.steps ?? [] : []) {
       if (step.pattern) validateExactPattern50(step.pattern, locate, { origin: step.step !== "leftmost-longest" });
     }
 
@@ -19639,9 +19757,11 @@
     const outputItems = new WeakSet(rule?.emit?.items ?? []);
     const predicateSlots = new WeakSet();
     const actuals = new WeakSet();
+    for (const arg of rule?.args ?? []) actuals.add(arg);
     const captureContexts = new WeakMap();
     const defaults = new WeakMap();
-    const pending = [[declaration, false, false, false, false]];
+    const pending = operandFields50(declaration, category).reverse()
+      .map(([, node]) => [node, false, false, false, false]);
     while (pending.length) {
       const task = pending.pop();
       const [node, width, inRepeat, inPattern, requirement, phase] = task;
@@ -19714,7 +19834,7 @@
         if (["all", "any"].includes(node.method) && node.args[0]?.lambda === "") predicateSlots.add(node.args[0]);
         if (node.method === "split" && node.args[0].string === "") emptyDelimiters.push(node);
       }
-      if ((node.call || node === rule) && node.args) {
+      if (node.call && node.args) {
         for (const arg of node.args) actuals.add(arg);
       }
       validateOrigin50(node, locate, inPattern);
@@ -19764,7 +19884,7 @@
     const { document } = configuration;
     const fail = documentFault50(document);
     for (const [category, declaration] of orderedDeclarations(dom)) {
-      const locate = withOwner50(declaration, fail, declaration);
+      const locate = withOwner50(declaration, fail, declaration, category);
       if (category === "rules" && declaration.instance) validateClosedTypes(declaration.instance, locate);
       if (category === "rules" && declaration.alternatives) {
         if (declaration.args) validateClosedTypes(declaration.args, locate);
@@ -19803,8 +19923,8 @@
   function validateDocumentDepth50(dom, configuration = {}) {
     const { document } = configuration;
     const fail = documentFault50(document);
-    for (const [, declaration] of orderedDeclarations(dom)) {
-      if (tooDeep(declaration)) fail(declaration, `an expression, term or condition is nested more than ${DOM_MAX_DEPTH} deep`);
+    for (const [category, declaration] of orderedDeclarations(dom)) {
+      if (tooDeep(category, declaration)) fail(declaration, `an expression, term or condition is nested more than ${DOM_MAX_DEPTH} deep`);
     }
   }
 
@@ -19816,30 +19936,18 @@
     return dom;
   }
 
-  function tooDeep(declaration) {
+  function tooDeep(category, declaration) {
     const pending = [];
     const push = (value, depth) => {
       if (value && typeof value === "object") pending.push([value, depth]);
     };
-    const entries = (items, depth) => {
-      for (const item of items) for (const key of ["guard", "source", "value"]) push(item[key], depth);
-    };
-    push(declaration.term, 0);
-    push(declaration.value, 0);
-    push(declaration.error, 0);
-    push(declaration.warning, 0);
-    for (const condition of declaration.conditions ?? []) push(condition, 0);
-    for (const alt of declaration.alternatives ?? []) {
-      push(alt.expr, 0);
-      push(alt.term, 0);
+    for (const [key, child] of operandFields50(declaration, category)) {
+      if (key === "alternatives" || key === "steps" || key === "emit") {
+        for (const host of key === "emit" ? child.items : child) {
+          for (const [field, value] of operandFields50(host)) if (field !== "gates") push(value, 0);
+        }
+      } else push(child, key === "args" ? 1 : 0);
     }
-    for (const item of declaration.emit?.items ?? []) {
-      push(item.guard, 0);
-      push(item.term, 0);
-    }
-    for (const step of declaration.steps ?? []) push(step.pattern, 0);
-    if (declaration.instance) push(declaration.instance, 0);
-    for (const arg of declaration.args ?? []) push(arg, 1);
     while (pending.length) {
       const [node, depth] = pending.pop();
       if (depth > DOM_MAX_DEPTH) return true;
@@ -19847,17 +19955,18 @@
         for (const child of node) push(child, depth);
         continue;
       }
-      if (node.primary || node.expression || node.kind || node.body && node.lambda === undefined) {
+      if (node.primary || node.expression || node.body && node.lambda === undefined) {
         push(node.primary ?? node.expression ?? node.body, depth);
-        if (node.kind) entries([node], depth);
         continue;
       }
-      if (node.targets || Object.hasOwn(node, "negated") && node.value) {
-        push(node.targets ?? node.value, depth);
+      if (node.targets || node.kind || Object.hasOwn(node, "negated") && node.value) {
+        for (const [key, child] of operandFields50(node)) if (key !== "gates") push(child, depth);
         continue;
       }
       if (node.bag || node.list) {
-        entries(node.bag ?? node.list, depth + 1);
+        for (const entry of node.bag ?? node.list) {
+          for (const [key, child] of operandFields50(entry)) if (key !== "gates") push(child, depth + 1);
+        }
         continue;
       }
       if (node.map) {

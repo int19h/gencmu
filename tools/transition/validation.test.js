@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import { after, test } from "node:test";
-import { createDifferential } from "./differential.js";
+import { createDifferential, operandMutations } from "./differential.js";
 import { createTransitionCompiler } from "../transition-compiler.js";
 import { validateDefinitionNullability50, validateDocument50 } from "../../lib/js/src/format50/validate.js";
 
@@ -821,4 +821,55 @@ test("the names directive still needs the preamble after a names instance edit",
   const dom = read(rules);
   dom.directives.push({ name: "names", args: ["data/unicode/unicode-names.txt"], at: [4, 1] });
   assertFault(() => validateDocument50(dom), /%names must precede/, 4, 1);
+});
+
+const directiveExamples = [
+  { name: "names", args: ["names.txt"] },
+  { name: "include", args: ["rules.md"] },
+  ...["stage", "extend-stage", "redefine-stage"].map(name => ({ name, args: ["s"] })),
+  { name: "elision-only", args: [] },
+  { name: "features", args: ["f"], conditions: [{ bag: [{ kind: "bare", key: "A", gates: [], at: [1, 12] }] }] },
+  { name: "ambiguity-resolution", steps: [{ step: "leftmost-longest", pattern: { name: "r", exact: true, at: [1, 22] } }] },
+];
+
+// Include discriminants, scalar identifiers and operand containers from the
+// structural records. Only directives admit these members as extensions.
+const otherFields = (`annotation format rules directives constants op params instance term alternatives emit conditions error warning
+  suppressWarnings erased gates expr value feature kind negated args steps step pattern items capture insert guard expression
+  rule call param tag literal range wildcard splice test body targets requirements terminal seq choice ranked and optional
+  elidable default repeat separator chain ref empty remainder primary if then else lambda any all not left right union difference
+  intersection concat flatten property receiver method map by const apply arg string integer emptySet item bag list key keys source
+  name at constant exact children path child siblings`).trim().split(/\s+/);
+
+for (const example of directiveExamples) {
+  test(`a ${example.name} directive retains opaque extensions`, () => {
+    const directive = { ...example, at: [1, 1] };
+    const dom = { format: 50, rules: [], directives: [directive], constants: [] };
+    const mutations = operandMutations(dom);
+    const deep = { const: "not-a-constant", at: [1, 9] };
+    let operand = deep;
+    for (let i = 0; i < 257; i++) operand = { not: operand, at: [9, 9] };
+    for (const key of otherFields) {
+      if (Object.hasOwn(example, key) || key === "at") continue;
+      const value = ["call", "method", "property", "capture", "ref", "lambda", "name"].includes(key) ? "invalid name!" :
+        ["steps", "conditions", "alternatives", "params", "keys", "suppressWarnings"].includes(key) ? [operand] : operand;
+      const reading = { ...dom, directives: [{ ...directive, [key]: value }] };
+      for (const candidate of [reading, reverseMembers(reading)]) {
+        const before = structuredClone(candidate);
+        assert.equal(validateDocument50(candidate), candidate, key);
+        assert.deepEqual(candidate, before, key);
+        assert.deepEqual(operandMutations(candidate), mutations, key);
+      }
+    }
+  });
+}
+
+test("the directive walks still inspect real feature and resolution operands", () => {
+  const dom = { format: 50, rules: [], constants: [], directives: [{
+    name: "features", args: ["f"], at: [1, 1], conditions: [{ method: "unknown", args: [], at: [1, 20] }],
+  }] };
+  assertFault(() => validateDocument50(dom), /unknown method \.unknown/, 1, 20);
+  dom.directives[0] = { name: "ambiguity-resolution", at: [1, 1],
+    steps: [{ step: "leftmost-longest", pattern: { name: "r", at: [1, 20] } }] };
+  assertFault(() => validateDocument50(dom), /exact local pattern/, 1, 20);
 });

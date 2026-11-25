@@ -5,8 +5,9 @@ import { fnv1a64 } from "../lib/js/src/hash.js";
 import { compareCodePoints } from "../lib/js/src/tags.js";
 import { resolvePath } from "../lib/js/src/markdown.js";
 import { UnicodeTable } from "../lib/js/src/unicode.js";
+import { nameFields50, operandFields50 } from "../lib/js/src/format50/records.js";
 import { methods50, validProperty50 } from "../lib/js/src/format50/signatures.js";
-import { captureSlots50, operandFields50, validateDocument50 } from "../lib/js/src/format50/validate.js";
+import { captureSlots50, validateDocument50 } from "../lib/js/src/format50/validate.js";
 
 const root = new URL("../", import.meta.url);
 const read = file => fs.readFileSync(file.startsWith("/") ? file : new URL(file, root), "utf8");
@@ -105,29 +106,35 @@ for (const document of paths) {
     const slots = (rule.alternatives ?? []).map(alt => captureSlots50(alt.expr));
     const shared = new Map();
     for (const slot of slots) for (const [name, list] of slot) shared.set(name, !!shared.get(name) || list);
-    const { alternatives = [], ...clauses } = rule;
     const pointer = `/rules/${index}`;
-    auditCaptureUses(document, clauses, pointer, shared, {}, "rule");
-    for (const [i, alt] of alternatives.entries()) {
+    for (const [key, clause] of operandFields50(rule, "rules")) {
+      if (key !== "alternatives") {
+        auditCaptureUses(document, clause, `${pointer}/${key}`, shared, rule, key, key === "conditions", rule.at);
+      }
+    }
+    for (const [i, alt] of (rule.alternatives ?? []).entries()) {
       auditCaptureUses(document, alt.term, `${pointer}/alternatives/${i}/term`, slots[i], alt, "term", false, rule.at);
     }
   }
-  const pending = [[dom, ""]];
+  const pending = [[dom, "", "document"]];
   while (pending.length) {
-    const [value, pointer] = pending.pop();
+    const [value, pointer, category] = pending.pop();
     if (!value || typeof value !== "object") continue;
-    if (Object.hasOwn(value, "method")) {
+    const names = Array.isArray(value) ? [] : nameFields50(value, category);
+    if (names.includes("method")) {
       const signature = methods50.get(value.method);
       const count = Array.isArray(value.args) ? value.args.length : -1;
       const ok = !!signature && count >= signature.min && count <= signature.max;
       if (!ok) process.exitCode = 1;
       console.log(JSON.stringify({ document, pointer, at: value.at, method: value.method, count, ok }));
     }
-    if (Object.hasOwn(value, "property")) {
+    if (names.includes("property")) {
       const ok = validProperty50(value.property, unicode);
       if (!ok) process.exitCode = 1;
       console.log(JSON.stringify({ document, pointer, at: value.at, property: value.property, ok }));
     }
-    for (const [key, child] of operandFields50(value).reverse()) pending.push([child, `${pointer}/${key}`]);
+    for (const [key, child, childKind] of operandFields50(value, category).reverse()) {
+      pending.push([child, `${pointer}/${key}`, childKind]);
+    }
   }
 }

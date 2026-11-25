@@ -3,6 +3,7 @@ import fs from "node:fs";
 import { after, test } from "node:test";
 import { translateSharedCase as translate } from "../translate-shared-cases.js";
 import { createDifferential, fixtureDifferential } from "./differential.js";
+import { operandFields50 } from "../../lib/js/src/format50/records.js";
 import { Token } from "../../lib/js/src/node.js";
 import { loaderWith } from "../../lib/js/test/shared.js";
 
@@ -21,12 +22,12 @@ const legacyFixture = (family, name) =>
   JSON.parse(fs.readFileSync(new URL(`../../tests/${family}/${name}`, import.meta.url), "utf8"));
 
 function hasSite(root, line, column) {
-  const pending = [root];
+  const pending = [[root, "document"]];
   while (pending.length) {
-    const record = pending.pop();
+    const [record, category] = pending.pop();
     if (!record || typeof record !== "object") continue;
     if (Array.isArray(record.at) && record.at[0] === line && record.at[1] === column) return true;
-    for (const [key, child] of Object.entries(record)) if (key !== "at") pending.push(child);
+    for (const [, child, childCategory] of operandFields50(record, category)) pending.push([child, childCategory]);
   }
   return false;
 }

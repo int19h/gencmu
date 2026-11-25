@@ -1,14 +1,13 @@
 import assert from "node:assert/strict";
 import { GencmuError } from "../../lib/js/src/errors.js";
 import { compactJson } from "../../lib/js/src/output.js";
-import { operandFields50, validateDocument50 } from "../../lib/js/src/format50/validate.js";
+import { nameFields50, operandFields50 } from "../../lib/js/src/format50/records.js";
+import { validateDocument50 } from "../../lib/js/src/format50/validate.js";
 import { createTransitionCompiler } from "../transition-compiler.js";
 import { inspectConverted50 } from "./dom.js";
 
 const invalidName = "invalid name!";
 const declarationKinds = ["rules", "directives", "constants"];
-const nameFields = ["ref", "rule", "call", "constant", "const", "apply", "param", "terminal", "tag",
-  "capture", "lambda", "method", "property", "feature", "key", "name", "step"];
 const wrappers = new Set([...declarationKinds, "alternatives", "steps", "emit", "items", "children",
   "bag", "list", "gates", "requirements"]);
 
@@ -60,35 +59,30 @@ function shuffle(seed) {
   };
 }
 
-function operandMutations(dom) {
+export function operandMutations(dom) {
   const result = [];
-  function visit(node, path, parent, at) {
+  function visit(node, path, parent, at, category) {
     if (!node || typeof node !== "object") return;
     if (Array.isArray(node)) {
-      for (const [index, child] of node.entries()) visit(child, [...path, String(index)], parent, at);
+      for (const [index, child] of node.entries()) visit(child, [...path, String(index)], parent, at, category);
       return;
     }
     const site = node.at ?? at;
-    const kind = path[0];
-    const declaration = declarationKinds.includes(parent) && path.length === 2;
-    for (const key of nameFields) {
-      if (typeof node[key] !== "string" || declaration && kind === "directives" && key === "name") continue;
-      result.push({ path: [...path, key], value: invalidName });
+    const names = nameFields50(node, category);
+    for (const key of names) {
+      const value = node[key];
+      if (typeof value === "string") result.push({ path: [...path, key], value: invalidName });
+      if (Array.isArray(value)) {
+        for (const [index] of value.entries()) result.push({ path: [...path, key, String(index)], value: invalidName });
+      }
     }
-    for (const [index] of (node.keys ?? []).entries()) result.push({ path: [...path, "keys", String(index)], value: invalidName });
-    for (const key of ["params", "suppressWarnings"]) {
-      for (const [index] of (node[key] ?? []).entries()) result.push({ path: [...path, key, String(index)], value: invalidName });
-    }
-    if (declaration && kind === "directives" && ["stage", "extend-stage", "redefine-stage", "features"].includes(node.name)) {
-      for (const [index] of node.args.entries()) result.push({ path: [...path, "args", String(index)], value: invalidName });
-    }
-    if (path.length > 2 && !wrappers.has(parent) && !nameFields.some(key => typeof node[key] === "string")) {
+    if (path.length > 2 && !wrappers.has(parent) && !names.some(key => typeof node[key] === "string")) {
       const name = node.wildcard || node.empty || node.primary || node.splice ? { ref: invalidName } : { const: invalidName };
       result.push({ path, value: { ...name, at: site } });
     }
-    for (const [key, child] of operandFields50(node)) visit(child, [...path, key], key, site);
+    for (const [key, child, childKind] of operandFields50(node, category)) visit(child, [...path, key], key, site, childKind);
   }
-  for (const kind of declarationKinds) visit(dom[kind], [kind], kind);
+  for (const kind of declarationKinds) visit(dom[kind], [kind], kind, undefined, kind);
   return result;
 }
 
