@@ -417,12 +417,26 @@ test("invalid pipeline names are portable and language deferrals name the bundle
   for (const name of ["pipeline-name-empty.json", "pipeline-name-parent.json", "pipeline-name-unknown.json"]) {
     assert.equal(translateSharedCase("engine", name, legacyFixture("engine", name)).status, "portable-negative");
   }
-  const deferred = translateSharedCase("engine", "bundle-probe", { pipeline: "lojban/cll", input: "mi" });
-  assert.match(deferred.reason, /lojban\/cll/);
-  const catalog = translateSharedCase("engine", "pipeline-catalog.json", legacyFixture("engine", "pipeline-catalog.json"));
+  // The format 50 bundle decides which pipelines a case can run. A pipeline is
+  // in the bundle where grammars50/NAME/pipeline.md exists.
+  const inBundle = name => fs.existsSync(new URL(`../../grammars50/${name}/pipeline.md`, import.meta.url));
+  assert.ok(!inBundle("lojban/bpfk") && inBundle("lojban/cll"), "the probes need one pipeline on each side");
+  const deferred = translateSharedCase("engine", "bundle-probe", { pipeline: "lojban/bpfk", input: "mi" });
+  assert.equal(deferred.status, "deferred");
+  assert.match(deferred.reason, /lojban\/bpfk/);
+  const runnable = translateSharedCase("engine", "bundle-probe", { pipeline: "lojban/cll", input: "mi" });
+  assert.equal(runnable.status, "native-pending");
+  assert.equal(runnable.reason, "Run the pipeline with the format 50 bundle.");
+  assert.equal(runnable.fixture.pipeline, "lojban/cll");
+  const catalogCase = legacyFixture("engine", "pipeline-catalog.json");
+  const catalog = translateSharedCase("engine", "pipeline-catalog.json", catalogCase);
+  const missing = catalogCase.expect.bundledPipelines.filter(name => !inBundle(name));
+  assert.ok(missing.length, "the catalog case needs a pipeline outside the bundle");
   assert.equal(catalog.status, "deferred");
-  assert.match(catalog.reason, /eberban\/refgram/);
-  assert.doesNotMatch(catalog.reason, /gencmu\/jbogenbau/);
+  for (const name of catalogCase.expect.bundledPipelines) {
+    const listed = catalog.reason.split(/[ ,.]+/).includes(name);
+    assert.equal(listed, missing.includes(name), `the catalog reason and the bundle disagree on ${name}`);
+  }
 });
 
 test("an item without the tested capture needs a hand migration", () => {
