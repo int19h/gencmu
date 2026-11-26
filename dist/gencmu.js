@@ -27787,7 +27787,13 @@
      * @returns {any[]}
      */
     clauses(node) {
-      if (Array.isArray(node.all)) return node.all.flatMap((/** @type {any} */ item) => this.clauses(item));
+      // A conjunction stays one condition. A shared condition applies where
+      // the alternative declares every capture of the whole condition, and a
+      // ranked check reads the whole condition (part 1 §5, engine §3.6).
+      if (Array.isArray(node.all)) {
+        const parts = node.all.flatMap((/** @type {any} */ item) => this.clauses(item));
+        return parts.length === 1 ? parts : [{ all: parts }];
+      }
       // A guard $d ⟹ P in a shared clause, where every alternative that binds
       // a capture of P also binds $d, holds as P does. An alternative without
       // the captures of P gives P no meaning (part 1 §5).
