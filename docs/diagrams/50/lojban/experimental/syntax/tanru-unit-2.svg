@@ -1,0 +1,130 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="755" height="610" viewBox="0 0 755 610" role="img" aria-label="Railroad diagram of the rule tanru-unit-2">
+<style>path{fill:none;stroke:#333;stroke-width:1.5}.rule rect{fill:#e8eefc;stroke:#333;stroke-width:1.5}.terminal rect{fill:#fdf6d8;stroke:#333;stroke-width:1.5}text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"DejaVu Sans Mono","Liberation Mono",monospace;font-size:14px;fill:#111;text-anchor:middle}text.label{font-size:12px;font-style:italic;fill:#555;text-anchor:start}text.title{font-weight:bold;text-anchor:start}.rank-frame{fill:none;stroke:#777;stroke-width:1;stroke-dasharray:3 3}</style>
+<rect width="100%" height="100%" fill="#fff"/>
+<text class="title" x="10" y="24" textLength="100.8" lengthAdjust="spacingAndGlyphs">tanru-unit-2</text>
+<path d="M10 64v16m4 -16v16M14 72h6"/>
+<path d="M20 72h20"/>
+<g class="terminal"><rect x="40" y="60" width="33" height="24" rx="12"/><text x="56.5" y="77" textLength="16.8" lengthAdjust="spacingAndGlyphs">KE</text></g>
+<path d="M73 72h10"/>
+<g class="rule"><rect x="83" y="60" width="33" height="24" rx="0"/><text x="99.5" y="77" textLength="16.8" lengthAdjust="spacingAndGlyphs">🆓</text></g>
+<path d="M116 72h10"/>
+<g class="rule"><rect x="126" y="60" width="84" height="24" rx="0"/><text x="168" y="77" textLength="67.2" lengthAdjust="spacingAndGlyphs">selbri-3</text></g>
+<path d="M210 72h10"/>
+<path d="M220 72h20"/>
+<g class="terminal"><rect x="240" y="60" width="50" height="24" rx="12"/><text x="265" y="77" textLength="33.6" lengthAdjust="spacingAndGlyphs">KEhE</text></g>
+<path d="M290 72H312"/>
+<path d="M220 72a10 10 0 0 0 10 -10V60a10 10 0 0 1 10 -10H292a10 10 0 0 1 10 10V62a10 10 0 0 0 10 10"/>
+<text class="label" x="244" y="45" textLength="43.2" lengthAdjust="spacingAndGlyphs">elided</text>
+<path d="M312 72h10"/>
+<g class="rule"><rect x="322" y="60" width="33" height="24" rx="0"/><text x="338.5" y="77" textLength="16.8" lengthAdjust="spacingAndGlyphs">🆓</text></g>
+<path d="M355 72H475"/>
+<path d="M20 72a10 10 0 0 1 10 10V96a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="40" y="94" width="67" height="24" rx="12"/><text x="73.5" y="111" textLength="50.4" lengthAdjust="spacingAndGlyphs">BRIVLA</text></g>
+<path d="M107 106h10"/>
+<g class="rule"><rect x="117" y="94" width="33" height="24" rx="0"/><text x="133.5" y="111" textLength="16.8" lengthAdjust="spacingAndGlyphs">🆓</text></g>
+<path d="M150 106H455a10 10 0 0 0 10 -10V82a10 10 0 0 1 10 -10"/>
+<path d="M20 72a10 10 0 0 1 10 10V134a10 10 0 0 0 10 10"/>
+<path d="M40 144h37"/>
+<text class="label" x="44" y="139" textLength="28.8" lengthAdjust="spacingAndGlyphs">cbm?</text>
+<path d="M77 144h10"/>
+<g class="terminal"><rect x="87" y="132" width="67" height="24" rx="12"/><text x="120.5" y="149" textLength="50.4" lengthAdjust="spacingAndGlyphs">CMEVLA</text></g>
+<path d="M154 144h10"/>
+<g class="rule"><rect x="164" y="132" width="33" height="24" rx="0"/><text x="180.5" y="149" textLength="16.8" lengthAdjust="spacingAndGlyphs">🆓</text></g>
+<path d="M197 144H455a10 10 0 0 0 10 -10V82a10 10 0 0 1 10 -10"/>
+<path d="M20 72a10 10 0 0 1 10 10V178a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="40" y="176" width="50" height="24" rx="12"/><text x="65" y="193" textLength="33.6" lengthAdjust="spacingAndGlyphs">GOhA</text></g>
+<path d="M90 188h10"/>
+<path d="M100 188h20"/>
+<g class="terminal"><rect x="120" y="176" width="50" height="24" rx="12"/><text x="145" y="193" textLength="33.6" lengthAdjust="spacingAndGlyphs">RAhO</text></g>
+<path d="M170 188H190"/>
+<path d="M100 188a10 10 0 0 0 10 -10V176a10 10 0 0 1 10 -10H170a10 10 0 0 1 10 10V178a10 10 0 0 0 10 10"/>
+<path d="M190 188h10"/>
+<g class="rule"><rect x="200" y="176" width="33" height="24" rx="0"/><text x="216.5" y="193" textLength="16.8" lengthAdjust="spacingAndGlyphs">🆓</text></g>
+<path d="M233 188H455a10 10 0 0 0 10 -10V82a10 10 0 0 1 10 -10"/>
+<path d="M20 72a10 10 0 0 1 10 10V212a10 10 0 0 0 10 10"/>
+<g class="rule"><rect x="40" y="210" width="75" height="24" rx="0"/><text x="77.5" y="227" textLength="58.8" lengthAdjust="spacingAndGlyphs">me-unit</text></g>
+<path d="M115 222H455a10 10 0 0 0 10 -10V82a10 10 0 0 1 10 -10"/>
+<path d="M20 72a10 10 0 0 1 10 10V260a10 10 0 0 0 10 10"/>
+<path d="M40 270h88"/>
+<text class="label" x="44" y="265" textLength="79.2" lengthAdjust="spacingAndGlyphs">≻ same span</text>
+<path d="M128 270h10"/>
+<g class="ranked-choice"><rect class="rank-frame" x="143" y="249" width="296" height="114" rx="4"/>
+<path d="M138 270h10"/>
+<path d="M148 270h20"/>
+<path d="M168 270h16"/>
+<text class="label" x="172" y="265" textLength="7.2" lengthAdjust="spacingAndGlyphs">1</text>
+<path d="M184 270h10"/>
+<g class="terminal"><rect x="194" y="258" width="50" height="24" rx="12"/><text x="219" y="275" textLength="33.6" lengthAdjust="spacingAndGlyphs">NAhE</text></g>
+<path d="M244 270h10"/>
+<g class="rule"><rect x="254" y="258" width="33" height="24" rx="0"/><text x="270.5" y="275" textLength="16.8" lengthAdjust="spacingAndGlyphs">🆓</text></g>
+<path d="M287 270h10"/>
+<g class="rule"><rect x="297" y="258" width="117" height="24" rx="0"/><text x="355.5" y="275" textLength="100.8" lengthAdjust="spacingAndGlyphs">tanru-unit-2</text></g>
+<path d="M414 270H434"/>
+<path d="M148 270a10 10 0 0 1 10 10V298a10 10 0 0 0 10 10"/>
+<path d="M168 308h16"/>
+<text class="label" x="172" y="303" textLength="7.2" lengthAdjust="spacingAndGlyphs">2</text>
+<path d="M184 308h10"/>
+<g class="rule"><rect x="194" y="296" width="42" height="24" rx="0"/><text x="215" y="313" textLength="25.2" lengthAdjust="spacingAndGlyphs">mex</text></g>
+<path d="M236 308h10"/>
+<g class="terminal"><rect x="246" y="296" width="42" height="24" rx="12"/><text x="267" y="313" textLength="25.2" lengthAdjust="spacingAndGlyphs">MOI</text></g>
+<path d="M288 308h10"/>
+<g class="rule"><rect x="298" y="296" width="33" height="24" rx="0"/><text x="314.5" y="313" textLength="16.8" lengthAdjust="spacingAndGlyphs">🆓</text></g>
+<path d="M331 308H414a10 10 0 0 0 10 -10V280a10 10 0 0 1 10 -10"/>
+<path d="M148 270a10 10 0 0 1 10 10V336a10 10 0 0 0 10 10"/>
+<path d="M168 346h16"/>
+<text class="label" x="172" y="341" textLength="7.2" lengthAdjust="spacingAndGlyphs">3</text>
+<path d="M184 346h10"/>
+<g class="terminal"><rect x="194" y="334" width="33" height="24" rx="12"/><text x="210.5" y="351" textLength="16.8" lengthAdjust="spacingAndGlyphs">SE</text></g>
+<path d="M227 346h10"/>
+<g class="rule"><rect x="237" y="334" width="33" height="24" rx="0"/><text x="253.5" y="351" textLength="16.8" lengthAdjust="spacingAndGlyphs">🆓</text></g>
+<path d="M270 346h10"/>
+<g class="rule"><rect x="280" y="334" width="117" height="24" rx="0"/><text x="338.5" y="351" textLength="100.8" lengthAdjust="spacingAndGlyphs">tanru-unit-2</text></g>
+<path d="M397 346H414a10 10 0 0 0 10 -10V280a10 10 0 0 1 10 -10"/>
+<path d="M434 270h10"/>
+</g>
+<path d="M444 270H455a10 10 0 0 0 10 -10V82a10 10 0 0 1 10 -10"/>
+<path d="M20 72a10 10 0 0 1 10 10V380a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="40" y="378" width="50" height="24" rx="12"/><text x="65" y="395" textLength="33.6" lengthAdjust="spacingAndGlyphs">NUhA</text></g>
+<path d="M90 390h10"/>
+<g class="rule"><rect x="100" y="378" width="33" height="24" rx="0"/><text x="116.5" y="395" textLength="16.8" lengthAdjust="spacingAndGlyphs">🆓</text></g>
+<path d="M133 390h10"/>
+<g class="rule"><rect x="143" y="378" width="84" height="24" rx="0"/><text x="185" y="395" textLength="67.2" lengthAdjust="spacingAndGlyphs">operator</text></g>
+<path d="M227 390H455a10 10 0 0 0 10 -10V82a10 10 0 0 1 10 -10"/>
+<path d="M20 72a10 10 0 0 1 10 10V424a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="40" y="422" width="42" height="24" rx="12"/><text x="61" y="439" textLength="25.2" lengthAdjust="spacingAndGlyphs">JAI</text></g>
+<path d="M82 434h10"/>
+<g class="rule"><rect x="92" y="422" width="33" height="24" rx="0"/><text x="108.5" y="439" textLength="16.8" lengthAdjust="spacingAndGlyphs">🆓</text></g>
+<path d="M125 434h10"/>
+<path d="M135 434h20"/>
+<g class="rule"><rect x="155" y="422" width="42" height="24" rx="0"/><text x="176" y="439" textLength="25.2" lengthAdjust="spacingAndGlyphs">tag</text></g>
+<path d="M197 434H217"/>
+<path d="M135 434a10 10 0 0 0 10 -10V422a10 10 0 0 1 10 -10H197a10 10 0 0 1 10 10V424a10 10 0 0 0 10 10"/>
+<path d="M217 434h10"/>
+<g class="rule"><rect x="227" y="422" width="117" height="24" rx="0"/><text x="285.5" y="439" textLength="100.8" lengthAdjust="spacingAndGlyphs">tanru-unit-2</text></g>
+<path d="M344 434H455a10 10 0 0 0 10 -10V82a10 10 0 0 1 10 -10"/>
+<path d="M20 72a10 10 0 0 1 10 10V484a10 10 0 0 0 10 10"/>
+<g class="rule"><rect x="40" y="482" width="151" height="24" rx="0"/><text x="115.5" y="499" textLength="134.4" lengthAdjust="spacingAndGlyphs">abstractor-chain</text></g>
+<path d="M191 494h10"/>
+<g class="rule"><rect x="201" y="482" width="109" height="24" rx="0"/><text x="255.5" y="499" textLength="92.4" lengthAdjust="spacingAndGlyphs">subsentence</text></g>
+<path d="M310 494h10"/>
+<path d="M320 494h20"/>
+<g class="terminal"><rect x="340" y="482" width="42" height="24" rx="12"/><text x="361" y="499" textLength="25.2" lengthAdjust="spacingAndGlyphs">KEI</text></g>
+<path d="M382 494H412"/>
+<path d="M320 494a10 10 0 0 0 10 -10V482a10 10 0 0 1 10 -10H392a10 10 0 0 1 10 10V484a10 10 0 0 0 10 10"/>
+<text class="label" x="344" y="467" textLength="43.2" lengthAdjust="spacingAndGlyphs">elided</text>
+<path d="M412 494h10"/>
+<g class="rule"><rect x="422" y="482" width="33" height="24" rx="0"/><text x="438.5" y="499" textLength="16.8" lengthAdjust="spacingAndGlyphs">🆓</text></g>
+<path d="M455 494H455a10 10 0 0 0 10 -10V82a10 10 0 0 1 10 -10"/>
+<path d="M20 72a10 10 0 0 1 10 10V518a10 10 0 0 0 10 10"/>
+<g class="rule"><rect x="40" y="516" width="84" height="24" rx="0"/><text x="82" y="533" textLength="67.2" lengthAdjust="spacingAndGlyphs">linkargs</text></g>
+<path d="M124 528h10"/>
+<g class="rule"><rect x="134" y="516" width="117" height="24" rx="0"/><text x="192.5" y="533" textLength="100.8" lengthAdjust="spacingAndGlyphs">tanru-unit-1</text></g>
+<path d="M251 528H455a10 10 0 0 0 10 -10V82a10 10 0 0 1 10 -10"/>
+<path d="M20 72a10 10 0 0 1 10 10V552a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="40" y="550" width="58" height="24" rx="12"/><text x="69" y="567" textLength="42" lengthAdjust="spacingAndGlyphs">MEhOI</text></g>
+<path d="M98 562h10"/>
+<g class="rule"><rect x="108" y="550" width="33" height="24" rx="0"/><text x="124.5" y="567" textLength="16.8" lengthAdjust="spacingAndGlyphs">🆓</text></g>
+<path d="M141 562H455a10 10 0 0 0 10 -10V82a10 10 0 0 1 10 -10"/>
+<path d="M475 72h6m0 -8v16m4 -16v16"/>
+<text class="label" x="10" y="596" textLength="734.4" lengthAdjust="spacingAndGlyphs">A qualified higher proof removes a lower proof only over the same span and with dominating open facts.</text>
+</svg>
