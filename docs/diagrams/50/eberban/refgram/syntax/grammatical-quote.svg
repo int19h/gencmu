@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="741" height="192" viewBox="0 0 741 192" role="img" aria-label="Railroad diagram of the rule grammatical-quote">
+<svg xmlns="http://www.w3.org/2000/svg" width="825" height="192" viewBox="0 0 825 192" role="img" aria-label="Railroad diagram of the rule grammatical-quote">
 <style>path{fill:none;stroke:#333;stroke-width:1.5}.rule rect{fill:#e8eefc;stroke:#333;stroke-width:1.5}.terminal rect{fill:#fdf6d8;stroke:#333;stroke-width:1.5}text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"DejaVu Sans Mono","Liberation Mono",monospace;font-size:14px;fill:#111;text-anchor:middle}text.label{font-size:12px;font-style:italic;fill:#555;text-anchor:start}text.title{font-weight:bold;text-anchor:start}</style>
 <rect width="100%" height="100%" fill="#fff"/>
 <text class="title" x="10" y="24" textLength="142.8" lengthAdjust="spacingAndGlyphs">grammatical-quote</text>
@@ -7,47 +7,47 @@
 <path d="M20 56h20"/>
 <path d="M40 56h20"/>
 <path d="M60 56h20"/>
-<g class="rule"><rect x="80" y="44" width="67" height="24" rx="0"/><text x="113.5" y="61" textLength="50.4" lengthAdjust="spacingAndGlyphs">prefix</text></g>
-<path d="M147 56H167"/>
-<path d="M147 56a10 10 0 0 1 10 10V68a10 10 0 0 1 -10 10H80a10 10 0 0 1 -10 -10V66a10 10 0 0 1 10 -10"/>
-<path d="M167 56H187"/>
-<path d="M40 56a10 10 0 0 0 10 -10V44a10 10 0 0 1 10 -10H167a10 10 0 0 1 10 10V46a10 10 0 0 0 10 10"/>
-<path d="M187 56h10"/>
-<g class="terminal"><rect x="197" y="44" width="33" height="24" rx="12"/><text x="213.5" y="61" textLength="16.8" lengthAdjust="spacingAndGlyphs">CA</text></g>
-<path d="M230 56h10"/>
-<g class="terminal"><rect x="240" y="44" width="252" height="24" rx="12"/><text x="366" y="61" textLength="235.2" lengthAdjust="spacingAndGlyphs">text-of(quote-open-sentence)</text></g>
-<path d="M492 56h10"/>
-<path d="M502 56h20"/>
-<path d="M522 56h20"/>
-<g class="rule"><rect x="542" y="44" width="67" height="24" rx="0"/><text x="575.5" y="61" textLength="50.4" lengthAdjust="spacingAndGlyphs">prefix</text></g>
-<path d="M609 56H629"/>
-<path d="M609 56a10 10 0 0 1 10 10V68a10 10 0 0 1 -10 10H542a10 10 0 0 1 -10 -10V66a10 10 0 0 1 10 -10"/>
-<path d="M629 56H649"/>
-<path d="M502 56a10 10 0 0 0 10 -10V44a10 10 0 0 1 10 -10H629a10 10 0 0 1 10 10V46a10 10 0 0 0 10 10"/>
-<path d="M649 56h10"/>
-<g class="terminal"><rect x="659" y="44" width="42" height="24" rx="12"/><text x="680" y="61" textLength="25.2" lengthAdjust="spacingAndGlyphs">CAI</text></g>
-<path d="M701 56H721"/>
+<g class="rule"><rect x="80" y="44" width="109" height="24" rx="0"/><text x="134.5" y="61" textLength="92.4" lengthAdjust="spacingAndGlyphs">free-prefix</text></g>
+<path d="M189 56H209"/>
+<path d="M189 56a10 10 0 0 1 10 10V68a10 10 0 0 1 -10 10H80a10 10 0 0 1 -10 -10V66a10 10 0 0 1 10 -10"/>
+<path d="M209 56H229"/>
+<path d="M40 56a10 10 0 0 0 10 -10V44a10 10 0 0 1 10 -10H209a10 10 0 0 1 10 10V46a10 10 0 0 0 10 10"/>
+<path d="M229 56h10"/>
+<g class="terminal"><rect x="239" y="44" width="33" height="24" rx="12"/><text x="255.5" y="61" textLength="16.8" lengthAdjust="spacingAndGlyphs">CA</text></g>
+<path d="M272 56h10"/>
+<g class="terminal"><rect x="282" y="44" width="252" height="24" rx="12"/><text x="408" y="61" textLength="235.2" lengthAdjust="spacingAndGlyphs">text-of(quote-open-sentence)</text></g>
+<path d="M534 56h10"/>
+<path d="M544 56h20"/>
+<path d="M564 56h20"/>
+<g class="rule"><rect x="584" y="44" width="109" height="24" rx="0"/><text x="638.5" y="61" textLength="92.4" lengthAdjust="spacingAndGlyphs">free-prefix</text></g>
+<path d="M693 56H713"/>
+<path d="M693 56a10 10 0 0 1 10 10V68a10 10 0 0 1 -10 10H584a10 10 0 0 1 -10 -10V66a10 10 0 0 1 10 -10"/>
+<path d="M713 56H733"/>
+<path d="M544 56a10 10 0 0 0 10 -10V44a10 10 0 0 1 10 -10H713a10 10 0 0 1 10 10V46a10 10 0 0 0 10 10"/>
+<path d="M733 56h10"/>
+<g class="terminal"><rect x="743" y="44" width="42" height="24" rx="12"/><text x="764" y="61" textLength="25.2" lengthAdjust="spacingAndGlyphs">CAI</text></g>
+<path d="M785 56H805"/>
 <path d="M20 56a10 10 0 0 1 10 10V116a10 10 0 0 0 10 10"/>
 <path d="M40 126h20"/>
 <path d="M60 126h20"/>
-<g class="rule"><rect x="80" y="114" width="67" height="24" rx="0"/><text x="113.5" y="131" textLength="50.4" lengthAdjust="spacingAndGlyphs">prefix</text></g>
-<path d="M147 126H167"/>
-<path d="M147 126a10 10 0 0 1 10 10V138a10 10 0 0 1 -10 10H80a10 10 0 0 1 -10 -10V136a10 10 0 0 1 10 -10"/>
-<path d="M167 126H187"/>
-<path d="M40 126a10 10 0 0 0 10 -10V114a10 10 0 0 1 10 -10H167a10 10 0 0 1 10 10V116a10 10 0 0 0 10 10"/>
-<path d="M187 126h10"/>
-<g class="terminal"><rect x="197" y="114" width="33" height="24" rx="12"/><text x="213.5" y="131" textLength="16.8" lengthAdjust="spacingAndGlyphs">CA</text></g>
-<path d="M230 126h10"/>
-<g class="rule"><rect x="240" y="114" width="142" height="24" rx="0"/><text x="311" y="131" textLength="126" lengthAdjust="spacingAndGlyphs">open-quote-text</text></g>
-<path d="M382 126h10"/>
-<path d="M392 126h20"/>
-<g class="terminal"><rect x="412" y="114" width="117" height="24" rx="12"/><text x="470.5" y="131" textLength="100.8" lengthAdjust="spacingAndGlyphs">CAI&lt;_Elided&gt;</text></g>
-<path d="M529 126H649"/>
-<path d="M392 126a10 10 0 0 0 10 -10V114a10 10 0 0 1 10 -10H629a10 10 0 0 1 10 10V116a10 10 0 0 0 10 10"/>
-<text class="label" x="416" y="99" textLength="208.8" lengthAdjust="spacingAndGlyphs">elided, where its test allows</text>
-<path d="M649 126H701a10 10 0 0 0 10 -10V66a10 10 0 0 1 10 -10"/>
+<g class="rule"><rect x="80" y="114" width="109" height="24" rx="0"/><text x="134.5" y="131" textLength="92.4" lengthAdjust="spacingAndGlyphs">free-prefix</text></g>
+<path d="M189 126H209"/>
+<path d="M189 126a10 10 0 0 1 10 10V138a10 10 0 0 1 -10 10H80a10 10 0 0 1 -10 -10V136a10 10 0 0 1 10 -10"/>
+<path d="M209 126H229"/>
+<path d="M40 126a10 10 0 0 0 10 -10V114a10 10 0 0 1 10 -10H209a10 10 0 0 1 10 10V116a10 10 0 0 0 10 10"/>
+<path d="M229 126h10"/>
+<g class="terminal"><rect x="239" y="114" width="33" height="24" rx="12"/><text x="255.5" y="131" textLength="16.8" lengthAdjust="spacingAndGlyphs">CA</text></g>
+<path d="M272 126h10"/>
+<g class="rule"><rect x="282" y="114" width="142" height="24" rx="0"/><text x="353" y="131" textLength="126" lengthAdjust="spacingAndGlyphs">elided-cai-text</text></g>
+<path d="M424 126h10"/>
+<path d="M434 126h20"/>
+<g class="terminal"><rect x="454" y="114" width="117" height="24" rx="12"/><text x="512.5" y="131" textLength="100.8" lengthAdjust="spacingAndGlyphs">CAI&lt;_Elided&gt;</text></g>
+<path d="M571 126H691"/>
+<path d="M434 126a10 10 0 0 0 10 -10V114a10 10 0 0 1 10 -10H671a10 10 0 0 1 10 10V116a10 10 0 0 0 10 10"/>
+<text class="label" x="458" y="99" textLength="208.8" lengthAdjust="spacingAndGlyphs">elided, where its test allows</text>
+<path d="M691 126H785a10 10 0 0 0 10 -10V66a10 10 0 0 1 10 -10"/>
 <path d="M20 56a10 10 0 0 1 10 10V160a10 10 0 0 0 10 10"/>
 <g class="terminal"><rect x="40" y="158" width="235" height="24" rx="12"/><text x="157.5" y="175" textLength="218.4" lengthAdjust="spacingAndGlyphs">*multi-sentence-cai-elided</text></g>
-<path d="M275 170H701a10 10 0 0 0 10 -10V66a10 10 0 0 1 10 -10"/>
-<path d="M721 56h6m0 -8v16m4 -16v16"/>
+<path d="M275 170H785a10 10 0 0 0 10 -10V66a10 10 0 0 1 10 -10"/>
+<path d="M805 56h6m0 -8v16m4 -16v16"/>
 </svg>

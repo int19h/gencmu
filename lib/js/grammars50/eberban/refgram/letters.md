@@ -10,7 +10,7 @@ A letter written several times in a row is the same letter written once. The boo
 
 ## The text
 
-The text is a sequence of letters, spaces, foreign letters, hyphens, digits and brackets. The stage is greedy. Where two parses differ, it takes the one that reads the next character over the one that closes a constituent. A constituent is the text that one rule matches. So a run of one repeated letter is one token, and a run of plain spaces is one token.
+The text is a sequence of letters, spaces, foreign letters, hyphens, digits and brackets. The conditions of the letter rules and of `space` make a run of one repeated letter one token, and a run of plain spaces one token. The stage is greedy. Where two parses differ, it takes the one that reads the next character over the one that closes a constituent. A constituent is the text that one rule matches. That policy decides how many line breaks and how much indent a hyphen takes.
 
 The constant `$DEFAULTS` gives each rule node of the stage two strings. Its value joins the values of its children, and its image joins their images. So on text input a bracket token has the bracket as its value and its image. A digit writes its value in its rule, and its image is the value of the digit character that it reads. Each other token writes both its strings in its rule.
 
@@ -90,8 +90,8 @@ The book says that any character other than its 25 symbols and the digits is a s
 %const $M {Consonant, Nasal, Other}
 %const $UNVOICED-PLOSIVE {Consonant, Unvoiced, Plosive, Other}
 %const $VOICED-PLOSIVE {Consonant, Voiced, Plosive, Other}
-%const $UNVOICED-FRICATIVE {Consonant, Unvoiced, Other}
-%const $VOICED-FRICATIVE {Consonant, Voiced, Other}
+%const $UNVOICED-OTHER {Consonant, Unvoiced, Other}
+%const $VOICED-OTHER {Consonant, Voiced, Other}
 %const $UNVOICED-SIBILANT {Consonant, Unvoiced, Sibilant}
 %const $VOICED-SIBILANT {Consonant, Voiced, Sibilant}
 
@@ -158,12 +158,12 @@ The book says that any character other than its 25 symbols and the digits is a s
 %rule f-chars
   "f" | "F"
 
-%rule f = letter-of(f-chars, = "f", = $UNVOICED-FRICATIVE)
+%rule f = letter-of(f-chars, = "f", = $UNVOICED-OTHER)
 
 %rule v-chars
   "v" | "V"
 
-%rule v = letter-of(v-chars, = "v", = $VOICED-FRICATIVE)
+%rule v = letter-of(v-chars, = "v", = $VOICED-OTHER)
 
 %rule t-chars
   "t" | "T"
@@ -274,7 +274,7 @@ The Latin letters `q`, `w`, `x` and `y` are not Eberban letters. Like every othe
 
 ## Spaces, hyphens, digits and brackets
 
-The book says that any character other than a letter, a hyphen, a digit or a quotation bracket is a space. The numbers chapter makes each digit a `TI` particle. A run of space characters other than foreign letters is one `Space` token with the value and image of one space. The run keeps its source text, which a foreign quote shows verbatim. The ranges of `letter-char` hold the 22 letters of the alphabet in both cases, so they skip `q`, `w`, `x` and `y`.
+The book says that any character other than a letter, a hyphen, a digit or a quotation bracket is a space. The numbers chapter makes each digit a `TI` particle. A run of space characters other than foreign letters is one `Space` token with the value and image of one space. The run keeps its source text, which a foreign quote shows verbatim. The ranges of `letter-char` hold the 22 letters of the alphabet in both cases, so they skip `q`, `w`, `x` and `y`. They repeat the alphabet of the letter rules, so a change of the alphabet changes both.
 
 The numbers chapter says that `+`, `*` and `/` are spaces, and that verbs express mathematical operations. Where one of them follows a digit, directly or after plain spaces, the PEG warns. The tag `Math-Symbol` marks a space run that starts that way, so the forms stage can warn in the same place. The guard of the tag asks whether the run itself starts with plain spaces and then a symbol. A tab or any other character before the symbol hides it, as in the PEG. A foreign letter is a token of its own, so it hides the symbol too.
 

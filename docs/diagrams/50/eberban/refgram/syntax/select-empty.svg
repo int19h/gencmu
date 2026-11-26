@@ -4,6 +4,6 @@
 <text class="title" x="10" y="24" textLength="100.8" lengthAdjust="spacingAndGlyphs">select-empty</text>
 <text class="label" x="130.8" y="24" textLength="115.2" lengthAdjust="spacingAndGlyphs">conditions apply</text>
 <path d="M10 38v16m4 -16v16M14 46h6"/>
-<g class="rule"><rect x="20" y="34" width="75" height="24" rx="0"/><text x="57.5" y="51" textLength="58.8" lengthAdjust="spacingAndGlyphs">si-free</text></g>
-<path d="M95 46h6m0 -8v16m4 -16v16"/>
+<g class="rule"><rect x="20" y="34" width="109" height="24" rx="0"/><text x="74.5" y="51" textLength="92.4" lengthAdjust="spacingAndGlyphs">prefixed-si</text></g>
+<path d="M129 46h6m0 -8v16m4 -16v16"/>
 </svg>

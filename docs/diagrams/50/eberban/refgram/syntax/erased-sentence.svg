@@ -4,6 +4,6 @@
 <text class="title" x="10" y="24" textLength="126" lengthAdjust="spacingAndGlyphs">erased-sentence</text>
 <text class="label" x="156" y="24" textLength="115.2" lengthAdjust="spacingAndGlyphs">conditions apply</text>
 <path d="M10 38v16m4 -16v16M14 46h6"/>
-<g class="rule"><rect x="20" y="34" width="142" height="24" rx="0"/><text x="91" y="51" textLength="126" lengthAdjust="spacingAndGlyphs">sentence-choice</text></g>
-<path d="M162 46h6m0 -8v16m4 -16v16"/>
+<g class="rule"><rect x="20" y="34" width="159" height="24" rx="0"/><text x="99.5" y="51" textLength="142.8" lengthAdjust="spacingAndGlyphs">sentence-with-end</text></g>
+<path d="M179 46h6m0 -8v16m4 -16v16"/>
 </svg>

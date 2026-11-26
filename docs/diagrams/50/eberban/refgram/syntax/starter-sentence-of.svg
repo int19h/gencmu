@@ -4,6 +4,6 @@
 <text class="title" x="10" y="24" textLength="218.4" lengthAdjust="spacingAndGlyphs">starter-sentence-of(@Open)</text>
 <text class="label" x="248.4" y="24" textLength="115.2" lengthAdjust="spacingAndGlyphs">conditions apply</text>
 <path d="M10 38v16m4 -16v16M14 46h6"/>
-<g class="terminal"><rect x="20" y="34" width="168" height="24" rx="12"/><text x="104" y="51" textLength="151.2" lengthAdjust="spacingAndGlyphs">sentence-of(@Open)</text></g>
-<path d="M188 46h6m0 -8v16m4 -16v16"/>
+<g class="terminal"><rect x="20" y="34" width="260" height="24" rx="12"/><text x="150" y="51" textLength="243.6" lengthAdjust="spacingAndGlyphs">sentence-or-erasure-of(@Open)</text></g>
+<path d="M280 46h6m0 -8v16m4 -16v16"/>
 </svg>

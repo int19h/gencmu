@@ -7,8 +7,8 @@
 <g class="rule"><rect x="40" y="34" width="134" height="24" rx="0"/><text x="107" y="51" textLength="117.6" lengthAdjust="spacingAndGlyphs">definable-part</text></g>
 <path d="M174 46H194"/>
 <path d="M20 46a10 10 0 0 1 10 10V70a10 10 0 0 0 10 10"/>
-<g class="rule"><rect x="40" y="68" width="75" height="24" rx="0"/><text x="77.5" y="85" textLength="58.8" lengthAdjust="spacingAndGlyphs">mi-free</text></g>
-<path d="M115 80H174a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<g class="rule"><rect x="40" y="68" width="109" height="24" rx="0"/><text x="94.5" y="85" textLength="92.4" lengthAdjust="spacingAndGlyphs">prefixed-mi</text></g>
+<path d="M149 80H174a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
 <path d="M194 46h10"/>
 <g class="terminal"><rect x="204" y="34" width="33" height="24" rx="12"/><text x="220.5" y="51" textLength="16.8" lengthAdjust="spacingAndGlyphs">PI</text></g>
 <path d="M237 46h6m0 -8v16m4 -16v16"/>

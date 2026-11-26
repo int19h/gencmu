@@ -31,8 +31,8 @@
 <g class="rule"><rect x="241" y="122" width="142" height="24" rx="0"/><text x="312" y="139" textLength="126" lengthAdjust="spacingAndGlyphs">ri-continuation</text></g>
 <path d="M383 134H403"/>
 <path d="M221 134a10 10 0 0 1 10 10V158a10 10 0 0 0 10 10"/>
-<g class="rule"><rect x="241" y="156" width="100" height="24" rx="0"/><text x="291" y="173" textLength="84" lengthAdjust="spacingAndGlyphs">definition</text></g>
-<path d="M341 168H383a10 10 0 0 0 10 -10V144a10 10 0 0 1 10 -10"/>
+<g class="rule"><rect x="241" y="156" width="142" height="24" rx="0"/><text x="312" y="173" textLength="126" lengthAdjust="spacingAndGlyphs">inner-predicate</text></g>
+<path d="M383 168H383a10 10 0 0 0 10 -10V144a10 10 0 0 1 10 -10"/>
 <path d="M403 134H423"/>
 <path d="M201 134a10 10 0 0 0 10 -10V122a10 10 0 0 1 10 -10H403a10 10 0 0 1 10 10V124a10 10 0 0 0 10 10"/>
 <path d="M423 134h10"/>
