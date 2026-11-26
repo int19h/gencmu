@@ -174,5 +174,7 @@
   "m60-normalized-dom/control/1": "a primary marks one ungrouped symbol or capture that is not a splice",
   "m60-dom-operands/malformed": "cannot be a remainder record",
   "m60-dom-operands/control/2": "cannot be an empty record",
-  "m60-dom-operands/control/3": "cannot be a chain record"
+  "m60-dom-operands/control/3": "cannot be a chain record",
+  "eberban-omitted-cai/malformed": "unknown or forbidden engine key _Elided",
+  "kihei-layer/malformed": "\\$OUTPUTS cannot give the key KIhEI a value"
 }
