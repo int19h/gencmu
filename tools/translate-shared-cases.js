@@ -194,7 +194,23 @@ function convertedNegative(id, testCase, { source, ...record }) {
   }
 }
 
+// The format 49 errors ranked-choice-export and ranked-choice-tags. A late
+// read of a private ranked capture is legal in format 50, and format 50 has
+// no tag inheritance (impl answer "Later 1": engine §4, "a late-only read
+// needs no certificate"). A case that expected one of them must load.
+const LATE_RANKED = new Set(["ranked-choice-export", "ranked-choice-tags"]);
+
 export function translateSharedCase(family, file, testCase) {
+  const outcome = translateCase(family, file, testCase);
+  const expected = [testCase.expect, ...(testCase.parses ?? []).map(run => run.expect)];
+  if (outcome.status === "translated" && expected.some(expect => LATE_RANKED.has(expect?.diagnostic))) {
+    return { ...outcome, status: "native-pending", load: true, section: "Engine §4, late reads of ranked captures",
+      changes: [...outcome.changes ?? [], { reason: "A late read of a private ranked capture is legal in format 50, which has no tag inheritance. The case must load." }] };
+  }
+  return outcome;
+}
+
+function translateCase(family, file, testCase) {
   const id = `${family}/${file}`;
   const versioned = overridesFor(id);
   if (versioned) {
