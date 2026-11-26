@@ -28445,7 +28445,8 @@
           // last token at the end of the input, as in format 49.
           source: rejection.position < tokens.length ? [...tokens[rejection.position].source]
             : [tokens.at(-1)?.source[1] ?? 0, tokens.at(-1)?.source[1] ?? 0],
-          ...lineAndColumn(sourceText, rejection.position < tokens.length ? tokens[rejection.position].source[0] : tokens.at(-1)?.source[1] ?? 0),
+          // A token with satellites points at the start of its core (ruling 13).
+          ...lineAndColumn(sourceText, rejection.position < tokens.length ? coreStart(tokens[rejection.position]) : tokens.at(-1)?.source[1] ?? 0),
           expected: rejection.expected,
           ...(rejection.boundary ? { boundary: rejection.boundary } : {}),
           message: `the ${this.name} stage could not continue at token ${rejection.position}` +
@@ -29452,6 +29453,28 @@
       }
     }
     return { line, column };
+  }
+
+  /**
+   * The source start of the core of a token (part 2 §7): the end of the
+   * primary path from the node that produced it, through the input tokens of
+   * earlier stages. A token with no producer is its own core.
+   * @param {any} token
+   */
+  function coreStart(token) {
+    let current = token.node;
+    let start = token.source[0];
+    while (current) {
+      if (current.kind === "projection") current = current.part;
+      else if ((current.kind === "rule" || current.kind === "splice") && current.primary) current = current.primary;
+      else if (current.kind === "token" && current.input) {
+        start = current.input.source[0];
+        current = current.input.node;
+      } else {
+        return current.source?.[0] ?? start;
+      }
+    }
+    return start;
   }
 
   // ---- format50/validate.js
