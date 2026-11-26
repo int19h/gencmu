@@ -59,9 +59,11 @@ Each completed quotation is one opaque unit. Each constant here adds its classes
 
 A nonce word is a word coined for one use. The joiner `ze'ei` takes its meaning from the left word and its grammar from the right word.
 
-The result keeps the right word's classes and value. Its image retains the complete source expression, and its words tree retains both operands. The value is the value of the right word node.
+The published word keeps the right word's classes and value. Its image retains the complete source expression, and its words tree retains both operands. Its value is the value of the right word node.
 
 The value matters for syntax tests such as `LE="la"`. Keeping the joiner's source spelling as the value breaks that inherited grammar.
+
+Two readers need different strings from the nonce word. The next stage reads the published token, so the emission gives it the right word's value and the whole source image. A later constructor of this stage reads the grammar node instead, as in `mi ze'ei do bu` or `mi ze'ei do zei ta`. It joins the strings of its parts, so the node keeps the default join of its live children. Thus the letteral of `mi ze'ei do bu` has the value `mi ze'ei do bu`. In `mi do si ze'ei ta bu`, the erased `do si` stays out of both its value and its image. The node keeps the classes and the fault flag, and the emission copies them with `*$.flags`.
 
 The left operand is the preceding live unit. The right operand is one raw word, so its contents execute no operation.
 
@@ -88,14 +90,13 @@ The spelling guard also covers `ze'ei`, so punctuation cannot escape into an ear
     → {Word,
        *$r.classes,
        *$r.flags ∩ {Cmavo, Indicator, Y-Letter},
-       $l'Fault,
-       value: $r'value,
-       image: $.source-text}
+       $l'Fault}
   | $l:unit<¬Trailing-Pause> compound-gap<¬Punctuation-Material> zehei-word zei-right-gap
     $r:nonmagic-zehei-right
   | su-boundary? $l:unit<Trailing-Pause> suppressed-gap<¬Punctuation-Material> zehei-word
     zei-right-gap $r:nonmagic-zehei-right
 %emit
+  ${*$.flags, value: $r'value, image: $.source-text}
 
 %const $ZEHEI-MAGIC-RIGHT $MAGIC-WORDS ∪ {LOhAI, LEhAI}
 
@@ -165,8 +166,8 @@ The LUhEI boundary extends this pipeline's SU stopping classes by analogy with L
 
 ## Differences from the format 49 grammar
 
-The format 49 copy of this document is `grammars/lojban/experimental/stream.md`. Both copies read the same texts and hand on the same tokens.
+The format 49 copy of this document is `grammars/lojban/experimental/stream.md`. Both copies read the same texts and hand on the same tokens, also inside an outer constructor. On a rejected raw quote, the expected terminals differ, as below.
 
-`experimental-cgv` keeps its word as the primary and deletes `Cgv-Warning`. The format 49 copy copies the word's tags without that key. `zei-spelling` tests each spelling in the body, as `Cmavo="ze'ei"`. The format 49 copy compares the value in a condition. `zehei-compound` takes its value from the node of its right word, where the format 49 copy reads the string that the right word emits.
+`experimental-cgv` keeps its word as the primary and deletes `Cgv-Warning`. The format 49 copy copies the word's tags without that key. `zei-spelling` tests each spelling in the body, as `Cmavo="ze'ei"`. The format 49 copy compares the value in a condition. `zehei-compound` gives its published token the value of the node of its right word, where the format 49 copy reads the string that the right word emits. As in the format 49 copy, its grammar node keeps the joined strings of its children, so an outer `bu`, `zei` or `ze'ei` joins the whole compound.
 
 The raw quotes of `zo'oi`, `do'oi` and `mu'oi` use the payload rules of [the shared word stream](../common/stream.md#differences-from-the-format-49-grammar). So a rejected text in such a quote names `run-token` in `expected`, where the format 49 copy names `payload-token`. That document explains when it happens.
