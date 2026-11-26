@@ -6,7 +6,7 @@ A token is one unit that a stage reads or emits. A token's value is the string t
 
 The document holds the sounds of the word forms in *The Complete Lojban Language* (CLL), edition 1.1. These are the consonants and their pairs, the vowels, diphthongs and stress. A diphthong combines two vowels in one syllable. The loader stitches it into the stage after [../common/forms.md](../common/forms.md) and before [morphology.md](morphology.md), which builds the words from these parts.
 
-The BPFK, experimental, and Zantufa pipelines use the word forms in `grammars/lojban/bpfk/morphology.md` and do not use this document. BPFK is the Lojban language planning committee. [The notation document](../../../docs/notation.md) explains the notation.
+The BPFK, experimental, and Zantufa pipelines use the word forms in [bpfk/morphology.md](../bpfk/morphology.md) and do not use this document. BPFK is the Lojban language planning committee. [The notation document](../../../docs/notation.md) explains the notation.
 
 The phoneme stage folds consonants to lowercase and writes each apostrophe with value `'`. It gives every vowel a lowercase value and marks stress with `Stressed`. It gives the syllable comma an empty value and the tag `Syllable-Break`.
 

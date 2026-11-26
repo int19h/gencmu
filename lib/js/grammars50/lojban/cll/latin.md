@@ -4,11 +4,11 @@ This document opens the phoneme stage for the Latin orthography of *The Complete
 
 A token is one unit that a stage reads or emits. A token's value is the string that exact comparisons read. Its image is the string that people see.
 
-The phoneme stage is the first stage of every Lojban pipeline. The main Lojban pipelines are [CLL](pipeline.md), `lojban/bpfk`, `lojban/experimental` and `lojban/zantufa`. BPFK is the Lojban language planning committee. The stage reads the characters of a text and hands the forms stage the phoneme tokens they stand for.
+The phoneme stage is the first stage of every Lojban pipeline. The main Lojban pipelines are [CLL](pipeline.md), [BPFK](../bpfk/pipeline.md), `lojban/experimental` and `lojban/zantufa`. BPFK is the Lojban language planning committee. The stage reads the characters of a text and hands the forms stage the phoneme tokens they stand for.
 
 This document reads the Latin orthography of CLL[^cll-c3], with the [choices below](#choices-beyond-cll). The CLL pipeline adds only the Cyrillic of CLL[^cll-s3-12], in [cyrillic.md](cyrillic.md). A feature is a named switch that the grammars test. The CLL pipeline turns the `cll-cyrillic` feature on by default. The other pipelines include that document but turn its feature off by default.
 
-Those pipelines also add the conventions of `grammars/lojban/common/latin.md`, such as digits and accents, and the scripts of `grammars/lojban/common/cyrillic.md` and `grammars/lojban/common/zbalermorna.md`. [The notation document](../../../docs/notation.md) explains the notation.
+Those pipelines also add the conventions of [common/latin.md](../common/latin.md), such as digits and accents, and the scripts of [common/cyrillic.md](../common/cyrillic.md) and [common/zbalermorna.md](../common/zbalermorna.md). [The notation document](../../../docs/notation.md) explains the notation.
 
 The terminals of the stage are exact strings, such as `"a"`, scalar ranges, such as `"0".."9"`, and stored Unicode tags, such as `_White_Space`. A string terminal tests its value. An engine-tag terminal tests a tag stored at stage zero. The wildcard `_` reads any token.
 
@@ -23,9 +23,9 @@ The phoneme values are the letters of CLL[^cll-c3]:
 - The apostrophe `"'"`
 - The syllable comma, with empty value, image `,`, and tag `Syllable-Break`
 
-In `lojban/cll`, a comma run emits one token only between vowel groups. Elsewhere, commas emit nothing on their own. Forms tests syllable boundaries through `Syllable-Break`. The other Lojban pipelines discard commas through `grammars/lojban/common/latin.md`. Every Lojban pipeline retains stress tags for forms.
+In `lojban/cll`, a comma run emits one token only between vowel groups. Elsewhere, commas emit nothing on their own. Forms tests syllable boundaries through `Syllable-Break`. The other Lojban pipelines discard commas through [common/latin.md](../common/latin.md). Every Lojban pipeline retains stress tags for forms.
 
-In this strict reading, `PAUSE` marks a pause of any length, with value and image `" "`. The Latin conventions of `grammars/lojban/common/latin.md` replace this pause representation. `FOREIGN` marks a run that the pipeline cannot read as words. Here, that run contains a character outside the orthography. The forms stage passes it on, and the words stage admits it only inside a foreign quote or after `fa'o`.
+In this strict reading, `PAUSE` marks a pause of any length, with value and image `" "`. The Latin conventions of [common/latin.md](../common/latin.md) replace this pause representation. `FOREIGN` marks a run that the pipeline cannot read as words. Here, that run contains a character outside the orthography. The forms stage passes it on, and the words stage admits it only inside a foreign quote or after `fa'o`.
 
 ## The text and its runs
 
@@ -133,7 +133,7 @@ CLL[^cll-s3-3] says that a comma "cannot be pronounced as a pause", so a comma a
 
 An ordinary run is letters. A run of adjacent vowel letters is one vowel group, and a group carries the tags of its last vowel. Its term copies those tags as `*$v.flags`, and its strings stay the joins of its children. In the Latin orthography, a group is its vowels, one phoneme each.
 
-A script can tag its full vowel letters `Syllabic` to separate adjacent vowels without a written apostrophe. Two adjacent syllabic vowels form two syllables. `joined-vowel` inserts an apostrophe between them, with value `'` and no text of its own. Its emission list inserts the apostrophe with `ε{…}` and then hands on the vowel. `grammars/lojban/common/cyrillic.md` uses this rule. Each vowel of a group is its own token, so a group of three vowels keeps all three. Each vowel pair matches exactly one of the three cases, so a run has one parse.
+A script can tag its full vowel letters `Syllabic` to separate adjacent vowels without a written apostrophe. Two adjacent syllabic vowels form two syllables. `joined-vowel` inserts an apostrophe between them, with value `'` and no text of its own. Its emission list inserts the apostrophe with `ε{…}` and then hands on the vowel. [common/cyrillic.md](../common/cyrillic.md) uses this rule. Each vowel of a group is its own token, so a group of three vowels keeps all three. Each vowel pair matches exactly one of the three cases, so a run has one parse.
 
 In `lojban/cll`, a comma between two vowels marks the syllable break of CLL[^cll-s3-3]. So `kore,a` is `e` and `a` in two syllables. CLL[^cll-s4-7] writes it so "because ea is not a valid diphthong". Anywhere else it is nothing, so `ban,gu` is `bangu`.
 
@@ -274,7 +274,7 @@ The `Vowel` tag marks the five full vowels and not `y`. So `stressed-full-vowel-
 
 The plain `y` has the empty term `→ {}`. It keeps the bag of the input character off the vowel node, as each other letter's term does. So a letter node has its strings and its own tags alone.
 
-CLL[^cll-s3-1] omits `h` from the alphabet. CLL[^cll-s3-3] says that `h` does not write the apostrophe. This stage treats `h` as foreign text. `grammars/lojban/common/latin.md` reads `h` as the apostrophe.
+CLL[^cll-s3-1] omits `h` from the alphabet. CLL[^cll-s3-3] says that `h` does not write the apostrophe. This stage treats `h` as foreign text. [common/latin.md](../common/latin.md) reads `h` as the apostrophe.
 
 ```jbogenbau
 %rule consonant → {Consonant}

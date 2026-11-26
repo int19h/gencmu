@@ -2,7 +2,7 @@
 
 This document adds the Cyrillic orthography of *The Complete Lojban Language* (CLL)[^cll-s3-12] to the phoneme stage, the first stage of the pipeline. The [CLL](pipeline.md) pipeline reads it as its Cyrillic.
 
-The `lojban/bpfk`, `lojban/experimental` and `lojban/zantufa` pipelines read gencmu's own Cyrillic, `grammars/lojban/common/cyrillic.md`. BPFK is the Lojban language planning committee. A caller can instead select CLL's Cyrillic with `cll-cyrillic`. A feature is a named switch that the grammars test.
+The `lojban/bpfk`, `lojban/experimental` and `lojban/zantufa` pipelines read gencmu's own Cyrillic, [common/cyrillic.md](../common/cyrillic.md). BPFK is the Lojban language planning committee. A caller can instead select CLL's Cyrillic with `cll-cyrillic`. A feature is a named switch that the grammars test.
 
 The two read the same letters differently, so a pipeline or a caller chooses one of them. The letters of this document apply only while `cll-cyrillic` is on. The document has no frame of its own, that is, no rules for the text, its pauses and its runs. It adds its letters to the rules of [latin.md](latin.md), so a text can mix scripts. An added alternative takes neither the term nor the `%emit` of the rule that it extends. So each letter rule here states its own tag and emits its own token. [The notation document](../../../docs/notation.md) explains the notation.
 
@@ -10,7 +10,7 @@ The rules map 23 letters to phonemes. Five are the vowel letters `а`, `е`, `и
 
 The `Vowel` tag marks the five full vowels and not `y`, so `cll-cyrillic-plain-full-vowel` holds them and carries `Vowel` in its statement term. The hard sign stays in `cll-cyrillic-plain-vowel`. The full-vowel alternative there has no term, so it takes the whole bag of its one symbol.
 
-The apostrophe and period are those of the Latin orthography. In `lojban/cll`, a comma run marks a syllable break only between vowel groups and otherwise emits nothing on its own. The other pipelines discard it through `grammars/lojban/common/latin.md`. The orthography writes a diphthong as a vowel pair, as in the Latin orthography, so `маи` is `mai`. A capital vowel marks stress, and a capital consonant preserves its phoneme. The all-capital runs of `grammars/lojban/common/latin.md` do not apply to these letters, so in every Lojban pipeline a capital vowel here marks stress.
+The apostrophe and period are those of the Latin orthography. In `lojban/cll`, a comma run marks a syllable break only between vowel groups and otherwise emits nothing on its own. The other pipelines discard it through [common/latin.md](../common/latin.md). The orthography writes a diphthong as a vowel pair, as in the Latin orthography, so `маи` is `mai`. A capital vowel marks stress, and a capital consonant preserves its phoneme. The all-capital runs of [common/latin.md](../common/latin.md) do not apply to these letters, so in every Lojban pipeline a capital vowel here marks stress.
 
 A capital `Ъ` writes stressed `y`, with value `y` and image `Y`. The [Latin stress rules](latin.md#letters) apply: names can stress any syllable,[^cll-s3-9][^cll-s4-8] and particles can stress any syllable or none.[^cll-s3-9] So `Ъ` can stand in names and particles. In lojban/cll, a compound hyphen stays unstressed. The other pipelines ignore a stress mark on `y`, so they read `bajЪkla` as a brivla.
 
