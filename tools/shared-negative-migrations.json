@@ -1039,12 +1039,14 @@
     "entry": "main.md"
   },
   "notation/capture-group.json": {
-    "reason": "The same written operand causes a retained fault at the original position.",
-    "expected": {
-      "line": 2,
-      "column": 9,
-      "description": "a capture wraps one symbol"
-    }
+    "reason": "Erratum M-60: a label binds a whole optional, flat repetition or group, so the written operand loads.",
+    "section": "Erratum M-60, P1 §8",
+    "native": true,
+    "load": true,
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text a\n%rule a $x:( B )\n```\n"
+    },
+    "entry": "main.md"
   },
   "notation/capture-inner-capital.json": {
     "reason": "The same written operand causes a retained fault at the original position.",
@@ -1074,12 +1076,14 @@
     }
   },
   "notation/capture-order-wraps-braces.json": {
-    "reason": "The same written operand causes a retained fault at the original position.",
-    "expected": {
-      "line": 2,
-      "column": 9,
-      "description": "a capture wraps one symbol"
-    }
+    "reason": "Erratum M-60: a label binds a whole optional, flat repetition or group, so the written operand loads.",
+    "section": "Erratum M-60, P1 §8",
+    "native": true,
+    "load": true,
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text a\n%rule a $x:{ $c:B}\n```\n"
+    },
+    "entry": "main.md"
   },
   "notation/capture-twice-across-choices.json": {
     "reason": "The same written operand causes a retained fault at the original position.",
@@ -1665,12 +1669,14 @@
     }
   },
   "notation/error-capture-sequence.json": {
-    "reason": "The same written operand causes a retained fault at the original position.",
-    "expected": {
-      "line": 6,
-      "column": 9,
-      "description": "a capture wraps one symbol"
-    }
+    "reason": "Erratum M-60: a label binds a whole optional, flat repetition or group, so the written operand loads.",
+    "section": "Erratum M-60, P1 §8",
+    "native": true,
+    "load": true,
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text a\n%rule a $x:( A B )\n```\n"
+    },
+    "entry": "main.md"
   },
   "notation/error-unknown-keyword.json": {
     "reason": "The same written operand causes a retained fault at the original position.",
@@ -2805,12 +2811,14 @@
     }
   },
   "notation/ranked-capture-group.json": {
-    "reason": "The same written operand causes a retained fault at the original position.",
-    "expected": {
-      "line": 2,
-      "column": 12,
-      "description": "a capture wraps one symbol"
-    }
+    "reason": "Erratum M-60: a label binds a whole optional, flat repetition or group, so the written operand loads.",
+    "section": "Erratum M-60, P1 §8",
+    "native": true,
+    "load": true,
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text $x:(a ≻ b)\n%rule a A\n%rule b B\n```\n"
+    },
+    "entry": "main.md"
   },
   "notation/ranked-test-group.json": {
     "reason": "The same written operand causes a retained fault at the original position.",
@@ -3278,11 +3286,11 @@
     }
   },
   "notation/values-capture-binder-reader-order.json": {
-    "reason": "The same written operand causes a retained fault at the original position.",
+    "reason": "Erratum M-60: $x:(B) binds B, so the capture name of the next rule is the first fault.",
     "expected": {
-      "line": 2,
-      "column": 9,
-      "description": "a capture wraps one symbol"
+      "line": 3,
+      "column": 1,
+      "description": "a capture name must use lowercase letters, digits, hyphens or underscores"
     }
   },
   "notation/values-capture-constant-binder.json": {
@@ -3319,20 +3327,24 @@
     }
   },
   "notation/values-capture-group.json": {
-    "reason": "The same written operand causes a retained fault at the original position.",
-    "expected": {
-      "line": 2,
-      "column": 9,
-      "description": "a capture wraps one symbol"
-    }
+    "reason": "Erratum M-60: a label binds a whole optional, flat repetition or group, so the written operand loads.",
+    "section": "Erratum M-60, P1 §8",
+    "native": true,
+    "load": true,
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text r\n%rule r $x:(A | B)\n```\n"
+    },
+    "entry": "main.md"
   },
   "notation/values-capture-optional.json": {
-    "reason": "The same written operand causes a retained fault at the original position.",
-    "expected": {
-      "line": 2,
-      "column": 9,
-      "description": "a capture wraps one symbol"
-    }
+    "reason": "Erratum M-60: a label binds a whole optional, flat repetition or group, so the written operand loads.",
+    "section": "Erratum M-60, P1 §8",
+    "native": true,
+    "load": true,
+    "documents": {
+      "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text r\n%rule r $x:[A]\n```\n"
+    },
+    "entry": "main.md"
   },
   "notation/values-capture-value-before-tags.json": {
     "reason": "The same written operand causes a retained fault at the original position.",
