@@ -4,7 +4,7 @@ This pipeline is a small example of extending the grammar of *The Complete Lojba
 
 The proposal uses the material after `ki'ei` as the context or world for following utterances. Another `ki'ei` phrase resets that context.
 
-The pipeline includes CLL and then extends two of its stages, forms and syntax. To extend a stage is to add to what the stage already means. The CLL documents explain the inherited rules and parsing policy.
+The pipeline includes CLL and then extends two of its stages, forms and syntax. `%extend-stage` selects an earlier stage, and the lines after it join that stage. The CLL documents explain the inherited rules and parsing policy.
 
 - [The CLL pipeline](../../cll/pipeline.md)
   ```jbogenbau
@@ -27,15 +27,17 @@ This layer redefines that constant. The splat `*$LEXICON` keeps every inherited 
 %redefine-const $LEXICON {*$LEXICON, KIhEI: "ki'ei"}
 ```
 
-No rule changes with it. The CLL rule `source-word` tags a cmavo with each class that `$LEXICON.classify` finds, so `ki'ei` now carries `KIhEI`. The forms stage publishes every key of the lexicon through `*$LEXICON.keys` in its `$OUTPUTS`. So `KIhEI` is a public tag of the stage, and this layer does not touch `$OUTPUTS`. A public tag is one that a stage hands on to the next stage.
+No rule changes with it. The inherited rule [`source-word`](../../common/forms.md#words) tags a cmavo with each class that `$LEXICON.classify` finds, so `ki'ei` now carries `KIhEI`. A public tag is one that a stage hands on to the next stage. The forms stage publishes every key of the lexicon through `*$LEXICON.keys` in its `$OUTPUTS`.
 
-The words and indicators stages pass on every key of their input. So an ordinary `ki'ei` token keeps `KIhEI` through both. The syntax stage then reads the class as the terminal `KIhEI`. No further declaration marks `ki'ei` or restricts its class.
+Every other reader of `$LEXICON` reads its last version, wherever that reader stands, as [the notation](../../../../docs/notation.md#constants) says. So `source-word` and `$OUTPUTS`, which stand before this layer, both read the new class. The class is a key of the lexicon, not a tag that a rule of this layer writes. So `KIhEI` is a public tag of the stage, and the layer adds nothing to `$OUTPUTS`.
+
+The words and indicators stages pass on every key of their input. So an ordinary `ki'ei` token keeps `KIhEI` through both. A word that the words stage builds is no ordinary token: `ki'ei bu` is one letteral token, with `BY` and no `KIhEI`. The syntax stage then reads the class as the terminal `KIhEI`. No further declaration marks `ki'ei` or restricts its class.
 
 ## Frames in a paragraph
 
 The replacement paragraph rule accepts an initial sequence of utterances and subsequent groups with frames. It also accepts groups with frames at the start of a paragraph. Each group contains its frame and any subsequent `.i` sequence.
 
-The layer redefines `paragraph`, because a frame changes what a paragraph is. Its old body becomes the rule `utterance-sequence`, so CLL's paragraph stays one part of the new one. `&` accepts either part or both, in that order. The other rules of CLL read `paragraph` by name and need no change.
+The layer redefines `paragraph`, because a frame changes what a paragraph is. The layer writes CLL's `paragraph` body again as the rule `utterance-sequence`, so CLL's paragraph stays one part of the new one. The notation cannot name the earlier version of a rule, so this copy follows CLL by hand. A change to CLL's `paragraph` must change it too. `&` accepts either part or both, in that order. The other rules of CLL read `paragraph` by name and need no change.
 
 ```jbogenbau
 %extend-stage syntax
@@ -62,7 +64,7 @@ The layer redefines `paragraph`, because a frame changes what a paragraph is. It
 
 In `ki'ei ko'a .i broda .i brode ki'ei ko'e .i brodi`, the first group contains two utterances. The second group contains one. An earlier utterance can precede the first group, as in `broda ki'ei ko'a .i brode`.
 
-The terms end at `.i`, another `ki'ei`, `ni'o`, or the enclosing text boundary. The grammar requires `.i` before an utterance after a frame. Consecutive separators permit empty sentence positions before the first utterance, as in CLL paragraphs. Thus, `ki'ei ko'a .i .i broda` and `ki'ei ko'a .i .i` both parse. The grammar also accepts a frame without subsequent utterances, as in `ki'ei ko'a`. It also accepts consecutive frames, as in `ki'ei ko'a ki'ei ko'e .i broda`.
+The terms end at `.i`, another `ki'ei`, `ni'o`, or the enclosing text boundary. The grammar requires `.i` before an utterance after a frame. `.ije` does not serve, because it joins a statement to the one before it, and a frame is no statement. So `ki'ei ko'a .ije broda` is an error. Consecutive separators permit empty sentence positions before the first utterance, as in CLL paragraphs. Thus, `ki'ei ko'a .i .i broda` and `ki'ei ko'a .i .i` both parse. The grammar also accepts a frame without subsequent utterances, as in `ki'ei ko'a`. It also accepts consecutive frames, as in `ki'ei ko'a ki'ei ko'e .i broda`.
 
 The CLL rules place `ni'o` outside each paragraph. This pipeline groups each frame with the `.i` sequence that follows it in the same paragraph. The grammar records these boundaries without deciding how an interpreter carries context across them.
 
@@ -70,7 +72,7 @@ This example accepts terms as payloads. It rejects a full predicate payload, suc
 
 ## Differences from the format 49 example
 
-The format 49 copy of this example is `grammars/lojban/examples/kihei/pipeline.md`. Both copies read the same texts and give the same tokens and parse trees.
+The format 49 copy of this example is `grammars/lojban/examples/kihei/pipeline.md`. The two blocks of this layer change nothing against that copy. The inherited CLL stages differ from their format 49 copies as the closing sections of the CLL documents say. A layer takes the differences of its base with it. So `ki'ei ui ko'a .i broda` gives one `ki'ei` token that covers its `ui`.
 
 - The format 49 copy declares the class with `%classifier lexicon` and the entry `"ki'ei" ∈ KIhEI`. This copy redefines the constant `$LEXICON`, because the format 50 lexicon is a constant of the forms stage. The interface of the stage names every class of the lexicon, so the new class is public with no further declaration.
 - The syntax rules are the same.
