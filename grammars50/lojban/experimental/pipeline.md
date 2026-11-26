@@ -177,7 +177,7 @@ Its [sumti comparison](syntax.md#terms-and-descriptions) explains connections af
 
 ### Quotes and indicators
 
-A replacement quote is one unit of raw words in the words stage (`../common/lohai.md`), as in camxes-exp. A magic word is a word, such as `si`, that acts on other words. A magic word after the quote acts on all of it, as the left-to-right rule requires. Zantufa also accepts all four texts below, but its `zei` erases, so it reads the compound as `broda`. camxes-exp rejects them:
+A replacement quote is one unit of raw words in the words stage ([../common/lohai.md](../common/lohai.md)), as in camxes-exp. A magic word is a word, such as `si`, that acts on other words. A magic word after the quote acts on all of it, as the left-to-right rule requires. Zantufa also accepts all four texts below, but its `zei` erases, so it reads the compound as `broda`. camxes-exp rejects them:
 
 - `mi lo'ai do le'ai si klama` is `mi klama`, and camxes-exp rejects it.
 - `lo'ai mi le'ai bu` is a letter word, and `lo'ai mi le'ai zei broda` a compound. camxes-exp rejects both.
@@ -208,10 +208,12 @@ camxes-exp always uses the name-as-predicate merger and the SOI subsentence form
 
 The format 49 copy of this pipeline is `grammars/lojban/experimental/pipeline.md`. Its stages, features and directives are the same. The deliberate changes are these:
 
+- [Cyrillic](cyrillic.md#differences-from-the-format-49-grammar): a zbalermorna shorthand before a capital or accented Cyrillic vowel carries no `Capital` or `Accented`. The phoneme stage is the first stage that differs for it.
+- [Word forms](../common/forms.md#differences-from-the-format-49-grammar): a material pause keeps the decomposed text of its mark as its value. The forms stage is the first stage that differs for a text with such a mark.
 - [The word stream](../common/stream.md#differences-from-the-format-49-grammar): a y letteral, as in `.y. bu`, carries no `Y-Key` or `Ieho`. The words stage is the first stage that differs for it.
 - [Indicators](../cll/indicators.md#differences-from-the-format-49-grammar) and [the experimental indicators](indicators.md#differences-from-the-format-49-grammar): a leading attitudinal with its `nai` is one token, and a token covers its satellites. The indicators stage is the first stage that differs for these.
 - [Syntax](../cll/syntax.md#differences-from-the-format-49-grammar) and [the experimental syntax](syntax.md#differences-from-the-format-49-grammar): `indicator` and `cihau-run` read no `NAI` after an attitudinal, because the indicators stage hands on the pair as one token.
 
-The other documents hand on the same tokens as their format 49 copies. Their closing sections name the differences inside a stage, which no later stage reads.
+The other documents hand on the same tokens as their format 49 copies. Their closing sections name the differences inside a stage, which no later stage reads. On a rejected text, the expected terminals can differ too. The closing sections of [the experimental word stream](stream.md#differences-from-the-format-49-grammar) and [the experimental syntax](syntax.md#differences-from-the-format-49-grammar) name those changes.
 
 [^cll-s3-12]: [CLL 1.1, section 3.12](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-oddball-orthographies.html).

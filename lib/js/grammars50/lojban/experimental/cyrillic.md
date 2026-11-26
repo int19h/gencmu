@@ -183,6 +183,6 @@ Joined vowels retain the apostrophe insertion of [../common/cyrillic.md](../comm
 
 ## Differences from the format 49 grammar
 
-The format 49 copy of this document is `grammars/lojban/experimental/cyrillic.md`. Both copies hand on the same phoneme tokens, with the same values, images and tags.
+The format 49 copy of this document is `grammars/lojban/experimental/cyrillic.md`. Both copies hand on the same phoneme tokens, with the same values and images. Their tags differ in one case. A [zbalermorna](../common/zbalermorna.md) shorthand mark can stand before a capital or accented Cyrillic vowel. The format 49 copy then also hands on `Capital` or `Accented`, which are private tags of this stage. Here the stage's interface drops them.
 
 The format 49 copy restates `joined-vowel-with` to keep only the public vowel tags on a joined vowel. Here the shared rule of [../cll/latin.md](../cll/latin.md) hands on the vowel's own token, and the stage's interface cuts its tags. So this document does not restate it.

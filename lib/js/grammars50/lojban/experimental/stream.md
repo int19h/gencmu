@@ -4,7 +4,7 @@ This document is part of the words stage in the [experimental](pipeline.md) pipe
 
 [The word forms](morphology.md) tag CgV names and predicate words with `Cgv-Warning`. A nucleus is the vowel, diphthong or `y` at the center of a syllable. A glide is `i` or `u` before a nucleus. CgV combines a consonant, glide and nucleus. This stage enables the warning `experimental-cgv` by default. Disabling it changes no reading.
 
-The warning covers each marked word that the chosen derivation reads as Lojban. ZO targets, grammatical quotes, and ungrammatical quotes retain it. Replacement quotes still read Lojban words, so their marked words warn too. Erasure keeps warnings from the words that it reads. An opening delimiter also reads as a word and can warn.
+The warning covers each marked word that the chosen derivation reads as Lojban. ZO targets, grammatical quotes, and ungrammatical quotes retain it. Replacement quotes still read Lojban words, so their marked words warn too. A word that erasure removes drops its warning, and a word that survives keeps it. An opening delimiter also reads as a word and can warn.
 
 An opaque foreign body contains no such word reads. Thus ZOI bodies, including `la'o`, and raw one-word bodies cannot warn about their contents. Text after active FAhO cannot warn either. A raw closing delimiter also supplies no predicate or name read. `zoi gy. atkuila .gy.` needs no CgV word form in its body.
 
@@ -168,3 +168,5 @@ The LUhEI boundary extends this pipeline's SU stopping classes by analogy with L
 The format 49 copy of this document is `grammars/lojban/experimental/stream.md`. Both copies read the same texts and hand on the same tokens.
 
 `experimental-cgv` keeps its word as the primary and deletes `Cgv-Warning`. The format 49 copy copies the word's tags without that key. `zei-spelling` tests each spelling in the body, as `Cmavo="ze'ei"`. The format 49 copy compares the value in a condition. `zehei-compound` takes its value from the node of its right word, where the format 49 copy reads the string that the right word emits.
+
+The raw quotes of `zo'oi`, `do'oi` and `mu'oi` use the payload rules of [the shared word stream](../common/stream.md#differences-from-the-format-49-grammar). So a rejected text in such a quote names `run-token` in `expected`, where the format 49 copy names `payload-token`. That document explains when it happens.

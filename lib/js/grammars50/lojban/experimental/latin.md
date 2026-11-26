@@ -291,9 +291,9 @@ A capital without an accent has two readings. One is stressed, for an ordinary r
 
 A breve on `i` or `u` makes a glide letter, which the next section reads. The vowel is one token. Its public tags are `Vowel`, `Stressed`, `Glide` and `Onglide` where it has them. The other tags stay inside the stage.
 
-The `Vowel` tag marks the five full vowels and not `y`. So `latin-full-vowel` holds the full vowels of `latin-vowel`, and the `y` forms and the glide letter stay in `latin-vowel`.
+The `Vowel` tag marks the five full vowels and not `y`. So `latin-full-vowel` holds the full vowels and carries `Vowel` on its header. `latin-non-y-vowel` adds the glide letters to them, and `latin-y-vowel` holds the `y` forms. `latin-vowel` reads either rule. Each of the two emits its token, so a rule that reads one of them still hands on that token.
 
-`vowel-readings` gives the five readings of one vowel letter: plain, stressed by an accent, an accented capital, a capital, and a folded capital. Its last parameter names the marks that the letter cannot take, such as the ogonek on `a`, which makes a diphthong. A dieresis is a mark of the letter, so `latin-vowel` tests it with a query of the letter's own marks. The query names the mark by its tag, so `named-mark` stays the one list of the marks.
+`vowel-readings` gives the five readings of one vowel letter: plain, stressed by an accent, an accented capital, a capital, and a folded capital. Its last parameter names the marks that the letter cannot take, such as the ogonek on `a`, which makes a diphthong. A dieresis is a mark of the letter, so `latin-non-y-vowel` and `latin-y-vowel` test it with a query of the letter's own marks. The query names the mark by its tag, so `named-mark` stays the one list of the marks.
 
 ```jbogenbau
 %rule vowel-readings(@Lower, @Upper, @Value, @Image, @Excluded)
@@ -311,39 +311,51 @@ The `Vowel` tag marks the five full vowels and not `y`. So `latin-full-vowel` ho
   | ^vowel-readings("o", "O", = "o", = "O", <¬Ogonek>)
   | ^vowel-readings("u", "U", = "u", = "U", <¬Breve>)
 
-%rule latin-vowel → {$.parse(… named-mark<Dieresis> …)? Dieresis}
+%rule latin-non-y-vowel → {$.parse(… named-mark<Dieresis> …)? Dieresis}
   | ^latin-full-vowel
-  | ^vowel-readings("y", "Y", = "y", = "Y", <>)
   | ^glide-letter
 %emit
 
+%rule latin-y-vowel
+  ^vowel-readings("y", "Y", = "y", = "Y", <>) → {$.parse(… named-mark<Dieresis> …)? Dieresis}
+%emit
+
+%rule latin-vowel
+  latin-non-y-vowel | latin-y-vowel
+
 %redefine-rule plain-vowel
-  $v:latin-vowel<¬Stressed ¬Folded ¬Dieresis> → {$v'value ≠ "y"? Vowel}
+  | latin-non-y-vowel<¬Stressed ¬Folded ¬Dieresis> → {Vowel}
+  | latin-y-vowel<¬Stressed ¬Folded ¬Dieresis> → {}
 
 %redefine-rule stressed-vowel
-  $v:latin-vowel<Stressed ¬Folded ¬Dieresis> → {Stressed, $v'value ≠ "y"? Vowel}
+  | latin-non-y-vowel<Stressed ¬Folded ¬Dieresis> → {Stressed, Vowel}
+  | latin-y-vowel<Stressed ¬Folded ¬Dieresis> → {Stressed}
 
-%redefine-rule folded-vowel → {$v'value ≠ "y"? Vowel}
-  | $v:latin-vowel<Capital ¬Stressed ¬Dieresis>
-  | $v:latin-vowel<Accented ¬Dieresis>
-  | $v:latin-diphthong-i<Capital ¬Stressed ¬Dieresis>
-  | $v:latin-diphthong-i<Accented ¬Dieresis>
-  | $v:latin-diphthong-u<Capital ¬Stressed ¬Dieresis>
-  | $v:latin-diphthong-u<Accented ¬Dieresis>
+%redefine-rule folded-vowel
+  | latin-non-y-vowel<Capital ¬Stressed ¬Dieresis> → {Vowel}
+  | latin-non-y-vowel<Accented ¬Dieresis> → {Vowel}
+  | latin-y-vowel<Capital ¬Stressed ¬Dieresis> → {}
+  | latin-y-vowel<Accented ¬Dieresis> → {}
+  | latin-diphthong-i<Capital ¬Stressed ¬Dieresis> → {Vowel}
+  | latin-diphthong-i<Accented ¬Dieresis> → {Vowel}
+  | latin-diphthong-u<Capital ¬Stressed ¬Dieresis> → {Vowel}
+  | latin-diphthong-u<Accented ¬Dieresis> → {Vowel}
 ```
 
-<details><summary>Railroad diagrams of the 6 rules from <code>vowel-readings</code> to <code>folded-vowel</code></summary>
+<details><summary>Railroad diagrams of the 8 rules from <code>vowel-readings</code> to <code>folded-vowel</code></summary>
 <p><img src="../../../docs/diagrams/50/lojban/experimental/latin/vowel-readings.svg" alt="Railroad diagram of the rule vowel-readings"></p>
 <p><img src="../../../docs/diagrams/50/lojban/experimental/latin/latin-full-vowel.svg" alt="Railroad diagram of the rule latin-full-vowel"></p>
+<p><img src="../../../docs/diagrams/50/lojban/experimental/latin/latin-non-y-vowel.svg" alt="Railroad diagram of the rule latin-non-y-vowel"></p>
+<p><img src="../../../docs/diagrams/50/lojban/experimental/latin/latin-y-vowel.svg" alt="Railroad diagram of the rule latin-y-vowel"></p>
 <p><img src="../../../docs/diagrams/50/lojban/experimental/latin/latin-vowel.svg" alt="Railroad diagram of the rule latin-vowel"></p>
 <p><img src="../../../docs/diagrams/50/lojban/experimental/latin/plain-vowel.svg" alt="Railroad diagram of the rule plain-vowel"></p>
 <p><img src="../../../docs/diagrams/50/lojban/experimental/latin/stressed-vowel.svg" alt="Railroad diagram of the rule stressed-vowel"></p>
 <p><img src="../../../docs/diagrams/50/lojban/experimental/latin/folded-vowel.svg" alt="Railroad diagram of the rule folded-vowel"></p>
 </details>
 
-Nothing reads the inherited `accented-full-vowel` or `folded-full-vowel` rules in this pipeline. The restated vowel rules read `latin-vowel` instead.
+Nothing reads the inherited `accented-full-vowel` or `folded-full-vowel` rules in this pipeline. The restated vowel rules read `latin-non-y-vowel` and `latin-y-vowel` instead.
 
-The three restated rules have no `%emit`. An ordinary vowel hands on the token of `latin-vowel`. The [zbalermorna shorthand reader](../common/zbalermorna.md) instead reads `plain-vowel` or `stressed-vowel` through `zbalermorna-shorthand-vowel`. It copies their tags, so their terms supply its `Vowel` and `Stressed` tags. The terms give `Vowel` to every vowel whose value is not `y`. The `Vowel` tag also turns a glide letter into an ordinary vowel before the shorthand's inserted apostrophe. The shorthand needs that tag to preserve its word forms.
+The three restated rules have no `%emit`. An ordinary vowel hands on the token of `latin-non-y-vowel` or `latin-y-vowel`. The [zbalermorna shorthand reader](../common/zbalermorna.md) instead reads `plain-vowel` or `stressed-vowel` through `zbalermorna-shorthand-vowel`. It copies their tags, so their terms supply its `Vowel` and `Stressed` tags. The terms give `Vowel` to each reading of `latin-non-y-vowel` and to each diphthong, and not to a reading of `latin-y-vowel`. So the rule that matched decides the tag, and no value test does. The `Vowel` tag also turns a glide letter into an ordinary vowel before the shorthand's inserted apostrophe. The shorthand needs that tag to preserve its word forms.
 
 ## Glide letters
 
@@ -527,4 +539,4 @@ The format 49 copy of this document is `grammars/lojban/experimental/latin.md`. 
 - The stage's interface names `Glide` and `Onglide`. The format 49 copy hands them on through its emission lists.
 - `vowel-readings` and `diphthong-readings` state the five readings of a letter once. The format 49 copy writes each reading of each letter as its own row.
 - A vowel or diphthong letter tests its dieresis with a query of its own marks. The format 49 copy copies the tag from its optional marks.
-- A restated vowel rule gives `Vowel` where the value of its vowel is not `y`. The format 49 copy reads the first input character.
+- A restated vowel rule gives `Vowel` on `latin-non-y-vowel` and not on `latin-y-vowel`. The format 49 copy tests whether the first input character is `y` or `Y`.

@@ -1516,9 +1516,9 @@ The inspected Zantufa grammar has no SOhOI, CAhEI, or CIhAU construction. These 
 
 The format 49 copy of this layer is `grammars/lojban/experimental/syntax.md`. It reads the same texts, with one change of tokens that the indicator stage makes.
 
-The [experimental indicator stage](indicators.md) hands on a leading attitudinal with its `nai` as one token, as after a word. So `cihau-run` reads UI and CAI tokens and no separate NAI. The format 49 copy reads `UI [NAI]` and `CAI [NAI]` there. Both copies reject `mi ci'au ui nai nai do` at the second `nai`. A bracket form changes with the token: the pair shows as one unit with `nai` as its satellite, as in `ui ba'e nai cai`.
+The [experimental indicator stage](indicators.md) hands on a leading attitudinal with its `nai` as one token, as after a word. So `cihau-run` reads UI and CAI tokens and no separate NAI. The format 49 copy reads `UI [NAI]` and `CAI [NAI]` there. Both copies reject `mi ci'au ui nai nai do` at the second `nai`. A bracket form changes with the token: the pair shows as one unit with `nai` as its satellite, as in `ui ba'e nai cai`. On a rejected text, `expected` changes with the rule. It names `cihau-run` for CAI, where the format 49 copy names `cihau-cai`. It names no NAI after an attitudinal there.
 
-The tests of an omitted KU, KEhE or VAU read the origin of the leaf, as `KU<_Elided>`. The format 49 copy tests an empty value. An omitted terminator has the empty value and a written one has its word, so both select the same leaves.
+The tests of an omitted KU, KEhE or VAU read the origin of the leaf, as `KU<_Elided>`. The format 49 copy tests an empty value. An omitted terminator has the empty value and a written one has its word, so both select the same leaves. A rejected text that stops at such a test names the terminator with `<_Elided>` in `expected`, as `VAU<_Elided>`. The format 49 copy names it with `=""`, as `VAU=""`.
 
 `me-unit` writes its sumti and its mekso as two alternatives, so that its condition reads one bound mekso. The reset head of `top-sentence` is optional, so its test reads `$h.all(…)`, which holds without a head. Both read the same texts as the format 49 copy.
 

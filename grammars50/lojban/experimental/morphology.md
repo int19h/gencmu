@@ -63,7 +63,7 @@ Thus `atkuila` and `zgiaca'a` are borrowings, while `language` remains foreign. 
 
 The guard excludes neither cluster onsets nor CVV rafsi nor rafsi later in a borrowing. Thus `lanstia`, `baltcuiska`, `baistia` and `bailanguaska` remain borrowings. Borrowing rafsi retain their separate head exclusion. Their final onset before `y` remains ordinary, so `spagetiybroda` and `spagekuykla` stay foreign.
 
-The forms stage marks each CgV name or predicate word with `Cgv-Warning`. The part query reads only that word, so it cannot mark CgV in a later word. The base names its shapes as instances of `word-shape`. So this layer binds each name to an instance of `cgv-shape`, which reads the base instance as its primary and keeps the word's tags and strings. A redefinition by the name alone would edit the base instance, and its body would then read itself. `Cgv-Warning` is a public key of the stage, because the words stage reads it, so this layer adds it to `$OUTPUTS`. [The experimental word stream](stream.md) reads this tag and supplies the warning.
+The forms stage marks each CgV name or predicate word with `Cgv-Warning`. The part query reads only that word, so it cannot mark CgV in a later word. The base names its shapes as instances of `word-shape`. So this layer binds each name to an instance of `cgv-shape`. That rule reads the base instance as its primary and keeps the word's tags and strings. A redefinition by the name alone would edit the base instance, and its body would then read itself. `Cgv-Warning` is a public key of the stage, because the words stage reads it, so this layer adds it to `$OUTPUTS`. [The experimental word stream](stream.md) reads this tag and supplies the warning.
 
 ```jbogenbau
 %redefine-const $OUTPUTS {*$OUTPUTS, Cgv-Warning}
