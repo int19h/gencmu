@@ -26486,6 +26486,9 @@
     /** @param {any} value */
     data(value) {
       if (value.string !== undefined) return { string: value.string };
+      // A closed concatenation folds to its string.
+      const folded = closedConcat(value, this.dom.constants);
+      if (folded !== undefined) return { string: folded };
       // A list of strings, with its splats in place (part 1 §8).
       const strings = closedStringList(value, this.dom.constants);
       if (strings?.length) return { union: strings.map(text => ({ string: text })) };
@@ -28099,6 +28102,30 @@
     if (node.capture !== undefined) return isSingleSymbol(node.expr);
     if (node.choice) return node.choice.every(isSingleSymbol);
     return SYMBOL_KEYS.some(key => Object.hasOwn(node, key)) && !node.optional && !node.repeat;
+  }
+
+  /**
+   * The string of a closed concatenation of literals and constants of this
+   * document, or undefined.
+   * @param {any} node
+   * @param {any[]} constants
+   * @returns {string | undefined}
+   */
+  function closedConcat(node, constants, depth = 0) {
+    if (!node || typeof node !== "object" || depth > 32) return undefined;
+    if (node.string !== undefined) return node.string;
+    if (node.const !== undefined) {
+      const versions = constants.filter(constant => constant.name === node.const);
+      return versions.length === 1 ? closedConcat(versions[0].value, constants, depth + 1) : undefined;
+    }
+    if (!Array.isArray(node.concat)) return undefined;
+    let text = "";
+    for (const part of node.concat) {
+      const piece = closedConcat(part, constants, depth + 1);
+      if (piece === undefined) return undefined;
+      text += piece;
+    }
+    return text;
   }
 
   /** The placeholder of a constant whose value the recognizer cannot hold. */
