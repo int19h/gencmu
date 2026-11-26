@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { GencmuError } from "../../lib/js/src/errors.js";
 import { compactJson } from "../../lib/js/src/output.js";
-import { nameFields50, operandFields50 } from "../../lib/js/src/format50/records.js";
+import { nameFields50, operandFields50, recordKind50 } from "../../lib/js/src/format50/records.js";
 import { validateDocument50 } from "../../lib/js/src/format50/validate.js";
 import { createTransitionCompiler } from "../transition-compiler.js";
 import { inspectConverted50 } from "./dom.js";
@@ -59,6 +59,9 @@ function shuffle(seed) {
   };
 }
 
+// The forms whose replacement is a rule reference rather than a constant.
+const refReplaced = new Set(["wildcard", "wildcardArgument", "patternWildcard", "empty", "primary", "splice", "spliceArgument"]);
+
 export function operandMutations(dom) {
   const result = [];
   function visit(node, path, parent, at, category) {
@@ -79,7 +82,7 @@ export function operandMutations(dom) {
       }
     }
     if (path.length > 2 && !wrappers.has(parent) && !names.some(key => typeof node[key] === "string")) {
-      const name = node.wildcard || node.empty || node.primary || node.splice ? { ref: invalidName } : { const: invalidName };
+      const name = refReplaced.has(recordKind50(node, category)) ? { ref: invalidName } : { const: invalidName };
       result.push({ path, value: { ...name, at: site } });
     }
     for (const [key, child, childKind] of operandFields50(node, category)) visit(child, [...path, key], key, site, childKind);

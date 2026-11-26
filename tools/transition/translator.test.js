@@ -4,7 +4,7 @@ import { after, test } from "node:test";
 import { translateSharedCase as translate } from "../translate-shared-cases.js";
 import { createDifferential, fixtureDifferential } from "./differential.js";
 import { transitionBatch } from "./sweep.js";
-import { operandFields50 } from "../../lib/js/src/format50/records.js";
+import { operandFields50, recordKind50 } from "../../lib/js/src/format50/records.js";
 import { Token } from "../../lib/js/src/node.js";
 import { loaderWith } from "../../lib/js/test/shared.js";
 
@@ -338,7 +338,7 @@ test("stage feature reads address the input span and a guarded literal gives a l
   for (const name of ["stage-features-token-methods.json", "stage-features-token-guarded-string.json"]) {
     const migrated = translateSharedCase("engine", name, legacyFixture("engine", name));
     const dom = compiler.compileDocument(migrated.fixture.documents["p.md"]);
-    const [first] = dom.directives.find(directive => directive.conditions?.length).conditions;
+    const [first] = dom.directives.find(directive => recordKind50(directive, "directives") === "features").conditions;
     if (first.op === "=") assert.equal(first.left.receiver.map.receiver.capture, "");
     else {
       assert.equal(first.op, "∈");
