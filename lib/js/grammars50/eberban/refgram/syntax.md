@@ -206,7 +206,7 @@ The `@Open` bar rejects a words route only for an error-free sentence witness. O
 
 When its first word is an error-free `quote-ender`, the term of `erased-words` gives it the tag `Closer-Head`. When its first word is an error-free `cai`, with or without free prefixes, the term gives it `Cai-Head`, which the quote rules read. An erased node keeps its tags, so a pattern can still read it. A quote guard reads this tag because the seal hides the real head. Its pattern follows only that quote's own paragraphs and sentences. It does not enter nested text.
 
-The chapter erases back to the start of the last sentence that was still grammatical. A sentence inside a parenthetical that is still open is such a start, so an erasure cannot reach back past it. The condition of `erased-words` states that, through `note-walk`. The walk reads the erased words from their start, as the text does. A `ci` with the word it quotes, a clean written quote and a closed note are units of the walk. So a `da` that `ci` quotes, or a `da` inside a written quote, opens no note. The walk stops at `open-note-start`, a clean `da` that a word before it can host. The annotations chapter makes a note a suffix, so it needs a word to annotate. No free suffix follows junk, a stray prefix, a quote opener, `pi`, `bo` or `be`. The start of the erased words has no host either. So `a nt da a ke ra a mo` and `da a ke ra a mo` keep their last sentence. After that `da`, the note has started a sentence, with flags or a paragraph mark first, and it does not close inside the erased words.
+The chapter erases back to the start of the last sentence that was still grammatical. A sentence inside a parenthetical that is still open is such a start, so an erasure cannot reach back past it. The condition of `erased-words` states that, through `note-walk`. The walk reads the erased words from their start, as the text does. A `ci` with the word it quotes, a clean written quote and a closed note are units of the walk. So a `da` that `ci` quotes, or a `da` inside a written quote, opens no note. The walk stops at `open-note-start`, a clean `da` that a word before it can host. The annotations chapter makes a note a suffix, so it needs a word to annotate. `note-host` lists the words that a free suffix can follow, from the rules that read one. They are a starter, a binder, an enumeration opener, a paragraph mark, the last word of a verb, a `ci` pair, and the clean `dai` of an earlier note. The start of the erased words has no host. So `a nt da a ke ra a mo`, `a mi ca chei da ke caih ra a ke` and `da a ke ra a mo` keep their last sentence, because junk, a faulty `chei` and the start of the text host no note. After that `da`, the note has started a sentence, with flags or a paragraph mark first, and it does not close inside the erased words.
 
 The annotations chapter says that `da` starts a note and `dai` ends it, and it is silent on a note with an error. This grammar decides that a note ends at the clean `dai` that balances its clean `da`, for consistency with quotes. An error inside a closed quote stays inside that quote, and an error inside a note stays inside the note in the same way. So `closed-note` finds that `dai` by tokens. It skips each nested note, each `ci` pair and each clean written quote. A written quote is clean where `written-quote`, the rule that the quote itself uses, reads it with no error. Its inner erasures are part of it, so a `dai` that an inner `ra` erases stays inside the quote, as in `a mi da a ca a pban dai ra a ke cai dai`. A clean `dai` ends a quote whose `cai` is left out, so in `a mi da a ca mo dai ke cai ra a ke` the quote is not clean, and that `dai` closes the note. The test reads tokens and not a parse of the note, because a closed note can hold an error. `note-tokens` and `note-start` seal the tokens of the note, so their errors do not hide the `dai` from the query. A faulty `da` or `dai`, as in `dah` or `daih`, opens or closes nothing, as a faulty `caih` closes no quote. A `ci` quotes only what `ci-operand` reads, the same operand as `word-quote`, and a faulty `cih` quotes nothing. `clean-da`, `clean-dai`, `clean-ci`, `clean-ca` and `clean-cai` define the clean markers once. The rules that open or close a note, a written quote or a sentence read them, and so do the scans. So in `a mi da a pban dai ra a mo`, `a mi da a vi dai ra a mo` and `a mi da a zi dai ra a ke`, the note is closed, and `ra` erases the whole first sentence. In `a mi da a mo daih ra a ke`, the note stays open, and the text is rejected with `unclosed-parenthetical`. So `ra` in `a mi da a ke ra a mo` erases `a ke` inside the open parenthetical, and the text ends with that parenthetical still open. An unclosed foreign quote gets the same treatment in the [word forms](morphology.md).
 
@@ -280,18 +280,26 @@ Erased text can follow an erasure too, because the later `ra` erases it. So `aft
   clean-da note-start
 %conditions
   ¬$.onward.parse(closed-note …),
-  $.preceding-tokens.parse(… _),
-  ¬$.preceding-tokens.parse(… note-unhost [DU])
+  $.preceding-tokens.parse(… note-host [DU])
 
--- A da with no word before it in the erased words, or after a word that hosts no suffix.
+-- A da with no word before it in the erased words, or after a word that takes no free suffix.
 %rule unhosted-da
   clean-da
 %conditions
-  ¬$.preceding-tokens.parse(… _) ∨ $.preceding-tokens.parse(… note-unhost [DU])
+  ¬$.preceding-tokens.parse(… note-host [DU])
 
--- No free suffix follows junk, a stray prefix, a quote opener or a word that only starts a verb.
-%rule note-unhost
-  Junk | Stray-Prefix | CA | PI | BO | BE
+-- The words that a free suffix can follow, by the rules that read [{free-suffix}]: a starter, a binder,
+-- an enumeration opener, a paragraph mark, the end of a verb or of an earlier note.
+%rule note-host
+  | A | O | PO | BI | VI | FI | PE | PEI
+  | GI | Freeform | Compound | Root | KI | BA | MI | Stray-Prefix
+  | CE<Quote>
+  | CO<Quote>
+  | COI | Borrowing
+  | TI | JU | JO | JA | JE | JI
+  | clean-cai
+  | clean-dai
+  | ci-pair
 
 -- The note has started a sentence. Its errors are sealed, as in the text of the note.
 %rule note-start
@@ -401,7 +409,7 @@ Erased text can follow an erasure too, because the later `ra` erases it. So `aft
 <p><img src="../../../docs/diagrams/50/eberban/refgram/syntax/walk-token.svg" alt="Railroad diagram of the rule walk-token"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/syntax/open-note-start.svg" alt="Railroad diagram of the rule open-note-start"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/syntax/unhosted-da.svg" alt="Railroad diagram of the rule unhosted-da"></p>
-<p><img src="../../../docs/diagrams/50/eberban/refgram/syntax/note-unhost.svg" alt="Railroad diagram of the rule note-unhost"></p>
+<p><img src="../../../docs/diagrams/50/eberban/refgram/syntax/note-host.svg" alt="Railroad diagram of the rule note-host"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/syntax/note-start.svg" alt="Railroad diagram of the rule note-start"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/syntax/closed-note.svg" alt="Railroad diagram of the rule closed-note"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/syntax/note-tokens.svg" alt="Railroad diagram of the rule note-tokens"></p>
