@@ -45,6 +45,8 @@ export declare class Bridge {
     opaque: Set<string>;
     /** @type {Map<string, GencmuError>} */
     constantReads: Map<string, GencmuError>;
+    /** @type {Map<string, GencmuError>} the constants that this document folds */
+    foldedConstants: Map<string, GencmuError>;
     /** @type {Set<string>} */
     untaggedPayloads: Set<string>;
     /** @type {Map<string, GencmuError>} */
@@ -96,6 +98,36 @@ export declare class Bridge {
         tagSources: Map<string, Set<string>>;
         opaque: Set<string>;
         constantDeps: Map<string, Set<string>>;
+        foldedConstants: Map<string, GencmuError>;
+        definedConstants: Set<any>;
+        constantReads: Map<string, GencmuError>;
+        untaggedPayloads: Set<string>;
+        nativeReads: Map<string, GencmuError>;
+        instances50: any[];
+    };
+    /** @param {string} name @param {any} at */
+    noteFold(name: string, at: any): void;
+    lowerDocument(): {
+        format: number;
+        rules: any;
+        directives: any;
+        constants: {
+            name: any;
+            op: any;
+            value: any;
+            at: any;
+            origin50: string;
+        }[];
+        classifiers: any[];
+        implications: never[];
+        untranslated: Map<string, GencmuError>;
+        deferred: GencmuError[];
+        keyReaders: Set<string>;
+        tagSources: Map<string, Set<string>>;
+        opaque: Set<string>;
+        constantDeps: Map<string, Set<string>>;
+        foldedConstants: Map<string, GencmuError>;
+        definedConstants: Set<any>;
         constantReads: Map<string, GencmuError>;
         untaggedPayloads: Set<string>;
         nativeReads: Map<string, GencmuError>;
@@ -120,6 +152,12 @@ export declare class Bridge {
         const: any;
         at?: any;
     };
+    /**
+     * The recognizer's string of a concatenation or a constant reference,
+     * with its constants as references, or null.
+     * @param {any} value
+     */
+    stringData(value: any): any;
     /**
      * A placeholder with the type of the form of a value: a key set, a list
      * of strings, a pattern or a string. The recognizer never reads it.

@@ -28854,6 +28854,8 @@
       // any document of the stage gives the constant only a placeholder.
       /** @type {Map<string, GencmuError>} */
       this.constantReads = new Map();
+      /** @type {Map<string, GencmuError>} the constants that this document folds */
+      this.foldedConstants = new Map();
       // The keys with no finite domain that some write cannot give a value tag
       // in recognition, and the first read of each such key. The loader fails
       // on a read of a key that a write of the stage cannot tag.
@@ -28897,6 +28899,28 @@
     }
 
     document() {
+      foldNotes.set(this.dom.constants, (/** @type {any} */ name, /** @type {any} */ at) => this.noteFold(name, at));
+      try {
+        return this.lowerDocument();
+      } finally {
+        foldNotes.delete(this.dom.constants);
+      }
+    }
+
+    // A fold of a constant from the versions of this document. The loader
+    // fails on it where another document of the stage has a version of the
+    // constant, since the fold would read an earlier version.
+    /** @param {string} name @param {any} at */
+    noteFold(name, at) {
+      if (this.foldedConstants.has(name)) return;
+      try {
+        this.fail(`fold the constant $${name}, which another document of the stage redefines`, at);
+      } catch (error) {
+        this.foldedConstants.set(name, /** @type {GencmuError} */ (error));
+      }
+    }
+
+    lowerDocument() {
       this.hidden = hiddenKeys(this.dom);
       const constants = [];
       // The stage reads each constant through its format 50 record. The
@@ -28939,6 +28963,8 @@
         tagSources: this.tagSources,
         opaque: this.opaque,
         constantDeps: this.constantDeps,
+        foldedConstants: this.foldedConstants,
+        definedConstants: new Set(this.dom.constants.map((/** @type {any} */ constant) => constant.name)),
         constantReads: this.constantReads,
         untaggedPayloads: this.untaggedPayloads,
         nativeReads: this.nativeReads,
@@ -28987,28 +29013,31 @@
     /** @param {any} value */
     data(value) {
       if (value.string !== undefined) return { string: value.string };
-      // A closed concatenation folds to its string.
-      const folded = closedConcat(value, this.dom.constants);
-      if (folded !== undefined) return { string: folded };
-      // A list of strings, with its splats in place (part 1 §8).
-      const strings = closedStringList(value, this.dom.constants);
-      if (strings?.length) return setOf(strings.map(text => ({ string: text })));
-      // A pattern constant holds its pattern.
+      // A pattern constant holds its pattern, with its constants as atoms.
       if (value.pattern !== undefined) return { pattern: this.pattern(value.pattern) };
       if (isPatternSet(value)) {
         const pattern = patternSet(value);
         this.notePatternReaders(pattern);
         if (pattern !== EMPTY_PATTERN) return { pattern };
       }
+      // A value built from other constants keeps its references, and the
+      // recognizer reads the final version of each in the stage. A later
+      // document can redefine any of them (notation, "Constants": every other
+      // reference selects the final stitched version). A constant cannot hold
+      // the bare empty set, whose kind is not given.
+      if (mentionsConstant(value)) {
+        const term = this.setTerm(value, "keys") ?? this.setTerm(value, "strings") ?? this.stringData(value);
+        if (term && !term.emptySet) return term;
+      }
+      // A closed concatenation folds to its string.
+      const folded = closedConcat(value, this.dom.constants);
+      if (folded !== undefined) return { string: folded };
+      // A list of strings, with its splats in place (part 1 §8).
+      const strings = closedStringList(value, this.dom.constants);
+      if (strings?.length) return setOf(strings.map(text => ({ string: text })));
       // A key set of visible keys holds its tags.
       const keys = keySetKeys(value, this.dom.constants);
       if (keys?.length) return keys.length === 1 ? { tag: keys[0] } : { union: keys.map((/** @type {any} */ key) => ({ tag: key })) };
-      // A key set or a list of strings built from other constants, perhaps of
-      // another document, keeps its references. The recognizer resolves the
-      // final version of each one in the stage.
-      // A constant cannot hold the bare empty set, whose kind is not given.
-      const term = this.setTerm(value, "keys") ?? this.setTerm(value, "strings");
-      if (term && !term.emptySet) return term;
       // The recognizer reads only strings, lists of strings, patterns and key
       // sets from a constant. Any other constant gets a placeholder, and a
       // recognizer read of it fails at load.
@@ -29023,6 +29052,24 @@
     constantRead(node) {
       this.noteConstantRead(node.const, node.at);
       return { const: node.const, ...(node.at ? { at: node.at } : {}) };
+    }
+
+    /**
+     * The recognizer's string of a concatenation or a constant reference,
+     * with its constants as references, or null.
+     * @param {any} value
+     */
+    stringData(value) {
+      if (!Array.isArray(value.concat) && value.const === undefined) return null;
+      // The engine gives $INPUTS to the stage, and the recognizer has no
+      // constant of that name.
+      if (mentionsConstant(value, "INPUTS")) return null;
+      try {
+        return this.string(value);
+      } catch (error) {
+        if (!(error instanceof GencmuError)) throw error;
+        return null;
+      }
     }
 
     /**
@@ -29126,6 +29173,14 @@
             const inner = this.setTerm(item.value, kind);
             if (!inner) return null;
             parts.push(inner);
+            continue;
+          }
+          // An item that names a constant keeps its reference, as a string
+          // operand of the union, so that it reads the final version.
+          if (item.value?.string === undefined && mentionsConstant(item.value)) {
+            const term = this.stringData(item.value);
+            if (!term) return null;
+            parts.push(term);
             continue;
           }
           const text = item.value?.string ?? closedConcat(item.value, this.dom.constants);
@@ -29620,7 +29675,7 @@
         // A key set of visible keys has a tag term. A constant of another
         // document has its own, and the recognizer checks that it is a key set.
         const versions = this.dom.constants.filter((/** @type {any} */ constant) => constant.name === node.const);
-        if (!versions.every((/** @type {any} */ constant) => keySetKeys(constant.value, this.dom.constants)?.length || this.setTerm(constant.value, "keys"))) {
+        if (!versions.every((/** @type {any} */ constant) => this.setTerm(constant.value, "keys"))) {
           return this.fail("read the keys of the constant " + node.const, node.at ?? at);
         }
         this.noteConstantRead(node.const, node.at ?? at);
@@ -30214,6 +30269,10 @@
     /** @param {any} node */
     strings(node) {
       if (node.list) {
+        // A list that names constants keeps their references, so that it reads
+        // their final versions.
+        const referenced = mentionsConstant(node) ? this.setTerm(node, "strings") : null;
+        if (referenced) return referenced;
         const closed = closedStringList(node, this.dom.constants);
         if (closed?.length) return setOf(closed.map(text => ({ string: text })));
         // A gate decides which items the list holds, after the choice of
@@ -30394,6 +30453,7 @@
     if (versions.length !== 1) return null;
     const value = versions[0].value;
     if (value.lambda === undefined || bagsOnly && !value.body?.bag) return null;
+    noteFold(constants, node.apply, node.at);
     // An argument that names a binder of the body would change its meaning
     // inside that binder.
     const binders = new Set();
@@ -30588,6 +30648,7 @@
   /**
    * @param {any} value
    * @param {any} constants
+   * @returns {string[] | null}
    */
   function keySetKeys(value, constants = [], active = new Set()) {
     if (!value || typeof value !== "object") return null;
@@ -30598,7 +30659,9 @@
     if (value.const !== undefined) {
       const versions = constants.filter((/** @type {any} */ constant) => constant.name === value.const);
       if (versions.length !== 1 || active.has(value.const)) return null;
-      return keySetKeys(versions[0].value, constants, new Set([...active, value.const]));
+      const keys = keySetKeys(versions[0].value, constants, new Set([...active, value.const]));
+      if (keys !== null) noteFold(constants, value.const, value.at);
+      return keys;
     }
     const parts = value.union ?? value.intersection ?? value.difference;
     if (!parts) return null;
@@ -30755,7 +30818,10 @@
     if (!node || typeof node !== "object" || depth > 32) return null;
     if (node.const !== undefined) {
       const versions = constants.filter(constant => constant.name === node.const);
-      return versions.length === 1 ? closedStringList(versions[0].value, constants, depth + 1) : null;
+      if (versions.length !== 1) return null;
+      const strings = closedStringList(versions[0].value, constants, depth + 1);
+      if (strings !== null) noteFold(constants, node.const, node.at);
+      return strings;
     }
     if (!Array.isArray(node.list)) return null;
     /** @type {string[]} */
@@ -30982,6 +31048,30 @@
     return reads;
   }
 
+  // The note of each fold, by the array of constants that it reads. Only a
+  // document being lowered has one.
+  /** @type {WeakMap<any[], (name: string, at: any) => void>} */
+  const foldNotes = new WeakMap();
+
+  /** @param {any[]} constants @param {string} name @param {any} at */
+  function noteFold(constants, name, at) {
+    foldNotes.get(constants)?.(name, at);
+  }
+
+  // Whether an expression names a constant, or the constant of that name.
+  /** @param {any} node @param {string} [name] @returns {boolean} */
+  function mentionsConstant(node, name) {
+    /** @type {any[]} */
+    const pending = [node];
+    while (pending.length) {
+      const item = pending.pop();
+      if (!item || typeof item !== "object") continue;
+      if (!Array.isArray(item) && typeof item.const === "string" && (name === undefined || item.const === name)) return true;
+      for (const value of Object.values(item)) if (value && typeof value === "object") pending.push(value);
+    }
+    return false;
+  }
+
   /** @param {string} name */
   function isRuleName(name) {
     return !/^[A-Z_]/.test(name);
@@ -31055,7 +31145,10 @@
     if (node.string !== undefined) return node.string;
     if (node.const !== undefined) {
       const versions = constants.filter(constant => constant.name === node.const);
-      return versions.length === 1 ? closedConcat(versions[0].value, constants, depth + 1) : undefined;
+      if (versions.length !== 1) return undefined;
+      const text = closedConcat(versions[0].value, constants, depth + 1);
+      if (text !== undefined) noteFold(constants, node.const, node.at);
+      return text;
     }
     if (!Array.isArray(node.concat)) return undefined;
     let text = "";
@@ -35054,6 +35147,13 @@
         const deps = new Map();
         for (const document of documents) {
           for (const [name, names] of document.constantDeps) deps.set(name, new Set([...(deps.get(name) ?? []), ...names]));
+        }
+        // A fold of a constant from one document reads an earlier version where
+        // another document of the stage has a version of it.
+        for (const document of documents) {
+          for (const [name, error] of document.foldedConstants) {
+            if (documents.some(other => other !== document && other.definedConstants.has(name))) throw error;
+          }
         }
         // A read of the run-time value tag of a payload needs every write of
         // the key in the stage to give that tag.
