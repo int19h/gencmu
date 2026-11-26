@@ -709,7 +709,7 @@ A call is a rule symbol. Captures, tests, patterns, rule-valued method arguments
 
 #### Arguments and substitution
 
-An argument is one term, separated from other arguments by a comma at the call's outer level. Delimiters protect punctuation inside an argument. Parenthesized body expressions and `ε` pass sequences as one argument. No extra sequence sigil exists.
+An argument is one term, separated from other arguments by a comma at the call's outer level. Delimiters protect punctuation inside an argument. Parenthesized body expressions and `ε` pass sequences as one argument. No extra sequence sigil exists. A compound capture classifies its written target before substitution (§3.2).
 
 ```jbogenbau
 %rule link(@Prefix, @Body)
@@ -1014,6 +1014,8 @@ Flat braces are a helper too. `{x}` is `h → x | h x`, and `{x / s}` is `h → 
 
 A capture inside `x` or `s` supplies bindings from the corresponding helper advances. The helper can retain a frame of outer observations (§4).
 
+A compound capture classifies its written target before substitution, after redundant parentheses are removed. `$x:(@T)` and `$x:@T` both require one symbol after substitution. `$x:[@T]` accepts a body argument within the written optional. A written compound operand keeps its operator through substitution. Lower its children in their existing scope. Retain the entry and successful exit of each visit, including an empty visit. The outer label does not count as a label inside an optional for its expansion rule.
+
 `A₁ & … & Aₙ` has at most 16 items. More is an error of the document (§9), since the expansions number 2ⁿ−1. It expands to every non-empty subsequence that keeps their order. The subsequences come in the order of the binary numbers 1 to 2ⁿ−1, with `A₁` as the lowest bit. `ε` is the empty sequence. A sequence's expansions are the products of its items' expansions, the first item varying slowest.
 
 So `A [$b:B] [$c:C]` expands to `A`, `A C`, `A B` and `A B C`, in that order. `A [B] [$c:C]` expands to `A h` and `A h C`, which share one helper `h → ε | B`. A plain optional that holds a capture, whose content has k expansions, contributes 1 + k expansions: the empty one, then those k. A sequence multiplies these counts, as for a choice. So `[$b:B]` doubles the expansions of its alternative, and `[($a:A | B | C)]` contributes four. The nested `[A [$b:B]]` contributes three: `ε`, `A` and `A B`.
@@ -1058,13 +1060,15 @@ Number ranked options in source order before later siblings. No ranked helper is
 
 ### 3.5 Captures
 
-A capture `$x:s` must wrap a single symbol `s`, which can be tested. It can stand anywhere in the expression of an alternative, at any depth. That includes a group, a choice, an item of `&` and a plain optional. It cannot stand directly in a chain's item or separator. Flat braces inside a chain can bind lists. Inside an elidable optional, only the capture of its sole terminator is legal (§3.8, §9).
+A capture `$x:s` labels a symbol `s`, which can be tested, or a compound operand. A compound operand is an optional, a flat repetition, or a parenthesized compound expression ([Captures](notation.md#captures)). A capture can stand anywhere in the expression of an alternative, at any depth. That includes a group, a choice, an item of `&` and a plain optional. It cannot stand directly in a chain's item or separator, and a direct chain cannot take a label. Flat braces inside a chain can bind lists. Inside an elidable optional, only the capture of its sole terminator is legal (§3.8, §9).
 
 Infer the type of a slot from the routes of its alternative. One binding on each route gives a node. A possibly absent slot gives a list of zero or one. A repetition gives a flat list in input order.
 
 A name cannot bind twice on one route. Mutually exclusive branches can fill the same slot. For example, `A ($x:B | $x:C)` is valid. `[$x:A] $x:B` and `$x:A & $x:B` can bind it twice and fail.
 
 Keep bindings across helper expansion on the corresponding proof edges. This keeps the original input order and the bindings that each proof can use. Bare `$` denotes the enclosing occurrence.
+
+A compound capture preserves the order and correlation of each visit's child advances on its proof. Complete the outer binding on exit and keep inner bindings with their original owner. Compute the working bag from the body's defaults and eligible child supplier. The enclosing rule and any enclosing compound capture see ordinary groups expanded, including their separators. A genuine splice stays one working child. Preserve the original omission obligation and owner. `$x:[+T]` binds a view on both routes, and `[$j:+T]` binds j only on the written route.
 
 ### 3.6 Clauses
 
@@ -1197,6 +1201,8 @@ Action comparison ignores its close, regardless of its symbol count. Rejection e
 
 A splice capture keeps the called node, its bag, span and working children. It is present even over an empty span. Structural patterns see the anonymous sequence. A structural equality operand cannot be a splice capture, including through a list or function binding.
 
+A compound binding uses the anonymous structural sequence of a captured splice. It creates no call, named completion, cycle key, diagnostic owner, or structural identity for node equality. Retain the binding origin through candidate lists and function arguments. Rank and restore the same proofs as for the unlabeled body. An early observation crossing a ranked group needs the common-expression proof (§4.1). Preserve the seal for structural patterns, including on an empty ranked option.
+
 If a stage ranking pattern, other pattern, or neighbor target names its rule, the loader rejects that splice. It resolves pattern constants, choices, template families, and exact instance keys for this inspection. Query targets do not prohibit splicing. A splice cannot supply a stage root or occur in a pattern.
 
 ## 4. Recognition
@@ -1281,6 +1287,8 @@ A reverse dependency worklist can propagate removals. Unproductive cycles prove 
 A consuming erased child with value `""` fails. A primary between two consuming punctuation tokens fails even with an unchanged child value. A nonempty synthetic default also breaks a child-join proof. Analyze reconstruction modes separately. Do not allow a bare synthetic read with a nonempty default to masquerade as an original input leaf.
 
 Use the admissible read routes for that mode and head predicate. An explicit input join works independently of synthetic defaults. Direct reads of a bound terminal still observe its actual leaf value.
+
+Apply the certificate to every recognition read of a compound binding's `value`, including indirect reads. Use its effective writer after substitution, gates, function expansion, and shadowed writes. Include the captured body's dependencies in the fixed point. Each route of a child join must cover the original window exactly once, in order. Include separators, optional routes, named splice writers, and every contributing chain level. Run the proof for each restoration mode. Omissions with nonempty defaults and consuming erased children fail the child-join test. An explicit input-token join passes. Report an uncertified recognition read at its expression with its first failing supplier. Late-only reads use the actual bag.
 
 At each early use, report a load or lowering error at the first failing test or read. Show the rule and the first uncertified supplier in stitched order. For a certified rule, compare the joined input directly at the endpoints of its input window. No string payload enters a chart key for that comparison. This is an implementation of the grammar’s property test.
 
@@ -2629,7 +2637,7 @@ parameter          = PARAM
 string             = STRING
 ```
 
-A call opener touches its name. A splice mark touches its call or rule name. The binding token can be a capture or constant token. Recognition accepts an invalid binder or a label around a group so the converter can report the error at the label. Within a capture, source tests belong to the target.
+A call opener touches its name. A splice mark touches its call or rule name. The binding token can be a capture or constant token. Recognition accepts a capture followed by a factor. The converter reports an invalid binder or target at the applicable validation step. Within a capture, source tests belong to the target.
 
 Recognition consumes all tests on the factor in source order. It also recognizes a test on a group or optional, or an operand with the wrong type. The reader rejects the target, order or operand under [Body and directive validation](#body-and-directive-validation). A valid string test operand is one ungrouped string literal, string constant or parameter.
 
@@ -3074,7 +3082,7 @@ Read unknown directives as syntax errors. The bootstrap reader follows the same 
 
 Read declarations in written order across categories. Within a definition, inspect its own form before children. For a tested factor, inspect the target and test order before its base or operands. For a capture, inspect placement, the binder and the target kind, in that order. A chain item or separator cannot bind a capture directly.
 
-An elidable optional permits only its sole-terminator capture. Then reject bare `$`, a name that does not use lowercase syntax, or a target that is not one symbol. For an optional or chain, inspect the form and marker rules before converting the contents.
+An elidable optional permits only its sole-terminator capture. Then reject bare `$`, a name that does not use lowercase syntax, or a target that is neither a valid symbol nor a compound operand. For an optional or chain, inspect the form and marker rules before converting the contents.
 
 A repeated marker fails at the second marker. A chain marker in a separator fails at that marker. A chain inside a sequence fails at its opening brace before a bad capture in that chain. An ordered subset with more than sixteen items fails at its first item, before any operand faults.
 
@@ -3088,7 +3096,7 @@ Read all stage documents in include order before stitching that stage. Ordinary 
 
 #### Body and directive validation
 
-A rule name starts with an ASCII lowercase letter or uses a valid emoji scalar. Report invalid names at the name token. A capture binder uses lowercase syntax and names one symbol. A name that binds twice on one route fails at the first later binder that can repeat. Disabled gates cannot hide that conflict.
+A rule name starts with an ASCII lowercase letter or uses a valid emoji scalar. Report invalid names at the name token. A capture binder uses lowercase syntax and names a symbol or binds a compound operand. A name that binds twice on one route fails at the first later binder that can repeat. Disabled gates cannot hide that conflict.
 
 A test accepts one symbol. The filter, value test and elidable default appear in that order. Report repeated or reversed kinds at the first disallowed operator. A grouped value operand fails at its opening parenthesis. The origin mark `_Elided` takes either sign on a body terminal or elidable head.
 
@@ -3096,7 +3104,7 @@ Either sign on a rule reference, call or splice fails at the opening angle. If a
 
 A written elidable optional starts with its ungrouped user terminal or parameter after `+`. A capture can wrap its sole terminator inside the optional. The normalized DOM retains that terminal or capture, or a sequence that starts with the terminal. Substitute an untested user terminal for the parameter before applying the written tests.
 
-A group, optional or repetition cannot take a capture label, even around one symbol. A capture inside a repetition binds a flat list of nodes in input order. Conditions, terms and emission items can use a list under their own rules. See §10 for recognition reductions and §11.1 for forwarding.
+Read the binder, then validate its symbol or compound target. Keep the written elidable head and the inside-binder checks. Normalize redundant parentheses around a symbol. Keep `seq`, `choice`, `and`, `ranked`, `optional`, and flat `repeat` when they occur beneath a label. A direct chain, empty expression, or remainder fails as a target. A marked compound capture fails the primary check. A postfix test on a compound fails the ordinary test-target check. Enforce the existing capture-free forms in queries, patterns, and call arguments. Apply the same operand and error rules to supplied and cached DOMs. A capture inside a repetition binds a flat list of nodes in input order. Conditions, terms and emission items can use a list under their own rules. See §10 for recognition reductions and §11.1 for forwarding.
 
 A chain occupies one whole alternative and cannot be the query target. A chain marker cannot label a separator. An ordered subset accepts at most sixteen operands. A written default outside an elidable head fails at its `≝`. The default record owns a failed omission test.
 
@@ -3361,10 +3369,12 @@ A leaf selects no output. An ordinary rule without an output directive forwards 
 
 Evaluate gates, then guards. A skipped item supplies neither an anchor nor a token. Only reached expressions can claim verbatim text. A reached guard can claim text before it returns false.
 
+Forwarding a compound binding forwards its children's selected outputs. Apply the usual coverage checks to those outputs. Preserve their producers, order, and places.
+
 | Item | Meaning |
 |---|---|
 | `$x` | Forward the part’s selected tokens. On a list, concatenate the selections in binding order. Reject bare `$` in a list. |
-| `$x{…}` or `${…}` | Create an anonymous occurrence at one selected node. Use the part’s two strings as initial entries, then apply the braces in order. |
+| `$x{…}` or `${…}` | Create an anonymous occurrence at one selected node. Use the part’s two strings as initial entries, then apply the braces in order. Reject a part that can be a compound binding on an applicable route. |
 | `ε{…}` | Create a childless occurrence. The braces provide both strings and the engine records the inserting rule. |
 
 Resolve braces in the emitting rule’s scope. No anonymous node invokes `$DEFAULTS` or executes another emission. A skip or absent copy preserves an inherited string. A deletion can remove it. The loader must prove that both strings exist after all writes on every active publication route.

@@ -81,7 +81,7 @@ export type StageData = {
 export declare function evaluationError(description: any, at: any, document: any): GencmuError;
 /**
  * Whether an expression is a set of patterns with at least one operator,
- * such as `#A ∖ ∅` or `#⁅ a b ⁆ ∪ $P` (part 3 §4). An operand can be a
+ * such as `#A ∖ ∅` or `#⁅ a b ⁆ ∪ $P` (docs/notation.md, "Pattern forms and binding"). An operand can be a
  * constant, but one operand at least is a written pattern, so that a set
  * of key-set constants stays a key set.
  * @param {any} node

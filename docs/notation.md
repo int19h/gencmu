@@ -34,7 +34,7 @@ Every published token has two strings in its bag. The `value` identifies the tok
 
 Stage zero decomposes the text into Unicode Normalization Form D. For example, it emits `e` and U+0301 for `é`. Both strings start as the decomposed scalar. The token's text and source keep the original spelling.
 
-Write `$x'value` to read a node's value. Write `$x.span.tokens!'value.join()` to join the values of its original input tokens. A join of children instead reads their computed values, including omitted defaults and empty strings from erased children. A stage can declare those joins in `$DEFAULTS`.
+Write `$x'value` to read a node's value. Write `$x.span.tokens!'value.join()` to join the values of its original input tokens. A join of children instead reads their computed values, including omitted defaults and empty strings from erased children. A stage can declare those joins in `$DEFAULTS`. [Rule bags](#rule-bags) gives the two strings of a compound capture.
 
 Notation tokens follow these rules too. The decomposed image of `≇` is `≅` followed by U+0338. Its text retains `≇`.
 
@@ -167,6 +167,8 @@ A value test accepts a string literal, string constant or parameter that resolve
 
 A test follows one rule reference, call, splice, terminal or symbol parameter. On a splice, the test follows the complete spliced call. A group, optional, repetition or `ε` cannot take a test. A capture wraps the tested symbol. For example, `$l:LA="la"` captures the token read by `LA="la"`. Spaces and comments can separate a symbol from its test.
 
+A capture can bind a tested symbol. A filter or value test on the whole labeled optional, repetition, or compound group is a load error. In `$x:(A<K> B)`, the filter tests A. In `$x:(A B)<K>`, the filter has an invalid target.
+
 `_Elided` tests omitted origin. In a body it can appear on a terminal filter or on the head of an elidable optional. `[+T<_Elided>]` accepts omission only. A synthetic restoration candidate and an omitted leaf pass the positive test. A written token fails the test even when its value is empty.
 
 A body filter on a rule reference, call or splice cannot name `_Elided` with either sign. The loader reports the error at the opening angle bracket, even under a disabled gate. A parameter target needs a terminal after substitution. If the argument supplies an invalid target, the loader reports its written position and keeps the filter as context.
@@ -249,7 +251,7 @@ A flat list is not a constituent. Its items and its separators are children of t
   A {B} C
 ```
 
-A list has no node, so nothing can name it, capture it or test it. The clauses of the rule apply to the whole constituent of the rule, and never to a part of the list. To make a list a constituent of its own, name it as a rule.
+A flat repetition contributes its items and separators directly to the enclosing rule. A label on the braces gives the grammar a working node over the whole sequence. The label adds no constituent to the result. An inner label still collects one binding per visit. The item must consume input. A separator can be empty.
 
 ### Chains in the tree
 
@@ -291,7 +293,7 @@ The clauses of the rule serve every level, as they serve every alternative:
 - Each level builds the bag of its rule, including stage defaults where applicable.
 - If the stage publishes, bare `%emit` selects the outer level. A level with no selection forwards the outputs of its children.
 
-A chain cannot directly hold a capture in its item or separator (see "Captures"). Flat braces inside a chain can bind lists. Other clauses refer to a whole level, `$`.
+Each closed level belongs to its chain rule. Capture the rule reference to bind the outer level. A label directly around either chain form fails to load. Apply the direct-binder restriction to both the chain item and its separator. Flat braces inside a chain can still collect inner bindings. Other clauses refer to a whole level, `$`.
 
 A right chain is not the same as an optional suffix. In a rule `r`, the body `x [s r]` and the chain `{x ... / s}` read the same words. But the level of one item is `x` alone in the chain, and `x` with an empty optional in the suffix. That makes two differences for elision:
 
@@ -346,7 +348,11 @@ Optionals and repetitions accept ranked content in their expression positions. A
 
 Ranked options have no local gates or terms. Gates and terms on the enclosing alternative apply to the whole ranked expression.
 
-A condition inside an option can read its ready captures. A late expression can use a private binding where its option wins. A capture cannot wrap a sequence or ranked choice. A late error does not select a different option.
+A condition inside an option can read its ready captures. A late expression can use a private binding where its option wins. A late error does not select a different option.
+
+A compound capture can contain a ranked choice at any depth. A read outside that choice can use the compound binding's span, presence, or certified value during recognition. Those observations agree across the competing options for the same visit. Other early reads require proof of an identical expression on common input and bindings. This rule covers nested captures, list items, functions, children, defaults, and restoration.
+
+A late read can use the winning children. An outside structural test sees one seal at the choice. An inner label keeps its option's scope.
 
 A derivation is one reading that the grammar builds. Boundary offers record neighbor nodes at a constituent's edges (engine §4.2). Boundary offers use the actual derivation. `followed-by` and `preceded-by` can see nodes inside ranked options and erased constituents.
 
@@ -411,6 +417,8 @@ The call keeps its term, conditions, emission, erasure, diagnostic and suppressi
 `$x:*foo` binds the working call with its bag, span and working children. A binding at an empty place is still present. A sole-symbol copy can take the call's bag. Bare emission at the splice creates a projection over that call.
 
 A node-to-node comparison rejects a splice capture on either side. The restriction follows that capture through a list or function binding.
+
+A captured splice and a compound capture both expose a working bag, a span, and children. A named splice call occupies one working child in its parent. A compound label preserves the enclosing sequence. A pattern sees the anonymous structural sequence and respects ranked and erased seals. Node-to-node `≅` and `≇` reject either origin on either side, including through a list or function. An ordinary symbol capture keeps its own structural root.
 
 The loader rejects a splice whose rule any stage ranking step, pattern, or neighbor target names. It resolves names through pattern constants, choices, template families, and instance keys. A query target does not forbid a splice, because a query parses its target independently.
 
@@ -889,7 +897,7 @@ The compared tree is the structural tree above. Helpers are flattened, chain lev
 - If the token values of the spans of two seals are equal sequences, the seals are equal. The sequence has one value for each original token of the span, in order, and an empty value is an element. The chosen interior, private captures, tags and omissions take no part. A seal of an empty span is still a seal.
 - In reconstruction, a terminal that reads a synthetic token binds an omitted leaf. Its terminal identifies it in comparisons. Its default supplies its value. It contributes a child and no original input token. A restored optional keeps its written-only slot empty.
 
-An erased named constituent compares as its rule with one seal child over its span. When their ordered token-value sequences are equal, two erased occurrences of one rule compare equal. Their internal brackets do not distinguish them. In a parent comparison, the child sequence of an erased splice contains that seal. A splice capture cannot be an operand of node equality.
+An erased named constituent compares as its rule with one seal child over its span. When their ordered token-value sequences are equal, two erased occurrences of one rule compare equal. Their internal brackets do not distinguish them. In a parent comparison, the child sequence of an erased splice contains that seal. A splice capture or a compound capture cannot be an operand of node equality (see [Splices](#splices)).
 
 The comparison uses structure and written leaf values. Source coordinates, other bag entries and emission take no part.
 
@@ -931,17 +939,68 @@ A layer can use `%redefine-const $LEXICON {*$LEXICON, PAIhU: "pai'u", A: $LEXICO
 
 ## Captures
 
-A capture labels one symbol, as in `$x:A`. If every route binds it once, it gives one node. Mutually exclusive branches can bind the same slot, as in `($x:a | $x:b) c`. If a route can omit the binding, the slot gives a list of zero or one node. A repetition gives a flat list in input order.
+A capture names a slot in its alternative. A symbol label binds its symbol, including any legal tests. Parentheses around one symbol preserve that binding. For example, `$x:(A)` and `$x:A` both bind the leaf that A reads.
 
-Place the label before the symbol inside the optional or repetition. A label cannot wrap a bracket, braces or a group. The terminator binder is `[$j:+JI]` and gives a list of zero or one written leaf.
+A compound capture labels an optional, a flat repetition, or a parenthesized compound expression. Each completed visit gives one node, the compound binding. This node exposes the body's span, children, and bag. The following forms show where one visit starts and ends.
 
-A capture cannot stand directly in the item or separator of a chain. An elidable optional accepts only the capture of its sole terminator. Thus `[+KU $x:🆓]`, `[+$k:KU 🆓]` and `$j : [+JI]` are errors. One route cannot bind a name twice, so `[$x:A] $x:B` and `$x:A & $x:B` are errors too.
+| Body | Binding on one completed visit |
+| --- | --- |
+| `$x:[A B]` | A and B in order, or no children at the entry position. |
+| `$x:{A / S}` | All A items with their S separators. At least one A must match. |
+| `$x:[{A}]` | The complete run of A items, including a run of zero. |
+| `$x:(A B)` | A and B in order. |
+| `$x:(A & B)` | The selected subsequence in its original order. |
+| `$x:(a ≻ b)` | One node outside the ranked options. [Ranked choices](#ranked-choices) gives its read restrictions. |
 
-A bound node is true in a truth position even when it spans no input. A list of bindings tests nonemptiness. For these types, `.present` makes the same test. A shared condition or statement term can test a capture declared only on another alternative. Both spellings give false there.
+A bound node remains true at an empty span, and its `.present` is true. Its `.span` tests false there. In `P $x:[{A}] Q` on tokens P Q, x spans [1,1). Its following tokens start with Q. Its source point is the preceding token's source end. At input start, the point is the first source start, or zero on empty input.
 
-An alternative's own term must use names declared on that alternative. A name unknown to the statement is an error.
+In `[$x:A]`, the inner symbol capture gives a list of zero or one leaf. In `{$x:A}`, it gives a flat list of leaves in input order. A list and its `.present` both test whether it has any item. In `$x:[A]`, x is one node, including on omission. Test `$x.span` to ask whether this optional read original input.
 
-Inside a ranked option, local conditions can read its ready bindings. A late expression outside the group can read a private binding only where that option wins. A spliced call binds one working occurrence with a bag and span. It cannot serve as an operand of structural equality. Patterns see its anonymous child sequence.
+An outer operator controls the number of visits to its inner label. In `[$x:(A B)]`, x gives a list of zero or one node. In `{$x:(A B)}`, it gives a flat list of nodes in input order. An alternative that omits a name contributes false to a shared presence test. An alternative's own term needs a declaration there. A name unknown to the statement is an error.
+
+A label inside a labeled body stays in the enclosing alternative's scope. In `$run:{$item:A}`, run binds the whole repetition and item gives a list of its leaves. One route cannot declare the same name twice. Both `[$x:A] $x:B` and `$x:A & $x:B` fail this rule. The alternatives of a choice can bind the same slot on separate routes.
+
+In `$x:($y:A B)` and `$x:(^A B)`, x labels the sequence. In `$x:($y:A)` and `$x:(^A)`, the parentheses around one operand drop. The first then labels a capture directly, and the second labels a primary directly. Both fail to load.
+
+A condition inside a ranked option can read its ready bindings. A late expression outside the choice can use a private binding only where that option wins.
+
+A direct chain cannot take a label. A label cannot stand directly in its item or separator. A primary mark, filter, or value test cannot apply to a compound capture. A test on an eligible symbol inside the body keeps its meaning.
+
+### Worked example 1. A whole optional and its written head
+
+Compare these rule bodies in a stage with the child joins for `value` and `image`. Both read an optional JI before B.
+
+```text
+$x:[+JI ≝ "jie"] B
+[$x:+JI ≝ "jie"] B
+```
+
+On input B alone, both bodies omit JI at position zero. The first binds one node at [0,0). Its one child is the omitted JI leaf. The node tests true and its image is `""`. The second gives an empty list, whose presence test is false.
+
+A late read of the first binding gives value `"jie"`. A condition cannot read this value because the omitted head contributes no original token. To test the head during recognition, use `[+JI="jie"]`.
+
+On input JI B, give JI the value `"ji"` and image `"JI"`. The first binds a node at [0,1) with the written leaf as its child. Its two joins give `"ji"` and `"JI"`. The second gives a list containing the written leaf itself. In a restored reading with a synthetic JI, the second form still gives an empty list.
+
+Use `$whole:[$written:+JI]` when both observations matter. A body terminal, an elidable head, or a tree pattern can test omitted origin. The working node has no `_Elided` key. Only the sole terminator accepts an inner binder. Both `[+$j:JI]` and `[+JI $j:A]` fail to load.
+
+### Worked example 2. A whole choice and its selected symbol
+
+Let rule `a` read A and rule `b` read B. Compare these two bodies on input A A. The last symbol supplies a second occurrence for comparison.
+
+```text
+$x:(a | b) $y:a
+($x:a | $x:b) $y:a
+```
+
+Both bindings named x cover the first token. The group in the first body has the selected `a` node as its only working child. Its eligible sole symbol supplies the selected child's whole bag, including private keys. The second body binds the first `a` node directly. Its only working child is the A leaf.
+
+| Observation | Label on the choice | Labels on the branches |
+| --- | --- | --- |
+| `$x ≅ #·a` | False. The group has no named root. | True. The captured rule is `a`. |
+| `$x ≅ $y` | Load error. A group cannot supply an operand for equality between nodes. | True for two A leaves with equal values under rule `a`. |
+| `%emit $x{}` | Load error. The group has no result ID. | One projection over the first `a`, if its bag supplies both strings. |
+
+A pattern can examine the group's anonymous structural sequence. The example uses an exact root test because an ordinary node test can follow a sole child. The spelling `$x:(a)` has one symbol and no choice. It binds `a` directly and follows the right column.
 
 ## Conditions
 
@@ -957,6 +1016,8 @@ For each alternative, the loader simplifies known guards and capture presence te
 ```
 
 A condition can read the bag of a ready node or its input span. Span methods such as `.onward`, `.preceding-tokens` and `.following-tokens` operate within the evaluating window. The engine manual lists [the method signatures](engine.md#method-signatures).
+
+A completed compound binding can serve as the receiver of a span or neighbor method. Its empty route still owns its endpoint. In `$p:[{postfix}]`, `$p.following-tokens` starts after the last consumed postfix, or at entry if none matched. A recognition read of the group's value requires the same certificate as a rule value. [Proof for a rule value](engine.md#proof-for-a-rule-value) in the engine manual defines it.
 
 For an input comparison, join the desired strings explicitly. For example, `$open.span.tokens!'value.join() = $close.span.tokens!'value.join()` compares the original token values of two captures.
 
@@ -1189,6 +1250,10 @@ If neither term is present, one plain mandatory symbol supplies its whole bag. A
 
 A sole-symbol copy adds no primary edge. Use `→ {}` to suppress that copy.
 
+For a compound capture, apply the stage defaults to the working view of its body. Then take the body's legal primary or eligible sole-symbol bag. In `$x:(^A B)`, the same mark supplies A's bag to both the enclosing rule and x. In `$x:(a | b)`, x takes the whole bag of the selected child, including its private keys.
+
+The enclosing rule's terms contribute nothing to the capture. An absent supplier leaves a key absent. With the two child joins, an empty sequence gives two empty strings. Separators participate in those joins. A single repeated item supplies no implicit copy. The enclosing rule evaluates its defaults, child reads, primary, and sole symbol as if the label were absent.
+
 `$DEFAULTS` is a function from a node to a bag. It supplies defaults to each unerased rule occurrence, including chain levels and spliced calls. Leaves, braced items and insertions receive no defaults. The Lojban phoneme, forms and words bases define the two joins below. The Eberban letters and forms bases and the notation lexical base also define them. Bundled pass-through and tree-only stages omit this function.
 
 ```text
@@ -1209,14 +1274,16 @@ A rule with no `%emit` forwards the outputs of its children in order. A leaf or 
 
 | Listed item | Effect |
 | --- | --- |
-| `$x` | Forward the outputs of the part. For a capture list, forward the outputs of each binding in order. |
-| `$x{…}` | Create a projection at one part's span, source and text. A list cannot be the part. |
+| `$x` | Forward the outputs of the part. For a capture list, forward the outputs of each binding in order. For a compound capture, forward the selected outputs of its children in order. |
+| `$x{…}` | Create one projection over a single result occurrence, at its span, source and text. A list or a compound capture as its part is a load error, even when its strings exist. A captured named splice remains an eligible part. |
 | `${…}` | Create a projection over the emitting node. |
 | `ε{…}` | Insert one node at an empty place and record the inserting rule. |
 
 A braced item creates a projection, a synthetic node over the selected part. It starts with its part's two strings, where present. The braces apply entries after those strings. They read the captures and `$` of the emitting rule. An insertion has no part, so its constructor must supply both strings.
 
 A braced node receives no defaults and makes no further emission. Bare `$` cannot forward its own output.
+
+Bare `$x` on a compound capture forwards the selected child outputs in order. A leaf forwards no token. The [parse result](output.md#a-parse-result) gives no record to the group.
 
 A gate runs before the expression guard of an item. An item that fails either test supplies no token and no anchor. A reached guard can make a verbatim claim before returning false. The braces of a skipped item do not run.
 
@@ -1256,7 +1323,7 @@ The loader examines all written forms for syntax and scope errors, including ski
 
 A value read must have a value on every route that reaches it. A key with only a permission cannot supply one. An emitted occurrence needs both string keys after any copies, overrides or deletions.
 
-Before recognition, the loader rejects invalid primary placement, out-of-scope captures and cycles in constant versions. It also rejects uncertified rule value reads and live unsupported recursive dependencies. Unguarded output overlaps fail during stitching.
+Before recognition, the loader rejects invalid primary placement, out-of-scope captures and cycles in constant versions. It rejects a compound capture as the part of a braced item. It also rejects uncertified rule value reads and live unsupported recursive dependencies. Unguarded output overlaps fail during stitching.
 
 After choice, a reached expression can fail. Actual overlaps between selected output spans and incompatible verbatim claims also fail. The [engine failure order](engine.md#failure-order) gives the priority and the records that survive.
 
@@ -1455,7 +1522,7 @@ The engine's canonical order (engine §6) orders the ambiguity diagnostics. Amon
 - If one reads and the other closes, the step decides. `greedy` takes the one that reads, so a constituent ends as late as the grammar allows. `lazy` takes the one that closes, so a constituent ends as early as the grammar allows.
 - If both close different constituents, they are tied.
 
-A logical symbol is one symbol of an alternative as written. Each optional, each pair of flat braces, each ranked group and each splice counts as one. A capture changes no count. So `A [$b:B]` has two logical symbols, even with B absent. The count serves ranking and query priority. [Rule bags](#rule-bags) gives the separate test for a sole-symbol copy.
+A logical symbol is one symbol of an alternative as written. Each optional, each pair of flat braces, each ranked group and each splice counts as one. A capture changes no count. A compound label adds no logical symbol, action, named close, primary edge, or ranking target. Count the labeled body as written beneath the label. In particular, `$x:(A B)` counts like `A B`, and a labeled flat repetition still counts as one. So `A [$b:B]` has two logical symbols, even with B absent. The count serves ranking and query priority. [Rule bags](#rule-bags) gives the separate test for a sole-symbol copy.
 
 A named production with one logical symbol has a transparent close. A spliced call's close is transparent regardless of its body. The notation also creates a transparent helper for every optional, every flat `{ }` and every ranked group, including captured optionals. So two parses that differ only in such a relabeling do not differ yet.
 
@@ -1498,6 +1565,8 @@ A grammar marks each terminator that can be elided where it writes it. An elidab
 - The rest is a sequence of factors, or nothing. A choice or `&` in the rest stands in parentheses, as in `[+KU (A | B)]`. A `|` or `&` cannot join the head `T` to another operand. Such a reading can begin with a different symbol. So `[+KU | VAU]` is an error.
 
 - The sole terminator can have a capture, as `[$j:+JI="jie"]`. Every other capture inside an elidable optional is an error (see "Captures").
+
+An outer label can capture the entire optional, including its tail. On omission it binds the whole empty visit and retains the omitted head as a child. The inner binder `[$j:+JI]` binds only a written head. See the first worked example in [Captures](#captures). Written-head priority, origin tests, and reconstruction use the existing elision rules.
 
 An elidable optional is an optional in every other way. It can stand anywhere that an optional can, inside braces and other optionals too. Spaces can stand between its parts, but the grammars write `[+KU 🆓]` without them. The token `++` is invalid here, so `[++T]` fails at its first plus. A separate second `+` is invalid too, as in `[+ + T]`.
 

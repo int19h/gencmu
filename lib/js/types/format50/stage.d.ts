@@ -39,7 +39,7 @@ export declare class Token50 {
  */
 export declare function captureKinds(body: any): Map<string, "one" | "list">;
 /**
- * Whether an alternative is one plain symbol (part 1 §5).
+ * Whether an alternative is one plain symbol (docs/notation.md, "Rule bags").
  * @param {any} node
  */
 export declare function isPlainSymbol(node: any): any;
@@ -255,7 +255,7 @@ export declare class Stage50 {
      */
     ruleOccurrence(derivation: any, parts: any, made: any, data: any): Occurrence;
     /**
-     * A compound binding (erratum M-60): one node for each visit, over the
+     * A compound binding (docs/notation.md, "Captures"): one node for each visit, over the
      * working children of its visit. It has no result record of its own.
      * @param {any} binding
      * @param {any[]} children the working children of the enclosing node
@@ -265,7 +265,7 @@ export declare class Stage50 {
     compoundOccurrence(binding: any, children: any[], origin: any, data: any): Occurrence;
     /**
      * The bag of a compound binding: that of a termless splice of its operand,
-     * from the stage defaults and its primary or sole symbol (erratum M-60).
+     * from the stage defaults and its primary or sole symbol (docs/notation.md, "Rule bags").
      * @param {any} node
      * @param {any[]} children
      * @param {any} binding
@@ -289,7 +289,7 @@ export declare class Stage50 {
      */
     emptySource(tokens: any, at: any): any;
     /**
-     * The tokens that the root hands on (part 1 §10).
+     * The tokens that the root hands on (docs/notation.md, "Emission").
      * @param {any} root
      * @param {any} data
      */

@@ -48,6 +48,8 @@ Zero is valid. A bare splice emission records the called splice. Forwarding pres
 
 A whole-occurrence projection can use the same ID for both links. For example, occurrence 6 can select a part at occurrence 9. The projection records `"producer":6,"part":{"node":9}`. An insertion by occurrence 6 records `"producer":6` and omits `part`.
 
+A compound capture has no local ID or node record. Keep the enclosing children, primary, and occurrence numbering independent of the label. Forwarding keeps each descendant's producer. A braced item can refer only to an existing result occurrence through `part.node`. Loading rejects a compound capture used as that part.
+
 Synthetic records stay beside the original tree. In particular, a braced item over the whole node points to its origin without becoming its origin’s child.
 
 Within a stage output, the token member `node` is a local integer ID. The containing stage and reading zero identify its producing table. Origin records omit that field. A bag uses a JSON object with keys in Unicode scalar order. An absent key has no member.
@@ -344,7 +346,7 @@ A body record has exactly one of these forms. `S` is a string literal expression
 {repeat:BODY,separator?:BODY,chain?:"left"|"right"}
 {ref:name}                {literal:S}              {range:[S,S]}
 {wildcard:true}           {empty:true}             {remainder:true}
-{splice:TARGET_RULE}      {capture:name,expr:SYMBOL}
+{splice:TARGET_RULE}      {capture:name,expr:CAPTURE_TARGET}
 {primary:SYMBOL_OR_CAPTURE}                         CALL | PARAM
 {test:"tags",requirements:[REQ],expr:SYMBOL_BASE,at:P}
 {test:"="|"≠",value:S,expr:SYMBOL_OR_TAG_TEST,at:P}
@@ -354,7 +356,27 @@ Body records hold no resolved token classes or generated helpers. A `seq` keeps 
 
 The source mark before a captured symbol wraps the whole capture. `primary` never changes the terminal identity or action count. A base symbol (`SYMBOL_BASE`) is a reference, call, splice, literal, wildcard, range or declared symbol parameter. A filter accepts a base symbol. A value test accepts a base symbol or one with a key filter (`SYMBOL_OR_TAG_TEST`).
 
-A capture accepts any of these symbol forms (`SYMBOL`). A group, optional, repetition or empty expression cannot take a label.
+A capture target (`CAPTURE_TARGET`) is one of these symbol forms, or a compound operand. A compound operand is a `seq`, `choice`, `and`, `ranked`, `optional` or flat `repeat` record ([Captures](notation.md#captures)). A direct chain, an empty expression or a remainder cannot take a label. A primary still requires a legal single symbol or its capture. Tests retain their symbol operands. For the two choices in [Captures](notation.md#captures), preserve the nesting in these records.
+
+```json
+{"capture":"x","expr":{"choice":[{"ref":"a"},{"ref":"b"}]}}
+```
+
+```json
+{"choice":[{"capture":"x","expr":{"ref":"a"}},{"capture":"x","expr":{"ref":"b"}}]}
+```
+
+For `$x:[+JI]`, put the capture outside the elidable optional. For `[$x:+JI]`, put it inside. The two records below use the existing `ref` form for a body terminal.
+
+```json
+{"capture":"x","expr":{"optional":{"ref":"JI"},"elidable":true}}
+```
+
+```json
+{"optional":{"capture":"x","expr":{"ref":"JI"}},"elidable":true}
+```
+
+The ordinary symbol forms `$x:(A)` and `$x:A` both use `{"capture":"x","expr":{"ref":"A"}}`.
 
 A primary accepts a legal symbol or its capture (`SYMBOL_OR_CAPTURE`). It follows the route and placement rules in [Rule bags](notation.md#rule-bags). The parser wraps tests around the whole splice record. Inside `splice`, `TARGET_RULE` is exactly one rule reference or call. For a terminator binder, put the capture inside the elidable optional.
 

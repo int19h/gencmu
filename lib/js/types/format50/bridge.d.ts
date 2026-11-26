@@ -22,11 +22,12 @@ export declare function isVisibleKey(key: any): boolean;
 export declare function bridgeDocument(dom: any, path: string, origins: any, hidden?: HiddenKeys): any;
 export type HiddenKeys = {
     demanded: Set<string>;
+    valued?: Set<string>;
     domains: Map<string, any[]>;
     roots: Map<string, Set<string>>;
 };
 /**
- * @typedef {{demanded: Set<string>, domains: Map<string, any[]>, roots: Map<string, Set<string>>}} HiddenKeys
+ * @typedef {{demanded: Set<string>, valued?: Set<string>, domains: Map<string, any[]>, roots: Map<string, Set<string>>}} HiddenKeys
  * The keys that are not visible and that recognizer tests read, with the
  * finite set of values of each key that has one. `roots` gives, for `value`
  * and `image`, the rules at the root of a forest whose predicate reads that
@@ -53,6 +54,11 @@ export declare class Bridge {
     deferred: GencmuError[];
     /** @type {Set<string>} the rules whose keys a recognizer test reads */
     keyReaders: Set<string>;
+    /** @type {{capture: string, rule: string}[]} the compound bindings whose keys a recognizer test reads */
+    compoundKeyReads: {
+        capture: string;
+        rule: string;
+    }[];
     /** @type {Map<string, Set<string>>} */
     tagSources: Map<string, Set<string>>;
     /** @type {Map<string, string[]>} */
@@ -76,6 +82,27 @@ export declare class Bridge {
     untaggedPayloads: Set<string>;
     /** @type {Map<string, GencmuError>} */
     nativeReads: Map<string, GencmuError>;
+    /** @type {{key: string, at: any}[]} */
+    domainReads: {
+        key: string;
+        at: any;
+    }[];
+    /** @type {{targets: any[], shown: string, at: any, term: string | null, template?: string}[]} */
+    valueReads: {
+        targets: any[];
+        shown: string;
+        at: any;
+        term: string | null;
+        template?: string;
+    }[];
+    /** @type {string | undefined} the template being lowered */
+    currentTemplate: string | undefined;
+    /** @type {WeakSet<object>} the reads handed to the recognizer that have a row of the table */
+    observed: WeakSet<object>;
+    /** @type {Map<string, any[]>} the symbols that each capture of the rule in hand binds */
+    captureTargets: Map<string, any[]>;
+    /** @type {string | null} the rule whose tag term is being lowered */
+    inTagTerm: string | null;
     /** @type {Map<string, Set<string>>} */
     constantDeps: Map<string, Set<string>>;
     /** @type {string | null} */
@@ -122,6 +149,10 @@ export declare class Bridge {
         untranslated: Map<string, GencmuError>;
         deferred: GencmuError[];
         keyReaders: Set<string>;
+        compoundKeyReads: {
+            capture: string;
+            rule: string;
+        }[];
         tagSources: Map<string, Set<string>>;
         templateParams: Map<string, string[]>;
         templateCalls: {
@@ -135,6 +166,19 @@ export declare class Bridge {
         constantReads: Map<string, GencmuError>;
         untaggedPayloads: Set<string>;
         nativeReads: Map<string, GencmuError>;
+        domainReads: {
+            key: string;
+            at: any;
+            document: any;
+        }[];
+        valueReads: {
+            targets: any[];
+            shown: string;
+            at: any;
+            term: string | null;
+            template?: string;
+            document: any;
+        }[];
         instances50: any[];
     };
     /** @param {string} name @param {any} at */
@@ -155,6 +199,10 @@ export declare class Bridge {
         untranslated: Map<string, GencmuError>;
         deferred: GencmuError[];
         keyReaders: Set<string>;
+        compoundKeyReads: {
+            capture: string;
+            rule: string;
+        }[];
         tagSources: Map<string, Set<string>>;
         templateParams: Map<string, string[]>;
         templateCalls: {
@@ -168,6 +216,19 @@ export declare class Bridge {
         constantReads: Map<string, GencmuError>;
         untaggedPayloads: Set<string>;
         nativeReads: Map<string, GencmuError>;
+        domainReads: {
+            key: string;
+            at: any;
+            document: any;
+        }[];
+        valueReads: {
+            targets: any[];
+            shown: string;
+            at: any;
+            term: string | null;
+            template?: string;
+            document: any;
+        }[];
         instances50: any[];
     };
     /** @param {any} value */
@@ -182,7 +243,7 @@ export declare class Bridge {
     data(value: any): any;
     /**
      * A recognizer read of a constant, which fails where the constant has a
-     * placeholder only (cause B of the Eberban review).
+     * placeholder only.
      * @param {any} node
      */
     constantRead(node: any): {
@@ -248,6 +309,24 @@ export declare class Bridge {
     /** @param {any} rule */
     rule(rule: any): any;
     /**
+     * Marks a read handed to the recognizer with its row of the table of
+     * observations, or refuses it.
+     * @template T
+     * @param {string} id
+     * @param {string} kind the kind of the receiver
+     * @param {T} emitted
+     * @param {any} [at]
+     * @returns {T}
+     */
+    observe<T>(id: string, kind: string, emitted: T, at?: any): T;
+    /**
+     * Fails on a read of a capture in a recognizer record that has no row of
+     * the table of observations: a presence test, a method on a capture, and
+     * a structural comparison of a capture.
+     * @param {any} node
+     */
+    assertObserved(node: any): undefined;
+    /**
      * @param {any} alternative
      * @param {any} rule
      */
@@ -269,6 +348,13 @@ export declare class Bridge {
      * @param {any} tags
      */
     bagTags(term: any, tags: any): any;
+    /**
+     * Whether an entry writes, copies, splats or deletes a key that the tag
+     * term holds.
+     * @param {any} entry
+     * @param {(key: string) => boolean} hidden
+     */
+    entryReadsKeys(entry: any, hidden: (key: string) => boolean): any;
     /**
      * The recognizer lowers only the queries that its conditions and terms
      * name. A query that only a bag term or an emission term reads after the
@@ -292,12 +378,6 @@ export declare class Bridge {
      * @returns {any}
      */
     inlined(entries: any): any;
-    /** @param {any} key */
-    hiddenAll(key: any): {
-        union: {
-            tag: string;
-        }[];
-    };
     /**
      * @param {any} key
      * @param {any} value
@@ -323,7 +403,6 @@ export declare class Bridge {
     tagsOf(node: any, at?: any): any;
     /** @param {any} node */
     message(node: any): any;
-    /** @param {any} arg */
     /** @param {any} arg */
     argument(arg: any): any;
     /** @param {any} target */
@@ -369,7 +448,7 @@ export declare class Bridge {
      * one clause for each operand. A universal predicate on a capture inside
      * a repetition becomes the predicate on the capture: the recognizer
      * checks a clause that names such a capture on each of its items, and an
-     * empty list has none, as `.all` requires (part 1 §9).
+     * empty list has none, as `.all` requires (docs/notation.md, "Conditions").
      * @param {any} node
      * @returns {any[]}
      */
@@ -381,6 +460,33 @@ export declare class Bridge {
      * @returns {any}
      */
     truth(node: any): any;
+    /**
+     * The key set of a captured node by .classes, as a tag term.
+     * @param {string} method
+     * @param {string} capture
+     */
+    nodeKeys(method: string, capture: string): {
+        method: string;
+        receiver: {
+            capture: string;
+        };
+        args: never[];
+    };
+    /**
+     * Notes a recognition read of the value of a node, with the symbols that
+     * its receiver can bind.
+     * @param {any} receiver
+     * @param {any} at
+     */
+    noteValueRead(receiver: any, at: any): undefined;
+    /**
+     * The kind of a receiver of a read (observations.js).
+     * @param {any} receiver
+     * @returns {string}
+     */
+    receiverKind(receiver: any): string;
+    /** @param {any} receiver */
+    shownReceiver(receiver: any): string;
     /** @param {any} receiver */
     receiverTags(receiver: any): {
         forestRoot: boolean;
@@ -441,24 +547,6 @@ export declare class Bridge {
             args: never[];
         };
     } | {
-        not: {
-            op: string;
-            left: {
-                tag: string;
-            };
-            right: {
-                forestRoot: boolean;
-            } | {
-                method: string;
-                receiver: {
-                    capture: string;
-                };
-                args: never[];
-            };
-        };
-        all?: undefined;
-        any?: undefined;
-    } | {
         op: string;
         left: {
             method: string;
@@ -476,7 +564,12 @@ export declare class Bridge {
             };
             args: never[];
         };
+        all?: undefined;
+        any?: undefined;
     } | {
+        op?: undefined;
+        left?: undefined;
+        right?: undefined;
         all: ({
             op: string;
             left: {
@@ -491,12 +584,22 @@ export declare class Bridge {
                 };
                 args: never[];
             };
-            not?: undefined;
         } | {
-            op?: undefined;
-            left?: undefined;
-            right?: undefined;
             not: {
+                op: string;
+                left: {
+                    tag: string;
+                };
+                right: {
+                    forestRoot: boolean;
+                } | {
+                    method: string;
+                    receiver: {
+                        capture: string;
+                    };
+                    args: never[];
+                };
+            } | {
                 op: string;
                 left: {
                     method: string;
@@ -516,59 +619,12 @@ export declare class Bridge {
                 };
             };
         })[];
-        not?: undefined;
         any?: undefined;
     } | {
-        all: ({
-            op: string;
-            left: {
-                tag: string;
-            };
-            right: {
-                forestRoot: boolean;
-            } | {
-                method: string;
-                receiver: {
-                    capture: string;
-                };
-                args: never[];
-            };
-        } | {
-            op: any;
-            left: any;
-            right: {
-                string: string;
-            };
-        })[];
-    } | {
+        op?: undefined;
+        left?: undefined;
+        right?: undefined;
         all?: undefined;
-        not?: undefined;
-        any: {
-            all: ({
-                op: string;
-                left: {
-                    tag: string;
-                };
-                right: {
-                    forestRoot: boolean;
-                } | {
-                    method: string;
-                    receiver: {
-                        capture: string;
-                    };
-                    args: never[];
-                };
-            } | {
-                op: any;
-                left: any;
-                right: {
-                    string: string;
-                };
-            })[];
-        }[];
-    } | {
-        all?: undefined;
-        not?: undefined;
         any: {
             op: string;
             left: {
@@ -680,3 +736,10 @@ export declare function argumentExpression(arg: any): any;
  * @returns {any}
  */
 export declare function isClosed(node: any, bound?: Set<any>): any;
+/**
+ * The name of the termless rule that a compound binding stands for in the
+ * certificate of values.
+ * @param {string} rule
+ * @param {string} capture
+ */
+export declare function compoundRuleName(rule: string, capture: string): string;

@@ -392,7 +392,7 @@ Braces state grouping explicitly, independently of how many alternatives feature
 
 Every kind of braces requires one or more items. ISO 14977 reads braces as zero or more, but jbogenbau writes zero or more as `[{x}]`. An item must read at least one token, so `[{x}]` reads nothing in one way only. No bundled grammar repeats an item that can be empty.
 
-A capture cannot wrap braces or stand directly in a chain's item or separator, because a repeated part has no single captured occurrence. A grammar that needs such a capture names its list or chain as a rule. A capture inside flat braces supplies a list. A condition can use `.all` or `.any` to test the items. A capture next to flat braces remains legal, as in `$a:A {B}`.
+A compound capture on flat braces binds the whole repetition on each visit. A capture inside flat braces collects its bindings in a list. A condition can use `.all` or `.any` on that list. A neighboring symbol can have its own capture, as in `$a:A {B}`. A chain needs its own rule. Capture the rule reference to bind the outer level. A binder cannot stand directly in the chain item or separator.
 
 Independent alternatives with fixed capture lists need one validation witness per list. They do not enumerate unrelated capture-presence combinations.
 
@@ -433,7 +433,7 @@ Elidable helpers preserve omission records and restoration routes. For `[$j:+JI]
 
 Ranking and query priority use the logical helper structure. Bag copying depends on the written symbol and its terms.
 
-A capture wraps one symbol with one span and bag. To capture inside an optional, label the symbol within the brackets. To capture a whole choice, name a rule for it.
+A capture can name one symbol or a whole optional, flat repetition, or grouped expression. `$x:(a | b)` binds the choice with the selected occurrence as its child. `($x:a | $x:b)` binds the selected occurrence itself. `[$x:A]` collects a written match of A. `$x:[A]` binds one node even when A is absent.
 
 A name occurs at most once per production. Two choice branches form separate productions. Thus `A ($x:B | $x:C)` is valid. `[$x:A] $x:B` and `$x:A & $x:B` are errors.
 

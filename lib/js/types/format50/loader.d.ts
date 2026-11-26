@@ -26,6 +26,7 @@ export declare function readBootstrap50(text: string, unicode: any): Map<string,
 export declare function validateStoredDom(dom: any, path: any, unicode: any): void;
 export declare class Loader50 {
     read: (path: string) => string | undefined;
+    namesOverride: (path: string) => boolean;
     unicode: UnicodeTable;
     bootstrapText: string;
     bootstrap: Map<string, any>;
@@ -46,8 +47,10 @@ export declare class Loader50 {
     propertiesHash: string | null;
     /**
      * @param {(path: string) => string | undefined} read
+     * @param {(path: string) => boolean} [namesOverride] whether the reader
+     * gives a names resource of its own in place of the bundled one
      */
-    constructor(read: (path: string) => string | undefined);
+    constructor(read: (path: string) => string | undefined, namesOverride?: (path: string) => boolean);
     /** @param {any} path */
     need(path: any): string;
     /** The notation reader, built from the bootstrap alone. */
@@ -64,7 +67,12 @@ export declare class Loader50 {
         names?: any;
         dom: any;
     };
-    /** @param {any} file */
+    /**
+     * A names resource from the reader. The reader supplies the reference
+     * file under its reserved key, and no other file stands in for it
+     * (engine §1, "Unicode names for string escapes").
+     * @param {any} file
+     */
     namesResource(file: any): string;
     /**
      * The DOM of a document, read from its source.
@@ -78,8 +86,22 @@ export declare class Loader50 {
      */
     findDom(path: any, inherited: any): any;
     /**
+     * Whether the names dependency of a cache entry matches the names
+     * resources that the document selects now (docs/output.md, "Preparsed
+     * DOMs"). An entry without the member loaded no names, so it matches.
+     * A bundled resource that the reader does not override uses the
+     * fingerprint of the registry, and any other resource is read.
+     * @param {any} dependencies the names member of the entry
+     * @param {string[]} extras the extra resources that the document selects
+     * @param {Record<string, string> | undefined} registry the bundledNames
+     * of the cache file
+     * @returns {boolean}
+     */
+    namesMatch(dependencies: any, extras: string[], registry: Record<string, string> | undefined): boolean;
+    /**
      * Uses the entries of an optional cache whose fingerprints match this
      * loader: the bootstrap, the Unicode table, its properties and the format.
+     * Each entry keeps the names registry of its file.
      * @param {any} data
      */
     usePreparsed(data: any): void;

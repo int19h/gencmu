@@ -28,7 +28,7 @@ export declare class StageCheck {
      */
     propertyType(node: any, ctx: any): Set<any>;
     /**
-     * The bag type of each rule of the stage (part 3 §3): for each key, the
+     * The bag type of each rule of the stage (engine §10): for each key, the
      * states "absent" and "bare" that it can have, and the types of its
      * payloads. In an open bag, a key that is not listed can have any payload.
      * The sources apply in order: the defaults, the primary or the sole
@@ -116,23 +116,23 @@ export declare class StageCheck {
      */
     instances(rules: any, deferred: any): any;
     /**
-     * The value certificate (part 2 §4): the rules whose value provably
+     * The value certificate (docs/engine.md, "Proof for a rule value"): the rules whose value provably
      * equals the join of their input values. Returns each value test or
      * recognition read of a rule value that has no certificate.
      * @param {any} rules
      * @returns {any}
      */
-    certificates(rules: any, readers?: Set<any>): any;
+    certificates(rules: any, readers?: Set<any>, valueReads?: any[]): any;
     /**
      * A read of a payload needs a payload on each route that reaches it. A
      * route of a rule without the key, or with the key bare, needs a test of
-     * .has-value(k) on the same capture before the read (part 3 §3).
+     * .has-value(k) on the same capture before the read (engine §10).
      * @param {any} rules
      */
     payloadRefinement(rules: any): any[];
     /**
      * The possible states of each key that the stage's tokens can carry
-     * (part 2 §2): "absent", "bare" or "valued", for each key that a term of
+     * (docs/notation.md, "Stage interfaces"): "absent", "bare" or "valued", for each key that a term of
      * the stage writes, and the input states of each key that a copy of an
      * input bag passes on. The states are a union over all writers, so they
      * over-approximate the interface.
@@ -144,7 +144,7 @@ export declare class StageCheck {
     }[], input: Map<string, Set<string>> | null): Map<any, any>;
     /**
      * A read of the payload of an input token needs a payload on each route
-     * (part 3 §3). .has(k) removes absence and .has-value(k) also removes the
+     * (engine §10). .has(k) removes absence and .has-value(k) also removes the
      * bare state. A guard refines its entry, and an antecedent its
      * consequent.
      * @param {{rule: any, document: string}[]} rules
@@ -155,16 +155,28 @@ export declare class StageCheck {
         document: string;
     }[], input: Map<string, Set<string>>): any[];
     /**
-     * Recognition reads the tags of a node from its primary, its sole symbol
-     * and its terms, not from the stage defaults. A recognition test that
-     * reads a key that the defaults can write fails at load, and is not
-     * answered without that key.
+     * Refuses a condition that reads a key, other than value and image, that
+     * the stage defaults can write. Recognition reads the tags of a node from
+     * its primary, its sole symbol and its terms, not from the defaults. The
+     * loader refuses the other recognition reads of such a key, a body filter
+     * on a rule and a read of a compound binding (docs/notation.md, "Rule
+     * bags").
      * @param {{rule: any, document: string}[]} rules
      */
     defaultKeyReads(rules: {
         rule: any;
         document: string;
     }[]): void;
+    /**
+     * The keys other than value and image that the stage defaults can write,
+     * and whether a splat of the defaults can write any key, or null where
+     * they write none.
+     * @returns {{written: Set<string>, open: boolean} | null}
+     */
+    defaultsWrites(): {
+        written: Set<string>;
+        open: boolean;
+    } | null;
     /**
      * Whether the stage defaults give each node the join of the values of
      * its input tokens, as `value: $n.span.tokens!'value.join()`.
@@ -185,6 +197,26 @@ export declare class StageCheck {
      * @param {any} document
      */
     nodeBag(term: any, document: any): void;
+    /**
+     * Refuses a constructor that stores an engine membership from permission
+     * alone. A stored engine membership needs evidence from a node. Neither
+     * $INPUTS nor a constant that names an engine key gives it, also through
+     * an alias, a version, a function, a selection, a copy or a splat. A mask
+     * can still name an engine key for the selection of a node.
+     * @param {any} term a bag constructor
+     * @param {any} document
+     * @param {any} [at] the place to report instead of the entry
+     */
+    provenance(term: any, document: any, at?: any): void;
+    /**
+     * Whether a value takes its entries from a permission set: $INPUTS, a bag
+     * that names an engine key, or a constant, a function or a selection whose
+     * entries come from one.
+     * @param {any} node
+     * @param {Set<any>} [active] the constant versions being followed
+     * @returns {boolean}
+     */
+    fromPermission(node: any, active?: Set<any>): boolean;
     constantGraph(): void;
     /** @param {any} rules */
     classifiers(rules: any): void;
@@ -194,3 +226,19 @@ export type RuleBag = {
     keys: Map<string, Set<string>>;
     open: boolean;
 };
+/**
+ * The covers of one emission list read disjoint input, in input order
+ * (docs/notation.md, "Emission"): the loader checks this for the items
+ * with no guard and no gate. On each alternative, it rejects two covers
+ * that can consume the same input and a pair of consuming covers that
+ * stand in the reverse order of their parts in the body. A whole-node item
+ * covers every part. Possible consumption ignores tests and conditions,
+ * and a forward covers what the part can hand on. The error stands at the
+ * second item of the first conflicting pair, in written order. It runs
+ * after stitching and after the check of nullable error productions.
+ * @param {{rule: any, document: string}[]} rules
+ */
+export declare function emissionCovers(rules: {
+    rule: any;
+    document: string;
+}[]): void;

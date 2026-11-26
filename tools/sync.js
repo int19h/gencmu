@@ -38,6 +38,7 @@ import { quotedTextProblems } from "./quoted-texts.js";
 import { proseLineProblems } from "./prose-lines.js";
 import { repositoryCllFootnoteProblems } from "./cll-footnotes.js";
 import { markdownFiles, repositoryFiles } from "./documents.js";
+import { privateReferenceProblems } from "./private-references.js";
 import { fixtureShapeProblems } from "./check-fixtures.js";
 import { missing as parserMissing } from "./markdown.js";
 import { DIAGRAMS, documentLines, elisionOutcomes, ownedLines, withDiagrams } from "./railroad.js";
@@ -345,7 +346,17 @@ ${bodies.join("\n")}
 }
 
 function finish() {
-  if (check && stale.length) {
+  // No file names a document outside the repository, the generated files
+// included (tools/private-references.js).
+if (part === undefined) {
+  const outside = privateReferenceProblems(root);
+  if (outside.length) {
+    console.error(outside.join("\n"));
+    process.exit(1);
+  }
+}
+
+if (check && stale.length) {
     console.error(`out of date; run node tools/sync.js:\n  ${stale.join("\n  ")}`);
     process.exit(1);
   }

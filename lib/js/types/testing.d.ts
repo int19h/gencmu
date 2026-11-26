@@ -289,7 +289,7 @@ export declare class WorkBudget extends Error {
  * @param {number} [steps]
  */
 export declare function countWork(work: WorkCounts, kind: WorkKind, steps?: number): void;
-/** @type {{diagnosticMessage:((node:import("./types.js").DerivationRule,recipe:import("./types.js").Recipe)=>void)|null,boundaryAdmission:((splits:any[],chart:any)=>void)|null, familyAlignment: ((summary:boolean, direct:boolean) => void)|null, elisionCheck: ((run: ElisionCheckRun) => ElisionCheckWatch) | null, work: WorkCounts | null, slotAdmission: ((statistics: {chartFacts:number,groups:number,candidateEdges:number,retainedEdges:number,boundarySplits?:any[]}) => void) | null, memoLimit: number | null, memoInsert: ((key: string) => void) | null, memoHit: ((key: string, alignedActive: number) => void) | null, alignedQuery: ((change: number) => void) | null}} */
+/** @type {{diagnosticMessage:((node:import("./types.js").DerivationRule,recipe:import("./types.js").Recipe)=>void)|null,boundaryAdmission:((splits:any[],chart:any)=>void)|null, familyAlignment: ((summary:boolean, direct:boolean) => void)|null, elisionCheck: ((run: ElisionCheckRun) => ElisionCheckWatch) | null, work: WorkCounts | null, slotAdmission: ((statistics: {chartFacts:number,groups:number,candidateEdges:number,retainedEdges:number,boundarySplits?:any[]}) => void) | null, memoLimit: number | null, memoInsert: ((key: string) => void) | null, memoHit: ((key: string, alignedActive: number) => void) | null, alignedQuery: ((change: number) => void) | null, oracle50: ((check: any) => void) | null}} */
 export declare const hooks: {
     diagnosticMessage: ((node: import("./types.js").DerivationRule, recipe: import("./types.js").Recipe) => void) | null;
     boundaryAdmission: ((splits: any[], chart: any) => void) | null;
@@ -307,6 +307,7 @@ export declare const hooks: {
     memoInsert: ((key: string) => void) | null;
     memoHit: ((key: string, alignedActive: number) => void) | null;
     alignedQuery: ((change: number) => void) | null;
+    oracle50: ((check: any) => void) | null;
 };
 /**
  * Whether a fault is on, at one of its sites. A fault that is on counts the

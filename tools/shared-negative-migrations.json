@@ -1011,8 +1011,8 @@
     }
   },
   "notation/capture-around-braces.json": {
-    "reason": "Erratum M-60: a label binds a whole optional, flat repetition or group, so the written operand loads.",
-    "section": "Erratum M-60, P1 §8",
+    "reason": "A label binds a whole optional, flat repetition or group, so the written operand loads.",
+    "section": "Engine §3.5, Captures",
     "native": true,
     "load": true,
     "documents": {
@@ -1029,8 +1029,8 @@
     }
   },
   "notation/capture-choice-wraps.json": {
-    "reason": "Erratum M-60: a label binds a whole optional, flat repetition or group, so the written operand loads.",
-    "section": "Erratum M-60, P1 §8",
+    "reason": "A label binds a whole optional, flat repetition or group, so the written operand loads.",
+    "section": "Engine §3.5, Captures",
     "native": true,
     "load": true,
     "documents": {
@@ -1039,8 +1039,8 @@
     "entry": "main.md"
   },
   "notation/capture-group.json": {
-    "reason": "Erratum M-60: a label binds a whole optional, flat repetition or group, so the written operand loads.",
-    "section": "Erratum M-60, P1 §8",
+    "reason": "A label binds a whole optional, flat repetition or group, so the written operand loads.",
+    "section": "Engine §3.5, Captures",
     "native": true,
     "load": true,
     "documents": {
@@ -1057,8 +1057,8 @@
     }
   },
   "notation/capture-optional-wraps.json": {
-    "reason": "Erratum M-60: a label binds a whole optional, flat repetition or group, so the written operand loads.",
-    "section": "Erratum M-60, P1 §8",
+    "reason": "A label binds a whole optional, flat repetition or group, so the written operand loads.",
+    "section": "Engine §3.5, Captures",
     "native": true,
     "load": true,
     "documents": {
@@ -1076,8 +1076,8 @@
     }
   },
   "notation/capture-order-wraps-braces.json": {
-    "reason": "Erratum M-60: a label binds a whole optional, flat repetition or group, so the written operand loads.",
-    "section": "Erratum M-60, P1 §8",
+    "reason": "A label binds a whole optional, flat repetition or group, so the written operand loads.",
+    "section": "Engine §3.5, Captures",
     "native": true,
     "load": true,
     "documents": {
@@ -1478,8 +1478,8 @@
     }
   },
   "notation/diagnostic-capture-group.json": {
-    "reason": "Erratum M-60: a label binds a whole optional, flat repetition or group, so the written operand loads.",
-    "section": "Erratum M-60, P1 §8",
+    "reason": "A label binds a whole optional, flat repetition or group, so the written operand loads.",
+    "section": "Engine §3.5, Captures",
     "native": true,
     "load": true,
     "documents": {
@@ -1669,8 +1669,8 @@
     }
   },
   "notation/error-capture-sequence.json": {
-    "reason": "Erratum M-60: a label binds a whole optional, flat repetition or group, so the written operand loads.",
-    "section": "Erratum M-60, P1 §8",
+    "reason": "A label binds a whole optional, flat repetition or group, so the written operand loads.",
+    "section": "Engine §3.5, Captures",
     "native": true,
     "load": true,
     "documents": {
@@ -2811,8 +2811,8 @@
     }
   },
   "notation/ranked-capture-group.json": {
-    "reason": "Erratum M-60: a label binds a whole optional, flat repetition or group, so the written operand loads.",
-    "section": "Erratum M-60, P1 §8",
+    "reason": "A label binds a whole optional, flat repetition or group, so the written operand loads.",
+    "section": "Engine §3.5, Captures",
     "native": true,
     "load": true,
     "documents": {
@@ -3286,7 +3286,7 @@
     }
   },
   "notation/values-capture-binder-reader-order.json": {
-    "reason": "Erratum M-60: $x:(B) binds B, so the capture name of the next rule is the first fault.",
+    "reason": "$x:(B) binds B, so the capture name of the next rule is the first fault.",
     "expected": {
       "line": 3,
       "column": 1,
@@ -3327,8 +3327,8 @@
     }
   },
   "notation/values-capture-group.json": {
-    "reason": "Erratum M-60: a label binds a whole optional, flat repetition or group, so the written operand loads.",
-    "section": "Erratum M-60, P1 §8",
+    "reason": "A label binds a whole optional, flat repetition or group, so the written operand loads.",
+    "section": "Engine §3.5, Captures",
     "native": true,
     "load": true,
     "documents": {
@@ -3337,8 +3337,8 @@
     "entry": "main.md"
   },
   "notation/values-capture-optional.json": {
-    "reason": "Erratum M-60: a label binds a whole optional, flat repetition or group, so the written operand loads.",
-    "section": "Erratum M-60, P1 §8",
+    "reason": "A label binds a whole optional, flat repetition or group, so the written operand loads.",
+    "section": "Engine §3.5, Captures",
     "native": true,
     "load": true,
     "documents": {

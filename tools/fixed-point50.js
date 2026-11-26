@@ -25,6 +25,8 @@ const decoder = new TextDecoder("utf-8", { fatal: true });
 const read = file => {
   if (file === BUNDLE_50.bootstrap) return seed;
   if (file.startsWith(BUNDLE_50.cacheRoot + "/")) return undefined;
+  // The reference names file is the pinned one, as the Node loaders map it.
+  if (file === "data/unicode/unicode-names-reference.txt") file = "data/unicode/unicode-names.txt";
   try {
     return decoder.decode(fs.readFileSync(path.join(root, file)));
   } catch (error) {

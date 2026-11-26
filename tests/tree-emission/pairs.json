@@ -4315,8 +4315,8 @@
     ]
   },
   {
-    "id": "m60-target-sequence",
-    "description": "A label binds the sequence (A B) as one node per visit, with its span, children and certified value (erratum M-60).",
+    "id": "compound-target-sequence",
+    "description": "A label binds the sequence (A B) as one node per visit, with its span, children and certified value.",
     "manuals": [
       {
         "file": "docs/notation.md",
@@ -5007,8 +5007,8 @@
     ]
   },
   {
-    "id": "m60-target-choice",
-    "description": "A label binds the choice (A | B) as one node per visit, with its span, children and certified value (erratum M-60).",
+    "id": "compound-target-choice",
+    "description": "A label binds the choice (A | B) as one node per visit, with its span, children and certified value.",
     "manuals": [
       {
         "file": "docs/notation.md",
@@ -5591,8 +5591,8 @@
     ]
   },
   {
-    "id": "m60-target-subset",
-    "description": "A label binds the subset (A & B) as one node per visit, with its span, children and certified value (erratum M-60).",
+    "id": "compound-target-subset",
+    "description": "A label binds the subset (A & B) as one node per visit, with its span, children and certified value.",
     "manuals": [
       {
         "file": "docs/notation.md",
@@ -6283,8 +6283,8 @@
     ]
   },
   {
-    "id": "m60-target-ranked",
-    "description": "A label binds the ranked (A ≻ B) as one node per visit, with its span, children and certified value (erratum M-60).",
+    "id": "compound-target-ranked",
+    "description": "A label binds the ranked (A ≻ B) as one node per visit, with its span, children and certified value.",
     "manuals": [
       {
         "file": "docs/notation.md",
@@ -6867,8 +6867,8 @@
     ]
   },
   {
-    "id": "m60-target-optional",
-    "description": "A label binds the optional [A] as one node per visit, with its span, children and certified value (erratum M-60).",
+    "id": "compound-target-optional",
+    "description": "A label binds the optional [A] as one node per visit, with its span, children and certified value.",
     "manuals": [
       {
         "file": "docs/notation.md",
@@ -7451,8 +7451,8 @@
     ]
   },
   {
-    "id": "m60-target-repetition",
-    "description": "A label binds the repetition {A} as one node per visit, with its span, children and certified value (erratum M-60).",
+    "id": "compound-target-repetition",
+    "description": "A label binds the repetition {A} as one node per visit, with its span, children and certified value.",
     "manuals": [
       {
         "file": "docs/notation.md",
@@ -8143,8 +8143,8 @@
     ]
   },
   {
-    "id": "m60-target-elidable",
-    "description": "A label binds the elidable [+JI] as one node per visit, with its span, children and certified value (erratum M-60).",
+    "id": "compound-target-elidable",
+    "description": "A label binds the elidable [+JI] as one node per visit, with its span, children and certified value.",
     "manuals": [
       {
         "file": "docs/notation.md",
@@ -8727,8 +8727,8 @@
     ]
   },
   {
-    "id": "m60-target-symbol-controls",
-    "description": "The operations of the matrix load on a labeled symbol, where the label binds the symbol (erratum M-60).",
+    "id": "compound-target-symbol-controls",
+    "description": "The operations of the matrix load on a labeled symbol, where the label binds the symbol.",
     "manuals": [
       {
         "file": "docs/notation.md",
@@ -8840,7 +8840,7 @@
     ]
   },
   {
-    "id": "m60-whole-optional-rollback",
+    "id": "compound-whole-optional-rollback",
     "description": "A failed attempt inside a whole optional leaves the binding present at an empty window.",
     "manuals": [
       {
@@ -8956,7 +8956,7 @@
     ]
   },
   {
-    "id": "m60-source-boundaries",
+    "id": "compound-source-boundaries",
     "description": "An empty visit binds at the place where the visit starts, and the next token follows it.",
     "manuals": [
       {
@@ -9062,7 +9062,7 @@
     ]
   },
   {
-    "id": "m60-empty-input",
+    "id": "compound-empty-input",
     "description": "A compound binding on empty input has the empty window at the start, which starts and ends the input.",
     "manuals": [
       {
@@ -9120,7 +9120,7 @@
     ]
   },
   {
-    "id": "m60-one-or-more",
+    "id": "compound-one-or-more",
     "description": "A label on flat braces binds one node with every item.",
     "manuals": [
       {
@@ -9239,7 +9239,7 @@
     ]
   },
   {
-    "id": "m60-zero-or-more",
+    "id": "compound-zero-or-more",
     "description": "A label on an optional repetition binds one node, also where nothing is read.",
     "manuals": [
       {
@@ -9374,7 +9374,7 @@
     ]
   },
   {
-    "id": "m60-ordered-separators",
+    "id": "compound-ordered-separators",
     "description": "The children of a separated repetition keep their order, separators included.",
     "manuals": [
       {
@@ -9489,7 +9489,7 @@
     ]
   },
   {
-    "id": "m60-grouped-sequence",
+    "id": "compound-grouped-sequence",
     "description": "A grouped sequence keeps a tested child, and its strings join its children.",
     "manuals": [
       {
@@ -9594,7 +9594,7 @@
     ]
   },
   {
-    "id": "m60-ordered-subset",
+    "id": "compound-ordered-subset",
     "description": "A label on an ordered subset binds the items that it reads, and its keys are empty without defaults.",
     "manuals": [
       {
@@ -9678,7 +9678,7 @@
     ]
   },
   {
-    "id": "m60-nested-captures",
+    "id": "compound-nested-captures",
     "description": "An inner label of a compound operand belongs to the enclosing alternative.",
     "manuals": [
       {
@@ -9783,7 +9783,7 @@
     ]
   },
   {
-    "id": "m60-outer-multiplicity",
+    "id": "compound-outer-multiplicity",
     "description": "A repetition around a label collects one binding for each visit.",
     "manuals": [
       {
@@ -9925,7 +9925,7 @@
     ]
   },
   {
-    "id": "m60-skipped-label",
+    "id": "compound-skipped-label",
     "description": "A skipped outer route never visits its inner label, so the slot is an empty list.",
     "manuals": [
       {
@@ -9984,7 +9984,7 @@
     ]
   },
   {
-    "id": "m60-alternative-scope",
+    "id": "compound-alternative-scope",
     "description": "A presence test in a shared term gives false on the alternative that lacks the label.",
     "manuals": [
       {
@@ -10069,7 +10069,7 @@
     ]
   },
   {
-    "id": "m60-duplicate-route",
+    "id": "compound-duplicate-route",
     "description": "Exclusive branches fill one ordinary slot.",
     "manuals": [
       {
@@ -10130,7 +10130,7 @@
     }
   },
   {
-    "id": "m60-default-only-bag",
+    "id": "compound-default-only-bag",
     "description": "Without defaults, the bag of a group with no primary or sole symbol is empty.",
     "manuals": [
       {
@@ -10215,7 +10215,7 @@
     ]
   },
   {
-    "id": "m60-no-singleton-inheritance",
+    "id": "compound-no-singleton-inheritance",
     "description": "A repetition gives neither its binding nor its termless parent the flag of its item.",
     "manuals": [
       {
@@ -10294,7 +10294,7 @@
     ]
   },
   {
-    "id": "m60-primary-through-label",
+    "id": "compound-primary-through-label",
     "description": "A primary inside a labeled group marks the child of the enclosing rule, and the binding takes its bag too.",
     "manuals": [
       {
@@ -10385,7 +10385,7 @@
     ]
   },
   {
-    "id": "m60-primary-placement",
+    "id": "compound-primary-placement",
     "description": "A primary outside a labeled optional gives the group neither a primary nor a sole-symbol copy.",
     "manuals": [
       {
@@ -10482,7 +10482,7 @@
     ]
   },
   {
-    "id": "m60-sole-symbol-and-term",
+    "id": "compound-sole-symbol-and-term",
     "description": "A parent term suppresses the sole-symbol copy of the parent, and the group still takes the bag of its selected rule.",
     "manuals": [
       {
@@ -10567,7 +10567,7 @@
     ]
   },
   {
-    "id": "m60-redundant-parentheses",
+    "id": "compound-redundant-parentheses",
     "description": "Parentheses around one symbol drop, so a marked label on them projects the terminal.",
     "manuals": [
       {
@@ -10629,7 +10629,7 @@
     }
   },
   {
-    "id": "m60-elidable-twins",
+    "id": "compound-elidable-twins",
     "description": "A label outside an elidable optional binds one node with the omitted leaf, and the terminator binder binds written leaves only.",
     "manuals": [
       {
@@ -10725,7 +10725,7 @@
     ]
   },
   {
-    "id": "m60-written-head",
+    "id": "compound-written-head",
     "description": "A group around a captured terminator is present on both routes, and the terminator binder holds the written leaf only.",
     "manuals": [
       {
@@ -10840,7 +10840,7 @@
     ]
   },
   {
-    "id": "m60-elidable-tail",
+    "id": "compound-elidable-tail",
     "description": "A group around an elidable optional with a tail spans both tokens, and the omitted head is its sole child on empty input.",
     "manuals": [
       {
@@ -10957,7 +10957,7 @@
     ]
   },
   {
-    "id": "m60-written-empty-string",
+    "id": "compound-written-empty-string",
     "description": "A written terminator with empty strings is still a written leaf of the group.",
     "manuals": [
       {
@@ -11043,7 +11043,7 @@
     ]
   },
   {
-    "id": "m60-chain-ownership",
+    "id": "compound-chain-ownership",
     "description": "A label on a rule whose sole body is a chain captures its outer level.",
     "manuals": [
       {
@@ -11160,7 +11160,7 @@
     ]
   },
   {
-    "id": "m60-chain-item",
+    "id": "compound-chain-item",
     "description": "Flat braces inside a chain item collect a label inside each item.",
     "manuals": [
       {
@@ -11262,7 +11262,7 @@
     }
   },
   {
-    "id": "m60-splice-in-group",
+    "id": "compound-splice-in-group",
     "description": "A named splice inside a group keeps its call as a part that a projection can take.",
     "manuals": [
       {
@@ -11350,7 +11350,7 @@
     }
   },
   {
-    "id": "m60-forwarding",
+    "id": "compound-forwarding",
     "description": "Forwarding a compound binding hands on the outputs of its children with their own producers.",
     "manuals": [
       {
@@ -11436,7 +11436,7 @@
     }
   },
   {
-    "id": "m60-value-certificate",
+    "id": "compound-value-certificate",
     "description": "An early read of the value of a separated repetition passes, since its leaves partition the window.",
     "manuals": [
       {
@@ -11552,7 +11552,7 @@
     ]
   },
   {
-    "id": "m60-changed-spelling",
+    "id": "compound-changed-spelling",
     "description": "A child that changes its value keeps the late value of the group, and breaks its certificate.",
     "manuals": [
       {
@@ -11628,7 +11628,7 @@
     }
   },
   {
-    "id": "m60-erased-input-join",
+    "id": "compound-erased-input-join",
     "description": "With a default that joins the input tokens, an early read of a group over an erased child gives the input join.",
     "manuals": [
       {
@@ -11732,7 +11732,7 @@
     ]
   },
   {
-    "id": "m60-synthetic-default",
+    "id": "compound-synthetic-default",
     "description": "A group around an omitted head with a default has that default as its late value, and no certificate for it.",
     "manuals": [
       {
@@ -11780,7 +11780,7 @@
     }
   },
   {
-    "id": "m60-empty-target-query",
+    "id": "compound-empty-target-query",
     "description": "An empty visit binds before the next symbol, which a query after it can read.",
     "manuals": [
       {
@@ -11860,7 +11860,7 @@
     ]
   },
   {
-    "id": "m60-primary-and-sibling",
+    "id": "compound-primary-and-sibling",
     "description": "A group with a primary and a consuming sibling takes the value of its primary late, and has no certificate.",
     "manuals": [
       {
@@ -11934,7 +11934,7 @@
     }
   },
   {
-    "id": "m60-missing-strings",
+    "id": "compound-missing-strings",
     "description": "Without defaults, a group reads its input join through its span, and has no value of its own.",
     "manuals": [
       {
@@ -12029,7 +12029,7 @@
     ]
   },
   {
-    "id": "m60-chain-equality",
+    "id": "compound-chain-equality",
     "description": "Two captures of a rule whose body is a chain are ordinary nodes that compare equal.",
     "manuals": [
       {
@@ -12129,7 +12129,7 @@
     ]
   },
   {
-    "id": "m60-inner-patterns",
+    "id": "compound-inner-patterns",
     "description": "A pattern reads an inner symbol of a group, and the group keeps the inner declaration.",
     "manuals": [
       {
@@ -12227,7 +12227,7 @@
     ]
   },
   {
-    "id": "m60-two-compounds",
+    "id": "compound-two-compounds",
     "description": "An outer group holds each child once, in order, and the inner group holds its own.",
     "manuals": [
       {
@@ -12312,7 +12312,7 @@
     }
   },
   {
-    "id": "m60-one-operand",
+    "id": "compound-one-operand",
     "description": "After parentheses drop, a group of a capture and a symbol is compound, and one of a capture alone is not.",
     "manuals": [
       {
@@ -12426,7 +12426,7 @@
     ]
   },
   {
-    "id": "m60-singleton-splice",
+    "id": "compound-singleton-splice",
     "description": "A label on one parenthesized splice binds the splice, and a projection takes its call.",
     "manuals": [
       {
@@ -12502,7 +12502,7 @@
     }
   },
   {
-    "id": "m60-neighbor-empty-visit",
+    "id": "compound-neighbor-empty-visit",
     "description": "A neighbor test of an empty visit reads the next token.",
     "manuals": [
       {
@@ -12600,7 +12600,7 @@
     ]
   },
   {
-    "id": "m60-function-recognition",
+    "id": "compound-function-recognition",
     "description": "A function constant reads the certified value of a group in recognition.",
     "manuals": [
       {
@@ -12683,7 +12683,7 @@
     ]
   },
   {
-    "id": "m60-ranked-value",
+    "id": "compound-ranked-value",
     "description": "A group around a ranked choice gives presence, span and its certified value before selection.",
     "manuals": [
       {
@@ -12769,7 +12769,7 @@
     ]
   },
   {
-    "id": "m60-ranked-sequence",
+    "id": "compound-ranked-sequence",
     "description": "A group around a sequence with a ranked choice gives its certified value early and its winning children late.",
     "manuals": [
       {
@@ -12881,7 +12881,7 @@
     ]
   },
   {
-    "id": "m60-ranked-optional",
+    "id": "compound-ranked-optional",
     "description": "A group around an optional ranked choice gives the common early value, and binds an empty visit on empty input.",
     "manuals": [
       {
@@ -13001,7 +13001,7 @@
     ]
   },
   {
-    "id": "m60-ranked-repetition",
+    "id": "compound-ranked-repetition",
     "description": "A group around repeated ranked choices admits the certified early value.",
     "manuals": [
       {
@@ -13105,7 +13105,7 @@
     ]
   },
   {
-    "id": "m60-ranked-default",
+    "id": "compound-ranked-default",
     "description": "A default that reads the private child of a group around a ranked choice is late only.",
     "manuals": [
       {
@@ -13171,7 +13171,7 @@
     }
   },
   {
-    "id": "m60-private-inner-label",
+    "id": "compound-private-inner-label",
     "description": "An inner label of a ranked option stays private, and a late item can read it where that option won.",
     "manuals": [
       {
@@ -13263,7 +13263,7 @@
     ]
   },
   {
-    "id": "m60-two-choice-spellings",
+    "id": "compound-two-choice-spellings",
     "description": "A label on a choice binds a group over the selected rule, and labels on its branches bind that rule (worked example 2).",
     "manuals": [
       {
@@ -13443,7 +13443,7 @@
     ]
   },
   {
-    "id": "m60-ranked-seal",
+    "id": "compound-ranked-seal",
     "description": "A pattern sees one seal at a ranked choice inside a group, and the whole unranked choice.",
     "manuals": [
       {
@@ -13643,7 +13643,7 @@
     ]
   },
   {
-    "id": "m60-ranked-choice-subset",
+    "id": "compound-ranked-choice-subset",
     "description": "A group around a ranked choice inside a choice or a subset gives the common early value.",
     "manuals": [
       {
@@ -13803,7 +13803,7 @@
     ]
   },
   {
-    "id": "m60-ranked-elidable",
+    "id": "compound-ranked-elidable",
     "description": "A group around an elidable optional with a ranked tail has the common window, and an empty one on omission.",
     "manuals": [
       {
@@ -13941,7 +13941,7 @@
     ]
   },
   {
-    "id": "m60-ranked-two-labels",
+    "id": "compound-ranked-two-labels",
     "description": "Two labels around a ranked choice have their own early spans, and only a late guard reads the winner.",
     "manuals": [
       {
@@ -14053,7 +14053,7 @@
     ]
   },
   {
-    "id": "m60-ranked-list",
+    "id": "compound-ranked-list",
     "description": "A list of groups around ranked choices admits a presence predicate early, and a late predicate reads the winners.",
     "manuals": [
       {
@@ -14165,7 +14165,7 @@
     ]
   },
   {
-    "id": "m60-enclosing-children",
+    "id": "compound-enclosing-children",
     "description": "A default reads the working children of the enclosing rule and of the group.",
     "manuals": [
       {
@@ -14262,7 +14262,7 @@
     ]
   },
   {
-    "id": "m60-coverage-through-group",
+    "id": "compound-coverage-through-group",
     "description": "Forwarding a group with an inner label covers each output once.",
     "manuals": [
       {
@@ -14348,7 +14348,7 @@
     }
   },
   {
-    "id": "m60-omitted-origin-restoration",
+    "id": "compound-omitted-origin-restoration",
     "description": "The restoration of a group around an omitted head reads the restored written-head list as empty.",
     "manuals": [
       {
@@ -14394,7 +14394,7 @@
     }
   },
   {
-    "id": "m60-parameter-classification",
+    "id": "compound-parameter-classification",
     "description": "A written target decides whether a template argument binds one symbol or a compound operand.",
     "manuals": [
       {
@@ -14582,7 +14582,7 @@
     ]
   },
   {
-    "id": "m60-normalized-dom",
+    "id": "compound-normalized-dom",
     "description": "Both choice spellings of worked example 2 give the same observations from their source, a cache entry and a supplied DOM.",
     "manuals": [
       {
@@ -14761,7 +14761,7 @@
     ]
   },
   {
-    "id": "m60-dom-operands",
+    "id": "compound-dom-operands",
     "description": "The elidable twins and a flat repetition round-trip as capture records, and a supplied DOM cannot capture a remainder, an empty expression or a chain.",
     "manuals": [
       {
