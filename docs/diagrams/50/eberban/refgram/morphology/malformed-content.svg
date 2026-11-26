@@ -1,0 +1,72 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="755" height="362" viewBox="0 0 755 362" role="img" aria-label="Railroad diagram of the rule malformed-content">
+<style>path{fill:none;stroke:#333;stroke-width:1.5}.rule rect{fill:#e8eefc;stroke:#333;stroke-width:1.5}.terminal rect{fill:#fdf6d8;stroke:#333;stroke-width:1.5}text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"DejaVu Sans Mono","Liberation Mono",monospace;font-size:14px;fill:#111;text-anchor:middle}text.label{font-size:12px;font-style:italic;fill:#555;text-anchor:start}text.title{font-weight:bold;text-anchor:start}.rank-frame{fill:none;stroke:#777;stroke-width:1;stroke-dasharray:3 3}</style>
+<rect width="100%" height="100%" fill="#fff"/>
+<text class="title" x="10" y="24" textLength="142.8" lengthAdjust="spacingAndGlyphs">malformed-content</text>
+<path d="M10 48v16m4 -16v16M14 56h6"/>
+<path d="M20 56h20"/>
+<path d="M40 56h20"/>
+<g class="terminal"><rect x="60" y="44" width="134" height="24" rx="12"/><text x="127" y="61" textLength="117.6" lengthAdjust="spacingAndGlyphs">*h-before-word</text></g>
+<path d="M194 56h10"/>
+<path d="M204 56h20"/>
+<g class="rule"><rect x="224" y="44" width="210" height="24" rx="0"/><text x="329" y="61" textLength="193.2" lengthAdjust="spacingAndGlyphs">malformed-content-onset</text></g>
+<path d="M434 56H454"/>
+<path d="M204 56a10 10 0 0 0 10 -10V44a10 10 0 0 1 10 -10H434a10 10 0 0 1 10 10V46a10 10 0 0 0 10 10"/>
+<path d="M454 56h10"/>
+<g class="rule"><rect x="464" y="44" width="159" height="24" rx="0"/><text x="543.5" y="61" textLength="142.8" lengthAdjust="spacingAndGlyphs">malformed-vhowels</text></g>
+<path d="M623 56H628a10 10 0 0 1 10 10V68a10 10 0 0 1 -10 10H60a10 10 0 0 0 -10 10V100a10 10 0 0 0 10 10"/>
+<path d="M60 110h20"/>
+<path d="M80 110h20"/>
+<g class="rule"><rect x="100" y="98" width="218" height="24" rx="0"/><text x="209" y="115" textLength="201.6" lengthAdjust="spacingAndGlyphs">malformed-content-middle</text></g>
+<path d="M318 110h10"/>
+<g class="rule"><rect x="328" y="98" width="159" height="24" rx="0"/><text x="407.5" y="115" textLength="142.8" lengthAdjust="spacingAndGlyphs">malformed-vhowels</text></g>
+<path d="M487 110H507"/>
+<path d="M487 110a10 10 0 0 1 10 10V122a10 10 0 0 1 -10 10H100a10 10 0 0 1 -10 -10V120a10 10 0 0 1 10 -10"/>
+<path d="M507 110H527"/>
+<path d="M60 110a10 10 0 0 0 10 -10V98a10 10 0 0 1 10 -10H507a10 10 0 0 1 10 10V100a10 10 0 0 0 10 10"/>
+<path d="M527 110H628a10 10 0 0 1 10 10V132a10 10 0 0 1 -10 10H60a10 10 0 0 0 -10 10V174a10 10 0 0 0 10 10"/>
+<path d="M60 184h20"/>
+<path d="M80 184h20"/>
+<g class="rule"><rect x="100" y="172" width="151" height="24" rx="0"/><text x="175.5" y="189" textLength="134.4" lengthAdjust="spacingAndGlyphs">hyphen-misplaced</text></g>
+<path d="M251 184H271"/>
+<path d="M80 184a10 10 0 0 0 10 -10V172a10 10 0 0 1 10 -10H251a10 10 0 0 1 10 10V174a10 10 0 0 0 10 10"/>
+<path d="M271 184h10"/>
+<path d="M281 184h20"/>
+<g class="rule"><rect x="301" y="172" width="92" height="24" rx="0"/><text x="347" y="189" textLength="75.6" lengthAdjust="spacingAndGlyphs">consonant</text></g>
+<path d="M393 184H472"/>
+<path d="M281 184a10 10 0 0 1 10 10V208a10 10 0 0 0 10 10"/>
+<g class="rule"><rect x="301" y="206" width="151" height="24" rx="0"/><text x="376.5" y="223" textLength="134.4" lengthAdjust="spacingAndGlyphs">malformed-ending</text></g>
+<path d="M452 218H452a10 10 0 0 0 10 -10V194a10 10 0 0 1 10 -10"/>
+<path d="M472 184H492"/>
+<path d="M60 184a10 10 0 0 0 10 -10V162a10 10 0 0 1 10 -10H472a10 10 0 0 1 10 10V174a10 10 0 0 0 10 10"/>
+<path d="M492 184h10"/>
+<g class="terminal"><rect x="502" y="172" width="126" height="24" rx="12"/><text x="565" y="189" textLength="109.2" lengthAdjust="spacingAndGlyphs">*h-after-word</text></g>
+<path d="M628 184H648"/>
+<path d="M648 184H725"/>
+<path d="M20 56a10 10 0 0 1 10 10V256a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="40" y="254" width="134" height="24" rx="12"/><text x="107" y="271" textLength="117.6" lengthAdjust="spacingAndGlyphs">*h-before-word</text></g>
+<path d="M174 266h10"/>
+<path d="M184 266h88"/>
+<text class="label" x="188" y="261" textLength="79.2" lengthAdjust="spacingAndGlyphs">≻ same span</text>
+<path d="M272 266h10"/>
+<g class="ranked-choice"><rect class="rank-frame" x="287" y="245" width="277" height="76" rx="4"/>
+<path d="M282 266h10"/>
+<path d="M292 266h20"/>
+<path d="M312 266h16"/>
+<text class="label" x="316" y="261" textLength="7.2" lengthAdjust="spacingAndGlyphs">1</text>
+<path d="M328 266h10"/>
+<g class="rule"><rect x="338" y="254" width="201" height="24" rx="0"/><text x="438.5" y="271" textLength="184.8" lengthAdjust="spacingAndGlyphs">malformed-long-cluster</text></g>
+<path d="M539 266H559"/>
+<path d="M292 266a10 10 0 0 1 10 10V294a10 10 0 0 0 10 10"/>
+<path d="M312 304h16"/>
+<text class="label" x="316" y="299" textLength="7.2" lengthAdjust="spacingAndGlyphs">2</text>
+<path d="M328 304h10"/>
+<g class="rule"><rect x="338" y="292" width="151" height="24" rx="0"/><text x="413.5" y="309" textLength="134.4" lengthAdjust="spacingAndGlyphs">malformed-ending</text></g>
+<path d="M489 304H539a10 10 0 0 0 10 -10V276a10 10 0 0 1 10 -10"/>
+<path d="M559 266h10"/>
+</g>
+<path d="M569 266h10"/>
+<g class="terminal"><rect x="579" y="254" width="126" height="24" rx="12"/><text x="642" y="271" textLength="109.2" lengthAdjust="spacingAndGlyphs">*h-after-word</text></g>
+<path d="M705 266H705a10 10 0 0 0 10 -10V194a10 10 0 0 1 10 -10"/>
+<path d="M725 184h6m0 -8v16m4 -16v16"/>
+<text class="label" x="10" y="348" textLength="734.4" lengthAdjust="spacingAndGlyphs">A qualified higher proof removes a lower proof only over the same span and with dominating open facts.</text>
+</svg>

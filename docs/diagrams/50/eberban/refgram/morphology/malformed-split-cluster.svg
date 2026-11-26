@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="755" height="368" viewBox="0 0 755 368" role="img" aria-label="Railroad diagram of the rule malformed-split-cluster">
+<style>path{fill:none;stroke:#333;stroke-width:1.5}.rule rect{fill:#e8eefc;stroke:#333;stroke-width:1.5}.terminal rect{fill:#fdf6d8;stroke:#333;stroke-width:1.5}text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"DejaVu Sans Mono","Liberation Mono",monospace;font-size:14px;fill:#111;text-anchor:middle}text.label{font-size:12px;font-style:italic;fill:#555;text-anchor:start}text.title{font-weight:bold;text-anchor:start}.rank-frame{fill:none;stroke:#777;stroke-width:1;stroke-dasharray:3 3}</style>
+<rect width="100%" height="100%" fill="#fff"/>
+<text class="title" x="10" y="24" textLength="193.2" lengthAdjust="spacingAndGlyphs">malformed-split-cluster</text>
+<path d="M10 38v16m4 -16v16M14 46h6"/>
+<path d="M20 46h20"/>
+<g class="rule"><rect x="40" y="34" width="243" height="24" rx="0"/><text x="161.5" y="51" textLength="226.8" lengthAdjust="spacingAndGlyphs">recovering-freeform-triplet</text></g>
+<path d="M283 46H491"/>
+<path d="M20 46a10 10 0 0 1 10 10V70a10 10 0 0 0 10 10"/>
+<g class="rule"><rect x="40" y="68" width="193" height="24" rx="0"/><text x="136.5" y="85" textLength="176.4" lengthAdjust="spacingAndGlyphs">malformed-medial-pair</text></g>
+<path d="M233 80H471a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V104a10 10 0 0 0 10 10"/>
+<g class="rule"><rect x="40" y="102" width="210" height="24" rx="0"/><text x="145" y="119" textLength="193.2" lengthAdjust="spacingAndGlyphs">malformed-sonorant-pair</text></g>
+<path d="M250 114H471a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V138a10 10 0 0 0 10 10"/>
+<g class="rule"><rect x="40" y="136" width="84" height="24" rx="0"/><text x="82" y="153" textLength="67.2" lengthAdjust="spacingAndGlyphs">sonorant</text></g>
+<path d="M124 148h10"/>
+<g class="terminal"><rect x="134" y="136" width="193" height="24" rx="12"/><text x="230.5" y="153" textLength="176.4" lengthAdjust="spacingAndGlyphs">malformed-gap(Hyphen)</text></g>
+<path d="M327 148h10"/>
+<g class="rule"><rect x="337" y="136" width="134" height="24" rx="0"/><text x="404" y="153" textLength="117.6" lengthAdjust="spacingAndGlyphs">malformed-pair</text></g>
+<path d="M471 148H471a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V186a10 10 0 0 0 10 10"/>
+<path d="M40 196h88"/>
+<text class="label" x="44" y="191" textLength="79.2" lengthAdjust="spacingAndGlyphs">≻ same span</text>
+<path d="M128 196h10"/>
+<g class="ranked-choice"><rect class="rank-frame" x="143" y="175" width="319" height="152" rx="4"/>
+<path d="M138 196h10"/>
+<path d="M148 196h20"/>
+<path d="M168 196h16"/>
+<text class="label" x="172" y="191" textLength="7.2" lengthAdjust="spacingAndGlyphs">1</text>
+<path d="M184 196h10"/>
+<g class="rule"><rect x="194" y="184" width="151" height="24" rx="0"/><text x="269.5" y="201" textLength="134.4" lengthAdjust="spacingAndGlyphs">triplet-middle-m</text></g>
+<path d="M345 196H457"/>
+<path d="M148 196a10 10 0 0 1 10 10V224a10 10 0 0 0 10 10"/>
+<path d="M168 234h16"/>
+<text class="label" x="172" y="229" textLength="7.2" lengthAdjust="spacingAndGlyphs">2</text>
+<path d="M184 234h10"/>
+<g class="rule"><rect x="194" y="222" width="193" height="24" rx="0"/><text x="290.5" y="239" textLength="176.4" lengthAdjust="spacingAndGlyphs">triplet-yz-sonorant-x</text></g>
+<path d="M387 234H437a10 10 0 0 0 10 -10V206a10 10 0 0 1 10 -10"/>
+<path d="M148 196a10 10 0 0 1 10 10V262a10 10 0 0 0 10 10"/>
+<path d="M168 272h16"/>
+<text class="label" x="172" y="267" textLength="7.2" lengthAdjust="spacingAndGlyphs">3</text>
+<path d="M184 272h10"/>
+<g class="rule"><rect x="194" y="260" width="243" height="24" rx="0"/><text x="315.5" y="277" textLength="226.8" lengthAdjust="spacingAndGlyphs">triplet-freeform-first-pair</text></g>
+<path d="M437 272H437a10 10 0 0 0 10 -10V206a10 10 0 0 1 10 -10"/>
+<path d="M148 196a10 10 0 0 1 10 10V300a10 10 0 0 0 10 10"/>
+<path d="M168 310h16"/>
+<text class="label" x="172" y="305" textLength="7.2" lengthAdjust="spacingAndGlyphs">4</text>
+<path d="M184 310h10"/>
+<g class="rule"><rect x="194" y="298" width="201" height="24" rx="0"/><text x="294.5" y="315" textLength="184.8" lengthAdjust="spacingAndGlyphs">triplet-freeform-shape</text></g>
+<path d="M395 310H437a10 10 0 0 0 10 -10V206a10 10 0 0 1 10 -10"/>
+<path d="M457 196h10"/>
+</g>
+<path d="M467 196H471a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M491 46h6m0 -8v16m4 -16v16"/>
+<text class="label" x="10" y="354" textLength="734.4" lengthAdjust="spacingAndGlyphs">A qualified higher proof removes a lower proof only over the same span and with dominating open facts.</text>
+</svg>
