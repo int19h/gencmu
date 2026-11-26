@@ -1,0 +1,167 @@
+[
+  {"rule": "a fault inside the first actual precedes the duplicate binding of the body", "section": "engine §9.3, error selection", "inputs": [
+    {"source": ["%rule r f(= {A, A}) B"], "fault": {"reason": "duplicate direct write for A", "line": 2, "column": 17}},
+    {"source": ["%rule r f(= {A}) $x:B $x:C"], "fault": {"reason": "a route binds $x twice", "line": 2, "column": 1}},
+    {"source": ["%rule r f(= {A, A}) $x:B $x:C"], "fault": {"reason": "duplicate direct write for A", "line": 2, "column": 17}}
+  ]},
+  {"rule": "an unknown method inside the first actual precedes the duplicate binding", "section": "engine §9.3, error selection", "inputs": [
+    {"source": ["%rule r f(= \"x\".xxxxx()) B"], "fault": {"reason": "unknown method .xxxxx", "line": 2, "column": 16}},
+    {"source": ["%rule r f(= {A}) $x:B $x:C"], "fault": {"reason": "a route binds $x twice", "line": 2, "column": 1}},
+    {"source": ["%rule r f(= \"x\".xxxxx()) $x:B $x:C"], "fault": {"reason": "unknown method .xxxxx", "line": 2, "column": 16}}
+  ]},
+  {"rule": "a conversion fault inside the first actual precedes the duplicate binding", "section": "engine §9.3, error selection", "inputs": [
+    {"source": ["%rule r f(= $.span()) B"], "fault": {"reason": "method .span omits parentheses", "line": 2, "column": 14}},
+    {"source": ["%rule r f(= {A}) $x:B $x:C"], "fault": {"reason": "a route binds $x twice", "line": 2, "column": 1}},
+    {"source": ["%rule r f(= $.span()) $x:B $x:C"], "fault": {"reason": "method .span omits parentheses", "line": 2, "column": 14}}
+  ]},
+  {"rule": "the duplicate bindings of a body precede a conversion fault in its term", "section": "engine §9.3, error selection", "inputs": [
+    {"source": ["%rule r $x:A $x:B"], "fault": {"reason": "a route binds $x twice", "line": 2, "column": 1}},
+    {"source": ["%rule r A → {k: $.span()}"], "fault": {"reason": "method .span omits parentheses", "line": 2, "column": 18}},
+    {"source": ["%rule r $x:A $x:B → {k: $.span()}"], "fault": {"reason": "a route binds $x twice", "line": 2, "column": 1}}
+  ]},
+  {"rule": "the statement term precedes the body", "section": "engine §9.3, declarations and bodies", "inputs": [
+    {"source": ["%rule r → {A, A}", "  | B"], "fault": {"reason": "duplicate direct write for A", "line": 2, "column": 15}},
+    {"source": ["%rule r → {A}", "  | $x:(B C)"], "fault": {"reason": "a capture wraps one symbol", "line": 3, "column": 5}},
+    {"source": ["%rule r → {A, A}", "  | $x:(B C)"], "fault": {"reason": "duplicate direct write for A", "line": 2, "column": 15}}
+  ]},
+  {"rule": "an actual is finished before its sibling", "section": "engine §9.3, expressions and trailing clauses", "inputs": [
+    {"source": ["%rule r f(= $x, = \"y\")"], "fault": {"reason": "an argument cannot read or declare captures", "line": 2, "column": 13}},
+    {"source": ["%rule r f(= \"y\", = $.span())"], "fault": {"reason": "method .span omits parentheses", "line": 2, "column": 21}},
+    {"source": ["%rule r f(= $x, = $.span())"], "fault": {"reason": "an argument cannot read or declare captures", "line": 2, "column": 13}}
+  ]},
+  {"rule": "each selector is inspected before the next", "section": "engine §9.3, expressions and trailing clauses", "inputs": [
+    {"source": ["%const $V \"x\".xxxxx()"], "fault": {"reason": "unknown method .xxxxx", "line": 2, "column": 14}},
+    {"source": ["%const $V \"x\".flags()"], "fault": {"reason": "method .flags omits parentheses", "line": 2, "column": 14}},
+    {"source": ["%const $V \"x\".xxxxx().flags()"], "fault": {"reason": "unknown method .xxxxx", "line": 2, "column": 14}}
+  ]},
+  {"rule": "preamble placement precedes the operand of %names", "section": "engine §9.3, declarations and bodies", "inputs": [
+    {"source": ["%stage s", "%names \"a.md\""], "fault": {"reason": "%names must precede all other declarations", "line": 3, "column": 1}},
+    {"source": ["%names 123"], "fault": {"reason": "%names takes one quoted path", "line": 2, "column": 1}},
+    {"source": ["%stage s", "%names 123"], "fault": {"reason": "%names must precede all other declarations", "line": 3, "column": 1}}
+  ]},
+  {"rule": "declarations are read in written order: a rule before a later constant", "section": "engine §9.3, error selection", "inputs": [
+    {"source": ["%rule r $x:A $x:B"], "fault": {"reason": "a route binds $x twice", "line": 2, "column": 1}},
+    {"source": ["%const $V \"x\".xxxxx()"], "fault": {"reason": "unknown method .xxxxx", "line": 2, "column": 14}},
+    {"source": ["%rule r $x:A $x:B", "%const $V \"x\".xxxxx()"], "fault": {"reason": "a route binds $x twice", "line": 2, "column": 1}}
+  ]},
+  {"rule": "declarations are read in written order: a constant before a later rule", "section": "engine §9.3, error selection", "inputs": [
+    {"source": ["%const $V \"x\".xxxxx()"], "fault": {"reason": "unknown method .xxxxx", "line": 2, "column": 14}},
+    {"source": ["%rule r $x:A $x:B"], "fault": {"reason": "a route binds $x twice", "line": 2, "column": 1}},
+    {"source": ["%const $V \"x\".xxxxx()", "%rule r $x:A $x:B"], "fault": {"reason": "unknown method .xxxxx", "line": 2, "column": 14}}
+  ]},
+  {"rule": "a syntax failure precedes every conversion error, also an earlier one", "section": "engine §9.3, error selection", "inputs": [
+    {"source": ["%rule r $x:A $x:B"], "fault": {"reason": "a route binds $x twice", "line": 2, "column": 1}},
+    {"source": ["%rule q ) A"], "fault": {"reason": "the syntax stage could not continue", "line": 2, "column": 9}},
+    {"source": ["%rule r $x:A $x:B", "%rule q ) A"], "fault": {"reason": "the syntax stage could not continue", "line": 3, "column": 9}}
+  ]},
+  {"rule": "escapes are inspected before syntax, also a later escape", "section": "engine §9.3, error selection", "inputs": [
+    {"source": ["%rule r \"‹›\""], "fault": {"reason": "an invalid or unknown string escape", "line": 2, "column": 10}},
+    {"source": ["%rule q ) A"], "fault": {"reason": "the syntax stage could not continue", "line": 2, "column": 9}},
+    {"source": ["%rule q ) A", "%rule r \"‹›\""], "fault": {"reason": "an invalid or unknown string escape", "line": 3, "column": 10}}
+  ]},
+  {"rule": "a lexical failure precedes every escape, also an earlier one", "section": "engine §9.3, error selection", "inputs": [
+    {"source": ["%rule r \"‹›\""], "fault": {"reason": "an invalid or unknown string escape", "line": 2, "column": 10}},
+    {"source": ["%rule q A ¤"], "fault": {"reason": "the lexical stage could not continue", "line": 2, "column": 11}},
+    {"source": ["%rule r \"‹›\"", "%rule q A ¤"], "fault": {"reason": "the lexical stage could not continue", "line": 3, "column": 11}}
+  ]},
+  {"rule": "the operands of the names preamble precede the escapes", "section": "engine §9.3, error selection", "inputs": [
+    {"source": ["%names 123"], "fault": {"reason": "%names takes one quoted path", "line": 2, "column": 1}},
+    {"source": ["%rule r \"‹›\""], "fault": {"reason": "an invalid or unknown string escape", "line": 2, "column": 10}},
+    {"source": ["%names 123", "%rule r \"‹›\""], "fault": {"reason": "%names takes one quoted path", "line": 2, "column": 1}}
+  ]},
+  {"rule": "a definition inspects its own form before its children", "section": "engine §9.3, error selection", "inputs": [
+    {"source": ["%rule t(@X) @X", "%error \"e\""], "fault": {"reason": "a template cannot declare an error or warning", "line": 2, "column": 1}},
+    {"source": ["%rule t(@X) f(= {A, A})"], "fault": {"reason": "duplicate direct write for A", "line": 2, "column": 21}},
+    {"source": ["%rule t(@X) f(= {A, A})", "%error \"e\""], "fault": {"reason": "a template cannot declare an error or warning", "line": 2, "column": 1}}
+  ]},
+  {"rule": "a constant inspects its name before its value", "section": "engine §9.3, error selection", "inputs": [
+    {"source": ["%const $INPUTS \"x\""], "fault": {"reason": "$INPUTS is supplied by the engine", "line": 2, "column": 1}},
+    {"source": ["%const $V \"x\".xxxxx()"], "fault": {"reason": "unknown method .xxxxx", "line": 2, "column": 14}},
+    {"source": ["%const $INPUTS \"x\".xxxxx()"], "fault": {"reason": "$INPUTS is supplied by the engine", "line": 2, "column": 1}}
+  ]},
+  {"rule": "a rule head precedes the statement term", "section": "engine §9.3, declarations and bodies", "inputs": [
+    {"source": ["%rule f(@X, = \"a\") A"], "fault": {"reason": "a rule head needs all parameters or an exact instance edit", "line": 2, "column": 1}},
+    {"source": ["%rule f(@X) → {A, A}", "  | B"], "fault": {"reason": "duplicate direct write for A", "line": 2, "column": 19}},
+    {"source": ["%rule f(@X, = \"a\") → {A, A}", "  | B"], "fault": {"reason": "a rule head needs all parameters or an exact instance edit", "line": 2, "column": 1}}
+  ]},
+  {"rule": "a repeated parameter fails before the body", "section": "engine §9.3, declarations and bodies", "note": "A fault that the DOM shows reports at the nearest record with a position, here the rule.", "inputs": [
+    {"source": ["%rule t(@X, @X) @X"], "fault": {"reason": "duplicate parameter @X", "line": 2, "column": 1}},
+    {"source": ["%rule t(@X) $x:@X $x:@X"], "fault": {"reason": "a route binds $x twice", "line": 2, "column": 1}},
+    {"source": ["%rule t(@X, @X) $x:@X $x:@X"], "fault": {"reason": "duplicate parameter @X", "line": 2, "column": 1}}
+  ]},
+  {"rule": "a tested factor inspects its test order before its operands", "section": "engine §9.3, error selection", "inputs": [
+    {"source": ["%rule r A=\"x\"<B>"], "fault": {"reason": "a filter, value test and default must occur once in that order", "line": 2, "column": 14}},
+    {"source": ["%rule r A<_Bad>"], "fault": {"reason": "unknown or forbidden engine key _Bad", "line": 2, "column": 11}},
+    {"source": ["%rule r A=\"x\"<_Bad>"], "fault": {"reason": "a filter, value test and default must occur once in that order", "line": 2, "column": 14}}
+  ]},
+  {"rule": "a capture inspects its placement before its binder", "section": "engine §9.3, error selection", "note": "A fault that the DOM shows reports at the nearest record with a position, here the rule.", "inputs": [
+    {"source": ["%rule r {$x:A ...}"], "fault": {"reason": "a chain item or separator cannot bind a capture directly", "line": 2, "column": 1}},
+    {"source": ["%rule r $X:A"], "fault": {"reason": "a capture name must use lowercase letters, digits, hyphens or underscores", "line": 2, "column": 1}},
+    {"source": ["%rule r {$X:A ...}"], "fault": {"reason": "a chain item or separator cannot bind a capture directly", "line": 2, "column": 1}}
+  ]},
+  {"rule": "a capture inspects its binder before its target kind", "section": "engine §9.3, error selection", "inputs": [
+    {"source": ["%rule r $X:A"], "fault": {"reason": "a capture name must use lowercase letters, digits, hyphens or underscores", "line": 2, "column": 1}},
+    {"source": ["%rule r $x:(A B)"], "fault": {"reason": "a capture wraps one symbol", "line": 2, "column": 9}},
+    {"source": ["%rule r $X:(A B)"], "fault": {"reason": "a capture name must use lowercase letters, digits, hyphens or underscores", "line": 2, "column": 1}}
+  ]},
+  {"rule": "an elidable optional inspects its form before the name of its capture", "section": "engine §9.3, error selection", "inputs": [
+    {"source": ["%rule r [$x:+(KU)]"], "fault": {"reason": "an elidable optional starts with an ungrouped user terminal or parameter and can bind only its sole terminator", "line": 2, "column": 10}},
+    {"source": ["%rule r [$X:+KU]"], "fault": {"reason": "a capture name must use lowercase letters, digits, hyphens or underscores", "line": 2, "column": 1}},
+    {"source": ["%rule r [$X:+(KU)]"], "fault": {"reason": "an elidable optional starts with an ungrouped user terminal or parameter and can bind only its sole terminator", "line": 2, "column": 10}}
+  ]},
+  {"rule": "a chain inspects its markers before its contents", "section": "engine §9.3, error selection", "inputs": [
+    {"source": ["%rule r {... A ...}"], "fault": {"reason": "a chain can have only one marker", "line": 2, "column": 16}},
+    {"source": ["%rule r {A<_Bad> ...}"], "fault": {"reason": "unknown or forbidden engine key _Bad", "line": 2, "column": 12}},
+    {"source": ["%rule r {... A<_Bad> ...}"], "fault": {"reason": "a chain can have only one marker", "line": 2, "column": 22}}
+  ]},
+  {"rule": "a chain inside a sequence fails before a bad capture in that chain", "section": "engine §9.3, error selection", "note": "A fault that the DOM shows reports at the nearest record with a position, here the rule.", "inputs": [
+    {"source": ["%rule r A {B ...}"], "fault": {"reason": "a chain must occupy a whole alternative", "line": 2, "column": 1}},
+    {"source": ["%rule r {$x:B ...}"], "fault": {"reason": "a chain item or separator cannot bind a capture directly", "line": 2, "column": 1}},
+    {"source": ["%rule r A {$x:B ...}"], "fault": {"reason": "a chain must occupy a whole alternative", "line": 2, "column": 1}}
+  ]},
+  {"rule": "an ordered subset with more than sixteen items fails before any operand fault", "section": "engine §9.3, error selection", "note": "A fault that the DOM shows reports at the nearest record with a position, here the rule.", "inputs": [
+    {"source": ["%rule r A & B & C & D & E & F & G & H & I & J & K & L & M & N & O & P & Q"], "fault": {"reason": "an ordered subset takes at most sixteen operands", "line": 2, "column": 1}},
+    {"source": ["%rule r A & B<_Bad>"], "fault": {"reason": "unknown or forbidden engine key _Bad", "line": 2, "column": 15}},
+    {"source": ["%rule r A & B & C & D & E & F & G & H & I & J & K & L & M & N & O & P & Q<_Bad>"], "fault": {"reason": "an ordered subset takes at most sixteen operands", "line": 2, "column": 1}}
+  ]},
+  {"rule": "the conditions precede the diagnostic", "section": "engine §9.3, error selection", "inputs": [
+    {"source": ["%rule r A", "%conditions \"x\".xxxxx() = \"y\""], "fault": {"reason": "unknown method .xxxxx", "line": 3, "column": 16}},
+    {"source": ["%rule r A", "%error \"y\".span()"], "fault": {"reason": "method .span omits parentheses", "line": 3, "column": 11}},
+    {"source": ["%rule r A", "%conditions \"x\".xxxxx() = \"y\"", "%error \"y\".span()"], "fault": {"reason": "unknown method .xxxxx", "line": 3, "column": 16}}
+  ]},
+  {"rule": "the diagnostic precedes the output items", "section": "engine §9.3, error selection", "inputs": [
+    {"source": ["%rule r A", "%error \"y\".xxxxx()"], "fault": {"reason": "unknown method .xxxxx", "line": 3, "column": 11}},
+    {"source": ["%rule r A", "%emit $"], "fault": {"reason": "only a braced item can select the whole rule", "line": 3, "column": 7}},
+    {"source": ["%rule r A", "%error \"y\".xxxxx()", "%emit $"], "fault": {"reason": "unknown method .xxxxx", "line": 3, "column": 11}}
+  ]},
+  {"rule": "a guard precedes its entry", "section": "engine §9.3, expressions and trailing clauses", "inputs": [
+    {"source": ["%rule r A → {\"x\".xxxxx() = \"y\"? K}"], "fault": {"reason": "unknown method .xxxxx", "line": 2, "column": 17}},
+    {"source": ["%rule r A → {_Bad}"], "fault": {"reason": "unknown or forbidden engine key _Bad", "line": 2, "column": 14}},
+    {"source": ["%rule r A → {\"x\".xxxxx() = \"y\"? _Bad}"], "fault": {"reason": "unknown method .xxxxx", "line": 2, "column": 17}}
+  ]},
+  {"rule": "structural shape precedes types, also at an earlier operand", "section": "engine §9.3, error selection", "inputs": [
+    {"source": ["%const $V 1 ++ \"x\""], "fault": {"reason": "++ requires string operands", "line": 2, "column": 13}},
+    {"source": ["%const $V \"x\".xxxxx()"], "fault": {"reason": "unknown method .xxxxx", "line": 2, "column": 14}},
+    {"source": ["%const $V 1 ++ \"x\".xxxxx()"], "fault": {"reason": "unknown method .xxxxx", "line": 2, "column": 19}}
+  ]},
+  {"rule": "an empty split delimiter follows the shape of every declaration", "section": "engine §9.3, error selection", "inputs": [
+    {"source": ["%const $A \"a\".split(\"\")"], "fault": {"reason": "a split delimiter cannot be empty", "line": 2, "column": 14}},
+    {"source": ["%const $B \"x\".xxxxx()"], "fault": {"reason": "unknown method .xxxxx", "line": 2, "column": 14}},
+    {"source": ["%const $A \"a\".split(\"\")", "%const $B \"x\".xxxxx()"], "fault": {"reason": "unknown method .xxxxx", "line": 3, "column": 14}}
+  ]},
+  {"rule": "ordinary reader errors precede the document depth limit", "section": "engine §9.3, error selection", "inputs": [
+    {"source": ["%const $D [[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[\"x\"]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]"], "fault": {"reason": "an expression, term or condition is nested more than 256 deep", "line": 2, "column": 1}},
+    {"source": ["%const $B \"x\".xxxxx()"], "fault": {"reason": "unknown method .xxxxx", "line": 2, "column": 14}},
+    {"source": ["%const $D [[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[\"x\"]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]", "%const $B \"x\".xxxxx()"], "fault": {"reason": "unknown method .xxxxx", "line": 3, "column": 14}}
+  ]},
+  {"rule": "local part errors precede whole-definition errors", "section": "engine §9.3, error selection", "inputs": [
+    {"source": ["%rule r A → {k: $y'value}"], "fault": {"reason": "$y is captured by no alternative of r", "line": 2, "column": 19}},
+    {"source": ["%rule r A", "%conditions \"x\".xxxxx() = \"y\""], "fault": {"reason": "unknown method .xxxxx", "line": 3, "column": 16}},
+    {"source": ["%rule r A → {k: $y'value}", "%conditions \"x\".xxxxx() = \"y\""], "fault": {"reason": "unknown method .xxxxx", "line": 3, "column": 16}}
+  ]},
+  {"rule": "the reader errors of every stage document precede stitching errors", "section": "engine §9.3, error selection", "readers": ["native"], "inputs": [
+    {"documents": {"p.md": ["%stage main", "%ambiguity-resolution greedy", "%const $OUTPUTS {}", "%rule text A", "%extend-rule nope B"]}, "fault": {"reason": "%extend-rule nope extends a rule that is not defined before it", "line": 6, "column": 1, "document": "p.md"}},
+    {"documents": {"p.md": ["%stage main", "%ambiguity-resolution greedy", "%const $OUTPUTS {}", "%rule text A", "%include \"q.md\""], "q.md": ["%rule r f(= \"x\".xxxxx()) A"]}, "fault": {"reason": "unknown method .xxxxx", "line": 2, "column": 16, "document": "q.md"}},
+    {"documents": {"p.md": ["%stage main", "%ambiguity-resolution greedy", "%const $OUTPUTS {}", "%rule text A", "%extend-rule nope B", "%include \"q.md\""], "q.md": ["%rule r f(= \"x\".xxxxx()) A"]}, "fault": {"reason": "unknown method .xxxxx", "line": 2, "column": 16, "document": "q.md"}}
+  ]}
+]

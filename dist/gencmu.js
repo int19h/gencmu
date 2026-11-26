@@ -26874,6 +26874,30 @@
 
   const argumentsError = "an argument cannot read or declare captures";
 
+  /**
+   * @internal A conversion fault waits in the record tree in place of the
+   * record that it stops. The shape walk reports it when it reaches that place,
+   * so conversion and validation faults come in the order of engine §9.3.
+   */
+  const FAULT = Symbol("conversion fault");
+  /**
+   * @internal The operands of a waiting fault that the walk visits before it
+   * reports the fault, as [record, slot] pairs: for example the receiver of a
+   * selector that failed.
+   */
+  const BEFORE = Symbol("operands before a conversion fault");
+  /**
+   * @internal
+   * @param {any} node
+   */
+  const faulty = node => !!node && typeof node === "object" && Object.hasOwn(node, FAULT);
+  /**
+   * @param {any} node
+   * @param {any} slot
+   */
+  const holdsFault = (node, slot) => !!node && typeof node === "object" &&
+    operandFields50(node, slot).some(([, child]) => faulty(child) || Array.isArray(child) && child.some(faulty));
+
   const symbolKinds50 = new Set(["reference", "call", "parameter", "literal", "range", "wildcard", "splice", "bodyTags", "bodyTest"]);
   /**
    * @internal
@@ -26917,7 +26941,7 @@
     if (kind !== "patternTags" && kind !== "bodyTags") return;
     const atom = atomOf(node);
     const rule = atom.name || atom.call || atom.splice || atom.ref && !terminalName.test(atom.ref);
-    if (rule && node.requirements.some((/** @type {any} */ req) => req.value.tag === "_Elided" && (kind === "bodyTags" || !req.negated))) {
+    if (rule && node.requirements.some((/** @type {any} */ req) => req.value?.tag === "_Elided" && (kind === "bodyTags" || !req.negated))) {
       fail(node, "the _Elided origin test applies only to a terminal");
     }
   }
@@ -26953,7 +26977,13 @@
     while (pending.length) {
       const [node, parent, kind] = /** @type {any[]} */ (pending.pop());
       const site = Array.isArray(node?.at) ? node : parent;
-      if (checkMembers) {
+      // A waiting fault has no members of its own. A record that holds one has
+      // the members that conversion gives it, so it needs no member check.
+      if (faulty(node)) {
+        for (const [child, childKind] of [...node[BEFORE] ?? []].reverse()) pending.push([child, site, childKind]);
+        continue;
+      }
+      if (checkMembers && !holdsFault(node, kind)) {
         const fault = memberFault50(node, kind);
         if (fault) fail(site, fault);
       }
@@ -27012,7 +27042,7 @@
    */
   function validateArgument50(argument, fail) {
     validateBindings50(argument, fail, { closed: true, slot: "argument" });
-    if (recordKind50(argument, "argument") === "bodyArgument") validateBody50(argument.body, fail);
+    if (recordKind50(argument, "argument") === "bodyArgument") validateRoutes50(argument.body, fail);
   }
 
   /** @param {any} node */
@@ -27042,7 +27072,7 @@
       for (let i = children.length - 1; i >= 0; i--) pending.push(children[i]);
     }
     validateBindings50(body, fail, { query: true, slot: "body" });
-    validateBody50(parts.length === 1 ? parts[0] : { seq: parts }, fail);
+    validateRoutes50(parts.length === 1 ? parts[0] : { seq: parts }, fail);
   }
 
   const elidableForm50 = "an elidable optional starts with an ungrouped user terminal or parameter and can bind only its sole terminator";
@@ -27077,7 +27107,7 @@
     for (const test of tests) {
       if (test.requirements) {
         for (const { negated, value: requirement } of test.requirements) {
-          const tag = requirement.tag;
+          const tag = requirement?.tag;
           if (!tag || !head.ref && tag !== "_Elided") known = false;
           else if ((tag === "_Elided" || tag === head.ref) === negated) return false;
         }
@@ -27100,6 +27130,8 @@
     if (!node.elidable) return;
     const optional = node.optional;
     const { start, head } = elidableHead50(optional);
+    // A waiting fault in the head comes next in the walk.
+    if (faulty(optional) || faulty(start) || faulty(head)) return;
     if (!head?.param && !/^[A-Z]/.test(head?.ref ?? "") ||
         start.capture !== undefined && optional.seq || optional.seq?.slice(1).some((/** @type {any} */ part) => captureSlots50(part).size)) {
       fail(node, elidableForm50);
@@ -27170,57 +27202,108 @@
     return result;
   }
 
+  const COMPOSITE50 = new Set(["sequence", "subset", "choice", "ranked", "repeat", "chain"]);
+
   /**
+   * @typedef {{ blocked: boolean, chain: boolean, whole: boolean, query?: boolean, routes?: boolean }} BodyContext50
+   * The place of a body node: inside an optional, ranked group or repeat
+   * (blocked), inside a chain item or separator (chain), and as the whole
+   * alternative (whole). A query root marks its sequence (query), and the root
+   * of a rule alternative checks its routes after its children (routes).
+   */
+  /** @type {BodyContext50} */
+  const RULE_BODY50 = { blocked: false, chain: false, whole: true, routes: true };
+  /** @type {BodyContext50} */
+  const ARGUMENT_BODY50 = { blocked: false, chain: false, whole: true };
+  /** @type {BodyContext50} */
+  const QUERY_BODY50 = { blocked: false, chain: false, whole: true, query: true };
+
+  /**
+   * The place of a body child of a body node, as in the routes of engine §3.
+   * @param {any} node
+   * @param {any} kind
+   * @param {BodyContext50} context
+   * @returns {BodyContext50 | undefined}
+   */
+  function bodyChildContext50(node, kind, context) {
+    if (kind === "primary" || kind === "captureSymbol") return { blocked: context.blocked, chain: context.chain, whole: false };
+    if (kind === "optional" || kind === "elidable") return { blocked: true, chain: context.chain, whole: false };
+    if (!COMPOSITE50.has(kind)) return undefined;
+    // The target of a query lies between its outer remainders.
+    if (context.query && kind === "sequence") {
+      return { blocked: false, chain: false, whole: node.seq.filter((/** @type {any} */ item) => !item?.remainder).length === 1 };
+    }
+    return { blocked: context.blocked || !!(node.ranked || node.repeat), chain: node.repeat ? !!node.chain : context.chain, whole: false };
+  }
+
+  /**
+   * The own form of one body node, checked before its children (engine §9.3).
+   * For a capture, placement comes first, then the binder, then the target kind.
+   * @param {any} node
+   * @param {any} kind
+   * @param {BodyContext50} context
+   * @param {any} captureContext
+   * @param {any} fail
+   */
+  function validateBodyForm50(node, kind, context, captureContext, fail) {
+    if (kind === "primary") {
+      const symbol = node.primary.expr && node.primary.capture !== undefined ? node.primary.expr : node.primary;
+      const base = atomOf(symbol);
+      if (!faulty(base) && !isBodySymbol50(base)) fail(node, "a primary marks one symbol or capture");
+      if (context.blocked || base.splice) fail(node, "a primary must mark a mandatory child that is not a splice");
+    } else if (kind === "captureSymbol") {
+      if (captureContext) fail(node, captureContext === "query" ? "a query cannot declare captures" : argumentsError);
+      if (context.chain) fail(node, "a chain item or separator cannot bind a capture directly");
+      if (!CAPTURE_NAME.test(node.capture)) fail(node, "a capture name must use lowercase letters, digits, hyphens or underscores");
+      if (!faulty(node.expr) && !isBodySymbol50(node.expr)) fail(node, "a capture wraps one symbol");
+    } else if (kind === "optional" || kind === "elidable") {
+      validateOmission(node, fail);
+    } else if (COMPOSITE50.has(kind)) {
+      if (node.chain && !context.whole) fail(node, "a chain must occupy a whole alternative");
+      if (node.and) validateSubsetSize50(node.and.length, node, fail);
+    }
+  }
+
+  /**
+   * The routes of a body: each binds a name at most once, and each has one
+   * primary or every route has none. The walk checks them after the body.
    * @param {any} body
    * @param {any} fail
    */
-  function validateBody50(body, fail) {
+  function validateRoutes50(body, fail) {
     const zero = () => ({ names: new Map(), min: 0, max: 0 });
     /**
      * @param {any} node
      * @returns {Generator<any, any, any>}
      */
-    function* visit(node, blocked = false, chain = false, whole = true) {
+    function* visit(node) {
       const kind = recordKind50(node, "body");
       if (kind === "primary") {
-        const symbol = node.primary.expr && node.primary.capture !== undefined ? node.primary.expr : node.primary;
-        const base = atomOf(symbol);
-        if (!isBodySymbol50(base)) fail(node, "a primary marks one symbol or capture");
-        if (blocked || base.splice) fail(node, "a primary must mark a mandatory child that is not a splice");
         /** @type {any} */
-        const route = yield visit(node.primary, blocked, chain, false);
+        const route = yield visit(node.primary);
         route.min++;
         route.max++;
         return route;
       }
       if (kind === "captureSymbol") {
-        if (chain) fail(node, "a chain item or separator cannot bind a capture directly");
-        if (!CAPTURE_NAME.test(node.capture)) fail(node, "a capture name must use lowercase letters, digits, hyphens or underscores");
-        if (!isBodySymbol50(node.expr)) fail(node, "a capture wraps one symbol");
         /** @type {any} */
-        const route = yield visit(node.expr, blocked, chain, false);
+        const route = yield visit(node.expr);
         if (route.names.has(node.capture)) fail(route.names.get(node.capture), "a route binds a capture twice");
         route.names.set(node.capture, node);
         return route;
       }
       if (kind === "optional" || kind === "elidable") {
-        do {
-          validateOmission(node, fail);
-          node = node.optional;
-        } while (node.optional);
         /** @type {any} */
-        const route = yield visit(node, true, chain, false);
+        const route = yield visit(node.optional);
         route.min = 0;
         return route;
       }
-      if (!["sequence", "subset", "choice", "ranked", "repeat", "chain"].includes(kind)) return zero();
+      if (!COMPOSITE50.has(kind)) return zero();
       const children = bodyChildren50(node);
-      if (node.chain && !whole) fail(node, "a chain must occupy a whole alternative");
-      if (node.and) validateSubsetSize50(node.and.length, node, fail);
       const exclusive = !!(node.choice || node.ranked);
       const route = zero();
       for (const [index, child] of children.entries()) {
-        const next = yield visit(child, blocked || !!(node.ranked || node.repeat), node.repeat ? !!node.chain : chain, false);
+        const next = yield visit(child);
         for (const [name, binder] of next.names) {
           if (!exclusive && route.names.has(name)) fail(binder, `a route binds $${name} twice`);
           if (!route.names.has(name)) route.names.set(name, binder);
@@ -27245,6 +27328,7 @@
    * @param {any} fail
    */
   function validateExactPattern50(pattern, fail, { origin = true } = {}) {
+    if (faulty(pattern)) return;
     const kind = recordKind50(pattern, "resolutionPattern");
     if (kind === "constantReference" || kind === "patternConstant") return;
     if (["patternUnion", "patternIntersection", "patternDifference"].includes(kind)) {
@@ -28541,8 +28625,18 @@
       .map(([, node, slot]) => ({ node, slot, captureContext: slot === "argument[]" ? "argument" : undefined }));
     while (pending.length) {
       const task = /** @type {any} */ (pending.pop());
+      if (task.fault) throw task.fault;
       const { node, slot, phase, captureContext, width, inRepeat, predicate } = task;
       if (!node || typeof node !== "object") continue;
+      if (faulty(node)) {
+        pending.push({ fault: node[FAULT] });
+        for (const [child, childSlot] of [...node[BEFORE] ?? []].reverse()) pending.push({ node: child, slot: childSlot, captureContext });
+        continue;
+      }
+      if (phase === "routes") {
+        validateRoutes50(node, locate);
+        continue;
+      }
       if (phase === "complete") {
         if (slot === "argument") validateArgument50(node, locate);
         if (node.method === "parse") validateQuery50(node, locate);
@@ -28555,7 +28649,13 @@
       }
       const kind = recordKind50(node, slot);
       const requirement = slot === "requirementValue";
-      if (ruleBodies.has(node)) validateBody50(node, locate);
+      /** @type {BodyContext50 | undefined} */
+      const body = task.body ?? (ruleBodies.has(node) ? RULE_BODY50 : undefined);
+      if (body && !Array.isArray(node)) {
+        validateBodyForm50(node, kind, body, captureContext, locate);
+        // The routes of an alternative follow its body and precede its term.
+        if (body.routes) pending.push({ node, phase: "routes" });
+      }
       if (outputItems.has(node) && node.capture === "" && !node.term) locate(node, "only a braced item can select the whole rule");
       if (node.range) validateRange(node.range, node, locate);
       if (node.integer !== undefined && (width ? !/^[1-9][0-9]*$/.test(node.integer) :
@@ -28624,8 +28724,11 @@
         const methodArgs = childSlot === "methodArgument[]";
         const arrayItem = Array.isArray(node);
         const childList = childSlot === "childItem" || childSlot === "childItem[]" || childSlot === "childItem[][]";
+        const bodySlot = childSlot === "body" || childSlot === "body[]";
         pending.push({
           node: value, slot: childSlot,
+          body: !bodySlot ? undefined : Array.isArray(node) ? body : body ? bodyChildContext50(node, kind, body) :
+            kind === "bodyArgument" ? ARGUMENT_BODY50 : kind === "query" ? QUERY_BODY50 : undefined,
           captureContext: captureBoundary50(node, childSlot) ?? captureContext,
           width: methodArgs && node.method === "ngrams" || arrayItem && width,
           inRepeat: childList && (inRepeat || kind === "childRepeat" || kind === "childRepeatSeparated"),
@@ -32818,6 +32921,10 @@
    * @param {any} name
    */
   const part = (node, name) => parts(node, name)[0];
+  // A token of the format 50 reader holds its keys in props, and a token of
+  // the transition compiler, which reads with format 49, holds them in tags.
+  /** @param {any} token @param {string} key */
+  const tokenHas = (token, key) => (token.props ?? token.tags).has(key);
   /** @param {any} node */
   const leaves = node => node.children.filter((/** @type {any} */ child) => child.kind === "token");
   /**
@@ -32837,8 +32944,10 @@
     return ["capture", "captured-terminator"].includes(node.rule) || rules(node).some(containsCapture);
   }
 
-  // Conversion yields one record at a time in written order. A failed shape
-  // check exposes the prefix through that declaration to the test observer.
+  // Conversion yields one record at a time in written order, with the
+  // conversion faults that wait in it. A failed shape check exposes the prefix
+  // through that declaration to the test observer. A declaration that
+  // conversion could not finish exposes no prefix.
   /**
    * @param {any} declarations
    * @param {any} configuration
@@ -32851,14 +32960,17 @@
     /** @type {any[]} */
     const emptyDelimiters = [];
     let preamble = true;
-    for (const [category, record] of declarations) {
+    for (const [category, record, faults = []] of declarations) {
       dom[category].push(record);
       const names = category === "directives" && record.name === "names";
       try {
         if (names && !preamble) fail(record, "%names must precede all other declarations");
         validateDeclarationShape50(category, record, fail, configuration.unicode, emptyDelimiters);
+        // The shape walk reaches every fault that waits in the record. This
+        // keeps a fault that a converted parent dropped from passing.
+        if (faults.length) throw faults[0];
       } catch (error) {
-        storeDom?.(dom, "prefix");
+        if (!faults.length) storeDom?.(dom, "prefix");
         throw error;
       }
       preamble &&= names;
@@ -32887,6 +32999,8 @@
       this.domFault = documentFault50(document);
       /** @type {WeakMap<object, any> | undefined} the default of each elided head */
       this.defaults = undefined;
+      /** @type {GencmuError[]} the conversion faults of the current declaration */
+      this.faults = [];
     }
 
     /** @param {any} node */
@@ -32910,8 +33024,53 @@
      * @param {any} description
      */
     fail(node, description) {
+      throw this.error(node, description);
+    }
+
+    /**
+     * @param {any} node
+     * @param {any} description
+     */
+    error(node, description) {
       const [line, column] = this.at(node);
-      throw new GencmuError("grammar", description, { document: this.document, line, column });
+      return new GencmuError("grammar", description, { document: this.document, line, column });
+    }
+
+    // A conversion fault waits in the record tree in place of the record that
+    // it stops, so that the shape walk reports it in the order of engine §9.3.
+    // The operands in `before` precede the fault in that order.
+    /**
+     * @param {() => any} convert
+     * @param {[any, string][]} [before]
+     */
+    deferred(convert, before) {
+      try {
+        return convert();
+      } catch (error) {
+        if (!(error instanceof GencmuError)) throw error;
+        this.faults.push(error);
+        return this.waiting(error, before);
+      }
+    }
+
+    // A fault that waits at a place of the record tree, such as the target of a
+    // capture.
+    /**
+     * @param {any} node
+     * @param {any} description
+     */
+    waitingFault(node, description) {
+      const error = this.error(node, description);
+      this.faults.push(error);
+      return this.waiting(error);
+    }
+
+    /**
+     * @param {GencmuError} error
+     * @param {[any, string][]} [before]
+     */
+    waiting(error, before = []) {
+      return { [FAULT]: error, [BEFORE]: before.filter(([node]) => node !== undefined) };
     }
 
     /**
@@ -32924,8 +33083,13 @@
 
     /** @param {any} tree */
     *declarations(tree) {
+      let preamble = true;
       for (const statement of parts(tree, "statement")) {
         const node = rules(statement)[0];
+        this.faults = [];
+        const names = node.rule === "directive" && this.value(node) === "%names";
+        const misplaced = names && !preamble;
+        preamble &&= names;
         let category, record;
         switch (node.rule) {
           case "rule":
@@ -32942,7 +33106,7 @@
             break;
           case "directive":
             category = "directives";
-            record = this.directive(node);
+            record = misplaced ? this.misplacedNames(node) : this.directive(node);
             break;
           case "ranking-directive":
             category = "directives";
@@ -32951,8 +33115,18 @@
           default:
             this.fail(node, "expected a declaration");
         }
-        yield [category, record];
+        yield [category, record, this.faults];
       }
+    }
+
+    // A misplaced %names fails at its placement before its operands (engine
+    // §9.3). Where its operands convert, the record goes to the shape check,
+    // which reports the placement with the prefix that holds the record.
+    /** @param {any} node */
+    misplacedNames(node) {
+      const record = this.deferred(() => this.directive(node));
+      if (faulty(record)) this.fail(node, "%names must precede all other declarations");
+      return record;
     }
 
     /** @param {any} node */
@@ -32962,7 +33136,7 @@
       const clauses = part(node, "conditions-clause");
       let args;
       if (name === "include" || name === "names") {
-        if (clauses || operands.length !== 1 || this.token(operands[0]).props.has("Resource-Path") === false) {
+        if (clauses || operands.length !== 1 || tokenHas(this.token(operands[0]), "Resource-Path") === false) {
           this.fail(node, `%${name} takes one quoted path`);
         }
         args = [this.strings.decode(this.token(operands[0]), true)];
@@ -33121,6 +33295,14 @@
      * @returns {any}
      */
     body(node, whole = false, elidable = false) {
+      return this.deferred(() => this.bodyRecord(node, whole, elidable));
+    }
+
+    /**
+     * @param {any} node
+     * @returns {any}
+     */
+    bodyRecord(node, whole = false, elidable = false) {
       let children = rules(node);
       let optionals = 0;
       let grouped = false;
@@ -33165,10 +33347,12 @@
         case "capture":
         case "captured-terminator": {
           const capture = this.binder(first);
-          if (GROUPS.has(baseFactor(children[1]).rule)) this.fail(first, "a capture wraps one symbol");
+          // The placement and binder of a capture precede its target kind, so
+          // a fault of the target kind waits at the target.
+          const wrong = () => this.waitingFault(first, "a capture wraps one symbol");
+          if (GROUPS.has(baseFactor(children[1]).rule)) return { capture, expr: wrong() };
           const target = expr(children[1], false, elidable);
-          if (!isBodySymbol50(target)) this.fail(first, "a capture wraps one symbol");
-          return { capture, expr: target };
+          return { capture, expr: faulty(target) || isBodySymbol50(target) ? target : wrong() };
         }
         case "marked-factor": {
           const atom = baseFactor(first.rule === "capture" ? rules(first)[1] : first);
@@ -33180,7 +33364,7 @@
           if (GROUPS.has(baseFactor(first).rule)) this.fail(children[1], "a test applies to one symbol");
           const tests = this.testOrder(children.slice(1), elidable);
           const base = expr();
-          if (!isBodySymbol50(base)) this.fail(children[1], "a test applies to one symbol");
+          if (!faulty(base) && !isBodySymbol50(base)) this.fail(children[1], "a test applies to one symbol");
           return this.tests(base, tests);
         }
         case "ref":
@@ -33273,14 +33457,14 @@
 
     /** @param {any} node */
     requirements(node) {
-      return parts(node, "tag-requirement").map((/** @type {any} */ requirement) => {
+      return parts(node, "tag-requirement").map((/** @type {any} */ requirement) => this.deferred(() => {
         const operand = rules(rules(requirement)[0])[0];
         const negated = this.value(requirement) === "¬";
         if (operand.rule === "tag") return { negated, value: { tag: this.name(operand) } };
         const value = this.stringOperand(operand, true, "a key requirement needs a tag, key-set constant or parameter");
         if (value.string !== undefined) this.fail(operand, "a key requirement needs a tag, key-set constant or parameter");
         return { negated, value };
-      });
+      }));
     }
 
     /**
@@ -33288,6 +33472,16 @@
      * @returns {any}
      */
     stringOperand(node, test = false, message = "a string operand needs a literal, constant or parameter") {
+      return this.deferred(() => this.stringRecord(node, test, message));
+    }
+
+    /**
+     * @param {any} node
+     * @param {boolean} test
+     * @param {string} message
+     * @returns {any}
+     */
+    stringRecord(node, test, message) {
       if (test && node.rule === "test-operand") node = rules(node)[0];
       if (test && node.rule === "post" && rules(node).length === 1) node = rules(rules(node)[0])[0] ?? node;
       if (!["string", "constant-reference", "parameter"].includes(node.rule)) this.fail(node, message);
@@ -33309,6 +33503,14 @@
      * @returns {any}
      */
     target(node) {
+      return this.deferred(() => this.targetRecord(node));
+    }
+
+    /**
+     * @param {any} node
+     * @returns {any}
+     */
+    targetRecord(node) {
       const first = rules(node)[0];
       if (node.rule === "neighbor-target" || node.rule === "target-option") return this.target(first);
       if (node.rule === "call") return this.call(node);
@@ -33341,6 +33543,14 @@
      * @returns {any}
      */
     expression(node) {
+      return this.deferred(() => this.expressionRecord(node));
+    }
+
+    /**
+     * @param {any} node
+     * @returns {any}
+     */
+    expressionRecord(node) {
       let children = rules(node);
       // A long run of parentheses or precedence wrappers adds no DOM depth.
       while (children.length === 1 && (EXPRESSION_WRAPPERS.has(node.rule) ||
@@ -33387,26 +33597,10 @@
           return this.binary(node, (/** @type {any} */ child) => expr(child), false);
         case "post": {
           let value = expr(first);
+          // A selector that fails waits after its receiver.
           for (const selector of children.slice(1)) {
-            const at = this.at(selector);
-            switch (selector.rule) {
-              case "prop":
-                value = { property: this.name(part(selector, "key")), receiver: value, at };
-                break;
-              case "method":
-                value = this.method(selector, value);
-                break;
-              case "map": {
-                const [map] = rules(selector);
-                const by = map.rule === "method" ? this.method(map) : map.rule === "prop" ?
-                  { property: this.name(part(map, "key")), at: this.at(map) } : this.predicate(map);
-                value = { map: value, by, at };
-                break;
-              }
-              case "flatten":
-                value = { flatten: value, at };
-                break;
-            }
+            const receiver = value;
+            value = this.deferred(() => this.selector(selector, receiver), [[receiver, "expression"]]);
           }
           return value;
         }
@@ -33442,6 +33636,30 @@
         default:
           this.fail(node, `unexpected expression part ${node.rule}`);
       }
+    }
+
+    /**
+     * @param {any} selector
+     * @param {any} value
+     * @returns {any}
+     */
+    selector(selector, value) {
+      const at = this.at(selector);
+      switch (selector.rule) {
+        case "prop":
+          return { property: this.name(part(selector, "key")), receiver: value, at };
+        case "method":
+          return this.method(selector, value);
+        case "map": {
+          const [map] = rules(selector);
+          const by = this.deferred(() => map.rule === "method" ? this.method(map) : map.rule === "prop" ?
+            { property: this.name(part(map, "key")), at: this.at(map) } : this.predicate(map));
+          return { map: value, by, at };
+        }
+        case "flatten":
+          return { flatten: value, at };
+      }
+      return value;
     }
 
     /**
@@ -33549,6 +33767,18 @@
       const gates = parts(prefix, "feature-gate").map((/** @type {any} */ gate) => this.gate(gate));
       const guard = part(prefix, "guard");
       const suffix = { gates, ...(guard && { guard: this.expression(part(guard, "expr")) }), at: this.at(node) };
+      /** @type {[any, string][]} */
+      const before = [[suffix.gates, "gate[]"], [suffix.guard, "expression"]];
+      return this.deferred(() => this.entryForm(node, suffix, before), before);
+    }
+
+    /**
+     * @param {any} node
+     * @param {any} suffix
+     * @param {[any, string][]} before
+     * @returns {any}
+     */
+    entryForm(node, suffix, before) {
       if (node.rule === "item") {
         const kind = leaves(node).length ? "splat" : "item";
         return { kind, value: this.expression(part(node, "expr")), ...suffix };
@@ -33581,6 +33811,8 @@
             !!part(rules(last)[0], "key");
           if (last?.rule !== "prop" && !itemProperty) this.fail(body, "a copy ends with a property selector");
           const source = this.expression(post);
+          // A copy splits its source, so a fault there stands for the entry.
+          if (faulty(source)) return this.waiting(source[FAULT], [...before, ...source[BEFORE]]);
           return { kind: "copy", source: source.receiver, key: source.property, ...suffix };
         }
       }
@@ -33591,6 +33823,14 @@
      * @returns {any}
      */
     pattern(node) {
+      return this.deferred(() => this.patternRecord(node));
+    }
+
+    /**
+     * @param {any} node
+     * @returns {any}
+     */
+    patternRecord(node) {
       let children = rules(node);
       const paths = [];
       while (children.length === 1 && PATTERN_WRAPPERS.has(node.rule)) {
@@ -33675,6 +33915,14 @@
      * @returns {any}
      */
     singlePattern(node) {
+      return this.deferred(() => this.singlePatternRecord(node));
+    }
+
+    /**
+     * @param {any} node
+     * @returns {any}
+     */
+    singlePatternRecord(node) {
       /** @type {any} */
       const items = this.items(node);
       if (items.length !== 1 || !items[0].child) this.fail(node, "an operator needs one whole pattern");
