@@ -255,6 +255,24 @@ export declare class Stage50 {
      */
     ruleOccurrence(derivation: any, parts: any, made: any, data: any): Occurrence;
     /**
+     * A compound binding (erratum M-60): one node for each visit, over the
+     * working children of its visit. It has no result record of its own.
+     * @param {any} binding
+     * @param {any[]} children the working children of the enclosing node
+     * @param {any} origin
+     * @param {any} data
+     */
+    compoundOccurrence(binding: any, children: any[], origin: any, data: any): Occurrence;
+    /**
+     * The bag of a compound binding: that of a termless splice of its operand,
+     * from the stage defaults and its primary or sole symbol (erratum M-60).
+     * @param {any} node
+     * @param {any[]} children
+     * @param {any} binding
+     * @param {any} data
+     */
+    compoundBag(node: any, children: any[], binding: any, data: any): Bag;
+    /**
      * @param {any} occurrence
      * @param {any} data
      */

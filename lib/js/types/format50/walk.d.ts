@@ -1,3 +1,6 @@
+import { GencmuError } from "../errors.js";
+import { BEFORE, FAULT } from "./validate.js";
+export type Step = import("../trampoline.js").Step;
 /**
  * @param {any} declarations
  * @param {any} configuration
@@ -13,6 +16,8 @@ export declare class DomBuilder {
     domFault: (node: any, description: any) => never;
     /** @type {WeakMap<object, any> | undefined} the default of each elided head */
     defaults: WeakMap<object, any> | undefined;
+    /** @type {GencmuError[]} the conversion faults of the current declaration */
+    faults: GencmuError[];
     bodyOwner: any;
     /**
      * @param {any} tokens
@@ -34,30 +39,77 @@ export declare class DomBuilder {
      */
     fail(node: any, description: any): void;
     /**
+     * @param {any} node
+     * @param {any} description
+     */
+    error(node: any, description: any): GencmuError;
+    /**
+     * @param {Step} step
+     * @param {[any, string][]} [before]
+     * @returns {Step}
+     */
+    deferred(step: Step, before?: [any, string][]): Step;
+    /**
+     * @param {any} node
+     * @param {any} description
+     */
+    waitingFault(node: any, description: any): {
+        [FAULT]: GencmuError;
+        [BEFORE]: [any, string][];
+    };
+    /**
+     * @param {GencmuError} error
+     * @param {[any, string][]} [before]
+     */
+    waiting(error: GencmuError, before?: [any, string][]): {
+        [FAULT]: GencmuError;
+        [BEFORE]: [any, string][];
+    };
+    /**
+     * @param {any[]} items
+     * @param {(item: any, index: number) => Step} convert
+     * @returns {Step}
+     */
+    each(items: any[], convert: (item: any, index: number) => Step): Step;
+    /**
      * @param {any} tree
      * @param {any} [storeDom]
      */
     build(tree: any, storeDom?: any): any;
     /** @param {any} tree */
     declarations(tree: any): Generator<any[], void, unknown>;
-    /** @param {any} node */
-    directive(node: any): any;
-    /** @param {any} node */
-    ranking(node: any): {
-        name: string;
-        steps: any;
-        at: any;
-    };
-    /** @param {any} node */
-    rule(node: any): any;
-    /** @param {any} node */
-    conditions(node: any): any;
+    /**
+     * @param {any} node
+     * @returns {Step}
+     */
+    misplacedNames(node: any): Step;
+    /**
+     * @param {any} node
+     * @returns {Step}
+     */
+    directive(node: any): Step;
+    /**
+     * @param {any} node
+     * @returns {Step}
+     */
+    ranking(node: any): Step;
+    /**
+     * @param {any} node
+     * @returns {Step}
+     */
+    rule(node: any): Step;
+    /**
+     * @param {any} node
+     * @returns {Step}
+     */
+    conditions(node: any): Step;
     /**
      * @param {any} node
      * @param {any} kind
      * @param {any} owner
+     * @returns {Step}
      */
-    alternative(node: any, kind: any, owner: any): any;
+    alternative(node: any, kind: any, owner: any): Step;
     /** @param {any} node */
     name(node: any): any;
     /** @param {any} node */
@@ -71,81 +123,141 @@ export declare class DomBuilder {
     /**
      * @param {any} node
      * @param {any} owner
-     * @returns {any}
+     * @returns {Step}
      */
-    ownedBody(node: any, owner: any, whole?: boolean): any;
+    ownedBody(node: any, owner: any, whole?: boolean): Step;
     /**
      * @param {any} node
-     * @returns {any}
+     * @returns {Step}
      */
-    body(node: any, whole?: boolean, elidable?: boolean): any;
+    body(node: any, whole?: boolean, elidable?: boolean): Step;
+    /**
+     * @param {any} node
+     * @returns {Step}
+     */
+    bodyRecord(node: any, whole?: boolean, elidable?: boolean): Step;
     /**
      * @param {any} node
      * @param {any} route
-     * @returns {any}
+     * @returns {Step}
      */
-    optional(node: any, route: any): any;
+    optional(node: any, route: any): Step;
     /** @param {any} testNodes */
     testOrder(testNodes: any, elidable?: boolean): any;
     /**
      * @param {any} base
      * @param {any} tests
+     * @returns {Step}
      */
-    tests(base: any, tests: any): any;
-    /** @param {any} node */
-    requirements(node: any): any;
+    tests(base: any, tests: any): Step;
     /**
      * @param {any} node
-     * @returns {any}
+     * @returns {Step}
      */
-    stringOperand(node: any, test?: boolean, message?: string): any;
+    requirements(node: any): Step;
+    /**
+     * @param {any} requirement
+     * @returns {Step}
+     */
+    requirement(requirement: any): Step;
+    /**
+     * @param {any} node
+     * @returns {Step}
+     */
+    stringOperand(node: any, test?: boolean, message?: string): Step;
+    /**
+     * @param {any} node
+     * @param {boolean} test
+     * @param {string} message
+     * @returns {Step}
+     */
+    stringRecord(node: any, test: boolean, message: string): Step;
     /** @param {any} node */
     parameter(node: any): {
         param: any;
         at: any;
     };
-    /** @param {any} node */
-    call(node: any): {
-        call: any;
-        args: any;
-        at: any;
-    };
     /**
      * @param {any} node
-     * @returns {any}
+     * @returns {Step}
      */
-    target(node: any): any;
-    /** @param {any} node */
-    argument(node: any): any;
+    call(node: any): Step;
     /**
      * @param {any} node
-     * @returns {any}
+     * @returns {Step}
      */
-    expression(node: any): any;
+    target(node: any): Step;
     /**
      * @param {any} node
-     * @param {any} convert
+     * @returns {Step}
+     */
+    targetRecord(node: any): Step;
+    /**
+     * @param {any} node
+     * @returns {Step}
+     */
+    argument(node: any): Step;
+    /**
+     * @param {any} node
+     * @returns {Step}
+     */
+    expression(node: any): Step;
+    /**
+     * @param {any} node
+     * @returns {Step}
+     */
+    expressionRecord(node: any): Step;
+    /**
+     * @param {any} selector
+     * @param {any} value
+     * @returns {Step}
+     */
+    selector(selector: any, value: any): Step;
+    /**
+     * @param {any} map
+     * @returns {Step}
+     */
+    mapProperty(map: any): Step;
+    /**
+     * @param {any} node
+     * @param {(child: any) => Step} convert
      * @param {any} pattern
+     * @returns {Step}
      */
-    binary(node: any, convert: any, pattern: any): any;
+    binary(node: any, convert: (child: any) => Step, pattern: any): Step;
     /**
      * @param {any} node
      * @param {any} [receiver]
-     * @returns {any}
+     * @returns {Step}
      */
-    method(node: any, receiver?: any): any;
+    method(node: any, receiver?: any): Step;
     /**
      * @param {any} node
-     * @returns {any}
+     * @returns {Step}
      */
-    predicate(node: any): any;
-    /** @param {any} node */
-    entry(node: any): any;
+    predicate(node: any): Step;
     /**
      * @param {any} node
-     * @returns {any}
+     * @returns {Step}
      */
-    pattern(node: any): any;
+    entry(node: any): Step;
+    /**
+     * @param {any} node
+     * @param {any} suffix
+     * @param {[any, string][]} before
+     * @returns {Step}
+     */
+    entryForm(node: any, suffix: any, before: [any, string][]): Step;
+    /**
+     * @param {any} node
+     * @returns {Step}
+     */
+    pattern(node: any): Step;
+    /**
+     * @param {any} node
+     * @returns {Step}
+     */
+    patternRecord(node: any): Step;
     /**
      * @param {any} node
      * @param {any} pattern
@@ -153,12 +265,17 @@ export declare class DomBuilder {
     patternPath(node: any, pattern: any): any;
     /**
      * @param {any} node
-     * @returns {any}
+     * @returns {Step}
      */
-    singlePattern(node: any): any;
+    singlePattern(node: any): Step;
     /**
      * @param {any} node
-     * @returns {any}
+     * @returns {Step}
      */
-    items(node: any): any;
+    singlePatternRecord(node: any): Step;
+    /**
+     * @param {any} node
+     * @returns {Step}
+     */
+    items(node: any): Step;
 }

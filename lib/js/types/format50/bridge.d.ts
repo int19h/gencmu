@@ -16,19 +16,37 @@ export declare function isVisibleKey(key: any): boolean;
  * @param {string} path the document
  * @returns {any} a DOM 49 with the extra members `format50` and `origins`
  * @param {any} origins
+ * @param {HiddenKeys} [hidden] the hidden keys of the stages of the document,
+ * where they are not those of the document alone
  */
-export declare function bridgeDocument(dom: any, path: string, origins: any): any;
+export declare function bridgeDocument(dom: any, path: string, origins: any, hidden?: HiddenKeys): any;
+export type HiddenKeys = {
+    demanded: Set<string>;
+    domains: Map<string, any[]>;
+    roots: Map<string, Set<string>>;
+};
+/**
+ * @typedef {{demanded: Set<string>, domains: Map<string, any[]>, roots: Map<string, Set<string>>}} HiddenKeys
+ * The keys that are not visible and that recognizer tests read, with the
+ * finite set of values of each key that has one. `roots` gives, for `value`
+ * and `image`, the rules at the root of a forest whose predicate reads that
+ * key of the root.
+ */
 export declare class Bridge {
     dom: any;
     path: any;
     origins: any;
+    stageHidden: HiddenKeys | undefined;
     /** @type {any[]} */
     classifiers: any[];
-    /** @type {{demanded: Set<string>, domains: Map<string, any[]>}} the hidden keys that recognizer tests read */
-    hidden: {
-        demanded: Set<string>;
-        domains: Map<string, any[]>;
-    };
+    /** @type {HiddenKeys} the hidden keys that recognizer tests read */
+    hidden: HiddenKeys;
+    /** @type {string | undefined} the rule at the root of the forest of the predicate being lowered */
+    forestRootRule: string | undefined;
+    /** @type {Map<any, any> | undefined} the body of each alternative of the rule being lowered */
+    bodies: Map<any, any> | undefined;
+    /** @type {Set<string>} the compound labels of the rule being lowered */
+    compounds: Set<string>;
     /** @type {Map<string, GencmuError>} the rules whose keys have no tag term */
     untranslated: Map<string, GencmuError>;
     /** @type {GencmuError[]} the conditions that the recognizer cannot test */
@@ -66,6 +84,7 @@ export declare class Bridge {
     captureSymbols: Map<string, string>;
     currentRule: any;
     atMostOne: Set<any> | undefined;
+    structural: Set<any> | undefined;
     bindings: any;
     repeated: Set<any> | undefined;
     hasClosed: boolean | undefined;
@@ -74,8 +93,9 @@ export declare class Bridge {
      * @param {any} dom
      * @param {any} path
      * @param {any} origins
+     * @param {HiddenKeys} [stageHidden]
      */
-    constructor(dom: any, path: any, origins: any);
+    constructor(dom: any, path: any, origins: any, stageHidden?: HiddenKeys);
     /** @param {any} call */
     registerCall(call: any): void;
     /** @param {any} record */
@@ -204,6 +224,12 @@ export declare class Bridge {
      */
     setTerm(value: any, kind: "keys" | "strings"): any;
     /**
+     * Notes a fault that the loader reports once it has read the stage.
+     * @param {string} description
+     * @param {any} at
+     */
+    deferFault(description: string, at: any): void;
+    /**
      * Notes a read of the run-time value tag of a payload.
      * @param {string} key
      * @param {any} at
@@ -313,6 +339,18 @@ export declare class Bridge {
      * @returns {any}
      */
     body(node: any, primary: any): any;
+    /**
+     * The internal form of a compound capture.
+     * @param {any} node
+     * @param {{name: any, synthetic: string, found?: boolean, used?: Set<string>}} primary
+     * @returns {any}
+     */
+    compoundCapture(node: any, primary: {
+        name: any;
+        synthetic: string;
+        found?: boolean;
+        used?: Set<string>;
+    }): any;
     /** @param {any} value */
     requirement(value: any): any;
     /** @param {any} node */

@@ -52,11 +52,20 @@ export declare const elidableForm50 = "an elidable optional starts with an ungro
 export declare function validateSubsetSize50(size: any, node: any, fail: any): void;
 /** @param {any} body */
 export declare function captureSlots50(body: any): any;
+export type BodyContext50 = {
+    blocked: boolean;
+    chain: boolean;
+    whole: boolean;
+    query?: boolean;
+    routes?: boolean;
+};
 /**
+ * The routes of a body: each binds a name at most once, and each has one
+ * primary or every route has none. The walk checks them after the body.
  * @param {any} body
  * @param {any} fail
  */
-export declare function validateBody50(body: any, fail: any): void;
+export declare function validateRoutes50(body: any, fail: any): void;
 /**
  * @param {any} pattern
  * @param {any} fail

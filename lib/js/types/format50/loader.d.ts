@@ -99,8 +99,10 @@ export declare class Loader50 {
     /**
      * @param {any} path
      * @param {any} domOf
+     * @param {Map<string, import("./bridge.js").HiddenKeys>} [hidden] the hidden keys of each document
+     * @returns {Pipeline50}
      */
-    build(path: any, domOf: any): Pipeline50;
+    build(path: any, domOf: any, hidden?: Map<string, import("./bridge.js").HiddenKeys>): Pipeline50;
 }
 export declare class Pipeline50 {
     path: any;

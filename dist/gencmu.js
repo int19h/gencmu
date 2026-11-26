@@ -6696,12 +6696,20 @@
               child("term", requirement.value);
             }
           } else { if (!stringTerm(value.value)) return "a malformed value test"; child("term", value.value); }
+        } else if ("capture" in value && nativeDepth > 0 && exact(value, ["capture", "expr"]) && exact(value.expr, ["empty"]) && value.expr?.empty === true) {
+          // The capture of the internal compound form of format 50 binds its
+          // name on each visit (erratum M-60). Only that loader builds it.
+          if (!(typeof value.capture === "string" && CAPTURE_NAME.test(value.capture)) || task.chain) return "a malformed capture";
         } else if ("capture" in value) {
           if (!exact(value, ["capture", "expr"]) || !(typeof value.capture === "string" && CAPTURE_NAME.test(value.capture)) || task.sealed && !task.capturedTerminator || task.chain || task.item && task.ranked || !(target(value.expr) || ["=", "≠"].includes(value.expr?.test) && target(value.expr.expr))) return "a malformed capture";
           child("expr", value.expr, { sealed: task.sealed, chain: task.chain, item: task.item, ranked: task.ranked });
         } else if (["seq", "choice", "ranked", "and"].some(key => key in value)) {
-          if (fields.length !== 1) return "a malformed expression";
-          const key = fields[0];
+          // The internal compound form of format 50: the operand, then the
+          // capture of the empty expression.
+          const compound = "compound50" in value && nativeDepth > 0 && fields.length === 2 && fields.includes("seq") &&
+            Array.isArray(value.seq) && value.seq.length === 2 && object(value.compound50) && typeof value.compound50.name === "string";
+          if (fields.length !== 1 && !compound) return "a malformed expression";
+          const key = compound ? "seq" : fields[0];
           if (!Array.isArray(value[key]) || value[key].length < 2 || key === "and" && value[key].length > 16) return key === "ranked" ? "ranked-choice-syntax: a ranked expression requires two options" : "a malformed expression";
           for (const item of value[key]) child("expr", item, { sealed: task.sealed, chain: task.chain, item: task.item, ranked: task.ranked || key === "ranked" });
         } else if ("optional" in value) {
@@ -10358,6 +10366,34 @@
     structures.set(sequence,logical);
   }
 
+  /**
+   * @internal The compound captures of format 50 (erratum M-60) over a
+   * sequence: each names a range of its items, which concatenation shifts as
+   * it shifts the logical symbols. Only the internal form that the format 50
+   * loader builds makes them, so a format 49 grammar has none. The type of
+   * a range stays inline, out of the declarations of format 49.
+   */
+  /** @type {WeakMap<object,{name:string,from:number,to:number,tags?:object,structural?:boolean}[]>} */
+  const compoundRanges = new WeakMap();
+  /** @type {{name:string,from:number,to:number,tags?:object,structural?:boolean}[]} */
+  const NO_COMPOUNDS = [];
+
+  /** @internal @param {object} sequence @returns {{name:string,from:number,to:number,tags?:object,structural?:boolean}[]} */
+  function compoundsOf(sequence) {
+    return compoundRanges.get(sequence) ?? NO_COMPOUNDS;
+  }
+
+  /** @internal A compound capture over all of a sequence. @param {any[]} sequence @param {{name:string,tags?:object,structural?:boolean}} compound */
+  function compoundSequence(sequence,compound) {
+    compoundRanges.set(sequence,[...compoundsOf(sequence),{...compound,from:0,to:sequence.length}]);
+  }
+
+  /** @internal @param {object} sequence @param {{name:string,from:number,to:number,tags?:object,structural?:boolean}[]} left @param {{name:string,from:number,to:number,tags?:object,structural?:boolean}[]} right @param {number} offset */
+  function joinedCompounds(sequence,left,right,offset) {
+    if (!left.length && !right.length) return;
+    compoundRanges.set(sequence,[...left,...right.map(range => ({...range,from:range.from+offset,to:range.to+offset}))]);
+  }
+
   /** @param {{symbol:GrammarSymbol}[]} sequence @param {object} written */
   function optionalLogical(sequence,written) {
     const children = logicalOf(sequence);
@@ -10411,14 +10447,14 @@
       for (const s of p.rhs) for (const g of descendants(s.name)) relevant.add(g);
       const own = p.rankedGroup;
       const names = new Set([...relevant].flatMap((/** @type {any} */ g) => [...privateNames.get(g)]));
-      const clauses = p.source?.clauses.conditions ?? [];
+      const clauses = sourceConditions(p);
       if (!p.helper || p.spliceOf) {
         // Private conditions run at their lexical boundary, including guards
         // on a capture absent from the selected option.
         p.rankedDeferred = clauses.filter((/** @type {any} */ c) => [...rankedCaptureReads(c)].some(n => names.has(n)));
         // Presence simplification can erase every read, so rebuild these clauses.
         const common = clauses.filter((/** @type {any} */ c) => !p.rankedDeferred.includes(c));
-        const present = new Set(['', ...p.captures.map((/** @type {any} */ c) => c.name)]);
+        const present = new Set(['', ...boundNames(p)]);
         p.conditions = [...frameConditions(common, present, p),...p.guardConditions ?? []];
         p.conditionsAt = Array.from({length:p.rhs.length+1}, () => []);
         for (const c of p.conditions) p.conditionsAt[c.readyAt+1].push(c);
@@ -10447,7 +10483,7 @@
     /** @type {any[]} */
     const pending = [];
     const enter = (/** @type {any} */ p, /** @type {any} */ frame) => {
-      const present = new Set([...frame.present, ...p.captures.map((/** @type {any} */ c) => c.name)]);
+      const present = new Set([...frame.present, ...boundNames(p)]);
       const knownPrivate = new Set([...frame.knownPrivate, ...p.rankedPrivate ?? []]);
       p.rhs.forEach((/** @type {any} */ symbol, /** @type {number} */ index) => {
         if (symbol.terminal || !contextual.has(symbol.name)) return;
@@ -10468,8 +10504,8 @@
       if (seen.has(key)) continue;
       seen.add(key);
       for (const p of lowered.byLhs.get(frame.name) ?? []) {
-        const present = new Set(['', ...frame.present, ...p.captures.map((/** @type {any} */ c) => c.name)]);
-        const clauses = p.rankedGroup ? p.source.clauses.conditions : [];
+        const present = new Set(['', ...frame.present, ...boundNames(p)]);
+        const clauses = p.rankedGroup ? sourceConditions(p) : [];
         const conditions = [
           ...frameConditions(clauses, present, {...p,lexicalFrame:frame}, frame.captures, p.rankedGroup?.final ?? false),
           ...itemFrameConditions(p.itemConditions ?? [], present, p, frame.captures),
@@ -10486,9 +10522,46 @@
     }
   }
 
+  /**
+   * The conditions of the alternative that a production lowers, without its
+   * item conditions. An item condition attaches to the helper of its braces
+   * (engine §3.6), as in the lowering of the production.
+   * @param {any} production
+   * @returns {any[]}
+   */
+  function sourceConditions(production) {
+    const source = production.source;
+    if (!source) return [];
+    const items = new Set(itemCaptures(source.expr).keys());
+    if (!items.size) return source.clauses.conditions;
+    return source.clauses.conditions.filter((/** @type {any} */ c) => !capturesMentioned(c).some((/** @type {string} */ name) => items.has(name)));
+  }
+
+  /**
+   * The names that a production binds: its captures and, in format 50, its
+   * compound bindings (erratum M-60).
+   * @param {any} production
+   * @returns {string[]}
+   */
+  function boundNames(production) {
+    return [...production.captures.map((/** @type {any} */ c) => c.name), ...(production.compounds ?? []).map((/** @type {any} */ c) => c.name)];
+  }
+
+  /**
+   * The position at which each bound name is ready. A compound binding is
+   * ready once the item passes its operand, as in grammar.js.
+   * @param {any} production
+   * @returns {Map<string, any>}
+   */
+  function boundPositions(production) {
+    const positions = new Map(production.captures.map((/** @type {any} */ c) => [c.name,c.index]));
+    for (const compound of production.compounds ?? []) if (!positions.has(compound.name)) positions.set(compound.name, compound.to - 1);
+    return positions;
+  }
+
   /** @param {any[]} clauses @param {Set<string>} present @param {any} production @param {Map<string,any>} [prefix] */
   function frameConditions(clauses, present, production, prefix = new Map(), final = true) {
-    const positions = new Map(production.captures.map((/** @type {any} */ c) => [c.name,c.index]));
+    const positions = boundPositions(production);
     const result = [];
     for (const raw of clauses) {
       const atom = firstBoundaryAtom(raw);
@@ -10557,7 +10630,7 @@
           if (!name.startsWith('\u0000')) captures.set(name,part);
         }
         const present = new Set(outer?.present ?? []);
-        for (const capture of item.production.captures) if (!capture.name.startsWith("\u0000")) present.add(capture.name);
+        for (const name of boundNames(item.production)) if (!name.startsWith("\u0000")) present.add(name);
         const root = outer?.root ?? item.production;
         const namedOrigin = outer?.namedOrigin ?? item.origin;
         const prefix = outer && context.patterns ? context.patterns.concat(outer.prefix,item.prefix) : item.prefix;
@@ -10594,7 +10667,7 @@
         const key = `${production.id}/${frame.id}`;
         const old = productions.get(key);
         if (old) return old;
-        const present = new Set(['',...frame.present,...production.captures.map((/** @type {any} */ c) => c.name)]);
+        const present = new Set(['',...frame.present,...boundNames(production)]);
         const bound = {...production,lexicalFrame:frame};
         // The item conditions of the braces' alternative run in the helper,
         // with the enclosing item's captures from the frame (engine §4).
@@ -10611,7 +10684,7 @@
         }
         // Every clause ready at this written boundary runs in source order,
         // including common clauses and clauses owned by an enclosing group.
-        const conditions = [...frameConditions(production.rankedGroup ? production.source.clauses.conditions : [],present,bound,frame.captures,production.rankedGroup?.final ?? false),...itemConditions];
+        const conditions = [...frameConditions(production.rankedGroup ? sourceConditions(production) : [],present,bound,frame.captures,production.rankedGroup?.final ?? false),...itemConditions];
         /** @type {any[][]} */
         const conditionsAt = Array.from({length:production.rhs.length+1},() => []);
         for (const c of conditions) conditionsAt[c.readyAt+1].push(c);
@@ -10641,7 +10714,7 @@
    * @param {any[]} clauses @param {Set<string>} present @param {any} production @param {Map<string,any>} prefix
    */
   function itemFrameConditions(clauses, present, production, prefix) {
-    const positions = new Map(production.captures.map((/** @type {any} */ c) => [c.name,c.index]));
+    const positions = boundPositions(production);
     const result = [];
     for (const raw of clauses) {
       const atom = firstBoundaryAtom(raw);
@@ -12313,6 +12386,11 @@
           // The item captures inside braces bind to the helper's productions
           // (engine §3.5), as do the captures of a ranked option.
           const captures = sequence.flatMap((item,index) => item.capture ? [{name:item.capture,index,...(item.captureTerminal?{terminal:true}:{})}] : []);
+          const compounds = compoundCaptures(sequence, captures);
+          const present = new Set(["", ...captures.map(capture => capture.name), ...compounds.map(compound => compound.name)]);
+          for (const compound of compounds) {
+            if (compound.tags) compound.tags = simplifyFor(prepareClause(/** @type {any} */ (compound.tags)), (/** @type {string} */ name) => present.has(name), present) ?? undefined;
+          }
           const items = helperItems;
           if (single && captures.length === 0) captures.push({name:"\u0000child",index:/** @type {number} */ (inherited)});
           this.addProduction({
@@ -12325,6 +12403,7 @@
             elidedTest: helper.elidedTest,
             elidedValue: helper.elidedValue,
             captures,
+            ...(compounds.length ? { compounds, ...compoundPieces(compounds) } : {}),
             conditions: [],
             tags: single ? { method: "tags", receiver: { capture: captures[0].name }, args: [] } : null,
             emit: null,
@@ -12356,13 +12435,15 @@
       sequence.forEach((item, index) => {
         if (item.capture) captures.push({ name: item.capture, index,...(item.captureTerminal?{terminal:true}:{}) });
       });
+      const compounds = compoundCaptures(sequence, captures);
       // `$`, the whole constituent, is a capture every production has.
-      const names = new Set(["", ...captures.map((capture) => capture.name)]);
+      const names = new Set(["", ...captures.map((capture) => capture.name), ...compounds.map(compound => compound.name)]);
       const clauses = alternative.clauses;
       // The clauses simplified for this production: presence tests and the
       // guards over them decided (engine §3.6).
       /** @type {(name: string) => boolean} */
       const has = (name) => names.has(name);
+      for (const compound of compounds) if (compound.tags) compound.tags = simplifyFor(prepareClause(/** @type {any} */ (compound.tags)), has, names) ?? undefined;
       // The union of the alternative's own tags and the rule's (engine §3.7);
       // the reader has made sure neither uses a capture this production lacks.
       // Each clause is prepared once for all productions, so that one costs
@@ -12382,6 +12463,8 @@
           child = {name:"\u0000child",index:inherited};
           captures.push(child);
           names.add(child.name);
+          // The search for a captured part needs the captures in input order.
+          if (compounds.length) captures.sort((left, right) => left.index - right.index);
         }
         tags = {method:"tags",receiver:{capture:child.name},args:[]};
       }
@@ -12390,6 +12473,8 @@
       /** @type {Map<string, number>} */
       const positionOf = new Map();
       for (const capture of captures) if (!positionOf.has(capture.name)) positionOf.set(capture.name, capture.index);
+      // A compound binding is ready once the item passes its operand.
+      for (const compound of compounds) if (!positionOf.has(compound.name)) positionOf.set(compound.name, compound.to - 1);
       /** @type {import("./types.js").ReadyCondition[]} */
       const conditions = [];
       // The conditions not true for this production, in order (engine §3.6).
@@ -12462,6 +12547,7 @@
         elided: null,
         elidedTest: null,
         captures,
+        ...(compounds.length ? { compounds, ...compoundPieces(compounds) } : {}),
         conditions,
         tags,
         writtenTags: written,
@@ -12488,7 +12574,19 @@
      * @returns {SequenceItem[][]}
      */
     expand(expr, where) {
-      if ("seq" in expr) return this.expandSequence(expr.seq, where);
+      if ("seq" in expr) {
+        // The internal form of a compound capture of format 50 (erratum M-60):
+        // its operand and a capture of the empty expression, which binds the
+        // name on each visit. Only the operand expands, and its sequences
+        // carry the range of the capture.
+        const compound = /** @type {any} */ (expr).compound50;
+        if (compound) {
+          const sequences = this.expand(expr.seq[0], where);
+          for (const sequence of sequences) compoundSequence(sequence, compound);
+          return sequences;
+        }
+        return this.expandSequence(expr.seq, where);
+      }
       if ("choice" in expr) return expr.choice.flatMap((item) => this.expand(item, where));
       if ("ranked" in expr) {
         const group = /** @type {import("./ranked.js").RankedGroup} */ (this.grammar.ranked.byExpression.get(expr));
@@ -12661,6 +12759,50 @@
   }
 
   /**
+   * The compound captures of format 50 over a sequence (erratum M-60), each
+   * with the captures whose ends give its boundaries: the item before its
+   * operand, where one stands, and the last item of its operand. A position
+   * that no capture names gets an internal one.
+   * @param {SequenceItem[]} sequence
+   * @param {import("./types.js").Capture[]} captures changed
+   * @returns {{name:string,from:number,to:number,tags?:object,startCapture?:string,endCapture?:string}[]}
+   */
+  function compoundCaptures(sequence, captures) {
+    const ranges = compoundsOf(sequence);
+    if (!ranges.length) return [];
+    /** @param {number} index */
+    const at = index => {
+      let capture = captures.find(item => item.index === index);
+      if (!capture) {
+        capture = { name: `\u0000at:${index}`, index };
+        captures.push(capture);
+      }
+      return capture.name;
+    };
+    // A compound binding that a pattern reads has a capture at each position
+    // of its operand, which keeps what the position adds to its structure.
+    const compounds = ranges.map(range => ({ ...range, ...(range.from > 0 ? { startCapture: at(range.from - 1) } : {}),
+      ...(range.to > range.from ? { endCapture: at(range.to - 1) } : {}),
+      ...(range.structural ? { pieces: Array.from({ length: range.to - range.from }, (_, offset) => at(range.from + offset)) } : {}) }));
+    // The search for a captured part needs the captures in input order.
+    captures.sort((left, right) => left.index - right.index);
+    return compounds;
+  }
+
+  /**
+   * The positions whose captures keep their structural piece, for the
+   * compound bindings that a pattern reads.
+   * @param {{from: number, to: number, pieces?: string[]}[]} compounds
+   * @returns {{compoundPieces?: Set<number>}}
+   */
+  function compoundPieces(compounds) {
+    /** @type {Set<number>} */
+    const positions = new Set();
+    for (const compound of compounds) if (compound.pieces) for (let index = compound.from; index < compound.to; index++) positions.add(index);
+    return positions.size ? { compoundPieces: positions } : {};
+  }
+
+  /**
    * @param {SequenceItem[][]} left
    * @param {SequenceItem[][]} right
    * @returns {SequenceItem[][]}
@@ -12680,6 +12822,7 @@
           }
         }
         joinedLogical(sequence,logicalOf(a),logicalOf(b),a.length);
+        joinedCompounds(sequence,compoundsOf(a),compoundsOf(b),a.length);
         result.push(sequence);
       }
     }
@@ -12701,6 +12844,7 @@
     const result = [];
     for (const a of left) {
       const logical = logicalOf(a);
+      const compounds = compoundsOf(a);
       const offset = a.length;
       for (let index = 0; index < right.length; index++) {
         /** @type {SequenceItem[]} */
@@ -12718,6 +12862,7 @@
           sequence.push(item);
         }
         joinedLogical(sequence,logical,suffix,offset,sequence===a);
+        joinedCompounds(sequence,compounds,compoundsOf(right[index]),offset);
         result.push(sequence);
       }
     }
@@ -14321,7 +14466,12 @@
           const forwarded=child.production.captureSlot.get(production.captures[captureIndex].name);
           for(let part=child.slots;part;part=part.parent) if(part.index===forwarded) {structure=part.structure;observation=part.observation;identity=part.treeIdentity ?? (context.trees ? terminalIdentity(context,child.production.rhs[0].name,from) : undefined);break;}
         } else if (child?.production.spliceOf && context.patterns) structure=context.patterns.node(null,child.structure);
-        slots = captureAfter(context, slots, captureIndex, from, to, tags, structure, observation, identity);
+        // A position of a compound binding that a pattern reads keeps what it
+        // adds to the structure of the binding, as structuralStep adds it.
+        const pieces = /** @type {any} */ (production).compoundPieces;
+        const piece = pieces?.has(item.dot) && context.patterns ? child ? production.rhs[item.dot].slot ? context.patterns.seal : child.structure
+          : terminalState(context, production, item.dot, from) : undefined;
+        slots = captureAfter(context, slots, captureIndex, from, to, tags, structure, observation, identity, piece);
       }
       if (hooks.work) countWork(hooks.work, "captureLookups");
       /** @type {StepScope} */
@@ -14951,11 +15101,13 @@
    * @param {number} structure
    * @param {CloseObservation|null} observation
    * @param {number} [treeIdentity]
+   * @param {number} [piece] what the part adds to the structure of a compound binding
    * @returns {Captured}
    */
-  function captureAfter(context, parent, index, start, end, tags, structure, observation, treeIdentity) {
+  function captureAfter(context, parent, index, start, end, tags, structure, observation, treeIdentity, piece) {
     let key = (parent === null ? "" : parent.id) + ":" + index + ":" + start + ":" + end + ":" + tags + ":" + structure + ":" + (observation?.id ?? "");
     if(treeIdentity !== undefined)key += `/t${treeIdentity}`;
+    if(piece !== undefined)key += `/p${piece}`;
     let found = context.captured.get(key);
     if (!found) {
       // The jumps of a skew-binary list: a sequence jumps to its parent's
@@ -14968,10 +15120,31 @@
       const jump = skip ? /** @type {NonNullable<Captured>} */ (/** @type {NonNullable<Captured>} */ (parent).jump).jump : parent;
       found = { parent, jump, depth, index, start, end, tags, structure, observation, id: context.captured.size };
       if(treeIdentity !== undefined)found.treeIdentity=treeIdentity;
+      // A piece stays out of the declared type of format 49.
+      if(piece !== undefined)/** @type {any} */ (found).piece=piece;
       context.captured.set(key, found);
       if (hooks.work) countWork(hooks.work, "captures");
     }
     return found;
+  }
+
+  /**
+   * @internal The structural prefix of a compound binding: the pieces that
+   * its positions keep, in order (erratum M-60).
+   * @param {PatternMachine} machine
+   * @param {Production} production
+   * @param {{pieces?: string[]}} compound
+   * @param {Captured} slots
+   * @param {{searched: number}} searcher
+   * @returns {number}
+   */
+  function compoundPrefix(machine, production, compound, slots, searcher) {
+    let prefix = machine.empty;
+    for (const name of compound.pieces ?? []) {
+      const part = capturedPart(/** @type {NonNullable<Captured>} */ (slots), captureIndex(production, name), searcher);
+      prefix = machine.concat(prefix, /** @type {number} */ (/** @type {any} */ (part).piece));
+    }
+    return prefix;
   }
 
   /**
@@ -15171,10 +15344,42 @@
       return (this.tagSet = asSet(value));
     }
     /**
+     * @internal A compound binding of format 50 (erratum M-60): its window runs from
+     * the end of the item before its operand, or the origin, to the end of
+     * the last item of its operand. Its tags are those of its primary or sole
+     * symbol, which the loader names.
+     * @param {{startCapture?: string, endCapture?: string, tags?: any, pieces?: string[]}} compound
+     * @returns {SpanValue}
+     */
+    compound(compound) {
+      const start = compound.startCapture === undefined ? this.origin : this.capture(compound.startCapture).end;
+      const end = compound.endCapture === undefined ? start : this.capture(compound.endCapture).end;
+      const scope = this;
+      /** @type {TagSet | null} */
+      let tags = null;
+      const machine = this.context.patterns;
+      // A pattern reads the binding as an anonymous node over the pieces of
+      // its positions, with a seal at a ranked choice.
+      const prefix = machine && compound.pieces ? compoundPrefix(machine, this.production, compound, this.slots, this) : -1;
+      return {
+        treeIdentity: undefined, observation: null, patterns: machine, start, end, space: this.space,
+        structure: prefix >= 0 && machine ? machine.node(null, prefix) : -1,
+        ...(prefix >= 0 ? { patternName: null, patternPrefix: prefix } : {}),
+        get tags() {
+          if (tags === null) tags = compound.tags ? asSet(/** @type {TermValue} */ (evaluate(scope.observing, compound.tags, scope))) : tagSet();
+          return tags;
+        },
+      };
+    }
+
+    /**
      * @param {string} name
      * @returns {SpanValue}
      */
     capture(name) {
+      // The production field of format 50 compounds stays out of the declared type.
+      const compound = /** @type {any} */ (this.production).compounds?.find((/** @type {any} */ item) => item.name === name);
+      if (compound) return this.compound(compound);
       // `$` is the whole constituent, whose tags are read only once it is
       // complete, by a condition or an emission (engine §4).
       if (name === "" && this.production.lexicalFrame && !this.production.lexicalFrame.parentWhole) {
@@ -29011,8 +29216,10 @@
       this.hidden = { demanded: new Set(), domains: new Map(), roots: new Map() };
       /** @type {string | undefined} the rule at the root of the forest of the predicate being lowered */
       this.forestRootRule = undefined;
-      /** @type {Map<any, any> | undefined} the body of each alternative of the rule being lowered, without compound labels */
+      /** @type {Map<any, any> | undefined} the body of each alternative of the rule being lowered */
       this.bodies = undefined;
+      /** @type {Set<string>} the compound labels of the rule being lowered */
+      this.compounds = new Set();
       /** @type {Map<string, GencmuError>} the rules whose keys have no tag term */
       this.untranslated = new Map();
       /** @type {GencmuError[]} the conditions that the recognizer cannot test */
@@ -29474,18 +29681,15 @@
       // The captures that bind at most one node on every route of the rule.
       this.atMostOne = new Set();
       const counts = new Map();
-      // A compound label is transparent to recognition (erratum M-60), so the
-      // bridge reads each body without it. Its inner labels stay. A read of
-      // the binding itself fails at load, since the recognizer and the stage
-      // do not yet give it.
-      const bodies = new Map(rule.alternatives.map((/** @type {any} */ alternative) => [alternative, withoutCompoundLabels(alternative.expr)]));
+      // A compound label (erratum M-60) binds one node for each visit. Its
+      // operand lowers in place, so the label is transparent to recognition,
+      // and the recognizer gives its window and tags.
+      const bodies = new Map(rule.alternatives.map((/** @type {any} */ alternative) => [alternative, alternative.expr]));
       this.bodies = bodies;
-      const compound = compoundLabels(rule.alternatives.map((/** @type {any} */ alternative) => alternative.expr));
-      if (compound.size) {
-        const read = compoundRead([rule.term, ...rule.alternatives.map((/** @type {any} */ alternative) => alternative.term), rule.conditions,
-          rule.error, rule.warning, rule.emit?.items], compound);
-        if (read) this.deferFault(`read the binding of the compound capture $${read.capture}`, read.at ?? rule.at);
-      }
+      this.compounds = compoundLabels(rule.alternatives.map((/** @type {any} */ alternative) => alternative.expr));
+      // The compound bindings that a structural comparison reads need the
+      // structure of each position of their operand.
+      this.structural = this.compounds.size ? structurallyCompared(rule) : new Set();
       for (const alternative of rule.alternatives) {
         for (const [name, count] of maxBindings(bodies.get(alternative))) counts.set(name, Math.max(counts.get(name) ?? 0, count));
       }
@@ -29550,12 +29754,13 @@
     alternative(alternative, rule) {
       const used = new Map();
       /** @param {any} each */
-      const bodyOf = each => this.bodies?.get(each) ?? withoutCompoundLabels(each.expr);
+      const bodyOf = each => this.bodies?.get(each) ?? each.expr;
       for (const each of rule.alternatives) collectCaptureSymbols(bodyOf(each), used);
       const written = bodyOf(alternative);
       let synthetic = PRIMARY_CAPTURE;
       while ([...used.keys()].includes(synthetic)) synthetic += "_";
-      const primary = { name: null, synthetic };
+      /** @type {{name: any, synthetic: string, found?: boolean, used?: Set<string>}} */
+      const primary = { name: null, synthetic, used: new Set(used.keys()) };
       const expr = this.body(written, primary);
       const record = { rule, alternative, ...(primary.name !== null ? { primary: primary.name, primarySynthetic: primary.name === synthetic } : {}) };
       // The recognizer validates instance definitions strictly, so the
@@ -30036,6 +30241,7 @@
       switch (kind) {
         case "primary": {
           const inner = node.primary;
+          primary.found = true;
           if (inner.capture !== undefined) {
             primary.name = inner.capture;
             return this.body(inner, primary);
@@ -30070,10 +30276,18 @@
         case "call":
           this.registerCall(node);
           return { ...node, args: node.args.map((/** @type {any} */ arg) => this.argument(arg)) };
+        // A compound label (erratum M-60) lowers to the internal form of the
+        // recognizer: its operand, then a capture of the empty expression,
+        // which binds the name on each visit. Its tags are those of its
+        // primary, or of the selected symbol of an unranked choice of plain
+        // symbols, as for a termless rule.
+        case "captureSymbol":
+          if (isCompoundCapture50(node)) return this.compoundCapture(node, primary);
+        // falls through
         // The composite forms hold only bodies, and the other leaves hold
         // only names, so each keeps its form.
         case "sequence": case "choice": case "ranked": case "subset": case "optional": case "chain": case "repeat":
-        case "reference": case "wildcard": case "empty": case "remainder": case "splice": case "captureSymbol": case "parameter": {
+        case "reference": case "wildcard": case "empty": case "remainder": case "splice": case "parameter": {
           /** @type {Record<string, any>} */
           const copy = {};
           for (const [key, value] of Object.entries(node)) copy[key] = this.body(value, primary);
@@ -30081,6 +30295,42 @@
         }
         default: return this.fail(`read ${kind === undefined ? "this body" : `the body form ${kind}`}`, node.at);
       }
+    }
+
+    /**
+     * The internal form of a compound capture.
+     * @param {any} node
+     * @param {{name: any, synthetic: string, found?: boolean, used?: Set<string>}} primary
+     * @returns {any}
+     */
+    compoundCapture(node, primary) {
+      const outer = primary.found;
+      primary.found = false;
+      const choice = node.expr.choice;
+      /** @type {string | undefined} */
+      let sole;
+      if (Array.isArray(choice) && choice.every((/** @type {any} */ route) => isSingleSymbol(route))) {
+        sole = `${node.capture}_sole_`;
+        while (primary.used?.has(sole)) sole += "_";
+        primary.used?.add(sole);
+      }
+      const operand = sole === undefined ? this.body(node.expr, primary) :
+        { choice: choice.map((/** @type {any} */ route) => {
+          const lowered = this.body(route, primary);
+          return lowered.capture !== undefined ? lowered : { capture: sole, expr: lowered };
+        }) };
+      const inside = !!primary.found;
+      primary.found = outer || inside;
+      /** @type {any} */
+      let tags;
+      if (inside && primary.name !== null) tags = { method: "tags", receiver: { capture: primary.name }, args: [] };
+      else if (sole !== undefined) {
+        const names = [...new Set(operand.choice.map((/** @type {any} */ route) => route.capture))];
+        const parts = names.map(name => ({ if: { captured: name }, then: { method: "tags", receiver: { capture: name }, args: [] } }));
+        tags = parts.length === 1 ? parts[0] : { union: parts };
+      }
+      return { seq: [operand, { capture: node.capture, expr: { empty: true } }],
+        compound50: { name: node.capture, ...(tags ? { tags } : {}), ...(this.structural?.has(node.capture) ? { structural: true } : {}) } };
     }
 
     /** @param {any} value */
@@ -30150,7 +30400,10 @@
       // ranked check reads the whole condition (part 1 §5, engine §3.6).
       if (Array.isArray(node.all)) {
         const parts = node.all.flatMap((/** @type {any} */ item) => this.clauses(item));
-        return parts.length === 1 ? parts : [{ all: parts }];
+        // A constant part folds into the conjunction.
+        if (parts.includes(DOM_FALSE)) return [DOM_FALSE];
+        const kept = parts.filter((/** @type {any} */ part) => part !== DOM_TRUE);
+        return kept.length === 0 ? [DOM_TRUE] : kept.length === 1 ? kept : [{ all: kept }];
       }
       // A guard $d ⟹ P in a shared clause, where every alternative that binds
       // a capture of P also binds $d, holds as P does. An alternative without
@@ -30203,11 +30456,38 @@
       if (isSpan(node)) {
         return { method: "parse", receiver: this.expression(node), args: [{ body: { seq: [{ wildcard: true }, { remainder: true }] } }] };
       }
+      // A compound binding that each alternative binds once is present on
+      // each visit (erratum M-60), also around a ranked choice.
+      if (node.capture !== undefined && this.compounds.has(node.capture) &&
+          this.bindings?.every((/** @type {any} */ counts) => counts.min.get(node.capture) >= 1)) return DOM_TRUE;
       if (node.capture !== undefined) return node.capture === "" ? { emptySet: false } : { captured: node.capture };
-      if (node.not) return { not: this.truth(node.not) };
-      if (node.all) return { all: node.all.map((/** @type {any} */ item) => this.truth(item)) };
-      if (node.any) return { any: node.any.map((/** @type {any} */ item) => this.truth(item)) };
-      if (node.if !== undefined && node.else === undefined) return { if: this.truth(node.if), then: this.truth(node.then) };
+      // .present says what the bare name says, on a node and on a list
+      // (part 1 §8). The item of a predicate is bound.
+      if (isPresence(node)) return node.receiver.item ? DOM_TRUE : this.truth(node.receiver);
+      // A predicate of presence holds of each item of a list.
+      if ((node.method === "all" || node.method === "any") && node.receiver?.capture && node.args[0]?.lambda !== undefined &&
+          isPresence(node.args[0].body, node.args[0].lambda)) {
+        return node.method === "all" ? DOM_TRUE : { captured: node.receiver.capture };
+      }
+      // A constant part folds into its connective, since the recognizer reads
+      // a constant only as a whole condition.
+      if (node.not) {
+        const inner = this.truth(node.not);
+        return inner === DOM_TRUE ? DOM_FALSE : inner === DOM_FALSE ? DOM_TRUE : { not: inner };
+      }
+      if (node.all || node.any) {
+        const [unit, zero] = node.all ? [DOM_TRUE, DOM_FALSE] : [DOM_FALSE, DOM_TRUE];
+        const parts = (node.all ?? node.any).map((/** @type {any} */ item) => this.truth(item));
+        if (parts.includes(zero)) return zero;
+        const kept = parts.filter((/** @type {any} */ part) => part !== unit);
+        return kept.length === 0 ? unit : kept.length === 1 ? kept[0] : { [node.all ? "all" : "any"]: kept };
+      }
+      if (node.if !== undefined && node.else === undefined) {
+        const test = this.truth(node.if);
+        if (test === DOM_FALSE) return DOM_TRUE;
+        const then = this.truth(node.then);
+        return test === DOM_TRUE ? then : then === DOM_TRUE ? DOM_TRUE : { if: test, then };
+      }
       if (node.method === "classify" && node.receiver.const !== undefined) {
         return { op: "≠", left: this.tagsOf(node), right: { emptySet: true } };
       }
@@ -30867,18 +31147,16 @@
   }
 
   /**
-   * A body with each compound label removed, and its inner labels kept.
+   * Whether a node is `.present` of a capture or of the item of a predicate
+   * with the binder.
    * @param {any} node
-   * @returns {any}
+   * @param {string} [binder]
    */
-  function withoutCompoundLabels(node) {
-    if (!node || typeof node !== "object") return node;
-    if (Array.isArray(node)) return node.map(withoutCompoundLabels);
-    if (isCompoundCapture50(node)) return withoutCompoundLabels(node.expr);
-    /** @type {Record<string, any>} */
-    const copy = {};
-    for (const [key, value] of Object.entries(node)) copy[key] = withoutCompoundLabels(value);
-    return copy;
+  function isPresence(node, binder) {
+    if (node?.method !== "present" || node.args?.length !== 0) return false;
+    const receiver = node.receiver;
+    return receiver?.item === true || typeof receiver?.capture === "string" && receiver.capture !== "" &&
+      (binder === undefined || receiver.capture === binder);
   }
 
   /**
@@ -30895,30 +31173,6 @@
     if (isCompoundCapture50(node)) into.add(node.capture);
     for (const value of Object.values(node)) if (value && typeof value === "object") compoundLabels(value, into);
     return into;
-  }
-
-  /**
-   * The first read of one of the names in expressions and emission items, or
-   * undefined. A forwarding item reads its capture too.
-   * @param {any} node
-   * @param {Set<string>} names
-   * @returns {any}
-   */
-  function compoundRead(node, names) {
-    if (!node || typeof node !== "object") return undefined;
-    if (Array.isArray(node)) {
-      for (const item of node) {
-        const found = compoundRead(item, names);
-        if (found) return found;
-      }
-      return undefined;
-    }
-    if (typeof node.capture === "string" && names.has(node.capture) && !node.expr) return node;
-    for (const value of Object.values(node)) {
-      const found = value && typeof value === "object" ? compoundRead(value, names) : undefined;
-      if (found) return found;
-    }
-    return undefined;
   }
 
   /**
@@ -31537,6 +31791,30 @@
     return into;
   }
 
+  /**
+   * The names that a rule compares with a pattern or another node, on the
+   * left of the comparison.
+   * @param {any} rule
+   * @returns {Set<string>}
+   */
+  function structurallyCompared(rule) {
+    /** @type {Set<string>} */
+    const names = new Set();
+    const stack = [rule.conditions, rule.error, rule.warning, rule.emit,
+      ...(rule.alternatives ?? []).map((/** @type {any} */ alternative) => alternative.term)];
+    while (stack.length) {
+      const node = stack.pop();
+      if (!node || typeof node !== "object") continue;
+      if (Array.isArray(node)) {
+        for (const item of node) stack.push(item);
+        continue;
+      }
+      if ((node.op === "≅" || node.op === "≇") && typeof node.left?.capture === "string") names.add(node.left.capture);
+      for (const value of Object.values(node)) if (value && typeof value === "object") stack.push(value);
+    }
+    return names;
+  }
+
   // The names that the primary symbols of a body read.
   /** @param {any} node @param {Set<string>} [into] */
   function primaryNames(node, into = new Set()) {
@@ -31561,6 +31839,7 @@
     if (node.capture !== undefined && node.expr) {
       if (!rules.has(node.capture)) rules.set(node.capture, new Set());
       symbolNames(node.expr, rules.get(node.capture));
+      if (isCompoundCapture50(node)) primaryNames(node.expr, rules.get(node.capture));
     }
     for (const value of Object.values(node)) if (value && typeof value === "object") collectCaptureRules(value, rules);
   }
@@ -32650,7 +32929,17 @@
       const captures = new Map();
       for (const [name, kind] of kinds) captures.set(name, kind === "one" ? null : []);
       let primary = null;
-      for (const { name, start, end } of parts.bindings) {
+      /** @type {any[]} */
+      const compounds = [];
+      for (const binding of parts.bindings) {
+        const { name, start, end } = binding;
+        if (binding.compound) {
+          const node = this.compoundOccurrence(binding, children, origin, data);
+          compounds.push(node);
+          if (kinds.get(name) === "list") captures.get(name)?.push(node);
+          else captures.set(name, node);
+          continue;
+        }
         const nodes = children.slice(start, end);
         if (name === origin?.primary) primary = nodes[0] ?? null;
         if (name === origin?.primary && origin.primarySynthetic) continue;
@@ -32659,9 +32948,60 @@
       }
       occurrence.captures = captures;
       occurrence.primary = origin?.primary !== undefined ? primary : null;
+      // The primary of the rule is that of each compound binding around it.
+      for (const node of compounds) node.primary = occurrence.primary && node.children.includes(occurrence.primary) ? occurrence.primary : null;
       occurrence.reading = data.reading;
       occurrence.makeBag = () => this.ruleBag(occurrence, data);
       return occurrence;
+    }
+
+    /**
+     * A compound binding (erratum M-60): one node for each visit, over the
+     * working children of its visit. It has no result record of its own.
+     * @param {any} binding
+     * @param {any[]} children the working children of the enclosing node
+     * @param {any} origin
+     * @param {any} data
+     */
+    compoundOccurrence(binding, children, origin, data) {
+      const operand = origin ? compoundOperand(origin.alternative.expr, binding.name) : undefined;
+      const node = new Occurrence("compound", {
+        span: binding.span, source: this.sourceOf(data.tokens, binding.span[0], binding.span[1]),
+        children: children.slice(binding.start, binding.end), origin, operand, reading: data.reading,
+      });
+      node.makeBag = () => this.compoundBag(node, children, binding, data);
+      return node;
+    }
+
+    /**
+     * The bag of a compound binding: that of a termless splice of its operand,
+     * from the stage defaults and its primary or sole symbol (erratum M-60).
+     * @param {any} node
+     * @param {any[]} children
+     * @param {any} binding
+     * @param {any} data
+     */
+    compoundBag(node, children, binding, data) {
+      const bag = new Bag();
+      const origin = node.origin;
+      const evaluator = data.evaluator;
+      if (!origin) return bag;
+      const document = origin.document;
+      if (data.constants.has("DEFAULTS")) {
+        bag.splat(() => {
+          const fn = evaluator.constantReference("DEFAULTS", origin.rule, { items: [], names: new Map(), document });
+          return evaluator.bagOf(evaluator.applyFunction(fn, node, origin.rule), origin.rule, { document });
+        }, null);
+      }
+      // A primary inside the operand supplies its bag, and so does the one
+      // child of an unranked choice of plain symbols.
+      const primary = node.primary;
+      if (primary) bag.splat(() => primary.bag(), null);
+      else if (node.operand?.choice && isPlainSymbol(node.operand) && node.children.length === 1) {
+        const sole = node.children[0];
+        bag.splat(() => sole.bag(), null);
+      }
+      return bag;
     }
 
     /**
@@ -32746,6 +33086,10 @@
         const stack = [start];
         while (stack.length) {
           const node = stack.pop();
+          if (node.kind === "compound") {
+            for (let index = node.children.length - 1; index >= 0; index--) stack.push(node.children[index]);
+            continue;
+          }
           if ((node.kind !== "rule" && node.kind !== "splice") || node.erased) continue;
           if (!node.origin?.rule.emit) {
             for (let index = node.children.length - 1; index >= 0; index--) stack.push(node.children[index]);
@@ -32938,6 +33282,25 @@
           patterns: this.context.patterns, start: this.node.start, end: this.node.end, tags: tagsOf(this.node) };
       }
       const production = this.node.production;
+      // A compound binding (erratum M-60) spans the children of its operand,
+      // and a pattern reads it as an anonymous node over their pieces.
+      const compound = production.compounds?.find((/** @type {any} */ item) => item.name === name);
+      if (compound) {
+        const children = this.node.children;
+        const start = compound.from > 0 ? children[compound.from - 1].end : this.node.start;
+        const end = compound.to > compound.from ? children[compound.to - 1].end : start;
+        const machine = this.context.patterns;
+        const prefix = machine && compound.pieces ? compoundPrefix(machine, production, compound, this.node.item.slots, { searched: 0 }) : -1;
+        const scope = this;
+        /** @type {any} */
+        let tags = null;
+        return { observation: null, structure: prefix >= 0 ? machine.node(null, prefix) : -1, patterns: machine, start, end,
+          ...(prefix >= 0 ? { patternName: null, patternPrefix: prefix } : {}),
+          get tags() {
+            if (tags === null) tags = compound.tags ? asSet(/** @type {any} */ (evaluate(scope.context, compound.tags, scope))) : tagSet();
+            return tags;
+          } };
+      }
       const child = capturedNode(this.node, name);
       let captured = this.node.item.slots;
       while (captured && captured.index !== production.captureSlot.get(name)) captured = captured.parent;
@@ -32997,6 +33360,27 @@
     return map;
   }
 
+  /**
+   * The operand of the compound capture of a name in a body.
+   * @param {any} node
+   * @param {string} name
+   * @returns {any}
+   */
+  function compoundOperand(node, name) {
+    const stack = [node];
+    while (stack.length) {
+      const current = stack.pop();
+      if (!current || typeof current !== "object") continue;
+      if (Array.isArray(current)) {
+        for (const item of current) stack.push(item);
+        continue;
+      }
+      if (current.capture === name && current.expr && isCompoundCapture50(current)) return current.expr;
+      for (const value of Object.values(current)) if (value && typeof value === "object") stack.push(value);
+    }
+    return undefined;
+  }
+
   /** @param {any} derivation */
   function isOmission(derivation) {
     const production = derivation.production;
@@ -33010,16 +33394,41 @@
    */
   function expandHelpers(derivation) {
     const items = [];
+    /** @type {any[]} */
     const bindings = [];
-    /** @type {{node: any, index: number, closing?: any[]}[]} */
+    /** @type {{node: any, index: number, closing?: any[], open?: Map<any, any>}[]} */
     const stack = [{ node: derivation, index: 0 }];
+    // A compound binding of a production (erratum M-60) covers the children
+    // from its first position to its last, and its window runs between the
+    // boundaries at those positions.
+    /** @param {{node: any, index: number, open?: Map<any, any>}} frame @param {number} index */
+    const compounds = (frame, index) => {
+      const ranges = frame.node.production.compounds;
+      if (!ranges) return;
+      const children = frame.node.children;
+      const at = index < children.length ? children[index].start : frame.node.end;
+      for (const range of ranges) {
+        if (range.to !== index || range.from === index) continue;
+        const binding = frame.open?.get(range);
+        binding.end = items.length;
+        binding.span[1] = at;
+      }
+      for (const range of ranges) {
+        if (range.from !== index) continue;
+        const binding = { name: range.name, start: items.length, end: items.length, compound: true, span: [at, at] };
+        bindings.push(binding);
+        if (range.to > index) (frame.open ??= new Map()).set(range, binding);
+      }
+    };
     while (stack.length) {
-      const frame = /** @type {{node: any, index: number, closing?: any[]}} */ (stack.at(-1));
+      const frame = /** @type {{node: any, index: number, closing?: any[], open?: Map<any, any>}} */ (stack.at(-1));
       if (frame.index >= frame.node.children.length) {
+        compounds(frame, frame.index);
         stack.pop();
         for (const binding of frame.closing ?? []) binding.end = items.length;
         continue;
       }
+      compounds(frame, frame.index);
       const index = frame.index++;
       const child = frame.node.children[index];
       const names = frame.node.production.captures.filter((/** @type {any} */ capture) => capture.index === index).map((/** @type {any} */ capture) => capture.name);
@@ -33681,9 +34090,16 @@
           return { capture, expr: fault ? this.waitingFault(first, fault) : target };
         }
         case "marked-factor": {
-          const atom = baseFactor(first.rule === "capture" ? rules(first)[1] : first);
-          if (GROUPS.has(atom.rule)) this.fail(node, "a primary marks one ungrouped symbol or capture that is not a splice");
+          // A label on parentheses around one symbol binds that symbol
+          // (erratum M-60), so the mark can stand before it. A compound
+          // capture cannot carry the mark.
+          const captured = first.rule === "capture";
+          const atom = baseFactor(captured ? rules(first)[1] : first);
+          if (!captured && GROUPS.has(atom.rule)) this.fail(node, "a primary marks one ungrouped symbol or capture that is not a splice");
           const target = yield expr(first, false, elidable);
+          if (captured && !faulty(target) && target.expr && !faulty(target.expr) && !isBodySymbol50(target.expr)) {
+            this.fail(node, "a primary marks one ungrouped symbol or capture that is not a splice");
+          }
           return { primary: target };
         }
         case "tested-factor": {
@@ -34338,6 +34754,8 @@
 
 
 
+
+
   const NO_TRUTH = new Map([["string", "A string"], ["number", "A number"], ["pattern", "A pattern"], ["function", "A function"]]);
   const SPAN_VALUED = new Set(["span", "first-token", "last-token", "tokens-after-first", "onward", "following-tokens", "preceding-tokens"]);
   const TRUTH_METHODS = new Set(["has", "has-value", "present", "any", "all", "starts-input", "ends-input", "overlaps", "followed-by", "preceded-by"]);
@@ -34788,6 +35206,10 @@
       }
       this.ruleBags(rules);
       for (const { rule, document } of rules) {
+        if (!rule.instance) compoundUses(rule, document, (/** @type {string} */ name) => this.constantValue(name)?.record.value);
+      }
+      this.defaultKeyReads(rules);
+      for (const { rule, document } of rules) {
         if (rule.instance) continue;
         const statementKinds = new Map();
         const statementRules = new Map();
@@ -34915,7 +35337,25 @@
         if (!byName.has(entry.rule.name) || entry.rule.op !== "extend") byName.set(entry.rule.name, []);
         byName.get(entry.rule.name).push(entry);
       }
+      // A compound binding (erratum M-60) has the value of a termless splice
+      // of its operand: the defaults, or its primary or sole symbol.
+      for (const { rule, document } of rules) {
+        if (rule.params || rule.instance) continue;
+        /** @param {any} node */
+        const each = node => {
+          if (!node || typeof node !== "object") return;
+          if (Array.isArray(node)) return node.forEach(each);
+          if (isCompoundCapture50(node)) {
+            const key = compoundKey(rule.name, node.capture);
+            if (!byName.has(key)) byName.set(key, []);
+            byName.get(key).push({ rule: { name: key, op: "define", alternatives: [{ expr: node.expr }] }, document });
+          }
+          for (const value of Object.values(node)) if (value && typeof value === "object") each(value);
+        };
+        for (const alternative of rule.alternatives ?? []) each(alternative.expr);
+      }
       const joinsChildren = this.defaultsJoinChildren();
+      const joinsInput = this.defaultsJoinInput();
       const certified = new Set(byName.keys());
       /** @type {Map<string, boolean>} the proofs of template calls in bodies */
       const callProofs = new Map();
@@ -34946,7 +35386,7 @@
         if (node.literal || node.range || node.wildcard || node.empty) return true;
         // A splice adds its called rule's value.
         if (node.splice) return symbolPasses(node.splice);
-        if (node.seq || node.choice) return (node.seq ?? node.choice).every(symbolPasses);
+        if (node.seq || node.choice || node.and || node.ranked) return (node.seq ?? node.choice ?? node.and ?? node.ranked).every(symbolPasses);
         if (node.optional) return (!node.elidable || !node.default || node.default.string === "") && symbolPasses(node.optional);
         if (node.repeat) return symbolPasses(node.repeat) && symbolPasses(node.separator);
         return false;
@@ -34967,13 +35407,14 @@
               entry.kind === "splat" && splatMayWriteValue(entry.value) || entry.kind === "copy" && entry.key === "value") writer = entry;
         }
         if (writer) return writer.kind === "write" && !writer.guard && !writer.gates.length && isInputJoin(writer.value);
+        if (rule.erased) return false;
         const body = alternative.expr;
         if (body.primary) return symbolPasses(body.primary);
         if (body.seq?.some((/** @type {any} */ item) => item.primary)) return false;
         if (!terms.length && (body.ref !== undefined || body.literal || body.range || body.wildcard || body.test !== undefined || body.capture !== undefined || body.choice || body.splice)) {
           return symbolPasses(body);
         }
-        return joinsChildren && symbolPasses(body);
+        return joinsInput || joinsChildren && symbolPasses(body);
       };
       const reasons = new Map();
       for (let changed = true; changed;) {
@@ -35020,10 +35461,15 @@
             failures.push(located(`the value test on ${base.ref} has no proof that the value equals the join of its input: ${base.ref}: ${reasons.get(base.ref)}`, document, node.at));
           }
         }
+        if (node.apply !== undefined && node.arg?.capture && symbols?.has(node.arg.capture)) {
+          const fn = this.constantValue(node.apply)?.record.value;
+          if (fn?.lambda && readsValue(fn.body, fn.lambda)) visit({ property: "value", receiver: { capture: node.arg.capture }, at: node.at }, document, symbols);
+        }
         if (node.property === "value" && node.receiver?.capture && symbols?.has(node.receiver.capture)) {
           const target = symbols.get(node.receiver.capture);
           if (byName.has(target) && !certified.has(target)) {
-            failures.push(located(`the read of the value of ${target} in recognition has no proof that it equals the join of its input: ${target}: ${reasons.get(target)}`, document, node.at));
+            const shown = target.startsWith(COMPOUND_PREFIX) ? `the compound binding $${node.receiver.capture}` : target;
+            failures.push(located(`the read of the value of ${shown} in recognition has no proof that it equals the join of its input: ${shown}: ${reasons.get(target)}`, document, node.at));
           }
         }
         for (const value of Object.values(node)) if (value && typeof value === "object") visit(value, document, symbols);
@@ -35091,7 +35537,7 @@
       const visitTerms = (rule, document) => {
         for (const alternative of rule.alternatives ?? []) {
           const symbols = new Map();
-          collectRuleCaptures(alternative.expr, symbols);
+          collectRuleCaptures(alternative.expr, symbols, rule.name);
           for (const term of [rule.term, alternative.term].filter(Boolean)) {
             for (const entry of term.bag ?? []) {
               visit(entry.guard, document, symbols);
@@ -35106,7 +35552,7 @@
       };
       for (const { rule, document } of rules) {
         const symbols = new Map();
-        for (const alternative of rule.alternatives ?? []) collectRuleCaptures(alternative.expr, symbols);
+        for (const alternative of rule.alternatives ?? []) collectRuleCaptures(alternative.expr, symbols, rule.name);
         visit(rule.alternatives?.map((/** @type {any} */ alternative) => alternative.expr), document);
         visit(rule.conditions, document, symbols);
       }
@@ -35328,6 +35774,64 @@
     }
 
     // Whether $DEFAULTS gives each rule node the join of its children's values.
+    /**
+     * Recognition reads the tags of a node from its primary, its sole symbol
+     * and its terms, not from the stage defaults. A recognition test that
+     * reads a key that the defaults can write fails at load, and is not
+     * answered without that key.
+     * @param {{rule: any, document: string}[]} rules
+     */
+    defaultKeyReads(rules) {
+      const value = this.constantValue("DEFAULTS")?.record.value;
+      const bag = value?.lambda !== undefined ? value.body?.bag : undefined;
+      if (!bag) return;
+      /** @type {Set<string>} */
+      const written = new Set();
+      let open = false;
+      for (const entry of bag) {
+        if (entry.kind === "write") for (const key of entry.keys) written.add(key);
+        else if (entry.kind === "bare" || entry.kind === "copy") written.add(entry.key);
+        else if (entry.kind === "splat") open = true;
+      }
+      for (const key of ["value", "image"]) written.delete(key);
+      if (!written.size && !open) return;
+      /** @param {any} node @returns {string | null} the key that a test reads, "*" for all keys */
+      const read = node => {
+        if (node.property !== undefined && node.receiver && node.property !== "value" && node.property !== "image") return node.property;
+        if ((node.method === "has" || node.method === "has-value") && node.args?.[0]?.key !== undefined) return node.args[0].key;
+        if (["keys", "flags", "classes"].includes(node.method)) return "*";
+        return null;
+      };
+      for (const { rule, document } of rules) {
+        /** @param {any} node */
+        const visit = node => {
+          if (!node || typeof node !== "object") return;
+          if (Array.isArray(node)) return node.forEach(visit);
+          const key = read(node);
+          if (key !== null && (key === "*" ? written.size || open : written.has(key) || open)) {
+            throw located(`the format 50 recognizer cannot yet read ${key === "*" ? "the keys" : `the key ${key}`} that the stage defaults give a node`, document, node.at);
+          }
+          for (const item of Object.values(node)) if (item && typeof item === "object") visit(item);
+        };
+        visit(rule.conditions);
+      }
+    }
+
+    /**
+     * Whether the stage defaults give each node the join of the values of
+     * its input tokens, as `value: $n.span.tokens!'value.join()`.
+     */
+    defaultsJoinInput() {
+      const value = this.constantValue("DEFAULTS")?.record.value;
+      if (!value || value.lambda === undefined || !value.body?.bag) return false;
+      let writer = null;
+      for (const entry of value.body.bag) if (entry.kind === "write" && entry.keys.includes("value") || entry.kind === "splat") writer = entry;
+      const join = writer?.value;
+      return writer?.kind === "write" && !writer.guard && !writer.gates.length && join?.method === "join" && !join.args.length &&
+        join.receiver?.map?.method === "tokens" && join.receiver.by?.property === "value" &&
+        join.receiver.map.receiver?.method === "span" && join.receiver.map.receiver.receiver?.capture === value.lambda;
+    }
+
     defaultsJoinChildren() {
       const version = this.constantValue("DEFAULTS");
       const value = version?.record.value;
@@ -35516,6 +36020,141 @@
   }
 
   /**
+   * The uses that a compound binding cannot have (erratum M-60): the part of
+   * a braced item, and an operand of node equality, also through the item of
+   * a predicate or a map over such bindings. A name that any route of the
+   * rule binds as a compound binding counts. A pattern can read the binding
+   * on the left of a comparison, but not the item of a predicate yet. Around
+   * a ranked choice, a condition reads only what the options share.
+   * @param {any} rule
+   * @param {string} document
+   * @param {(name: string) => any} constant the value of a constant
+   */
+  function compoundUses(rule, document, constant) {
+    /** @type {Set<string>} */
+    const names = new Set();
+    /** @param {any} node */
+    const collect = node => {
+      if (!node || typeof node !== "object") return;
+      if (Array.isArray(node)) return node.forEach(collect);
+      if (isCompoundCapture50(node)) names.add(node.capture);
+      for (const value of Object.values(node)) if (value && typeof value === "object") collect(value);
+    };
+    for (const alternative of rule.alternatives ?? []) collect(alternative.expr);
+    if (!names.size) return;
+    for (const item of rule.emit?.items ?? []) {
+      if (item.term !== undefined && names.has(item.capture)) {
+        throw located(`a braced item cannot take the compound binding $${item.capture} as its part`, document, item.at);
+      }
+    }
+    // Whether an operand denotes a compound binding, with the binders and
+    // the implicit item that range over such bindings.
+    /** @param {any} node @param {Set<string>} scope @param {boolean} item */
+    const compound = (node, scope, item) => node?.item ? item : typeof node?.capture === "string" && scope.has(node.capture);
+    /** @param {any} node @param {Set<string>} scope @param {boolean} item */
+    const walk = (node, scope, item) => {
+      if (!node || typeof node !== "object") return;
+      if (Array.isArray(node)) return node.forEach(each => walk(each, scope, item));
+      if ((node.op === "≅" || node.op === "≇") && (compound(node.left, scope, item) || compound(node.right, scope, item))) {
+        const side = compound(node.left, scope, item) ? node.left : node.right;
+        const shown = side.item ? "an item that is a compound binding" : `the compound binding $${side.capture}`;
+        // A pattern reads the anonymous structure of the binding.
+        const pattern = node.right?.pattern !== undefined || node.right?.const !== undefined || isPatternSet(node.right);
+        if (!pattern || side !== node.left) throw located(`node equality cannot compare ${shown}`, document, node.at);
+        if (side.item) throw located(`the format 50 engine cannot yet compare ${shown} with a pattern`, document, node.at);
+        return;
+      }
+      // The restoration of a compound binding needs the close observations
+      // of its operand, which the recognizer does not yet keep.
+      if ((node.method === "without-elision" || node.method === "without-elision-except") && compound(node.receiver, scope, item)) {
+        const shown = node.receiver.item ? "an item that is a compound binding" : `the compound binding $${node.receiver.capture}`;
+        throw located(`the format 50 engine cannot yet restore ${shown}`, document, node.at);
+      }
+      // A predicate or a map over compound bindings binds its item to one.
+      const over = node.method === "all" || node.method === "any" ? node.receiver : node.map;
+      const fn = node.method === "all" || node.method === "any" ? node.args?.[0] : node.by;
+      const ranges = !!over && (compound(over, scope, item) || Array.isArray(over.list) && over.list.some((/** @type {any} */ entry) => compound(entry.value, scope, item)));
+      if (ranges && fn?.lambda !== undefined) {
+        walk(over, scope, item);
+        walk(fn.body, fn.lambda ? new Set([...scope, fn.lambda]) : scope, true);
+        return;
+      }
+      if (node.lambda !== undefined) {
+        walk(node.body, node.lambda ? new Set([...scope].filter(name => name !== node.lambda)) : scope, false);
+        return;
+      }
+      for (const value of Object.values(node)) if (value && typeof value === "object") walk(value, scope, item);
+    };
+    walk([rule.term, ...(rule.alternatives ?? []).map((/** @type {any} */ alternative) => alternative.term), rule.conditions,
+      rule.error, rule.warning, (rule.emit?.items ?? []).map((/** @type {any} */ entry) => [entry.guard, entry.term])], names, false);
+    // A compound binding that holds a ranked choice exports only what its
+    // options share during recognition (erratum M-60): its presence, its span
+    // and its certified value. A condition reads nothing else of it, also
+    // through the item of a predicate over such bindings.
+    /** @type {Set<string>} */
+    const ranked = new Set();
+    /** @param {any} node @returns {boolean} */
+    const holdsRanked = node => {
+      if (!node || typeof node !== "object") return false;
+      if (Array.isArray(node)) return node.some(holdsRanked);
+      if (Array.isArray(node.ranked)) return true;
+      return Object.values(node).some(value => !!value && typeof value === "object" && holdsRanked(value));
+    };
+    /** @param {any} node */
+    const rankedLabels = node => {
+      if (!node || typeof node !== "object") return;
+      if (Array.isArray(node)) return node.forEach(rankedLabels);
+      if (isCompoundCapture50(node) && holdsRanked(node.expr)) ranked.add(node.capture);
+      for (const value of Object.values(node)) if (value && typeof value === "object") rankedLabels(value);
+    };
+    for (const alternative of rule.alternatives ?? []) rankedLabels(alternative.expr);
+    if (!ranked.size) return;
+    // The function constants that the walk is inside.
+    /** @type {Set<string>} */
+    const entered = new Set();
+    /** @param {any} node @param {Set<string>} scope @param {boolean} item @param {any} parent */
+    const early = (node, scope, item, parent) => {
+      if (!node || typeof node !== "object") return;
+      if (Array.isArray(node)) return node.forEach(each => early(each, scope, item, parent));
+      const bound = node.item ? item : typeof node.capture === "string" && !node.expr && scope.has(node.capture);
+      if (bound) {
+        // A function constant reads its argument as its body reads its
+        // parameter.
+        const fn = parent?.apply !== undefined && parent.arg === node && !entered.has(parent.apply) ? constant(parent.apply) : undefined;
+        if (fn?.lambda) {
+          entered.add(parent.apply);
+          early(fn.body, new Set([fn.lambda]), false, null);
+          entered.delete(parent.apply);
+          return;
+        }
+        // A pattern sees one seal at the ranked choice, so it reads only what
+        // the options share.
+        const shared = parent === null || parent.not !== undefined || Array.isArray(parent.all) || Array.isArray(parent.any) ||
+          parent.if !== undefined || parent.property === "value" || COMMON_READS.has(parent.method) ||
+          (parent.op === "≅" || parent.op === "≇") && parent.left === node;
+        if (!shared) {
+          const shown = node.item ? "an item that is a compound binding" : `the compound binding $${node.capture}`;
+          throw located(`a condition cannot read ${shown} beyond what the options of its ranked choice share`, document, parent.at ?? node.at);
+        }
+        return;
+      }
+      const over = node.method === "all" || node.method === "any" ? node.receiver : node.map;
+      const fn = node.method === "all" || node.method === "any" ? node.args?.[0] : node.by;
+      if (over && fn?.lambda !== undefined && compound(over, scope, item)) {
+        early(fn.body, fn.lambda ? new Set([...scope, fn.lambda]) : scope, true, null);
+        return;
+      }
+      for (const value of Object.values(node)) if (value && typeof value === "object") early(value, scope, item, node);
+    };
+    for (const condition of rule.conditions ?? []) early(condition, ranked, false, null);
+  }
+
+  // The reads of a compound binding that do not tell the options of a ranked
+  // choice apart: its presence and the reads of its span.
+  const COMMON_READS = new Set(["present", "span", "following-tokens", "preceding-tokens", "onward", "first-token", "last-token",
+    "tokens-after-first", "starts-input", "ends-input", "followed-by", "preceded-by", "source-text", "decomposed-source-text"]);
+
+  /**
    * @typedef {{keys: Map<string, Set<string>>, open: boolean}} RuleBag
    * The type of a bag: for each key, its possible states and payload types.
    */
@@ -35579,18 +36218,43 @@
   }
 
   /**
+   * Whether an expression reads the value of a name, outside a function that
+   * binds the name again.
+   * @param {any} node
+   * @param {string} name
+   * @returns {boolean}
+   */
+  function readsValue(node, name) {
+    if (!node || typeof node !== "object") return false;
+    if (Array.isArray(node)) return node.some(item => readsValue(item, name));
+    if (node.lambda === name) return false;
+    if (node.property === "value" && node.receiver?.capture === name) return true;
+    return Object.values(node).some(value => value && typeof value === "object" && readsValue(value, name));
+  }
+
+  // The name of the termless rule that a compound binding stands for in the
+  // value certificate.
+  const COMPOUND_PREFIX = "\u0000compound:";
+  /** @param {string} rule @param {string} capture */
+  const compoundKey = (rule, capture) => `${COMPOUND_PREFIX}${rule}:${capture}`;
+
+  /**
+   * The rule that each capture binds. A compound binding stands for its
+   * termless rule, where the owner is known.
    * @param {any} node
    * @param {any} symbols
+   * @param {string} [owner]
    */
-  function collectRuleCaptures(node, symbols) {
+  function collectRuleCaptures(node, symbols, owner) {
     if (!node || typeof node !== "object") return;
-    if (Array.isArray(node)) return node.forEach(item => collectRuleCaptures(item, symbols));
-    if (node.capture !== undefined && node.expr) {
+    if (Array.isArray(node)) return node.forEach(item => collectRuleCaptures(item, symbols, owner));
+    if (owner !== undefined && isCompoundCapture50(node)) symbols.set(node.capture, compoundKey(owner, node.capture));
+    else if (node.capture !== undefined && node.expr) {
       let base = node.expr;
       while (base.test !== undefined || base.primary) base = base.expr ?? base.primary;
       if (base.ref !== undefined && /^[a-z]/.test(base.ref)) symbols.set(node.capture, base.ref);
     }
-    for (const value of Object.values(node)) if (value && typeof value === "object") collectRuleCaptures(value, symbols);
+    for (const value of Object.values(node)) if (value && typeof value === "object") collectRuleCaptures(value, symbols, owner);
   }
 
   // The comparisons whose operand types the stage checks.

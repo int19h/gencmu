@@ -5,6 +5,7 @@ import { createDifferential } from "./differential.js";
 
 const fixture = new URL("../../tests/tree-emission/pairs.json", import.meta.url);
 const pairs = JSON.parse(fs.readFileSync(fixture, "utf8"));
+const causes = JSON.parse(fs.readFileSync(new URL("../../lib/js/test/tree-emission-causes.json", import.meta.url), "utf8"));
 const differential = createDifferential();
 after(() => differential.finish("compiler inputs"));
 const compiler = differential.compiler();
@@ -62,6 +63,72 @@ const sourceErrors = new Map([
   ["expression-depth/control/1", /nested more than 256 deep/],
   ...["malformed", "control/0", "control/1", "control/2", "control/3", "control/4", "control/8"]
     .map(name => [`origin-filter-on-rule/${name}`, /_Elided origin test/]),
+  // The cases of erratum M-60 that fail in the source reader, with the
+  // causes that the loader expects.
+  ...[
+    "m60-target-sequence/malformed",
+    "m60-target-sequence/control/0",
+    "m60-target-sequence/control/1",
+    "m60-target-sequence/control/2",
+    "m60-target-choice/malformed",
+    "m60-target-choice/control/0",
+    "m60-target-choice/control/1",
+    "m60-target-choice/control/2",
+    "m60-target-subset/malformed",
+    "m60-target-subset/control/0",
+    "m60-target-subset/control/1",
+    "m60-target-subset/control/2",
+    "m60-target-ranked/malformed",
+    "m60-target-ranked/control/0",
+    "m60-target-ranked/control/1",
+    "m60-target-ranked/control/2",
+    "m60-target-optional/malformed",
+    "m60-target-optional/control/0",
+    "m60-target-optional/control/1",
+    "m60-target-optional/control/2",
+    "m60-target-repetition/malformed",
+    "m60-target-repetition/control/0",
+    "m60-target-repetition/control/1",
+    "m60-target-repetition/control/2",
+    "m60-target-elidable/malformed",
+    "m60-target-elidable/control/0",
+    "m60-target-elidable/control/1",
+    "m60-target-elidable/control/2",
+    "m60-target-symbol-controls/malformed",
+    "m60-whole-optional-rollback/malformed",
+    "m60-source-boundaries/malformed",
+    "m60-empty-input/malformed",
+    "m60-zero-or-more/malformed",
+    "m60-ordered-separators/malformed",
+    "m60-grouped-sequence/malformed",
+    "m60-ordered-subset/malformed",
+    "m60-nested-captures/malformed",
+    "m60-outer-multiplicity/malformed",
+    "m60-skipped-label/malformed",
+    "m60-alternative-scope/malformed",
+    "m60-duplicate-route/malformed",
+    "m60-no-singleton-inheritance/malformed",
+    "m60-primary-through-label/malformed",
+    "m60-primary-placement/malformed",
+    "m60-sole-symbol-and-term/malformed",
+    "m60-redundant-parentheses/malformed",
+    "m60-elidable-twins/malformed",
+    "m60-written-head/malformed",
+    "m60-elidable-tail/malformed",
+    "m60-written-empty-string/malformed",
+    "m60-chain-ownership/malformed",
+    "m60-chain-item/malformed",
+    "m60-empty-target-query/malformed",
+    "m60-chain-equality/malformed",
+    "m60-inner-patterns/malformed",
+    "m60-two-compounds/malformed",
+    "m60-one-operand/malformed",
+    "m60-one-operand/control/0",
+    "m60-neighbor-empty-visit/malformed",
+    "m60-enclosing-children/malformed",
+    "m60-omitted-origin-restoration/malformed",
+    "m60-normalized-dom/control/1"
+  ].map(id => [id, new RegExp(causes[id])]),
 ]);
 
 for (const pair of pairs) {

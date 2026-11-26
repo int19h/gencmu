@@ -1,6 +1,8 @@
 export declare class StageCheck {
     /** @type {Map<string, any[]>} */
     constants: Map<string, any[]>;
+    /** @type {Map<string, RuleBag>} the bag type of each rule of the stage */
+    bags: Map<string, RuleBag>;
     /**
      * @param {Map<string, {record: any, document: string}[]>} constants
      */
@@ -25,6 +27,62 @@ export declare class StageCheck {
      * @param {any} ctx
      */
     propertyType(node: any, ctx: any): Set<any>;
+    /**
+     * The bag type of each rule of the stage (part 3 §3): for each key, the
+     * states "absent" and "bare" that it can have, and the types of its
+     * payloads. In an open bag, a key that is not listed can have any payload.
+     * The sources apply in order: the defaults, the primary or the sole
+     * symbol, the statement term and the alternative term. The type is a
+     * union over the alternatives of every written definition, so it
+     * over-approximates. A template, an instance binding, a call and a
+     * terminal give an open bag.
+     * @param {{rule: any}[]} rules
+     */
+    ruleBags(rules: {
+        rule: any;
+    }[]): Map<string, RuleBag>;
+    /**
+     * The bag type of one alternative of a rule.
+     * @param {any} rule
+     * @param {any} alternative
+     * @param {any[] | null} defaultEntries
+     * @returns {RuleBag}
+     */
+    alternativeBag(rule: any, alternative: any, defaultEntries: any[] | null): RuleBag;
+    /**
+     * The bag type of a symbol of a body.
+     * @param {any} symbol
+     * @returns {RuleBag}
+     */
+    symbolBag(symbol: any): RuleBag;
+    /**
+     * Applies a later source to a bag type: each key that the source can
+     * hold replaces the earlier states, and an absent state keeps them.
+     * @param {RuleBag} bag
+     * @param {RuleBag} source
+     */
+    overlay(bag: RuleBag, source: RuleBag): void;
+    /**
+     * Applies one entry of a constructor to a bag type, in written order. A
+     * guard or a gate keeps the earlier states beside the new ones.
+     * @param {RuleBag} bag
+     * @param {any} entry
+     * @param {any} ctx
+     */
+    applyEntry(bag: RuleBag, entry: any, ctx: any): void;
+    /**
+     * The union of bag types, for a node that one of several symbols gives.
+     * @param {RuleBag[]} sources
+     * @returns {RuleBag}
+     */
+    unionBag(sources: RuleBag[]): RuleBag;
+    /**
+     * The bag type of an expression that a copy or a splat reads.
+     * @param {any} node
+     * @param {any} ctx
+     * @returns {RuleBag}
+     */
+    valueBag(node: any, ctx: any): RuleBag;
     /**
      * Checks an expression in a truth position.
      * @returns {any | null} the expression, where the answer depends on the features
@@ -96,6 +154,22 @@ export declare class StageCheck {
         rule: any;
         document: string;
     }[], input: Map<string, Set<string>>): any[];
+    /**
+     * Recognition reads the tags of a node from its primary, its sole symbol
+     * and its terms, not from the stage defaults. A recognition test that
+     * reads a key that the defaults can write fails at load, and is not
+     * answered without that key.
+     * @param {{rule: any, document: string}[]} rules
+     */
+    defaultKeyReads(rules: {
+        rule: any;
+        document: string;
+    }[]): void;
+    /**
+     * Whether the stage defaults give each node the join of the values of
+     * its input tokens, as `value: $n.span.tokens!'value.join()`.
+     */
+    defaultsJoinInput(): boolean;
     defaultsJoinChildren(): boolean;
     /**
      * @param {any} term
@@ -116,3 +190,7 @@ export declare class StageCheck {
     classifiers(rules: any): void;
     outputs(): void;
 }
+export type RuleBag = {
+    keys: Map<string, Set<string>>;
+    open: boolean;
+};
