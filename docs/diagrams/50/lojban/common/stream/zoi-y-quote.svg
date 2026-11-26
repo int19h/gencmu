@@ -10,7 +10,7 @@
 <path d="M160 46h10"/>
 <g class="rule"><rect x="170" y="34" width="126" height="24" rx="0"/><text x="233" y="51" textLength="109.2" lengthAdjust="spacingAndGlyphs">delimiter-gap</text></g>
 <path d="M296 46h10"/>
-<g class="rule"><rect x="306" y="34" width="92" height="24" rx="0"/><text x="352" y="51" textLength="75.6" lengthAdjust="spacingAndGlyphs">delimiter</text></g>
+<g class="rule"><rect x="306" y="34" width="92" height="24" rx="0"/><text x="352" y="51" textLength="75.6" lengthAdjust="spacingAndGlyphs">y-bu-word</text></g>
 <path d="M398 46h10"/>
 <g class="rule"><rect x="408" y="34" width="168" height="24" rx="0"/><text x="492" y="51" textLength="151.2" lengthAdjust="spacingAndGlyphs">delimiter-body-gap</text></g>
 <path d="M576 46h10"/>
@@ -23,13 +23,13 @@
 <path d="M231 100H251"/>
 <path d="M60 100a10 10 0 0 0 10 -10V88a10 10 0 0 1 10 -10H231a10 10 0 0 1 10 10V90a10 10 0 0 0 10 10"/>
 <path d="M251 100h10"/>
-<g class="rule"><rect x="261" y="88" width="92" height="24" rx="0"/><text x="307" y="105" textLength="75.6" lengthAdjust="spacingAndGlyphs">raw-close</text></g>
-<path d="M353 100h10"/>
-<path d="M363 100h20"/>
-<g class="rule"><rect x="383" y="88" width="176" height="24" rx="0"/><text x="471" y="105" textLength="159.6" lengthAdjust="spacingAndGlyphs">word-end-attachment</text></g>
-<path d="M559 100H579"/>
-<path d="M363 100a10 10 0 0 0 10 -10V88a10 10 0 0 1 10 -10H559a10 10 0 0 1 10 10V90a10 10 0 0 0 10 10"/>
-<path d="M579 100H758"/>
+<g class="rule"><rect x="261" y="88" width="109" height="24" rx="0"/><text x="315.5" y="105" textLength="92.4" lengthAdjust="spacingAndGlyphs">raw-y-close</text></g>
+<path d="M370 100h10"/>
+<path d="M380 100h20"/>
+<g class="rule"><rect x="400" y="88" width="176" height="24" rx="0"/><text x="488" y="105" textLength="159.6" lengthAdjust="spacingAndGlyphs">word-end-attachment</text></g>
+<path d="M576 100H596"/>
+<path d="M380 100a10 10 0 0 0 10 -10V88a10 10 0 0 1 10 -10H576a10 10 0 0 1 10 10V90a10 10 0 0 0 10 10"/>
+<path d="M596 100H758"/>
 <path d="M758 100H778"/>
 <path d="M20 46a10 10 0 0 1 10 10V124a10 10 0 0 0 10 10"/>
 <path d="M40 134h20"/>
@@ -37,7 +37,7 @@
 <path d="M160 134h10"/>
 <g class="rule"><rect x="170" y="122" width="126" height="24" rx="0"/><text x="233" y="139" textLength="109.2" lengthAdjust="spacingAndGlyphs">delimiter-gap</text></g>
 <path d="M296 134h10"/>
-<g class="rule"><rect x="306" y="122" width="92" height="24" rx="0"/><text x="352" y="139" textLength="75.6" lengthAdjust="spacingAndGlyphs">delimiter</text></g>
+<g class="rule"><rect x="306" y="122" width="92" height="24" rx="0"/><text x="352" y="139" textLength="75.6" lengthAdjust="spacingAndGlyphs">y-bu-word</text></g>
 <path d="M398 134h10"/>
 <g class="rule"><rect x="408" y="122" width="168" height="24" rx="0"/><text x="492" y="139" textLength="151.2" lengthAdjust="spacingAndGlyphs">delimiter-body-gap</text></g>
 <path d="M576 134h10"/>
@@ -48,13 +48,13 @@
 <path d="M231 188H251"/>
 <path d="M60 188a10 10 0 0 0 10 -10V176a10 10 0 0 1 10 -10H231a10 10 0 0 1 10 10V178a10 10 0 0 0 10 10"/>
 <path d="M251 188h10"/>
-<g class="rule"><rect x="261" y="176" width="92" height="24" rx="0"/><text x="307" y="193" textLength="75.6" lengthAdjust="spacingAndGlyphs">raw-close</text></g>
-<path d="M353 188h10"/>
-<path d="M363 188h20"/>
-<g class="rule"><rect x="383" y="176" width="176" height="24" rx="0"/><text x="471" y="193" textLength="159.6" lengthAdjust="spacingAndGlyphs">word-end-attachment</text></g>
-<path d="M559 188H579"/>
-<path d="M363 188a10 10 0 0 0 10 -10V176a10 10 0 0 1 10 -10H559a10 10 0 0 1 10 10V178a10 10 0 0 0 10 10"/>
-<path d="M579 188H740"/>
+<g class="rule"><rect x="261" y="176" width="109" height="24" rx="0"/><text x="315.5" y="193" textLength="92.4" lengthAdjust="spacingAndGlyphs">raw-y-close</text></g>
+<path d="M370 188h10"/>
+<path d="M380 188h20"/>
+<g class="rule"><rect x="400" y="176" width="176" height="24" rx="0"/><text x="488" y="193" textLength="159.6" lengthAdjust="spacingAndGlyphs">word-end-attachment</text></g>
+<path d="M576 188H596"/>
+<path d="M380 188a10 10 0 0 0 10 -10V176a10 10 0 0 1 10 -10H576a10 10 0 0 1 10 10V178a10 10 0 0 0 10 10"/>
+<path d="M596 188H740"/>
 <path d="M740 188H758a10 10 0 0 0 10 -10V110a10 10 0 0 1 10 -10"/>
 <path d="M778 100h6m0 -8v16m4 -16v16"/>
 </svg>
