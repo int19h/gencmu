@@ -200,9 +200,26 @@ function convertedNegative(id, testCase, { source, ...record }) {
 // needs no certificate"). A case that expected one of them must load.
 const LATE_RANKED = new Set(["ranked-choice-export", "ranked-choice-tags"]);
 
+// Cases that expected a ranked error and hold another fault of format 50 at
+// the same time. They keep that fault, read by hand from the translated text.
+const OTHER_FAULT = {
+  "engine/ranked-recipe-export-cycle-and-inserted-item-image.json": [3, 23, "The rule's image term reads the bag of $, which it builds."],
+  "engine/ranked-recipe-export-cycle-and-inserted-item-value.json": [3, 30, "The rule's value term reads the bag of $, which it builds."],
+  "engine/ranked-recipe-export-cycle-and-item-image.json": [3, 23, "The rule's image term reads the bag of $, which it builds."],
+  "engine/ranked-recipe-export-cycle-and-item-value.json": [3, 30, "The rule's value term reads the bag of $, which it builds."],
+  "engine/ranked-recipe-export-pruned-item-image.json": [6, 24, "The emission of the alternative $c:C reads $x, which that alternative does not bind."],
+  "engine/ranked-recipe-export-pruned-item-value.json": [6, 31, "The emission of the alternative $c:C reads $x, which that alternative does not bind."],
+};
+
 export function translateSharedCase(family, file, testCase) {
   const outcome = translateCase(family, file, testCase);
   const expected = [testCase.expect, ...(testCase.parses ?? []).map(run => run.expect)];
+  const other = OTHER_FAULT[`${family}/${file}`];
+  if (outcome.status === "translated" && other) {
+    const [line, column, reason] = other;
+    return { ...outcome, status: "native-pending", oldPath: true, section: "Engine §4, late reads of ranked captures",
+      expected: { kind: "grammar", document: "main.md", line, column }, reason };
+  }
   if (outcome.status === "translated" && expected.some(expect => LATE_RANKED.has(expect?.diagnostic))) {
     return { ...outcome, status: "native-pending", load: true, section: "Engine §4, late reads of ranked captures",
       changes: [...outcome.changes ?? [], { reason: "A late read of a private ranked capture is legal in format 50, which has no tag inheritance. The case must load." }] };

@@ -1031,7 +1031,7 @@
     },
     "expected": {
       "kind": "grammar",
-      "document": "main.md",
+      "document": "p.md",
       "line": 6,
       "column": 29,
       "owner": "/rules/0/emit/items/1"
@@ -1050,7 +1050,7 @@
     },
     "expected": {
       "kind": "grammar",
-      "document": "main.md",
+      "document": "p.md",
       "line": 5,
       "column": 18
     },
@@ -1069,7 +1069,7 @@
     },
     "expected": {
       "kind": "grammar",
-      "document": "main.md",
+      "document": "p.md",
       "line": 4,
       "column": 23
     },
@@ -1087,7 +1087,7 @@
     },
     "expected": {
       "kind": "grammar",
-      "document": "main.md",
+      "document": "p.md",
       "line": 5,
       "column": 18
     },
@@ -1106,7 +1106,7 @@
     },
     "expected": {
       "kind": "grammar",
-      "document": "main.md",
+      "document": "p.md",
       "line": 4,
       "column": 23
     },
