@@ -33,7 +33,7 @@ Five forms can hold a space inside one token: a borrowing, a freeform variable, 
 
 It never chooses where a foreign quote ends, because the quote rule fixes its end. The one exception is a trailing hyphen after a digit closer ("Delimiters" below). So a spelling quote at `ce` wins over an inner `co` by its earlier start, and `a ce co [ba] cei` is one spelling quote. In the same way, an unfinished compound wins over a quote in one of its slots. A complete compound wins over an unfinished one ("Unfinished compounds" below).
 
-The constant `$DEFAULTS` gives each rule node of the stage two strings. Its value joins the values of its children, and its image joins their images. So a node that writes no value joins the values of its parts. A hyphen adds the empty string, a gap adds one space and a digit adds its `TI` word. The function `$RAW` joins the values of the letters that a node or a span reads. Each particle word, root word and eraser takes its value and its image from it.
+The constant `$DEFAULTS` gives each rule node of the stage two strings. Its value joins the values of its children, and its image joins their images. So a node that writes no value joins the values of its parts. A hyphen adds the empty string, a gap adds one space and a digit adds its `TI` word. Each particle word, root word and eraser takes both its strings from the defaults.
 
 The stage publishes the keys in `$OUTPUTS`. These are the kinds of word, the particle families of `$FAMILIES`, and the marks that the later stages read. The prefix marks of a compound stay in this stage. No letter class passes on, because each token writes its own tags.
 
@@ -44,7 +44,6 @@ The book allows a hyphen only at a syllable boundary inside a word. Each digit i
   leftmost-longest #(·borrowing ∪ ·freeform-variable ∪ ·spelling-quote ∪ ·foreign-quote ∪
     ·compound ∪ ·open-compound), lazy
 %const $DEFAULTS $n ↦ {value: $n.children!'value.join(), image: $n.children!'image.join()}
-%const $RAW $x ↦ $x.tokens!'value.join()
 %const $OUTPUTS {
   Word,
   Particle,
@@ -226,15 +225,15 @@ A delimiter of a foreign quote is an Eberban word, and the quote reads such a wo
 <p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/hyphen-misplaced.svg" alt="Railroad diagram of the rule hyphen-misplaced"></p>
 </details>
 
-Two vowels written in a row are two letters, because the letters stage merges a repeated letter into one. A hyphen between two copies of the same vowel splits one vowel in two, so the book forbids it. The condition on the hyphenated alternative states that.
+Two vowels written in a row are two letters, because the letters stage merges a repeated letter into one. A hyphen between two copies of the same vowel splits one vowel in two, so the book forbids it. The condition on the hyphenated alternative states that. Each alternative of `vowels` records its last vowel in the key `last`, and the condition compares it with the vowel after the hyphen. The value of `vowels` cannot serve there, because it holds every vowel of the run. In `ai-i`, the value before the hyphen is `ai`, and its last vowel `i` equals the vowel after it.
 
 ```jbogenbau
 %rule vowels
-  | vowel
-  | vowels vowel
-  | $a:vowels Hyphen $b:vowel
+  | $v:vowel → {last: $v'value}
+  | vowels $v:vowel → {last: $v'value}
+  | $a:vowels Hyphen $b:vowel → {last: $b'value}
 %conditions
-  $RAW($a.last-token) ≠ $b'value
+  $a'last ≠ $b'value
 
 %rule vhowels-of(@Hyphen)
   vowels [{[Hyphen] Letter<H> [@Hyphen] vowels}]
@@ -326,7 +325,7 @@ A freeform variable or borrowing has a third shape: `X` is a sonorant and `YZ` i
 
 A particle starts with a non-sonorant consonant followed only by vhowels, as `zi` or `tiho`. Or it starts with `n`, `a` or `o` and continues with vhowels and sonorants, as `a`, `on`, `ahu` or `nu`. The closing section explains why only these three letters start the second kind.
 
-The shape of a particle gives its family. The first consonant gives the family, as in the PEG. For `p`, `b`, `d`, `c`, and `j`, the first vowel refines it. The book makes six particles families of their own: `pei`, `vei`, `dai`, `cei`, `cai` and `coi`. The templates below read the kinds of family. Each instance passes its family as a key set, and the term of the template splats it. Each instance also passes its letters as strings. The body tests the first consonant against its letter, as `ns-consonant=@Consonant`. The conditions of the other templates compare the vowels with `$RAW`. Their recovering vowels retain a family through a malformed vowel join. The strict delimiter templates use separate vowels.
+The shape of a particle gives its family. The first consonant gives the family, as in the PEG. For `p`, `b`, `d`, `c`, and `j`, the first vowel refines it. The book makes six particles families of their own: `pei`, `vei`, `dai`, `cei`, `cai` and `coi`. The templates below read the kinds of family. Each instance passes its family as a key set, and the term of the template splats it. Each instance also passes its letters as strings. The body tests the first consonant against its letter, as `ns-consonant=@Consonant`. The conditions of the other templates compare the value of the vowels with a string, or test their first vowel with the query `$v.parse(vowel=@Vowel …)`. Their recovering vowels retain a family through a malformed vowel join. The strict delimiter templates use separate vowels.
 
 ```jbogenbau
 %rule particle-cv(@Consonant, @Family)
@@ -335,23 +334,23 @@ The shape of a particle gives its family. The first consonant gives the family, 
 %rule particle-cv-except(@Consonant, @Except, @Family)
   ns-consonant=@Consonant malformed-gap(hyphen-misplaced) $v:malformed-vhowels → {*@Family}
 %conditions
-  $RAW($v) ≠ @Except
+  $v'value ≠ @Except
 
 %rule particle-cvv(@Consonant, @Vowel, @Family)
   ns-consonant=@Consonant malformed-gap(hyphen-misplaced) $v:malformed-vhowels → {*@Family}
 %conditions
-  $RAW($v.first-token) = @Vowel
+  $v.parse(vowel=@Vowel …)
 
 %rule particle-cvv-except(@Consonant, @Vowel, @Except, @Family)
   ns-consonant=@Consonant malformed-gap(hyphen-misplaced) $v:malformed-vhowels → {*@Family}
 %conditions
-  $RAW($v.first-token) = @Vowel,
-  $RAW($v) ≠ @Except
+  $v.parse(vowel=@Vowel …),
+  $v'value ≠ @Except
 
 %rule particle-exact(@Consonant, @Vowels, @Family)
   ns-consonant=@Consonant malformed-gap(hyphen-misplaced) $v:malformed-vhowels → {*@Family}
 %conditions
-  $RAW($v) = @Vowels
+  $v'value = @Vowels
 ```
 
 <details><summary>Railroad diagrams of the 5 rules from <code>particle-cv</code> to <code>particle-exact</code></summary>
@@ -457,12 +456,12 @@ The particle families of `n`, `a` and `o` are `NI`, `A` and `O`. The `n` can tak
 %rule a-particle
   $v:malformed-vhowels malformed-particle-tail → {A}
 %conditions
-  $RAW($v.first-token) = "a"
+  $v.parse(vowel="a" …)
 
 %rule o-particle
   $v:malformed-vhowels malformed-particle-tail → {O}
 %conditions
-  $RAW($v.first-token) = "o"
+  $v.parse(vowel="o" …)
 
 %rule particle-tail-of(@Hyphen)
   [{[Hyphen] sonorant [@Hyphen] vhowels-of(@Hyphen)}] [[@Hyphen] sonorant]
@@ -531,7 +530,7 @@ A run of words starts with any word and continues with words that begin with a n
 
 A run that starts with compound prefixes starts a compound ("Compounds" below). Where the compound is not complete, its prefixes carry their errors and its components stay words. A vowel-initial particle or a borrowing can follow the prefixes directly, as the [compounds chapter](https://eberban.github.io/eberban/books/refgram/book/grammar/compounds.html) allows. A hyphen at the start of a run, after the prefixes or at the end of a word is a warning.
 
-Each word emits one token tagged `Word` and its kind. A particle also carries `Particle` and its family. The value and the image of a particle word and of a root word join the values of its letters, so a hyphen inside the word never shows in it. A digit keeps the digit as its image, as the letters stage gives it.
+Each word emits one token tagged `Word` and its kind. A particle also carries `Particle` and its family. The value of a particle word and of a root word joins the values of its letters, so a hyphen adds nothing to it. Its image joins the images of its letters and hyphens, so a hyphen that the text writes stays visible, as in `bja-n`. The book lets a hyphen mark a syllable that the writer wants to stand out, so the image keeps that mark. The value is the word that exact comparisons read, and the hyphen never changes it. A digit keeps the digit as its image, as the letters stage gives it.
 
 The morphology chapter says: "Spaces are only mandatory before words starting with a vowel or a sonorant." A digit is a word, so that rule holds after a digit too. So a word that starts with a vowel or `n` never stands right after a digit, with or without a hyphen between them. The rule `after-digit` names that place.
 
@@ -565,20 +564,20 @@ The quote reads its own `co` through the particle rule, so the bar never meets t
 
 %rule ni-word
   *h-before-word $p:ni-particle *h-after-word [hyphen-misplaced]
-      → {Word, Particle, *$p.flags, image: value: $RAW($)}
+      → {Word, Particle, *$p.flags}
 %conditions
   ¬$.preceding-tokens.parse(… after-digit)
 %emit
 
 %rule vowel-particle-word
   *h-before-word $p:vowel-particle *h-after-word [hyphen-misplaced]
-      → {Word, Particle, *$p.flags, image: value: $RAW($)}
+      → {Word, Particle, *$p.flags}
 %conditions
   ¬$.preceding-tokens.parse(… after-digit)
 %emit
 
 %rule root-word
-  malformed-root [hyphen-misplaced] → {Word, Root, image: value: $RAW($)}
+  malformed-root [hyphen-misplaced] → {Word, Root}
 %emit
 
 %rule quote-opener
@@ -611,13 +610,13 @@ The PEG lets a gap stand between the prefix and the content. The book writes con
 
 A cluster before more vowels has its syllable boundary before it or inside it. A single consonant and an initial pair start a syllable, so a hyphen before them is silent. A medial pair, a sonorant or `m` before a consonant, and a triplet split inside, as the section on hyphens says. The rule `sonorant-pair` reads a sonorant or `m` before a consonant that forms no medial pair. A pair of the same letter twice is no pair, as the morphology chapter says.
 
-The PEG warns about a hyphen before or after the prefix, and about content that starts with the prefix letter after a hyphen. A hyphen after a cluster at the start of the content also warns. Each carries `hyphen-misplaced` here. The token's value is the prefix letter and the content, without the gap.
+The PEG warns about a hyphen before or after the prefix, and about content that starts with the prefix letter after a hyphen. A hyphen after a cluster at the start of the content also warns. Each carries `hyphen-misplaced` here. The token's value is the prefix letter and the value of the content, without the gap. Its image is the prefix letter and the image of the content, so a hyphen inside the content stays visible.
 
 ```jbogenbau
 %rule freeform-word(@Prefix, @Kind)
   [hyphen-misplaced] $p:Letter=@Prefix prefix-gap $c:malformed-content
     [hyphen-misplaced] space-after
-      → {Word, *@Kind, image: value: @Prefix ++ $RAW($c)}
+      → {Word, *@Kind, value: $p'value ++ $c'value, image: $p'image ++ $c'image}
 %conditions
   ¬$p.preceding-tokens.parse(… after-digit)
 %emit
@@ -725,11 +724,11 @@ A run of `ra` is one eraser per `ra`. The syntax stage applies them. A hyphen af
   | space-before ri-word space-after
 
 %rule ra-word
-  Letter="r" [hyphen-misplaced] Letter="a" → {Word, RA, image: value: $RAW($)}
+  Letter="r" [hyphen-misplaced] Letter="a" → {Word, RA}
 %emit
 
 %rule ri-word
-  Letter="r" [hyphen-misplaced] Letter="i" → {Word, RI, image: value: $RAW($)}
+  Letter="r" [hyphen-misplaced] Letter="i" → {Word, RI}
 %emit
 ```
 
@@ -754,26 +753,24 @@ A compound starts with `e`, `en` or `er`, for two, three or more components. A n
 
 A hyphen inside a prefix, between two prefixes or after the last prefix carries `hyphen-misplaced`, as in the PEG. Such a hyphen has an empty value. So the rules `after-e`, `after-i` and `after-arity` look past it to the letter before an attached prefix.
 
-The rule `first-prefix` reads a prefix that starts a run, and `attached-prefix` reads one that follows another prefix in the same run. Their conditions keep each to its place, so `prefix` reads each prefix in one way only. Each prefix carries `E-PREFIX`, `EN-PREFIX` or `ER-PREFIX` by its length. The constant `$PREFIX-LENGTH` names the three classes, and `.classify` looks the letters of the prefix up in it. An attached `i` spells the vowel `e`, so the lookup reads `e` and the arity letter after it. A first prefix that is a run of its own also carries `Standalone`, even with a hyphen after it.
+The rule `first-prefix` reads a prefix that starts a run, and `attached-prefix` reads one that follows another prefix in the same run. Their conditions keep each to its place, so `prefix` reads each prefix in one way only. Each prefix carries `E-PREFIX`, `EN-PREFIX` or `ER-PREFIX` by its length. A prefix of `e` alone carries `E-PREFIX`. The rule `prefix-arity` reads the `n` or `r` that makes a prefix `en` or `er`, and it carries `EN-PREFIX` or `ER-PREFIX`. A prefix with an arity letter copies its class. An attached `i` spells the vowel `e`, so it takes the same classes as `e`. A first prefix that is a run of its own also carries `Standalone`, even with a hyphen after it.
 
 ```jbogenbau
 %rule prefix
   first-prefix | attached-prefix
 
-%rule first-prefix
-  Letter="e" [[hyphen-misplaced] prefix-arity]
-      → {
-          *$PREFIX-LENGTH.classify($RAW($)),
-          ¬$.following-tokens.parse([Hyphen] Letter …)? Standalone
-        }
+%rule first-prefix → {¬$.following-tokens.parse([Hyphen] Letter …)? Standalone}
+  | Letter="e" → {E-PREFIX}
+  | Letter="e" [hyphen-misplaced] $a:prefix-arity → {*$a.flags}
 %conditions
   ¬$.preceding-tokens.parse(… after-digit),
   ¬$.preceding-tokens.parse(… Letter [Hyphen])
 
 %rule attached-prefix
-  | $e:Letter="e" [[hyphen-misplaced] prefix-arity] → {*$PREFIX-LENGTH.classify($RAW($))}
+  | $e:Letter="e" → {E-PREFIX}
+  | $e:Letter="e" [hyphen-misplaced] $a:prefix-arity → {*$a.flags}
   | $i:Letter="i" → {E-PREFIX}
-  | $i:Letter="i" [hyphen-misplaced] $r:prefix-arity → {*$PREFIX-LENGTH.classify("e" ++ $r'value)}
+  | $i:Letter="i" [hyphen-misplaced] $a:prefix-arity → {*$a.flags}
 %conditions
   $e.preceding-tokens.parse(… (after-e | after-i | after-arity)),
   $i.preceding-tokens.parse(… after-e)
@@ -785,10 +782,8 @@ The rule `first-prefix` reads a prefix that starts a run, and `attached-prefix` 
   Letter="i" [Hyphen]
 
 %rule prefix-arity
-  Letter="n"
-  | Letter="r"
-
-%const $PREFIX-LENGTH {E-PREFIX: "e", EN-PREFIX: "en", ER-PREFIX: "er"}
+  | Letter="n" → {EN-PREFIX}
+  | Letter="r" → {ER-PREFIX}
 ```
 
 <details><summary>Railroad diagrams of the 6 rules from <code>prefix</code> to <code>prefix-arity</code></summary>
@@ -806,7 +801,7 @@ The rule `first-prefix` reads a prefix that starts a run, and `attached-prefix` 
 
 %rule prefix-i-after-sonorant
   | $i:Letter="i" → {E-PREFIX}
-  | $i:Letter="i" [hyphen-misplaced] $r:prefix-arity → {*$PREFIX-LENGTH.classify("e" ++ $r'value)}
+  | $i:Letter="i" [hyphen-misplaced] $a:prefix-arity → {*$a.flags}
 %conditions
   $i.preceding-tokens.parse(… after-arity)
 %warning "an attached i follows a sonorant prefix"
@@ -879,8 +874,7 @@ A hyphen after a prefix or at the start of a run carries `hyphen-misplaced`, as 
           Word,
           Particle,
           *$p.flags,
-          ($p'CE ∧ ¬$.following-tokens.parse(first-unit …))? Missing-spelling-unit,
-          image: value: $RAW($)
+          ($p'CE ∧ ¬$.following-tokens.parse(first-unit …))? Missing-spelling-unit
         }
 %emit
 ```
@@ -1099,7 +1093,7 @@ A stray prefix carries its own error. A spaced `i` takes precedence over an empt
 
 The [quotes chapter](https://eberban.github.io/eberban/books/refgram/book/grammar/quotes.html) spells a text with units between `ce` and `cei`. A unit is a consonant or an initial pair, or nothing, followed by vhowels. The chapter says that spaces between units are optional, except before a unit that starts with a vowel. Here a gap stands between two units, so a bracket or a hesitation can stand there too. The units are letters, not words, so this stage reads the whole quote as one token.
 
-The token carries `CE`, `Quote`, `Word` and `Particle`. Its image is the written text. Its value is the opening particle, the units and `cei`, with one space between each two, whatever spaces the text writes. So `ce bu nu cei` and `ce bunu cei` have one value, and a `pa` resumption can repeat either spelling. A different division into units gives another value, as `ce ti i a nu cei` and `ce ti ia nu cei` show. The rules `first-unit` and `later-unit` give each unit its place in the value.
+The token carries `CE`, `Quote`, `Word` and `Particle`. Its image is the written text. Its value is the opening particle, the units and `cei`, with one space between each two, whatever spaces the text writes. So `ce bu nu cei` and `ce bunu cei` have one value, and a `pa` resumption can repeat either spelling. A different division into units gives another value, as `ce ti i a nu cei` and `ce ti ia nu cei` show. The rules `first-unit` and `later-unit` give each unit its place in the value. `first-unit` marks its unit as its primary, so it has the value of the unit. `later-unit` puts one space before that value.
 
 The quote is one unit that starts with `c`, so a run of words can hold it, as in `mice bu cei`. The `ce` is a complete particle, so a word must be able to end after it. After a gap, the first unit can start with any consonant, as the book spells `nu`, `ri` and `lu`. Without a gap, the first unit starts with a non-sonorant consonant, which can begin a word. So `a cenu cei` reads the root `cenu`, and `a ce nu cei` reads a quote of `nu`.
 
@@ -1115,7 +1109,7 @@ The morphology chapter allows a hyphen at a syllable boundary. A consonant unit 
           Particle,
           CE,
           Quote,
-          value: $RAW($s) ++ " " ++ $u'value ++ " " ++ $RAW($e),
+          value: $s'value ++ " " ++ $u'value ++ " " ++ $e'value,
           image: $.source-text
         }
 %emit
@@ -1123,11 +1117,11 @@ The morphology chapter allows a hyphen at a syllable boundary. A consonant unit 
 %rule units
   first-unit [{later-unit}]
 
-%rule first-unit → {value: $RAW($u)}
-  | [hyphen-misplaced] $u:attached-unit
-  | spelling-gap $u:unit
+%rule first-unit
+  | [hyphen-misplaced] ^attached-unit
+  | spelling-gap ^unit
 
-%rule later-unit → {value: " " ++ $RAW($u)}
+%rule later-unit → {value: " " ++ $u'value}
   | [Hyphen] $u:consonant-unit
   | spelling-gap $u:unit
 
@@ -1190,7 +1184,7 @@ The `co` of a quote is a complete particle, so a word boundary follows it, as it
 
 The text of the first form is every letter token up to the first `]`. So a digit, a hyphen and a `[` are text, and `a co [1-]` warns nothing. The text of either form can be empty.
 
-In the second form, `$d` is the opening delimiter and `$e` the closing one. A `]` inside the text ends the quote only where the delimiter follows it as a complete word. So `shaped-close` reads a `]` and the complete word after it, which `delimiter-shape` reads as `$c`. Its condition requires another value than the delimiter's, for each such `]`. A `]` with no complete word after it is `$k`, and its condition makes sure that no word follows. Each of the two captures stands in a repetition, so it is a list, and each condition tests every item. So the quote ends at the first `]` that the delimiter follows.
+In the second form, `$d` is the opening delimiter and `$e` the closing one. A `]` inside the text ends the quote only where the delimiter follows it as a complete word. So `shaped-close` reads a `]` and the complete word after it, which `delimiter-shape` reads. The value of `shaped-close` is its written text, which the value of the quote needs. So it records the value of its word in the key `delimiter`. The condition on `$c` requires another delimiter than `$d` for each such `]`. The written text cannot serve there, because a hyphen or a capital changes it, as in `]Za-o` against the delimiter `zao`. A `]` with no complete word after it is `$k`, and its condition makes sure that no word follows. Each of the two captures stands in a repetition, so it is a list, and each condition tests every item. So the quote ends at the first `]` that the delimiter follows.
 
 The quote emits one token tagged `Word`, `Particle`, `CO` and `Quote`. Its image is the written text from `co` to the end of the quote. Quoted text has no canonical word, so the value keeps it exactly as written, with its case, spacing and any `n`.
 
@@ -1199,7 +1193,7 @@ The value is the `co` word, a space and the text from `[` to `]`. In the second 
 ```jbogenbau
 %rule foreign-quote
   $q:quote-co [opening-gap] $t:quoted-text
-      → {Word, Particle, CO, Quote, value: $RAW($q) ++ " " ++ $t'value, image: $.source-text}
+      → {Word, Particle, CO, Quote, value: $q'value ++ " " ++ $t'value, image: $.source-text}
 %emit
 
 %rule quote-co
@@ -1217,7 +1211,7 @@ The value is the `co` word, a space and the text from `[` to `]`. In the second 
 %rule delimited-text
   $d:native-delimiter Open [{quote-char | $c:shaped-close | $k:Close}] Close $e:native-delimiter
 %conditions
-  $c.all($s ↦ $RAW($s.tokens-after-first) ≠ $d'value),
+  $c.all('delimiter ≠ $d'value),
   $k.all(¬.following-tokens.parse(delimiter-shape …)),
   $e'value = $d'value
 
@@ -1225,7 +1219,7 @@ The value is the `co` word, a space and the text from `[` to `]`. In the second 
   _<¬Close> → {value: $.source-text}
 
 %rule shaped-close
-  Close delimiter-shape → {value: $.source-text}
+  Close $w:delimiter-shape → {value: $.source-text, delimiter: $w'value}
 ```
 
 <details><summary>Railroad diagrams of the 8 rules from <code>foreign-quote</code> to <code>shaped-close</code></summary>
@@ -1249,7 +1243,7 @@ The recovery keeps the quote's class, value, and emission. It leaves no later er
 
 %rule unclosed-foreign-quote
   $q:quote-co [opening-gap] $t:unclosed-quoted-text
-      → {Word, Particle, CO, Quote, value: $RAW($q) ++ " " ++ $t'value, image: $.source-text}
+      → {Word, Particle, CO, Quote, value: $q'value ++ " " ++ $t'value, image: $.source-text}
 %conditions
   $.ends-input
 %error "the foreign quote needs ] followed by its opening delimiter, if any"
@@ -1259,7 +1253,7 @@ The recovery keeps the quote's class, value, and emission. It leaves no later er
   | Open [{quote-char}]
   | $d:native-delimiter Open [{quote-char | $c:shaped-close | $k:Close}]
 %conditions
-  $c.all($s ↦ $RAW($s.tokens-after-first) ≠ $d'value),
+  $c.all('delimiter ≠ $d'value),
   $k.all(¬.following-tokens.parse(delimiter-shape …))
 ```
 
@@ -1307,7 +1301,7 @@ A digit is one `TI` particle, and a digit can be a delimiter. It needs no word b
   | Letter="n" [@Hyphen] vhowels-of(@Hyphen) particle-tail-of(@Hyphen)
   | $v:vhowels-of(@Hyphen) particle-tail-of(@Hyphen)
 %conditions
-  $RAW($v.first-token) = "a" ∨ $RAW($v.first-token) = "o"
+  $v.parse((vowel="a" | vowel="o") …)
 
 %rule digit-form-of(@Hyphen)
   [$l:@Hyphen] Digit [$t:@Hyphen]
@@ -1584,20 +1578,22 @@ The ending query passes a possible faulty `h` suffix and the last hyphen. It rea
 
 A sequence of faulty `h` letters between vowels requires at least two letters. Each intervening hyphen belongs to the later letter and warns, so `bah-ha` has one division. A single `h` between vowels is legal and uses `malformed-vhowels`.
 
-Recovering vowels report the hyphen alone between two equal vowels. This permits separate errors in `a-a-a` without overlapping vowel spans. A freeform prefix is outside its content, so `u-u` keeps the ordinary prefix warning.
+Recovering vowels report the hyphen alone between two equal vowels. Their `last` key gives the vowel before the hyphen, as in `vowels`. This permits separate errors in `a-a-a` without overlapping vowel spans. A freeform prefix is outside its content, so `u-u` keeps the ordinary prefix warning.
 
 The particle tail retains its family even with two adjacent sonorants. An erroneous `h` at a word edge also retains that family, so `mih` remains a `MI` word. A freeform onset `h` remains legal.
 
 ```jbogenbau
 %rule malformed-vowels
-  | vowel
-  | malformed-vowels vowel
-  | $a:malformed-vowels Hyphen $b:vowel
-  | malformed-vowels hyphen-same-vowels vowel
+  | $v:vowel → {last: $v'value}
+  | malformed-vowels $v:vowel → {last: $v'value}
+  | $a:malformed-vowels Hyphen $b:vowel → {last: $b'value}
+  | $c:malformed-vowels hyphen-same-vowels $d:vowel → {last: $d'value}
   | malformed-vowels [Hyphen] h-not-between-vowels
-      {[hyphen-misplaced] h-not-between-vowels} [hyphen-misplaced] vowel
+    {[hyphen-misplaced] h-not-between-vowels} [hyphen-misplaced] $v:vowel
+      → {last: $v'value}
 %conditions
-  $RAW($a.last-token) ≠ $b'value
+  $a'last ≠ $b'value,
+  $c'last = $d'value
 
 %rule malformed-vhowels
   malformed-vowels [{[Hyphen] Letter<H> [hyphen-misplaced] malformed-vowels}]
@@ -1619,10 +1615,6 @@ The particle tail retains its family even with two adjacent sonorants. An errone
 
 %rule hyphen-same-vowels
   Hyphen
-%conditions
-  $.preceding-tokens.last-token.flags'Vowel,
-  $.following-tokens.first-token.flags'Vowel,
-  $RAW($.preceding-tokens.last-token) = $RAW($.following-tokens.first-token)
 %error "the hyphen " ++ $.source-text ++ " separates two copies of the same vowel"
 ```
 
@@ -1892,10 +1884,12 @@ Erased adjacent hyphens remain junk and emit no hyphen warning. So `a mi 1--2 ra
 
 ## Differences from the format 49 grammar
 
-This document reads the same texts as its format 49 copy, `grammars/eberban/refgram/morphology.md`. It reports the same errors and warnings at the same places, and it emits the same tokens with the same values, images and places. One tag differs.
+This document reads the same texts as its format 49 copy, `grammars/eberban/refgram/morphology.md`. It reports the same errors and warnings at the same places, and it emits the same tokens with the same values and places. One tag and some images differ.
+
+The image of a particle word, a root word, an eraser and a borrowing now keeps each hyphen that the word reads. So `bja-n` has the image `bja-n` and the value `bjan`. The format 49 image joined the values of the letters, so it dropped the hyphen. The image is what a person sees, and the book lets a hyphen mark a syllable that the writer wants to stand out.
 
 A compound token no longer carries `Spaced-E`. The mark says that the prefix of a compound is a standalone `e`, and only the compound reader reads it. So it stays in this stage, as the other prefix marks do. `$OUTPUTS` names only the kinds of word, the particle families and the marks that the later stages read. So `a e mi mo` hands on a compound with `Word` and `Compound` alone.
 
 A `Junk` token takes no tags of the run that it reads. The format 49 rule added the tags of the run node, but such a node had none, so no token changes.
 
-The rules write the same reads in the forms of the new notation. A test of a letter reads its value, as `$x'value`, or tests it in the body, as `ns-consonant=@Consonant`. A test of a run of letters joins the values of its input tokens with `$RAW`. A compound, a spelling quote and a foreign quote read the values that their parts compute, as `$t'value`. The particle and freeform templates take their family or kind as a key set and their letters as strings. An optional or repeated capture in a condition is a list, so the condition tests each item with `.all`.
+The rules write the same reads in the forms of the new notation. A test of a letter reads its value, as `$x'value`, or tests it in the body, as `ns-consonant=@Consonant`. A test of a run of letters reads the value of its node. A test of the first vowel of a run queries the run for `vowel` with its value. A test of the last vowel before a hyphen reads the key `last`. A test of the delimiter after a `]` reads the key `delimiter`. No rule joins the values of its input tokens. A compound, a spelling quote and a foreign quote read the values that their parts compute, as `$t'value`. The particle and freeform templates take their family or kind as a key set and their letters as strings. An optional or repeated capture in a condition is a list, so the condition tests each item with `.all`.

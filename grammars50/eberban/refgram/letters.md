@@ -342,14 +342,14 @@ The line breaks after a hyphen belong to its token. The [new course](https://ebe
 <p><img src="../../../docs/diagrams/50/eberban/refgram/letters/indent-char.svg" alt="Railroad diagram of the rule indent-char"></p>
 </details>
 
-The [numbers chapter](https://eberban.github.io/eberban/books/refgram/book/grammar/numbers.html) accepts the digit characters `0` to `9` as `TI` particles, so `42` is `tu ta`. A token's value is the canonical word, and the spelling stays in its image. So the stage emits each digit as a `Digit` token whose value is its `TI` word and whose image is the digit. The statement term of `digit` gives the image, and each alternative gives the word of the chapter's table.
+The [numbers chapter](https://eberban.github.io/eberban/books/refgram/book/grammar/numbers.html) accepts the digit characters `0` to `9` as `TI` particles, so `42` is `tu ta`. A token's value is the canonical word, and the spelling stays in its image. So the stage emits each digit as a `Digit` token whose value is its `TI` word and whose image is the digit. Each alternative of `digit` gives the word of the chapter's table as its value. The defaults give the image, which is the digit as written.
 
 The digits 0 to 4 are `ti`, `te`, `ta`, `to` and `tu`. The digits 5 to 9 are `tie`, `tia`, `tio`, `tiu` and `tei`. So an exact comparison sees `1` and `te` as one word, as speech does.
 
 The brackets `[` and `]` delimit foreign quotes. Outside a quote they are spaces, which the forms stage decides. A bracket token takes its two strings from the defaults.
 
 ```jbogenbau
-%rule digit → {Digit, image: $.tokens!'value.join()}
+%rule digit → {Digit}
   | "0" → {value: "ti"}
   | "1" → {value: "te"}
   | "2" → {value: "ta"}
