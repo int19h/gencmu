@@ -26692,7 +26692,8 @@
     subset: { min: { and: 2 } },
     range: { min: { range: 2 }, max: { range: 2 } },
     chain: { values: { chain: ["left", "right"] } },
-    captureSymbol: { kinds: { expr: SYMBOL50 } },
+    // A label binds one symbol or one compound operand (erratum M-60).
+    captureSymbol: { kinds: { expr: [...SYMBOL50, "sequence", "choice", "ranked", "subset", "optional", "elidable", "repeat"] } },
     primary: { kinds: { primary: [...SYMBOL50, "captureSymbol"] } },
     bodyTags: { required: ["at"], kinds: { expr: SYMBOL_BASE50 } },
     bodyTest: { required: ["at"], values: { test: ["=", "≠"] }, kinds: { expr: [...SYMBOL_BASE50, "bodyTags"] } },
@@ -27075,6 +27076,33 @@
     validateRoutes50(parts.length === 1 ? parts[0] : { seq: parts }, fail);
   }
 
+  // The compound operands that a label can bind (erratum M-60): a group of
+  // a sequence, a choice, a ranked choice or an ordered subset, an optional
+  // and a repetition that is not a chain.
+  const COMPOUND50 = new Set(["sequence", "choice", "ranked", "subset", "optional", "elidable", "repeat"]);
+
+  /**
+   * @internal Whether a capture binds a compound operand (erratum M-60).
+   * @param {any} node a capture record
+   */
+  const isCompoundCapture50 = node => node?.capture !== undefined && COMPOUND50.has(recordKind50(node.expr, "body"));
+
+  /**
+   * @internal The fault of the target of a capture, or undefined. A label
+   * binds one symbol or one compound operand. It cannot stand directly around
+   * a chain, an empty expression, a remainder, a capture or a primary.
+   * @param {any} target
+   * @returns {string | undefined}
+   */
+  function captureTargetFault50(target) {
+    const kind = recordKind50(target, "body");
+    if (isBodySymbol50(target) || COMPOUND50.has(kind)) return undefined;
+    if (kind === "chain") return "a capture cannot label a chain";
+    if (kind === "captureSymbol" || kind === "primary") return "a capture cannot label another capture or a primary";
+    if (kind === "empty" || kind === "remainder") return "a capture cannot label an empty expression or a remainder";
+    return "a capture wraps one symbol or one compound operand";
+  }
+
   const elidableForm50 = "an elidable optional starts with an ungrouped user terminal or parameter and can bind only its sole terminator";
 
   /**
@@ -27181,7 +27209,12 @@
    */
   function* bindingSlots(body, list) {
     const kind = recordKind50(body, "body");
-    if (kind === "captureSymbol") return new Map([[body.capture, list]]);
+    if (kind === "captureSymbol") {
+      // A compound label binds one node for each visit, beside the labels of
+      // its operand, which belong to the same alternative (erratum M-60).
+      const inner = isCompoundCapture50(body) ? yield bindingSlots(body.expr, list) : new Map();
+      return new Map([...inner, [body.capture, list]]);
+    }
     if (kind === "primary") return yield bindingSlots(body.primary, list);
     if (kind === "elidable") return yield bindingSlots(body.optional, true);
     if (kind === "optional") {
@@ -27255,7 +27288,8 @@
       if (captureContext) fail(node, captureContext === "query" ? "a query cannot declare captures" : argumentsError);
       if (context.chain) fail(node, "a chain item or separator cannot bind a capture directly");
       if (!CAPTURE_NAME.test(node.capture)) fail(node, "a capture name must use lowercase letters, digits, hyphens or underscores");
-      if (!faulty(node.expr) && !isBodySymbol50(node.expr)) fail(node, "a capture wraps one symbol");
+      const targetFault = faulty(node.expr) ? undefined : captureTargetFault50(node.expr);
+      if (targetFault) fail(node, targetFault);
     } else if (kind === "optional" || kind === "elidable") {
       validateOmission(node, fail);
     } else if (COMPOSITE50.has(kind)) {
@@ -27525,7 +27559,11 @@
   function* captureWitness50(body, required, forbidden, names) {
     if (!required.every((/** @type {any} */ name) => names(body).has(name))) return;
     const kind = recordKind50(body, "body");
-    if (kind === "captureSymbol") return forbidden.has(body.capture) ? undefined : [];
+    if (kind === "captureSymbol") {
+      if (forbidden.has(body.capture)) return undefined;
+      if (!isCompoundCapture50(body)) return [];
+      return yield captureWitness50(body.expr, required.filter((/** @type {any} */ name) => name !== body.capture), forbidden, names);
+    }
     if (kind === "primary") return yield captureWitness50(body.primary, required, forbidden, names);
     if (kind === "optional" || kind === "elidable") {
       if (!required.length && (!body.elidable || omissionAllowed50(body) === true)) return [0];
@@ -28973,6 +29011,8 @@
       this.hidden = { demanded: new Set(), domains: new Map(), roots: new Map() };
       /** @type {string | undefined} the rule at the root of the forest of the predicate being lowered */
       this.forestRootRule = undefined;
+      /** @type {Map<any, any> | undefined} the body of each alternative of the rule being lowered, without compound labels */
+      this.bodies = undefined;
       /** @type {Map<string, GencmuError>} the rules whose keys have no tag term */
       this.untranslated = new Map();
       /** @type {GencmuError[]} the conditions that the recognizer cannot test */
@@ -29434,16 +29474,28 @@
       // The captures that bind at most one node on every route of the rule.
       this.atMostOne = new Set();
       const counts = new Map();
+      // A compound label is transparent to recognition (erratum M-60), so the
+      // bridge reads each body without it. Its inner labels stay. A read of
+      // the binding itself fails at load, since the recognizer and the stage
+      // do not yet give it.
+      const bodies = new Map(rule.alternatives.map((/** @type {any} */ alternative) => [alternative, withoutCompoundLabels(alternative.expr)]));
+      this.bodies = bodies;
+      const compound = compoundLabels(rule.alternatives.map((/** @type {any} */ alternative) => alternative.expr));
+      if (compound.size) {
+        const read = compoundRead([rule.term, ...rule.alternatives.map((/** @type {any} */ alternative) => alternative.term), rule.conditions,
+          rule.error, rule.warning, rule.emit?.items], compound);
+        if (read) this.deferFault(`read the binding of the compound capture $${read.capture}`, read.at ?? rule.at);
+      }
       for (const alternative of rule.alternatives) {
-        for (const [name, count] of maxBindings(alternative.expr)) counts.set(name, Math.max(counts.get(name) ?? 0, count));
+        for (const [name, count] of maxBindings(bodies.get(alternative))) counts.set(name, Math.max(counts.get(name) ?? 0, count));
       }
       for (const [name, count] of counts) if (count <= 1) this.atMostOne.add(name);
       // The fewest and the most nodes that each alternative binds to a name.
-      this.bindings = rule.alternatives.map((/** @type {any} */ alternative) => ({ min: minBindings(alternative.expr), max: maxBindings(alternative.expr) }));
+      this.bindings = rule.alternatives.map((/** @type {any} */ alternative) => ({ min: minBindings(bodies.get(alternative)), max: maxBindings(bodies.get(alternative)) }));
       this.repeated = new Set([...counts].filter(([, count]) => count > 1).map(([name]) => name));
-      for (const alternative of rule.alternatives) collectCaptureSymbols(alternative.expr, this.captureSymbols);
+      for (const alternative of rule.alternatives) collectCaptureSymbols(bodies.get(alternative), this.captureSymbols);
       this.captureRules = new Map();
-      for (const alternative of rule.alternatives) collectCaptureRules(alternative.expr, this.captureRules);
+      for (const alternative of rule.alternatives) collectCaptureRules(bodies.get(alternative), this.captureRules);
       // The tags of each alternative read the capture sets of this rule.
       copy.alternatives = rule.alternatives.map((/** @type {any} */ alternative) => this.alternative(alternative, rule));
       // A forest predicate reads the value or image of a root of this rule
@@ -29497,11 +29549,14 @@
      */
     alternative(alternative, rule) {
       const used = new Map();
-      for (const each of rule.alternatives) collectCaptureSymbols(each.expr, used);
+      /** @param {any} each */
+      const bodyOf = each => this.bodies?.get(each) ?? withoutCompoundLabels(each.expr);
+      for (const each of rule.alternatives) collectCaptureSymbols(bodyOf(each), used);
+      const written = bodyOf(alternative);
       let synthetic = PRIMARY_CAPTURE;
       while ([...used.keys()].includes(synthetic)) synthetic += "_";
       const primary = { name: null, synthetic };
-      const expr = this.body(alternative.expr, primary);
+      const expr = this.body(written, primary);
       const record = { rule, alternative, ...(primary.name !== null ? { primary: primary.name, primarySynthetic: primary.name === synthetic } : {}) };
       // The recognizer validates instance definitions strictly, so the
       // alternatives of a template name no origin. The stage finds them by
@@ -29516,15 +29571,15 @@
         copy = { gates: alternative.gates, expr };
       }
       // The keys of a primary or a sole symbol become the keys of this rule.
-      const sources = primary.name !== null ? primaryNames(alternative.expr)
-        : !rule.term && !alternative.term && isSingleSymbol(alternative.expr) ? symbolNames(alternative.expr) : new Set();
+      const sources = primary.name !== null ? primaryNames(written)
+        : !rule.term && !alternative.term && isSingleSymbol(written) ? symbolNames(written) : new Set();
       for (const source of sources) this.addTagSource(rule.name, source);
       let tags;
       // A term that reads a private ranked capture has no keys for an early
       // reader, which needs one expression from every option. A late read is
       // legal (engine §4). So it fails only where a recognizer test reads the
       // keys of the rule.
-      const privateNames = rankedOnlyNames(alternative.expr);
+      const privateNames = rankedOnlyNames(written);
       const privateRead = [rule.term, alternative.term].filter(Boolean)
         .flatMap((/** @type {any} */ term) => termCaptures(term)).find((/** @type {any} */ read) => privateNames.has(read.capture));
       if (privateRead) {
@@ -29535,7 +29590,7 @@
         return copy;
       }
       try {
-        tags = this.alternativeTags(alternative, rule, primary.name);
+        tags = this.alternativeTags({ ...alternative, expr: written }, rule, primary.name);
       } catch (error) {
         if (!(error instanceof GencmuError)) throw error;
         // The keys of this bag cannot become a tag term. That is a problem
@@ -30809,6 +30864,61 @@
     }
     for (const domain of domains.values()) domain.sort((a, b) => typeof a === typeof b ? (a < b ? -1 : a > b ? 1 : 0) : typeof a === "number" ? -1 : 1);
     return { demanded, domains, roots };
+  }
+
+  /**
+   * A body with each compound label removed, and its inner labels kept.
+   * @param {any} node
+   * @returns {any}
+   */
+  function withoutCompoundLabels(node) {
+    if (!node || typeof node !== "object") return node;
+    if (Array.isArray(node)) return node.map(withoutCompoundLabels);
+    if (isCompoundCapture50(node)) return withoutCompoundLabels(node.expr);
+    /** @type {Record<string, any>} */
+    const copy = {};
+    for (const [key, value] of Object.entries(node)) copy[key] = withoutCompoundLabels(value);
+    return copy;
+  }
+
+  /**
+   * The names of the compound labels of bodies.
+   * @param {any} node
+   * @param {Set<string>} [into]
+   */
+  function compoundLabels(node, into = new Set()) {
+    if (!node || typeof node !== "object") return into;
+    if (Array.isArray(node)) {
+      for (const item of node) compoundLabels(item, into);
+      return into;
+    }
+    if (isCompoundCapture50(node)) into.add(node.capture);
+    for (const value of Object.values(node)) if (value && typeof value === "object") compoundLabels(value, into);
+    return into;
+  }
+
+  /**
+   * The first read of one of the names in expressions and emission items, or
+   * undefined. A forwarding item reads its capture too.
+   * @param {any} node
+   * @param {Set<string>} names
+   * @returns {any}
+   */
+  function compoundRead(node, names) {
+    if (!node || typeof node !== "object") return undefined;
+    if (Array.isArray(node)) {
+      for (const item of node) {
+        const found = compoundRead(item, names);
+        if (found) return found;
+      }
+      return undefined;
+    }
+    if (typeof node.capture === "string" && names.has(node.capture) && !node.expr) return node;
+    for (const value of Object.values(node)) {
+      const found = value && typeof value === "object" ? compoundRead(value, names) : undefined;
+      if (found) return found;
+    }
+    return undefined;
   }
 
   /**
@@ -33560,11 +33670,15 @@
         case "captured-terminator": {
           const capture = this.binder(first);
           // The placement and binder of a capture precede its target kind, so
-          // a fault of the target kind waits at the target.
-          const wrong = () => this.waitingFault(first, "a capture wraps one symbol");
-          if (GROUPS.has(baseFactor(children[1]).rule)) return { capture, expr: wrong() };
+          // a fault of the target kind waits at the target. Parentheses around
+          // one symbol drop, so $x:(A) binds A. A label on an optional, a flat
+          // repetition or a group binds the compound operand (erratum M-60).
           const target = yield expr(children[1], false, elidable);
-          return { capture, expr: faulty(target) || isBodySymbol50(target) ? target : wrong() };
+          const fault = node.rule === "capture" && !faulty(target) ? captureTargetFault50(target) : undefined;
+          if (node.rule === "captured-terminator" && !faulty(target) && !isBodySymbol50(target)) {
+            return { capture, expr: this.waitingFault(first, "a capture wraps one symbol") };
+          }
+          return { capture, expr: fault ? this.waitingFault(first, fault) : target };
         }
         case "marked-factor": {
           const atom = baseFactor(first.rule === "capture" ? rules(first)[1] : first);
