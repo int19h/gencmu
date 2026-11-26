@@ -1,3 +1,9 @@
+/**
+ * @param {any} declarations
+ * @param {any} configuration
+ * @param {any} storeDom
+ */
+export declare function inspectConverted50(declarations: any, configuration: any, storeDom: any): any;
 export declare class DomBuilder {
     tokens: any;
     position: any;
@@ -25,11 +31,15 @@ export declare class DomBuilder {
     /**
      * @param {any} node
      * @param {any} description
-     * @returns {never}
      */
-    fail(node: any, description: any): never;
+    fail(node: any, description: any): void;
+    /**
+     * @param {any} tree
+     * @param {any} [storeDom]
+     */
+    build(tree: any, storeDom?: any): any;
     /** @param {any} tree */
-    build(tree: any): any;
+    declarations(tree: any): Generator<any[], void, unknown>;
     /** @param {any} node */
     directive(node: any): any;
     /** @param {any} node */
@@ -80,9 +90,8 @@ export declare class DomBuilder {
     /**
      * @param {any} base
      * @param {any} tests
-     * @param {any} pattern
      */
-    tests(base: any, tests: any, pattern: any): any;
+    tests(base: any, tests: any): any;
     /** @param {any} node */
     requirements(node: any): any;
     /**

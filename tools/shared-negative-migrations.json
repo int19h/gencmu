@@ -3939,7 +3939,6 @@
   },
   "notation/conditions-parenthesized.json": {
     "reason": "No expansion can supply the captures of this condition after simplification. The clause uses its declaration's position.",
-    "native": true,
     "section": "Engine §§3.6, 9.3",
     "entry": "pipeline.md",
     "documents": {
@@ -3950,7 +3949,8 @@
       "kind": "grammar",
       "document": "notation.md",
       "line": 2,
-      "column": 1
+      "column": 1,
+      "description": "a condition applies to no alternative"
     }
   },
   "notation/const-value-capture.json": {
@@ -4172,7 +4172,6 @@
   },
   "notation/emoji-invalid-stray-parameter.json": {
     "reason": "The same written parameter has no declaration.",
-    "native": true,
     "section": "Engine §§2.3, 9.3",
     "entry": "pipeline.md",
     "documents": {
@@ -4183,7 +4182,8 @@
       "kind": "grammar",
       "document": "notation.md",
       "line": 2,
-      "column": 12
+      "column": 12,
+      "description": "unknown parameter @A"
     }
   },
   "notation/item-capture-in-ranked.json": {
@@ -4280,7 +4280,6 @@
   },
   "notation/template-definition-inapplicable-condition.json": {
     "reason": "No expansion can supply the captures of this condition after simplification. The clause uses its declaration's position.",
-    "native": true,
     "section": "Engine §§3.6, 9.3",
     "entry": "pipeline.md",
     "documents": {
@@ -4291,7 +4290,8 @@
       "kind": "grammar",
       "document": "notation.md",
       "line": 2,
-      "column": 1
+      "column": 1,
+      "description": "a condition applies to no alternative"
     }
   },
   "notation/template-definition-unknown-capture.json": {
@@ -4311,7 +4311,6 @@
   },
   "notation/template-undeclared-parameter.json": {
     "reason": "The same written parameter has no declaration.",
-    "native": true,
     "section": "Engine §§2.3, 9.3",
     "entry": "pipeline.md",
     "documents": {
@@ -4322,7 +4321,8 @@
       "kind": "grammar",
       "document": "notation.md",
       "line": 2,
-      "column": 13
+      "column": 13,
+      "description": "unknown parameter @Y"
     }
   },
   "notation/tree-reflexive-not.json": {
@@ -9247,12 +9247,12 @@
     "document": "```jbogenbau\n%rule f(@X) $x:@X %conditions $y\n%rule s $xY:A\n```\n"
   },
   "notation/nested-head-parameter-before-body.json": {
-    "reason": "The retained instance actual still reads an undeclared parameter. The later capture also retains its invalid name.",
+    "reason": "The retained instance actual reads an undeclared parameter. That declaration fails before the later capture.",
     "expected": {
       "document": "notation.md",
-      "line": 3,
-      "column": 1,
-      "description": "a capture name must use lowercase letters, digits, hyphens or underscores"
+      "line": 2,
+      "column": 20,
+      "description": "unknown parameter @X"
     },
     "document": "```jbogenbau\n%redefine-rule f(g(@X)) A\n%rule s $xY:A\n```\n"
   },
@@ -9802,10 +9802,10 @@
       "kind": "grammar",
       "document": "notation.md",
       "line": 4,
-      "column": 11
+      "column": 11,
+      "description": "unknown parameter @P"
     },
-    "section": "Engine §§2.3, 9.3",
-    "native": true
+    "section": "Engine §§2.3, 9.3"
   },
   "notation/capture-duplicate-after-call-argument.json": {
     "reason": "Keep the repeated route binding. Format 50 rejects the capture in the actual separately, so remove it to reach the recorded binding fault.",
@@ -10232,10 +10232,10 @@
       "kind": "grammar",
       "document": "main.md",
       "line": 3,
-      "column": 1
+      "column": 1,
+      "description": "a condition applies to no alternative"
     },
-    "section": "Engine §§3.5–3.6",
-    "native": true
+    "section": "Engine §§3.5–3.6"
   },
   "engine/clause-guarded-method-argument-type.json": {
     "reason": "Both guarded sets stay lists. The string method rejects the same receiver and delimiter forms.",

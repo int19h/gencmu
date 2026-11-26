@@ -85,6 +85,27 @@ test("the seed audit accepts forwarding a list capture", t => {
   assert.match(stdout, /"capture":"list","consumer":"0","ok":true/);
 });
 
+test("the seed audit keeps a list truth test separate from a data operand", t => {
+  const withCapture = bootstrap => {
+    const rules = document(bootstrap, "syntax").rules;
+    const rule = {
+      name: "truth-test", op: "define", at: [10000, 1], conditions: [{ capture: "list" }],
+      alternatives: [{ gates: [], expr: { repeat: { capture: "list", expr: { ref: "A" } } } }],
+    };
+    rules.push(rule);
+    return rule;
+  };
+  const control = audit(t, withCapture);
+  assert.equal(control.status, 0);
+  const invalid = audit(t, bootstrap => {
+    withCapture(bootstrap).conditions = [{
+      list: [{ kind: "item", value: { capture: "list" }, gates: [], at: [10000, 20] }],
+    }];
+  });
+  assert.equal(invalid.status, 1);
+  assert.match(invalid.stdout, /"capture":"list","consumer":"value","ok":false/);
+});
+
 test("the seed audit rejects a self include at the directive", t => {
   const { status, stderr } = audit(t, bootstrap => {
     document(bootstrap, "pipeline").directives.push({ name: "include", args: ["pipeline.md"], at: [9999, 1] });
@@ -123,3 +144,41 @@ test("the seed audit emits the same records after reordering members", t => {
   const records = result => result.stdout.slice(result.stdout.indexOf("\n") + 1);
   assert.equal(records(reordered), records(original));
 });
+
+test("the seed audit ignores directive extensions named after operands", t => {
+  const original = audit(t, () => {});
+  const extended = audit(t, bootstrap => {
+    const stage = document(bootstrap, "pipeline").directives.find(directive => directive.name === "stage");
+    Object.assign(stage, {
+      annotation: { method: "unknown" },
+      call: "metadata",
+      method: "metadata",
+      property: "metadata",
+      value: { const: "not-a-constant", at: [1, 9] },
+      steps: [{ step: "leftmost-longest" }],
+      conditions: [{ property: "bad field", at: [1, 9] }],
+    });
+  });
+  assert.equal(original.status, 0, original.stderr);
+  assert.equal(extended.status, 0, extended.stderr);
+  const records = result => result.stdout.slice(result.stdout.indexOf("\n") + 1);
+  assert.equal(records(extended), records(original));
+});
+
+for (const [category, accepts] of [["directives", true], ["rules", false], ["constants", false]]) {
+  test(`the seed audit handles the foreign method member on ${category}[0]`, t => {
+    const expected = document(seed, "lexical")[category][0].at;
+    const { status, stdout } = audit(t, bootstrap => {
+      document(bootstrap, "lexical")[category][0].method = "metadata";
+    });
+    assert.equal(status, accepts ? 0 : 1);
+    const rows = stdout.trim().split("\n").map(line => JSON.parse(line));
+    const outcome = rows.find(row => row.validation && row.document.endsWith("/lexical.md"));
+    assert.equal(outcome.ok, accepts);
+    if (!accepts) {
+      assert.match(outcome.message, /unknown member "method"/);
+      assert.deepEqual([outcome.at.line, outcome.at.column], expected);
+    }
+    assert.ok(!rows.some(row => row.method === "metadata"));
+  });
+}

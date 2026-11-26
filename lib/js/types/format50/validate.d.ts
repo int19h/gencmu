@@ -19,10 +19,11 @@ export declare function documentFault50(document: any): (/** @type {any} */ node
  * @param {any} root
  * @param {any} fail
  * @param {any} owner
+ * @param {any} category
  */
-export declare function withOwner50(root: any, fail: any, owner: any): (/** @type {any} */ node: any, /** @type {any} */ message: any) => any;
+export declare function withOwner50(root: any, fail: any, owner: any, category: any, checkMembers?: boolean): (/** @type {any} */ node: any, /** @type {any} */ message: any) => any;
 /**
- * @param {{ closed?: boolean, query?: boolean, bindings?: Iterable<string> }} [configuration]
+ * @param {{ closed?: boolean, query?: boolean, bindings?: Iterable<string>, slot?: string }} [configuration]
  * @param {any} root
  * @param {any} fail
  */
@@ -30,6 +31,7 @@ export declare function validateBindings50(root: any, fail: any, configuration?:
     closed?: boolean;
     query?: boolean;
     bindings?: Iterable<string>;
+    slot?: string;
 }): void;
 /**
  * @param {any} argument
@@ -103,14 +105,15 @@ export declare function validateDefinitionNullability50(productions: any, nullab
  * @param {any} fail
  * @param {any} [options]
  */
-declare function validateClosedTypes(root: any, fail: any, { closed, slots, truth, forwarding, message, nodeTerm, hiddenKeys, hiddenStrings, boundary, whole }?: any): void;
+declare function validateClosedTypes(root: any, fail: any, { closed, slots, truth, forwarding, message, nodeTerm, hiddenKeys, hiddenStrings, boundary, whole, slot }?: any): void;
 /**
+ * @param {any} category
  * @param {any} declaration
  * @param {any} fail
  * @param {any} unicode
  * @param {any} emptyDelimiters
  */
-export declare function validateDeclarationShape50(declaration: any, fail: any, unicode: any, emptyDelimiters?: any): void;
+export declare function validateDeclarationShape50(category: any, declaration: any, fail: any, unicode: any, emptyDelimiters?: any): void;
 /**
  * @param {DocumentValidation} [configuration]
  * @param {any} dom

@@ -28,6 +28,14 @@ test("layout inspects long constructors and condition continuation in format 50"
   ]);
 });
 
+test("layout ignores a constructor in directive extension data", () => {
+  const compiler = createTransitionCompiler();
+  const source = fenced("%stage s\n%rule text A");
+  const dom = compiler.compileDocument(source);
+  dom.directives[0].bag = [[2, 1], [2, 4], [3, 1]].map(at => ({ kind: "bare", key: "K", gates: [], at }));
+  assert.deepEqual(layoutProblems(source, dom, "layout.md"), []);
+});
+
 test("only plain strings can share a line in a long list", () => {
   const compiler = createTransitionCompiler();
   const table = entry => fenced(`%const $LEXICON

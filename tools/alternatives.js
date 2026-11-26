@@ -19,7 +19,7 @@
 // and the DOM's positions. From a rule's position, a small scanner finds
 // where each alternative begins, and stops at the next keyword.
 import fs from "node:fs";
-import { operandFields50 } from "../lib/js/src/format50/validate.js";
+import { operandFields50 } from "../lib/js/src/format50/records.js";
 import { UnicodeTable } from "../lib/js/src/unicode.js";
 import { extractGrammarText, splitLines } from "../lib/js/src/markdown.js";
 
@@ -890,16 +890,17 @@ function format50ClauseProblems(markdown, dom, path) {
   const chars = [...text];
   const offsets = new Map(positions.map(([line, column], offset) => [`${line}:${column}`, offset]));
   const problems = [];
-  const walk = [dom];
+  const walk = [[dom, "document"]];
   while (walk.length) {
-    const node = walk.pop();
+    const [node, category] = walk.pop();
     if (!node || typeof node !== "object") continue;
-    const entries = node.bag ?? node.list ?? node.emit?.items;
+    const operands = operandFields50(node, category);
+    const [constructor, entries] = operands.find(([key]) => key === "bag" || key === "list" || key === "items") ?? [];
     if (entries) {
       const positioned = entries.filter(entry => entry.at?.[0]);
       if (new Set(positioned.map(entry => entry.at[0])).size > 1) {
         // Grouping disappears from the DOM. A plain item starts at its quote.
-        const plain = entry => node.list === entries && entry.kind === "item" && !entry.gates.length && !entry.guard &&
+        const plain = entry => constructor === "list" && entry.kind === "item" && !entry.gates.length && !entry.guard &&
           typeof entry.value?.string === "string" && chars[offsets.get(entry.at.join(":"))] === '"';
         for (let index = 1; index < positioned.length; index++) {
           const entry = positioned[index];
@@ -910,7 +911,7 @@ function format50ClauseProblems(markdown, dom, path) {
         }
       }
     }
-    for (const [, child] of operandFields50(node).reverse()) walk.push(child);
+    for (const [, child, childCategory] of operands.reverse()) walk.push([child, childCategory]);
   }
   const beforeBody = start => {
     let index = start - 1;

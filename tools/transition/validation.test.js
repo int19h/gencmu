@@ -1,10 +1,14 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import { test } from "node:test";
+import { after, test } from "node:test";
+import { createDifferential, operandMutations } from "./differential.js";
 import { createTransitionCompiler } from "../transition-compiler.js";
 import { validateDefinitionNullability50, validateDocument50 } from "../../lib/js/src/format50/validate.js";
 
-const compiler = createTransitionCompiler();
+const createObserved = observeDocument => createTransitionCompiler(undefined, { observeDocument });
+const differential = createDifferential();
+after(() => differential.finish("validation inputs"));
+const compiler = differential.compiler();
 const fenced = source => "\x60\x60\x60jbogenbau\n" + source + "\n\x60\x60\x60";
 const read = source => compiler.compileDocument(fenced(source), "probe.md");
 
@@ -14,7 +18,7 @@ for (const source of [
   '%const $K [{}, {a: 1}]',
   '%const $X [["a"]] ∖ ["a"]',
   '%const $X [["a"], ["b"]] ∖ ["a"]',
-  '%rule r\n  | $x:"a"\n  | "b" → {k: ["a"].all($x ↦ $x = "a")}',
+  '%rule r\n  | $x:"a"\n  | "b" → {(["a"].all($x ↦ $x = "a"))? k: "yes"}',
   '%rule r $x:"a"\n%conditions $x.followed-by(r) ∧ ["a"].all($y ↦ $y = "a")',
   '%rule r → {value: 1}\n  | "a" → {value: "ok"}',
   '%rule r → {image: 1}\n  | "a" → {¬image}',
@@ -239,7 +243,7 @@ test("an n-gram width has no count bound", () =>
 
 test("terminal classification in origin tests survives a custom emoji table", () => {
   const core = "unicode 15.1.0\nwhite-space 0009 000D\nwhite-space 0020 0020\nemoji-presentation 0041 0041\n";
-  const custom = createTransitionCompiler(file => file === "data/unicode/unicode.txt" ? core : undefined);
+  const custom = differential.compiler(file => file === "data/unicode/unicode.txt" ? core : undefined);
   for (const [text, negated] of [["A<_Elided>", false], ["A<¬_Elided>", true]]) {
     const { expr } = custom.compileDocument(fenced("%rule text " + text)).rules[0].alternatives[0];
     assert.deepEqual(expr.requirements, [{ negated, value: { tag: "_Elided" } }]);
@@ -253,11 +257,11 @@ test("explicit Unicode resources depend on presence, including identical bytes",
   const resource = file => fs.readFileSync(new URL("../../" + file, import.meta.url), "utf8");
   const bundledCore = resource(core);
   const bundledProperties = resource(properties);
-  const supplied = createTransitionCompiler(file => file === core ? bundledCore + "\n" :
+  const supplied = differential.compiler(file => file === core ? bundledCore + "\n" :
     file === properties ? bundledProperties : undefined);
   assert.deepEqual(supplied.compileDocument(fenced("%rule text _Alphabetic")).rules[0].alternatives[0].expr,
     { ref: "_Alphabetic" });
-  const coreOnly = createTransitionCompiler(file => file === core ? bundledCore : undefined);
+  const coreOnly = differential.compiler(file => file === core ? bundledCore : undefined);
   assert.throws(() => coreOnly.compileDocument(fenced("%rule text _Alphabetic")), /unknown or forbidden engine key/);
 });
 
@@ -445,7 +449,7 @@ for (const source of [
   '%const $V [*[], []]!.join()',
   '%const $V [f? 1, ¬f? "a"]',
   '%const $V [$UNRESOLVED, "a"].join()',
-  '%const $V {flag: ¬(1 = 2)}',
+  '%const $V {¬(1 = 2)? Flag}',
   '%rule r → {value: 1}\n  | "a" → {*{value: "ok"}}',
   '%rule r → {value: 1}\n  | "a" → {({value: "ok"})\'value}',
   '%rule r → {image: 1}\n  | "a" → {({image: "ok"})\'image}',
@@ -753,4 +757,274 @@ test("a supplied elidable optional visits its body with the written default pres
   const [actual] = dom.rules[0].alternatives[0].expr.optional.seq[1].args;
   actual.expression.integer = "256";
   compareDiagnostics(source.replace("255", "256"), dom, /count literal/, actual.at);
+});
+
+test("the elidable head's default precedes the tail in both DOM orders", () => {
+  const dom = read("%rule r [+T=$H ≝ $D f(= $S)]");
+  const optional = dom.rules[0].alternatives[0].expr;
+  optional.default.const = "badDefault";
+  optional.optional.seq[1].args[0].expression.const = "badTail";
+  for (const record of [dom, reverseMembers(dom)]) {
+    assertFault(() => validateDocument50(record), /invalid constant name/, 2, 18);
+  }
+});
+
+for (const [source, message, line, column] of [
+  ["%rule r f(= {A, A}, = $x)", /duplicate direct write for A/, 2, 17],
+  ["%rule r A\n%conditions $.span.parse($x:A).parse($y:B)", /a query cannot declare captures/, 3, 19],
+  ['%const $V "x".xxxxx().yyyyy()', /unknown method \.xxxxx/, 2, 14],
+]) {
+  test(`source and DOM validate the earlier operand in ${source}`, () => {
+    let dom;
+    const reader = createObserved(reading => {
+      differential.observe(reading);
+      dom = reading.dom;
+    });
+    assertFault(() => reader.compileDocument(fenced(source), "probe.md"), message, line, column);
+    assert.ok(dom);
+    for (const record of [dom, reverseMembers(dom)]) {
+      assertFault(() => validateDocument50(record), message, line, column);
+    }
+  });
+}
+
+for (const name of ["names", "include", "stage", "features", "elision-only",
+  "ambiguity-resolution", "extend-stage", "redefine-stage"]) {
+  test(`directive spelling ${name} can name a rule template and feature`, () => {
+    const dom = read([
+      '%names "data/unicode/unicode-names.txt"',
+      "%stage main",
+      `%features ${name}`,
+      "%ambiguity-resolution greedy",
+      `%rule ${name}(@X) @X`,
+      `%extend-rule ${name}(A) B`,
+      `%redefine-rule ${name}(C) D`,
+      `%rule text ${name}(A)`,
+    ].join("\n"));
+    assert.deepEqual(dom.directives.map(directive => directive.name),
+      ["names", "stage", "features", "ambiguity-resolution"]);
+    assert.deepEqual(dom.directives[2].args, [name]);
+    assert.deepEqual(dom.rules.slice(0, 3).map(rule => [rule.name, rule.op]),
+      [[name, "define"], [name, "extend"], [name, "redefine"]]);
+    assert.deepEqual(dom.rules[0].params, ["X"]);
+    assert.deepEqual([dom.rules[1].args[0].tag, dom.rules[2].args[0].tag], ["A", "C"]);
+    for (const reading of [dom, reverseMembers(dom)]) {
+      assert.equal(validateDocument50(reading, { unicode: compiler.unicode }), reading);
+    }
+  });
+}
+
+test("the names directive still needs the preamble after a names instance edit", () => {
+  const rules = "%rule names(@X) @X\n%extend-rule names(A) B";
+  const directive = '%names "data/unicode/unicode-names.txt"';
+  assertFault(() => read(rules + "\n" + directive), /%names must precede/, 4, 1);
+  const dom = read(rules);
+  dom.directives.push({ name: "names", args: ["data/unicode/unicode-names.txt"], at: [4, 1] });
+  assertFault(() => validateDocument50(dom), /%names must precede/, 4, 1);
+});
+
+const directiveExamples = [
+  { name: "names", args: ["names.txt"] },
+  { name: "include", args: ["rules.md"] },
+  ...["stage", "extend-stage", "redefine-stage"].map(name => ({ name, args: ["s"] })),
+  { name: "elision-only", args: [] },
+  { name: "features", args: ["f"], conditions: [{ bag: [{ kind: "bare", key: "A", gates: [], at: [1, 12] }] }] },
+  { name: "ambiguity-resolution", steps: [{ step: "leftmost-longest", pattern: { name: "r", exact: true, at: [1, 22] } }] },
+];
+
+// Include discriminants, scalar identifiers and operand containers from the
+// structural records. Only directives admit these members as extensions.
+const otherFields = (`annotation format rules directives constants op params instance term alternatives emit conditions error warning
+  suppressWarnings erased gates expr value feature kind negated args steps step pattern items capture insert guard expression
+  rule call param tag literal range wildcard splice test body targets requirements terminal seq choice ranked and optional
+  elidable default repeat separator chain ref empty remainder primary if then else lambda any all not left right union difference
+  intersection concat flatten property receiver method map by const apply arg string integer emptySet item bag list key keys source
+  name at constant exact children path child siblings`).trim().split(/\s+/);
+
+for (const example of directiveExamples) {
+  test(`a ${example.name} directive retains opaque extensions`, () => {
+    const directive = { ...example, at: [1, 1] };
+    const dom = { format: 50, rules: [], directives: [directive], constants: [] };
+    const mutations = operandMutations(dom);
+    const deep = { const: "not-a-constant", at: [1, 9] };
+    let operand = deep;
+    for (let i = 0; i < 257; i++) operand = { not: operand, at: [9, 9] };
+    for (const key of otherFields) {
+      if (Object.hasOwn(example, key) || key === "at") continue;
+      const value = ["call", "method", "property", "capture", "ref", "lambda", "name"].includes(key) ? "invalid name!" :
+        ["steps", "conditions", "alternatives", "params", "keys", "suppressWarnings"].includes(key) ? [operand] : operand;
+      const reading = { ...dom, directives: [{ ...directive, [key]: value }] };
+      for (const candidate of [reading, reverseMembers(reading)]) {
+        const before = structuredClone(candidate);
+        assert.equal(validateDocument50(candidate), candidate, key);
+        assert.deepEqual(candidate, before, key);
+        assert.deepEqual(operandMutations(candidate), mutations, key);
+      }
+    }
+  });
+}
+
+test("the directive walks still inspect real feature and resolution operands", () => {
+  const dom = { format: 50, rules: [], constants: [], directives: [{
+    name: "features", args: ["f"], at: [1, 1], conditions: [{ method: "unknown", receiver: { capture: "" }, args: [], at: [1, 20] }],
+  }] };
+  assertFault(() => validateDocument50(dom), /unknown method \.unknown/, 1, 20);
+  dom.directives[0] = { name: "ambiguity-resolution", at: [1, 1],
+    steps: [{ step: "leftmost-longest", pattern: { name: "r", at: [1, 20] } }] };
+  assertFault(() => validateDocument50(dom), /exact local pattern/, 1, 20);
+});
+
+for (const subject of ["", "text"]) {
+  for (const actual of ['["a"].all($n ↦ $n = "a")', '1 = 1']) {
+    test(`a pattern ${subject || "bare child list"} keeps the scope of ${actual}`, () => {
+      const call = `f(= ${actual})`;
+      const dom = read(`%rule f(@X) "a" %conditions @X\n%rule text ${call} → {($ ≅ #${subject}⁅ ${call} ⁆)? Ok}`);
+      assert.equal(validateDocument50(dom), dom);
+      const reversed = reverseMembers(dom);
+      assert.equal(validateDocument50(reversed), reversed);
+    });
+  }
+}
+
+test("a Boolean operation and a bare child list reject each other's written payload", () => {
+  const logical = read('%const $V (1 = 1) ∨ (2 = 2)');
+  logical.constants[0].value.any = true;
+  assert.throws(() => validateDocument50(logical), /invalid operand "any" on a disjunction/);
+  const pattern = read('%const $P #⁅ A ⁆');
+  pattern.constants[0].value.pattern.any = [];
+  assert.throws(() => validateDocument50(pattern), /"any" must be true on a bareChildren/);
+});
+
+const originHeader = "%rule r A\n%rule f(@X) @X\n";
+for (const [declaration, column] of [
+  ["%rule text f(r<¬_Elided>)", 15],
+  ["%const $P #f(r<¬_Elided>)", 15],
+  ["%const $P #f((r<¬_Elided> A))", 16],
+  ["%const $P #f(r<_Elided>)", 15],
+  ["%const $P #f(A<¬_Elided>)"],
+  ["%const $P #r<¬_Elided>"],
+  ["%const $P #f(= #r<¬_Elided>)"],
+  ["%const $P #f(= #r<_Elided>)", 18],
+]) {
+  test(`origin follows the test slot in ${declaration}`, () => {
+    const source = originHeader + declaration;
+    if (column) {
+      let stored;
+      const observed = createObserved(reading => { stored = reading.dom; });
+      const message = /the _Elided origin test applies only to a terminal/;
+      assertFault(() => observed.compileDocument(fenced(source), "probe.md"), message, 4, column);
+      assert.ok(stored);
+      compareDiagnostics(source, stored, message, [4, column]);
+    } else {
+      const dom = read(source);
+      for (const reading of [dom, reverseMembers(dom)]) {
+        assert.equal(validateDocument50(reading, { unicode: compiler.unicode }), reading);
+      }
+    }
+  });
+}
+
+test("a resolution step applies its origin rule to its pattern", () => {
+  assert.ok(read(originHeader + "%ambiguity-resolution leftmost-longest #·f(A<_Elided>)"));
+  assert.throws(() => read("%ambiguity-resolution leftmost-longest #·A<_Elided>"),
+    /a leftmost-longest pattern cannot require _Elided/);
+});
+
+test("an origin requirement does not grant a sibling slot access to _Elided", () => {
+  const valid = read(originHeader + "%const $P #f(A<_Elided>, A)");
+  valid.constants[0].value.pattern.args[1].tag = "_Elided";
+  assert.throws(() => validateDocument50(valid), /unknown or forbidden engine key _Elided/);
+  assert.throws(() => read(originHeader + "%const $P #f(A<_Elided>, _Elided)"),
+    /unknown or forbidden engine key _Elided/);
+});
+
+test("a child repetition permits a gap only in a separate child list", () => {
+  assert.ok(read("%const $P #⁅ {⁅ ⋯ ⁆ A} ⁆"));
+  assert.throws(() => read("%const $P #⁅ {A [⋯]} ⁆"), /a repeated child list cannot contain a sibling gap/);
+});
+
+test("a query body and a template actual select their own capture restrictions", () => {
+  assert.throws(() => read('%rule f(@X) @X\n%rule text A %conditions $.parse(f(($x:A B)))'),
+    /an argument cannot read or declare captures/);
+  assert.throws(() => read('%rule f(@X) A %conditions @X\n%rule text f(= [1].all($x ↦ $x.parse($cap:A)))'),
+    /a query cannot declare captures/);
+  assert.throws(() => read('%rule f(@X) A %conditions @X\n%rule text f(= $x.parse(A))'),
+    /an argument cannot read or declare captures/);
+});
+
+test("a body actual starts a separate recognition route", () => {
+  assert.ok(read(originHeader + '%rule text [f((^A B))]'));
+  assert.ok(read(originHeader + '%rule text A f({... B / ","})'));
+  assert.ok(read(originHeader + '%rule text {... f(B) / ","}'));
+  assert.throws(() => read(originHeader + '%rule text [+T≝"v" f(A≝"a")]'),
+    /only an elidable head takes a default value/);
+  assert.throws(() => read(originHeader + "%rule text [^A]"), /a primary must mark a mandatory child/);
+});
+
+test("an n-gram width leaves the count range of its sibling intact", () => {
+  const source = '%rule text A %conditions "a".ngrams(256).any($w ↦ $w = "a") ∧ (1 + 0).at-most(255) = 1';
+  assert.ok(read(source));
+  assertFault(() => read(source.replace("255", "256")), /a count literal must be between 0 and 255/,
+    2, source.indexOf(".at-most") + 1);
+});
+
+test("permission for an implicit binder belongs to the predicate slot", () => {
+  const dom = read("%const $P [{A}].all('A)\n%const $V 1");
+  dom.constants[1].value = structuredClone(dom.constants[0].value.args[0]);
+  assert.throws(() => validateDocument50(dom), /a predicate requires an explicit binder/);
+});
+
+test("a marked actual starts its own binding and type scope", () => {
+  const header = '%rule f(@X) A %conditions @X\n';
+  const predicate = '["a"].all($x ↦ $x = "a")';
+  for (const declaration of [
+    `%const $P $x ↦ #f(= ${predicate})`,
+    `%rule text $x:A → {($ ≅ #f(= ${predicate}))? Test}`,
+    '%rule text A %conditions $ ≅ #f(= "a")',
+  ]) {
+    const dom = read(header + declaration);
+    assert.equal(validateDocument50(dom), dom);
+  }
+  assert.throws(() => read(header + `%const $P $x ↦ ${predicate}`),
+    /a function binder cannot hide a live name/);
+  assert.throws(() => read(header + "%const $P $x ↦ #f(= 'k)"),
+    /an implicit receiver needs a function binding/);
+  assert.throws(() => read(header + "%const $P $x ↦ #f(= $x)"),
+    /an argument cannot read or declare captures/);
+  assert.throws(() => read(header + '%rule text $x:A → {($ ≅ #f(= ["a"].all($x ↦ "a")))? Test}'),
+    /this operand does not have a truth value/);
+});
+
+test("a feature condition keeps its input span separate from a rule condition", () => {
+  const source = "%stage s\n%features feature %conditions $.classes\n%rule text $x:A %conditions $x'Flag ∧ $'Flag";
+  assert.ok(read(source));
+  assert.throws(() => read(source.replace("$.classes", () => "$'Flag")), /a property read needs a node or bag/);
+  assert.throws(() => read(source.replace("$.classes", "$x'Flag")), /a feature condition cannot read a named capture/);
+});
+
+test("a closed actual does not add a boundary atom to its containing condition", () => {
+  const header = "%rule f(@X) A\n";
+  assert.ok(read(header + "%rule text $x:A %conditions $x.followed-by(f(= $n ↦ $n.preceded-by(A)))"));
+  assert.throws(() => read(header + "%rule text $x:A %conditions $x.followed-by(A) ∧ $x.preceded-by(A)"),
+    /a condition item cannot have more than one boundary atom/);
+});
+
+test("a message and a template actual use separate expression contexts", () => {
+  const header = "%rule f(@X) A\n";
+  assert.ok(read(header + '%rule text A %error ($ ≅ #f(= $n ↦ $n.parse(A)) ? "one" | "two")'));
+  assert.throws(() => read(header + '%rule text A %error ($.parse(A) ? "one" | "two")'),
+    /a message cannot read a query/);
+});
+
+test("a node term checks its own string fields and leaves nested bags independent", () => {
+  assert.ok(read("%rule text A → {k: {value: 1}}"));
+  assert.throws(() => read("%rule text A → {value: 1}"), /a value or image needs a string/);
+  assert.throws(() => read("%rule text $x:A %emit $x{value: 1}"), /a value or image needs a string/);
+});
+
+test("logical depth follows a pattern call into its actual and starts again at the next root", () => {
+  const list = count => "[".repeat(count) + '"a"' + "]".repeat(count);
+  const source = count => originHeader + `%const $P #f(= ${list(count)})\n%const $V ${list(256)}`;
+  assert.ok(read(source(254)));
+  assertFault(() => read(source(255)), /nested more than 256 deep/, 4, 1);
 });

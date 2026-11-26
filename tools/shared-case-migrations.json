@@ -1,4 +1,9 @@
 {
+  "engine/i276-message-verbatim.json": {
+    "retired": true,
+    "reason": "Format 50 messages cannot read verbatim text. The format 49 test keeps both message strings with the uncovered gap.",
+    "section": "Engine §9.3, Templates and feature conditions"
+  },
   "engine/implies-emitted-only.json": {
     "reason": "The public bag adds M in the projection. The working word bag and classifier still supply A alone.",
     "fixture": {
