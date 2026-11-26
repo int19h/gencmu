@@ -5534,6 +5534,14 @@
    */
   const NATIVE_PAYLOAD = "native50:payload";
 
+  /**
+   * @internal The tags of the receiver's tag set without those that start
+   * with one of the string arguments: the visible keys of a node of the
+   * format 50 bridge, whose hidden keys share those prefixes. The record check
+   * admits it only in a document of the bridge.
+   */
+  const NATIVE_VISIBLE = "native50:visible";
+
   const METHODS = new Set([...SPAN_METHODS, ...QUERY_METHODS, ...INPUT_STRINGS, "tags", "classes", "split", "ngrams", "classify", "verbatim-text", "emitted"]);
 
   /**
@@ -5551,6 +5559,10 @@
       const prefix = args?.[0]?.string;
       return object(receiver) && Array.isArray(args) && args.length === 1 && object(args[0]) && Object.keys(args[0]).length === 1 &&
         typeof prefix === "string" && /^Payload_[0-9a-f]*_$/.test(prefix) ? null : METHOD_SIGNATURE_PROBLEM;
+    }
+    if (name === NATIVE_VISIBLE) {
+      return object(receiver) && Array.isArray(args) && args.length > 0 &&
+        args.every(arg => object(arg) && Object.keys(arg).length === 1 && typeof arg.string === "string" && arg.string !== "") ? null : METHOD_SIGNATURE_PROBLEM;
     }
     if (!METHODS.has(name)) return `unknown method ${name}`;
     if (!object(receiver) || !Array.isArray(args)) return "a malformed method";
@@ -5588,8 +5600,10 @@
    * @returns {string | null}
    */
   function methodProblem(name, receiver, args, type, argumentTypes, recipe = false) {
-    // The receiver of the bridge's value tag is a string.
+    // The receiver of the bridge's value tag is a string, and the receiver of
+    // its visible keys is a tag set.
     if (name === NATIVE_PAYLOAD) return type === "string" || type === "any" ? null : METHOD_SIGNATURE_PROBLEM;
+    if (name === NATIVE_VISIBLE) return type === "tags" || type === "set" || type === "any" ? null : METHOD_SIGNATURE_PROBLEM;
     if (!METHODS.has(name)) return `unknown method ${name}`;
     const span = type === "span";
     const string = type === "string" || type === "any" || span;
@@ -5644,7 +5658,7 @@
     if (QUERY_METHODS.has(name)) return "condition";
     if (name === "emitted") return "emitted";
     if (name === "split" || name === "ngrams") return "strings";
-    if (name === "tags" || name === "classes" || name === "classify" || name === NATIVE_PAYLOAD) return "tags";
+    if (name === "tags" || name === "classes" || name === "classify" || name === NATIVE_PAYLOAD || name === NATIVE_VISIBLE) return "tags";
     return "string";
   }
 
@@ -6764,7 +6778,7 @@
         else if ("emptySet" in value) { if (value.emptySet !== true) return "a malformed empty set"; }
         else if ("capture" in value) { if (typeof value.capture !== "string" || value.capture !== "" && !CAPTURE_NAME.test(value.capture)) return "a malformed capture reference"; }
         else if ("method" in value) {
-          if (value.method === NATIVE_PAYLOAD && nativeDepth === 0) return "a malformed method";
+          if ((value.method === NATIVE_PAYLOAD || value.method === NATIVE_VISIBLE) && nativeDepth === 0) return "a malformed method";
           if (["classify","ngrams"].includes(value.method) && Array.isArray(value.args) && value.args.some(hasUnresolved)) return "a parameter cannot replace a classifier name or integer argument";
           if (!Array.isArray(value.args) || !object(value.receiver) || (!task.recipe && (value.method === "verbatim-text" || value.method === "emitted")) || (!task.query && QUERY_METHODS.has(value.method) && !["parse","error-free"].includes(value.method))) return "a malformed method";
           push("method-shape", value, depth, { recipe: task.recipe });
@@ -15634,6 +15648,14 @@
           const tag = found => ({ set: tagSet([prefix + [...new TextEncoder().encode(JSON.stringify(asString(found)))].map(byte => byte.toString(16).padStart(2, "0")).join("")]) });
           const value = evaluate(context, receiver, scope);
           return value === HALT ? pause(tag) : tag(value);
+        }
+        case NATIVE_VISIBLE: {
+          // The tags of format 50 without its hidden ones.
+          const prefixes = args.map(arg => /** @type {{string: string}} */ (arg).string);
+          /** @param {TermValue} found */
+          const keep = found => ({ set: tagSet([...asSet(found)].filter(tag => !prefixes.some(prefix => tag.startsWith(prefix)))) });
+          const value = evaluate(context, receiver, scope);
+          return value === HALT ? pause(keep) : keep(value);
         }
         case "classify": {
           const value = evaluate(context, receiver, scope);
@@ -28797,7 +28819,7 @@
   const SYMBOL_KEYS = ["ref", "call", "param", "literal", "range", "wildcard", "splice", "test"];
   const SPAN_READS = new Set([
     "first-token", "last-token", "tokens-after-first", "onward", "following-tokens", "preceding-tokens",
-    "starts-input", "ends-input", "source-text", "decomposed-source-text", "verbatim-text",
+    "starts-input", "ends-input", "source-text", "decomposed-source-text",
     "without-elision", "without-elision-except", "followed-by", "preceded-by", "parse", "error-free",
   ]);
 
@@ -28844,6 +28866,13 @@
       // primary or its sole symbol.
       /** @type {Map<string, Set<string>>} */
       this.tagSources = new Map();
+      // The parameters of each template of this document, and the names that
+      // the actuals of each call bind, by template. A key read through a
+      // parameter of a template reads the rules of its actuals.
+      /** @type {Map<string, string[]>} */
+      this.templateParams = new Map();
+      /** @type {{template: string, actuals: string[][]}[]} */
+      this.templateCalls = [];
       /** @type {Map<string, Set<string>>} */
       this.captureRules = new Map();
       /** @type {any[]} the instance bindings of the document, with their format 50 calls */
@@ -28876,6 +28905,7 @@
     // The written calls by their site, for the names of their instances.
     /** @param {any} call */
     registerCall(call) {
+      this.noteCall(call);
       if (call.at) this.origins.set(`call:${this.path}#${call.at[0]}:${call.at[1]}`, call);
     }
 
@@ -28961,6 +28991,8 @@
         deferred: this.deferred,
         keyReaders: this.keyReaders,
         tagSources: this.tagSources,
+        templateParams: this.templateParams,
+        templateCalls: this.templateCalls,
         opaque: this.opaque,
         constantDeps: this.constantDeps,
         foldedConstants: this.foldedConstants,
@@ -29248,6 +29280,7 @@
     rule(rule) {
       if (rule.instance) {
         this.registerCall(rule.instance);
+        this.addTagSource(rule.name, rule.instance.call);
         // The stage checks read the format 50 actuals, which stay beside the
         // document that the recognizer reads.
         this.instances50.push({ name: rule.name, op: rule.op, at: rule.at, instance: rule.instance, conditions: [] });
@@ -29256,9 +29289,10 @@
       /** @type {any} */
       const copy = { name: rule.name, op: rule.op };
       if (rule.params) copy.params = rule.params;
-      if (rule.args) copy.args = rule.args.map((/** @type {any} */ arg) => this.argument(arg));
       this.captureSymbols = new Map();
       this.currentRule = rule.name;
+      if (rule.params) this.templateParams.set(rule.name, rule.params);
+      if (rule.args) copy.args = rule.args.map((/** @type {any} */ arg) => this.argument(arg));
       // The captures that bind at most one node on every route of the rule.
       this.atMostOne = new Set();
       const counts = new Map();
@@ -29337,10 +29371,7 @@
       // The keys of a primary or a sole symbol become the keys of this rule.
       const sources = primary.name !== null ? primaryNames(alternative.expr)
         : !rule.term && !alternative.term && isSingleSymbol(alternative.expr) ? symbolNames(alternative.expr) : new Set();
-      for (const source of sources) {
-        if (!this.tagSources.has(rule.name)) this.tagSources.set(rule.name, new Set());
-        this.tagSources.get(rule.name)?.add(source);
-      }
+      for (const source of sources) this.addTagSource(rule.name, source);
       let tags;
       // A term that reads a private ranked capture has no keys for an early
       // reader, which needs one expression from every option. A late read is
@@ -29692,23 +29723,28 @@
       if (node.method === "flags" || node.method === "keys" || node.method === "classes") {
         const receiver = node.receiver;
         const method = node.method === "classes" ? "classes" : "tags";
+        // The tags of a node, a span or a forest in recognition hold hidden
+        // keys beside the visible ones, which a key set of it leaves out.
+        /** @param {any} term */
+        const keys = term => method === "tags" ? visibleOf(term) : term;
         // A list of optional or repeated nodes has the union of their keys.
         if (receiver?.method === "union" && receiver.receiver?.map?.capture !== undefined &&
             receiver.receiver.by?.method === node.method) {
           const capture = receiver.receiver.map.capture;
-          return { if: { captured: capture }, then: method === "tags" ? this.capturedTags(capture) : { method, receiver: { capture }, args: [] } };
+          return { if: { captured: capture }, then: keys(method === "tags" ? this.capturedTags(capture) : { method, receiver: { capture }, args: [] }) };
         }
-        if (receiver?.capture !== undefined) return method === "tags" ? this.capturedTags(receiver.capture) : { method, receiver: { capture: receiver.capture }, args: [] };
-        if (receiver?.method === "parse" || receiver?.method === "error-free") return this.forestTags(receiver, method);
+        if (receiver?.capture !== undefined) return keys(method === "tags" ? this.capturedTags(receiver.capture) : { method, receiver: { capture: receiver.capture }, args: [] });
+        if (receiver?.method === "parse" || receiver?.method === "error-free") return keys(this.forestTags(receiver, method));
         // The keys of a span are those of its input tokens.
-        if (receiver?.method !== undefined) return { method, receiver: this.expression(receiver), args: [] };
+        if (receiver?.method !== undefined) return keys({ method, receiver: this.expression(receiver), args: [] });
         return this.fail("read the keys of this expression", node.at ?? at);
       }
       // A list of optional or repeated nodes has the union of their keys.
       if (node.method === "union" && node.receiver?.map?.capture !== undefined && ["flags", "keys", "classes"].includes(node.receiver.by?.method)) {
         const capture = node.receiver.map.capture;
         const method = node.receiver.by.method === "classes" ? "classes" : "tags";
-        return { if: { captured: capture }, then: method === "tags" ? this.capturedTags(capture) : { method, receiver: { capture }, args: [] } };
+        const term = method === "tags" ? visibleOf(this.capturedTags(capture)) : { method, receiver: { capture }, args: [] };
+        return { if: { captured: capture }, then: term };
       }
       if (node.method === "select") {
         return { intersection: [this.tagsOf(node.receiver, at), this.tagsOf(node.args[0], at)] };
@@ -29749,7 +29785,11 @@
         case "literalArgument": return this.stringOperand(rest.literal);
         case "rangeArgument": return { range: rest.range.map((/** @type {any} */ item) => this.stringOperand(item)) };
         case "bodyArgument": return { body: this.body(rest.body, { name: null }) };
-        case "call": return { ...rest, args: rest.args.map((/** @type {any} */ item) => this.argument(item)) };
+        // A call keeps its own position, which the recognizer needs where the
+        // call stands in a body after substitution.
+        case "call":
+          this.noteCall(rest);
+          return { ...rest, args: rest.args.map((/** @type {any} */ item) => this.argument(item)), ...(at ? { at } : {}) };
         case "targetsArgument": return { targets: rest.targets.map((/** @type {any} */ target) => this.target(target)) };
         case "requirementsArgument": return { requirements: rest.requirements.map((/** @type {any} */ item) => this.requirementItem(item)) };
         case "bodyTags": case "bodyTest": case "spliceArgument": return this.body(rest, { name: null });
@@ -29805,7 +29845,7 @@
           if (node.test === "tags") {
             let base = node.expr;
             while (base.capture !== undefined || base.test !== undefined) base = base.expr;
-            if (base.ref !== undefined && /^[a-z]/.test(base.ref)) this.keyReaders.add(base.ref);
+            for (const name of symbolNames(base)) this.readKeysOf(name);
           }
           /** @type {any} */
           const copy = { test: node.test };
@@ -29883,8 +29923,11 @@
         if (node.test === "tags") {
           let base = node.expr;
           while (base && (base.test !== undefined || base.capture !== undefined)) base = base.expr;
-          if (typeof base?.name === "string") this.keyReaders.add(base.name);
+          if (typeof base?.name === "string") this.readKeysOf(base.name);
+          else if (typeof base?.call === "string") this.readKeysOf(base.call);
+          else if (typeof base?.param === "string") this.readKeysOf("@" + base.param);
         }
+        if (typeof node.call === "string" && Array.isArray(node.args)) this.noteCall(node);
         if (typeof node.constant === "string") this.noteConstantRead(node.constant, node.at);
         for (const [key, value] of Object.entries(node)) if (key !== "at" && value && typeof value === "object") stack.push(value);
       }
@@ -30072,9 +30115,50 @@
       if (method === "tags" && query?.method === "parse") {
         const body = query.args[0]?.body;
         const parts = (body?.seq ?? [body]).filter((/** @type {any} */ part) => part && !part.remainder);
-        if (parts.length === 1) for (const name of symbolNames(parts[0])) if (isRuleName(name)) this.keyReaders.add(name);
+        if (parts.length === 1) for (const name of symbolNames(parts[0])) this.readKeysOf(name);
       }
       return { method, receiver: this.expression(forest), args: [] };
+    }
+
+    // A recognizer test reads the keys of the rule that a name gives. A
+    // parameter of the template being lowered stands for the actuals of its
+    // calls, which the loader reads through the marker @template:param.
+    /** @param {string} name */
+    readKeysOf(name) {
+      if (!isRuleName(name)) return;
+      this.keyReaders.add(this.qualified(name));
+    }
+
+    /** @param {string} name */
+    qualified(name) {
+      return name.startsWith("@") && !name.includes(":") ? `@${this.currentRule}:${name.slice(1)}` : name;
+    }
+
+    // The keys of a rule flow into the keys of another, through its primary,
+    // its sole symbol or its template.
+    /** @param {string} rule @param {string} source */
+    addTagSource(rule, source) {
+      if (!isRuleName(source)) return;
+      if (!this.tagSources.has(rule)) this.tagSources.set(rule, new Set());
+      this.tagSources.get(rule)?.add(this.qualified(source));
+    }
+
+    // A call of a template, with the names that each of its actuals binds.
+    /** @param {any} call */
+    noteCall(call) {
+      if (!Array.isArray(call.args)) return;
+      const actuals = call.args.map((/** @type {any} */ arg) => {
+        const kind = recordKind50(arg, "argument");
+        /** @type {Set<string>} */
+        let names = new Set();
+        if (kind === "ruleArgument") names.add(arg.rule);
+        else if (kind === "call") names.add(arg.call);
+        else if (kind === "parameter") names.add("@" + arg.param);
+        else if (kind === "bodyArgument") names = symbolNames(arg.body);
+        else if (kind === "bodyTags" || kind === "bodyTest" || kind === "spliceArgument") names = symbolNames(arg);
+        return [...names].filter(isRuleName).map(name => this.qualified(name));
+      });
+      this.templateCalls.push({ template: call.call, actuals });
     }
 
     // The binder of a forest predicate names a root of the forest, which the
@@ -30093,7 +30177,7 @@
     capturedTags(capture) {
       this.notForestRoot(capture);
       const names = capture === "" ? [this.currentRule] : [...(this.captureRules.get(capture) ?? [])];
-      for (const name of names) if (isRuleName(name)) this.keyReaders.add(name);
+      for (const name of names) this.readKeysOf(name);
       return { method: "tags", receiver: { capture }, args: [] };
     }
 
@@ -30241,23 +30325,8 @@
       if (op === "∈" || op === "∉") {
         return { op, left: this.string(node.left), right: this.strings(node.right) };
       }
-      // The tags of a node in recognition hold hidden keys beside its visible
-      // ones, so a test that needs the absence of other keys cannot read them.
-      /** @param {any} receiver */
-      const tokenCapture = receiver => {
-        const symbol = receiver?.capture !== undefined ? this.captureSymbols.get(receiver.capture) : undefined;
-        return typeof symbol === "string" && !/^[a-z]/.test(symbol);
-      };
-      const hidden = (/** @type {any} */ side) => mayHoldHidden(side, tokenCapture);
-      // A written token holds its visible terminal key, so a comparison with
-      // the empty set has the same answer with or without the hidden keys.
-      /** @param {any} side */
-      const empty = side => side?.emptySet || Array.isArray(side?.bag) && side.bag.length === 0;
-      const withEmpty = empty(node.left) || empty(node.right);
-      if ((op === "⊆" || op === "⊈") && hidden(node.left) && !empty(node.right) ||
-          (op === "=" || op === "≠") && !withEmpty && (hidden(node.left) || hidden(node.right))) {
-        return this.fail(`compare the keys of a node with ${op}`, node.at);
-      }
+      // A key set of a node reads its visible keys (tagsOf), so a test that
+      // needs the absence of other keys compares visible keys only.
       if (op === "⊆" || op === "⊈") return { op, left: this.keySet(node.left), right: this.keySet(node.right) };
       if ((op === "=" || op === "≠") && (isKeySetRecord(node.left) || isKeySetRecord(node.right))) {
         return { op, left: this.keySet(node.left), right: this.keySet(node.right) };
@@ -30332,7 +30401,9 @@
           ["value", "image"].includes(node.receiver.by.property) && node.receiver.map.method === "tokens") {
         return { method: node.receiver.by.property, receiver: this.expression(node.receiver.map.receiver), args: [] };
       }
-      if (node.method === "source-text" || node.method === "decomposed-source-text" || node.method === "verbatim-text") {
+      // .verbatim-text is late (notation, "Text of a span"), so recognition
+      // cannot compute it.
+      if (node.method === "source-text" || node.method === "decomposed-source-text") {
         return this.expression(node);
       }
       return this.fail("compute this string", node.at);
@@ -30393,7 +30464,7 @@
    * @param {any} key
    */
   function isHiddenKey(key) {
-    return key === WRITTEN || key.startsWith("Payload_") || key.startsWith("Present_");
+    return HIDDEN_PREFIXES.some(prefix => key.startsWith(prefix));
   }
 
   /** The hidden recognizer key of every written token. */
@@ -30681,25 +30752,6 @@
   }
 
   // Whether a record is a key set by its form.
-  /**
-   * Whether a key set read in recognition holds hidden keys: the keys of a
-   * token of the stage input, which carries the written-token key and a key
-   * for each payload, unless an intersection with a written set bounds them.
-   * @param {any} node
-   * @param {(receiver: any) => boolean} tokenCapture
-   * @returns {boolean}
-   */
-  function mayHoldHidden(node, tokenCapture) {
-    if (!node || typeof node !== "object") return false;
-    // A class key ends in a capital letter, and a hidden key does not, so
-    // .classes holds no hidden key.
-    if (["flags", "keys", "tags"].includes(node.method)) return tokenCapture(node.receiver);
-    if (node.union) return node.union.some((/** @type {any} */ item) => mayHoldHidden(item, tokenCapture));
-    if (node.intersection) return node.intersection.every((/** @type {any} */ item) => mayHoldHidden(item, tokenCapture));
-    if (node.difference) return mayHoldHidden(node.difference[0], tokenCapture);
-    return false;
-  }
-
   /** @param {any} node */
   function isKeySetRecord(node) {
     return !!node && (node.bag !== undefined || ["flags", "keys", "classes", "select", "classify", "union"].includes(node.method) ||
@@ -31072,6 +31124,16 @@
     return false;
   }
 
+  // The prefixes of the hidden recognizer keys: the written-token key, and
+  // the presence and value keys of each payload.
+  const HIDDEN_PREFIXES = [WRITTEN, "Payload_", "Present_"];
+
+  // The visible keys of a tag term of a node, a span or a forest.
+  /** @param {any} term */
+  function visibleOf(term) {
+    return { method: NATIVE_VISIBLE, receiver: term, args: HIDDEN_PREFIXES.map(prefix => ({ string: prefix })) };
+  }
+
   /** @param {string} name */
   function isRuleName(name) {
     return !/^[A-Z_]/.test(name);
@@ -31094,6 +31156,7 @@
     while (base && (base.capture !== undefined && base.expr || base.test !== undefined || base.primary)) base = base.expr ?? base.primary;
     if (base?.ref !== undefined) into.add(base.ref);
     else if (base?.call !== undefined) into.add(base.call);
+    else if (base?.param !== undefined) into.add("@" + base.param);
     else if (base?.splice !== undefined) symbolNames(base.splice, into);
     return into;
   }
@@ -34017,7 +34080,7 @@
      * @param {any} rules
      * @returns {any}
      */
-    certificates(rules) {
+    certificates(rules, readers = new Set()) {
       const byName = new Map();
       // A rule bound to an instance, as `%rule a = t(…)`, has the alternatives
       // of its template with each parameter replaced by its actual.
@@ -34145,12 +34208,89 @@
         }
         for (const value of Object.values(node)) if (value && typeof value === "object") visit(value, document, symbols);
       };
+      // Recognition computes the keys of a rule whose keys a test reads, so
+      // the parts of its terms that decide those keys run there too (engine
+      // §4, "Proof for a rule value"). These are the guards, the values of
+      // the payload keys whose values recognition reads, and the sources of
+      // copies and splats. A visible key takes no value in recognition. Each
+      // term reads the captures of its own alternative.
+      // The rules whose terms recognition runs: the key readers, and the
+      // instances of key-reading templates that bodies call.
+      /** @type {{rule: any, document: any}[]} */
+      const termRules = [];
+      /** @type {Set<string>} */
+      const seen = new Set();
+      for (const { rule, document } of rules) {
+        if (!rule.params && readers.has(rule.name)) termRules.push({ rule, document });
+        /** @type {any[]} */
+        const pending = [rule.alternatives?.map((/** @type {any} */ alternative) => alternative.expr)];
+        while (pending.length) {
+          const node = pending.pop();
+          if (!node || typeof node !== "object") continue;
+          if (Array.isArray(node)) {
+            for (const item of node) pending.push(item);
+            continue;
+          }
+          if (typeof node.call === "string" && Array.isArray(node.args) && readers.has(node.call) && templates.has(node.call)) {
+            const key = JSON.stringify(node, (field, value) => field === "at" ? undefined : value);
+            if (!seen.has(key)) {
+              seen.add(key);
+              const expanded = expandInstance({ name: node.call, op: "define", instance: node }, templates.get(node.call));
+              if (expanded) termRules.push({ rule: expanded, document });
+            }
+          }
+          for (const [field, value] of Object.entries(node)) if (field !== "at" && value && typeof value === "object") pending.push(value);
+        }
+      }
+      // The payload keys whose values recognition reads: those that a
+      // condition reads, and those that the guards and copies of the terms it
+      // runs read, with the keys that the writers of such a value read in
+      // turn. A test of presence, .has(k) or .has-value(k), reads no value.
+      /** @type {Set<string>} */
+      const demanded = new Set();
+      /** @param {any} node */
+      const readKeys = node => {
+        if (!node || typeof node !== "object") return;
+        if (Array.isArray(node)) return node.forEach(readKeys);
+        if (node.property !== undefined && !/^[A-Z_]/.test(node.property) && node.property !== "value" && node.property !== "image") demanded.add(node.property);
+        for (const value of Object.values(node)) if (value && typeof value === "object") readKeys(value);
+      };
+      for (const { rule } of rules) readKeys(rule.conditions);
+      /** @type {any[]} */
+      const termEntries = termRules.flatMap(({ rule }) => [rule.term, ...(rule.alternatives ?? []).map((/** @type {any} */ alternative) => alternative.term)]
+        .filter(Boolean).flatMap((/** @type {any} */ term) => term.bag ?? []));
+      for (const entry of termEntries) {
+        readKeys(entry.guard);
+        if (entry.kind === "copy" && !/^[A-Z_]/.test(entry.key)) demanded.add(entry.key);
+      }
+      for (let size = -1; size !== demanded.size;) {
+        size = demanded.size;
+        for (const entry of termEntries) if (entry.kind === "write" && entry.keys.some((/** @type {string} */ key) => demanded.has(key))) readKeys(entry.value);
+      }
+      /** @param {any} rule @param {any} document */
+      const visitTerms = (rule, document) => {
+        for (const alternative of rule.alternatives ?? []) {
+          const symbols = new Map();
+          collectRuleCaptures(alternative.expr, symbols);
+          for (const term of [rule.term, alternative.term].filter(Boolean)) {
+            for (const entry of term.bag ?? []) {
+              visit(entry.guard, document, symbols);
+              if (entry.kind === "write" && entry.keys.some((/** @type {string} */ key) => demanded.has(key))) {
+                visit(entry.value, document, symbols);
+              }
+              if (entry.kind === "copy") visit(entry.source, document, symbols);
+              if (entry.kind === "splat") visit(entry.value, document, symbols);
+            }
+          }
+        }
+      };
       for (const { rule, document } of rules) {
         const symbols = new Map();
         for (const alternative of rule.alternatives ?? []) collectRuleCaptures(alternative.expr, symbols);
         visit(rule.alternatives?.map((/** @type {any} */ alternative) => alternative.expr), document);
         visit(rule.conditions, document, symbols);
       }
+      for (const { rule, document } of termRules) visitTerms(rule, document);
       return failures;
     }
 
@@ -34570,7 +34710,7 @@
     for (const value of Object.values(node)) if (value && typeof value === "object") collectRuleCaptures(value, symbols);
   }
 
-  // The methods that read the bag of a node, not its place.
+  // The comparisons whose operand types the stage checks.
   const COMPARED = new Set(["=", "≠", "∈", "∉", "⊆", "⊈"]);
 
   /**
@@ -34595,6 +34735,7 @@
     return undefined;
   }
 
+  // The methods that read the bag of a node, not its place.
   const BAG_READS = new Set(["keys", "flags", "classes", "select", "has", "has-value"]);
 
   // A term builds the bag of `$`, so it cannot read that bag (part 1 §5). Its
@@ -34667,6 +34808,8 @@
         if (arg.expression) return arg.expression;
         if (arg.tag !== undefined) return { ref: arg.tag };
         if (arg.rule !== undefined) return { ref: arg.rule };
+        // A body argument, such as a group or ε, stands for its body.
+        if (arg.body !== undefined) return arg.body;
         return arg;
       }
       return Object.fromEntries(Object.entries(node).map(/** @returns {any} */ ([key, value]) => [key, substitute(value)]));
@@ -35117,8 +35260,6 @@
         checker.check(written);
         const interfaceFailures = inputStates ? checker.inputRefinement(written, inputStates) : [];
         inputStates = checker.outputStates(written, inputStates);
-        const certificateFailures = [...checker.payloadRefinement(written), ...interfaceFailures, ...checker.certificates(written)];
-        for (const document of documents) if (document.deferred.length) throw document.deferred[0];
         // A rule is a key reader where a test reads its keys, or where its keys
         // flow into the keys of a key reader.
         const readers = new Set(documents.flatMap(document => [...document.keyReaders]));
@@ -35127,15 +35268,38 @@
         for (const document of documents) {
           for (const [rule, names] of document.tagSources) sources.set(rule, new Set([...(sources.get(rule) ?? []), ...names]));
         }
+        // A key read through a parameter, the marker @template:param, reads the
+        // rules that the actual of that parameter binds in each call.
+        /** @type {Map<string, string[]>} */
+        const params = new Map();
+        /** @type {Map<string, string[][][]>} */
+        const calls = new Map();
+        for (const document of documents) {
+          for (const [template, names] of document.templateParams) params.set(template, names);
+          for (const { template, actuals } of document.templateCalls) {
+            if (!calls.has(template)) calls.set(template, []);
+            calls.get(template)?.push(actuals);
+          }
+        }
+        /** @param {string} name */
+        const reached = name => {
+          const marker = /^@(.+):([^:]+)$/.exec(name);
+          if (!marker) return [...sources.get(name) ?? []];
+          const index = params.get(marker[1])?.indexOf(marker[2]) ?? -1;
+          return index < 0 ? [] : (calls.get(marker[1]) ?? []).flatMap(actuals => actuals[index] ?? []);
+        };
         const pending = [...readers];
         while (pending.length) {
-          for (const source of sources.get(/** @type {string} */ (pending.pop())) ?? []) {
+          for (const source of reached(/** @type {string} */ (pending.pop()))) {
             if (!readers.has(source)) {
               readers.add(source);
               pending.push(source);
             }
           }
         }
+        // The certificates read the terms of each key reader.
+        const certificateFailures = [...checker.payloadRefinement(written), ...interfaceFailures, ...checker.certificates(written, readers)];
+        for (const document of documents) if (document.deferred.length) throw document.deferred[0];
         for (const document of documents) {
           for (const [rule, error] of document.untranslated) if (readers.has(rule)) throw error;
         }

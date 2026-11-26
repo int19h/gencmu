@@ -64,7 +64,7 @@ export declare class StageCheck {
      * @param {any} rules
      * @returns {any}
      */
-    certificates(rules: any): any;
+    certificates(rules: any, readers?: Set<any>): any;
     /**
      * A read of a payload needs a payload on each route that reaches it. A
      * route of a rule without the key, or with the key bare, needs a test of

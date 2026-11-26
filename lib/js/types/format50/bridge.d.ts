@@ -37,6 +37,13 @@ export declare class Bridge {
     keyReaders: Set<string>;
     /** @type {Map<string, Set<string>>} */
     tagSources: Map<string, Set<string>>;
+    /** @type {Map<string, string[]>} */
+    templateParams: Map<string, string[]>;
+    /** @type {{template: string, actuals: string[][]}[]} */
+    templateCalls: {
+        template: string;
+        actuals: string[][];
+    }[];
     /** @type {Map<string, Set<string>>} */
     captureRules: Map<string, Set<string>>;
     /** @type {any[]} the instance bindings of the document, with their format 50 calls */
@@ -96,6 +103,11 @@ export declare class Bridge {
         deferred: GencmuError[];
         keyReaders: Set<string>;
         tagSources: Map<string, Set<string>>;
+        templateParams: Map<string, string[]>;
+        templateCalls: {
+            template: string;
+            actuals: string[][];
+        }[];
         opaque: Set<string>;
         constantDeps: Map<string, Set<string>>;
         foldedConstants: Map<string, GencmuError>;
@@ -124,6 +136,11 @@ export declare class Bridge {
         deferred: GencmuError[];
         keyReaders: Set<string>;
         tagSources: Map<string, Set<string>>;
+        templateParams: Map<string, string[]>;
+        templateCalls: {
+            template: string;
+            actuals: string[][];
+        }[];
         opaque: Set<string>;
         constantDeps: Map<string, Set<string>>;
         foldedConstants: Map<string, GencmuError>;
@@ -342,6 +359,14 @@ export declare class Bridge {
         receiver: any;
         args: never[];
     };
+    /** @param {string} name */
+    readKeysOf(name: string): void;
+    /** @param {string} name */
+    qualified(name: string): string;
+    /** @param {string} rule @param {string} source */
+    addTagSource(rule: string, source: string): void;
+    /** @param {any} call */
+    noteCall(call: any): void;
     /** @param {string} capture */
     notForestRoot(capture: string): void;
     /** @param {string} capture */
@@ -572,7 +597,7 @@ export declare class Bridge {
  * Whether a recognizer key is one that the bridge adds.
  * @param {any} key
  */
-export declare function isHiddenKey(key: any): any;
+export declare function isHiddenKey(key: any): boolean;
 /** The hidden recognizer key of every written token. */
 export declare const WRITTEN = "Written_token";
 /**
