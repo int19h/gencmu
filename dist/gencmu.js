@@ -28940,24 +28940,34 @@
    * @param {string} path the document
    * @returns {any} a DOM 49 with the extra members `format50` and `origins`
    * @param {any} origins
+   * @param {HiddenKeys} [hidden] the hidden keys of the stages of the document,
+   * where they are not those of the document alone
    */
-  function bridgeDocument(dom, path, origins) {
-    return new Bridge(dom, path, origins).document();
+  function bridgeDocument(dom, path, origins, hidden) {
+    return new Bridge(dom, path, origins, hidden).document();
   }
+
+  /**
+   * @typedef {{demanded: Set<string>, domains: Map<string, any[]>}} HiddenKeys
+   * The keys that are not visible and that recognizer tests read, with the
+   * finite set of values of each key that has one.
+   */
 
   class Bridge {
     /**
      * @param {any} dom
      * @param {any} path
      * @param {any} origins
+     * @param {HiddenKeys} [stageHidden]
      */
-    constructor(dom, path, origins) {
+    constructor(dom, path, origins, stageHidden) {
       this.dom = dom;
       this.path = path;
       this.origins = origins;
+      this.stageHidden = stageHidden;
       /** @type {any[]} */
       this.classifiers = [];
-      /** @type {{demanded: Set<string>, domains: Map<string, any[]>}} the hidden keys that recognizer tests read */
+      /** @type {HiddenKeys} the hidden keys that recognizer tests read */
       this.hidden = { demanded: new Set(), domains: new Map() };
       /** @type {Map<string, GencmuError>} the rules whose keys have no tag term */
       this.untranslated = new Map();
@@ -29054,7 +29064,7 @@
     }
 
     lowerDocument() {
-      this.hidden = hiddenKeys(this.dom);
+      this.hidden = this.stageHidden ?? hiddenKeys([this.dom]);
       const constants = [];
       // The stage reads each constant through its format 50 record. The
       // recognizer gets a placeholder for each one, with its value where a
@@ -30657,12 +30667,15 @@
   }
 
   /**
-   * The keys that are not visible and that a recognizer test reads, with
-   * the finite set of values that the document can give each one. A key
-   * whose values are not known has no domain.
-   * @param {any} dom
+   * @internal The keys that are not visible and that a recognizer test of the
+   * documents reads, with the finite set of values that the documents can give
+   * each one. A key whose values are not known has no domain. A test reads the
+   * keys of a node that any document of its stage writes, so the loader passes
+   * the documents of the stage.
+   * @param {any[]} doms
+   * @returns {HiddenKeys}
    */
-  function hiddenKeys(dom) {
+  function hiddenKeys(doms) {
     const demanded = new Set();
     /** @param {any} node */
     const reads = node => {
@@ -30672,24 +30685,29 @@
       if ((node.method === "has" || node.method === "has-value") && node.args?.[0]?.key !== undefined && !isVisibleKey(node.args[0].key)) demanded.add(node.args[0].key);
       for (const value of Object.values(node)) if (value && typeof value === "object") reads(value);
     };
-    const entries = [];
-    for (const constant of dom.constants) {
-      if (constant.value.lambda !== undefined && constant.value.body?.bag) {
-        for (const entry of constant.value.body.bag) {
-          reads(entry.guard);
-          entries.push(entry);
+    // Each entry with the constants of its document, which its guard reads.
+    /** @type {{entry: any, constants: any[]}[]} */
+    const writes = [];
+    for (const dom of doms) {
+      for (const constant of dom.constants) {
+        if (constant.value.lambda !== undefined && constant.value.body?.bag) {
+          for (const entry of constant.value.body.bag) {
+            reads(entry.guard);
+            writes.push({ entry, constants: dom.constants });
+          }
+        }
+      }
+      for (const rule of dom.rules) {
+        reads(rule.conditions);
+        for (const term of [rule.term, ...(rule.alternatives ?? []).map((/** @type {any} */ alternative) => alternative.term)].filter(Boolean)) {
+          for (const entry of term.bag) {
+            reads(entry.guard);
+            writes.push({ entry, constants: dom.constants });
+          }
         }
       }
     }
-    for (const rule of dom.rules) {
-      reads(rule.conditions);
-      for (const term of [rule.term, ...(rule.alternatives ?? []).map((/** @type {any} */ alternative) => alternative.term)].filter(Boolean)) {
-        for (const entry of term.bag) {
-          reads(entry.guard);
-          entries.push(entry);
-        }
-      }
-    }
+    const entries = writes.map(write => write.entry);
     // The keys that the writers of a demanded key read are demanded too.
     for (let size = -1; size !== demanded.size;) {
       size = demanded.size;
@@ -30700,11 +30718,11 @@
     const unknown = new Set();
     for (let changed = true; changed;) {
       changed = false;
-      for (const entry of entries) {
+      for (const { entry, constants } of writes) {
         if (entry.kind !== "write") continue;
         for (const key of entry.keys.filter((/** @type {any} */ item) => demanded.has(item) && !unknown.has(item))) {
           let values = valuesOf(entry.value, domains, unknown);
-          const allowed = guardValues(entry.guard, entry.value, dom.constants);
+          const allowed = guardValues(entry.guard, entry.value, constants);
           if (allowed) values = values === null ? allowed : values.filter((/** @type {any} */ value) => allowed.includes(value));
           if (values === null) {
             unknown.add(key);
@@ -30726,6 +30744,32 @@
     }
     for (const domain of domains.values()) domain.sort((a, b) => typeof a === typeof b ? (a < b ? -1 : a > b ? 1 : 0) : typeof a === "number" ? -1 : 1);
     return { demanded, domains };
+  }
+
+  /**
+   * @internal The keys that are not visible and that a document reads or
+   * writes anywhere. Only these keys change how the bridge lowers it.
+   * @param {any} dom
+   */
+  function mentionedKeys(dom) {
+    /** @type {Set<string>} */
+    const keys = new Set();
+    /** @param {any} node */
+    const visit = node => {
+      if (!node || typeof node !== "object") return;
+      if (Array.isArray(node)) {
+        for (const item of node) visit(item);
+        return;
+      }
+      if (node.property !== undefined && !isVisibleKey(node.property)) keys.add(node.property);
+      if ((node.method === "has" || node.method === "has-value") && node.args?.[0]?.key !== undefined) keys.add(node.args[0].key);
+      if (node.kind === "write") for (const key of node.keys) keys.add(key);
+      if (["bare", "copy", "delete"].includes(node.kind) && typeof node.key === "string") keys.add(node.key);
+      for (const value of Object.values(node)) if (value && typeof value === "object") visit(value);
+    };
+    visit([dom.rules, dom.constants]);
+    for (const key of [...keys]) if (isVisibleKey(key)) keys.delete(key);
+    return keys;
   }
 
   // The values that an expression can have, or null where they are not known.
@@ -35550,17 +35594,31 @@
     /**
      * @param {any} path
      * @param {any} domOf
+     * @param {Map<string, import("./bridge.js").HiddenKeys>} [hidden] the hidden keys of each document
+     * @returns {Pipeline50}
      */
-    build(path, domOf) {
+    build(path, domOf, hidden) {
       const origins = new Map();
       const bridged = new Map();
+      /** @type {Map<string, any>} the DOM 50 of each document */
+      const doms = new Map();
       const spliced = splicePipeline(path, (document, inherited) => {
         const dom = domOf(document, inherited);
         if (!dom) return undefined;
-        const lowered = bridgeDocument(dom, document, origins);
+        doms.set(document, dom);
+        const lowered = bridgeDocument(dom, document, origins, hidden?.get(document));
         bridged.set(document, lowered);
         return lowered;
       });
+      // A recognizer test reads the hidden keys of a node that another
+      // document of its stage can write. Where a document alone gives other
+      // hidden keys than its stages, the documents are lowered again with
+      // the hidden keys of all the documents of the stages that each serves.
+      if (!hidden) {
+        const tables = stageHiddenKeys(spliced.stages, doms);
+        const own = (/** @type {string} */ document) => hiddenKeys([doms.get(document)]);
+        if ([...tables].some(([document, table]) => !sameHiddenKeys(table, own(document)))) return this.build(path, domOf, tables);
+      }
       // The inferred states of the keys that each stage hands on.
       /** @type {Map<string, Set<string>> | null} */
       let inputStates = null;
@@ -36109,6 +36167,51 @@
         for (const [key, value] of Object.entries(node)) if (key !== "at" && value && typeof value === "object") stack.push(value);
       }
     }
+  }
+
+  /**
+   * The hidden keys of each document: those that the documents of all the
+   * stages that it serves read and write, among the keys that it mentions. A
+   * document in no stage keeps its own.
+   * @param {any[]} stages
+   * @param {Map<string, any>} doms
+   */
+  function stageHiddenKeys(stages, doms) {
+    /** @type {Map<string, Set<string>>} the documents that share a stage with each document */
+    const neighbors = new Map();
+    for (const stage of stages) {
+      const paths = [...new Set(stage.documents.map((/** @type {any} */ run) => run.path))];
+      for (const path of paths) {
+        if (!neighbors.has(path)) neighbors.set(path, new Set());
+        for (const other of paths) neighbors.get(path)?.add(other);
+      }
+    }
+    /** @type {Map<string, import("./bridge.js").HiddenKeys>} the keys of each set of documents */
+    const cache = new Map();
+    /** @type {Map<string, import("./bridge.js").HiddenKeys>} */
+    const tables = new Map();
+    for (const path of doms.keys()) {
+      const group = [...(neighbors.get(path) ?? [path])].filter(other => doms.has(other)).sort();
+      const key = JSON.stringify(group);
+      if (!cache.has(key)) cache.set(key, hiddenKeys(group.map(other => doms.get(other))));
+      const table = /** @type {import("./bridge.js").HiddenKeys} */ (cache.get(key));
+      const mentioned = mentionedKeys(doms.get(path));
+      tables.set(path, {
+        demanded: new Set([...table.demanded].filter(name => mentioned.has(name))),
+        domains: new Map([...table.domains].filter(([name]) => mentioned.has(name))),
+      });
+    }
+    return tables;
+  }
+
+  /**
+   * @param {import("./bridge.js").HiddenKeys} a
+   * @param {import("./bridge.js").HiddenKeys} b
+   */
+  function sameHiddenKeys(a, b) {
+    /** @param {import("./bridge.js").HiddenKeys} table */
+    const text = table => JSON.stringify([[...table.demanded].sort(), [...table.domains].sort(([x], [y]) => x < y ? -1 : x > y ? 1 : 0)]);
+    return text(a) === text(b);
   }
 
   // ---- format50/result.js
