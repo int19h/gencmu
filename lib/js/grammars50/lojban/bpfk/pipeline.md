@@ -133,7 +133,7 @@ The [word-form comparison](morphology.md#differences-from-cll-and-the-reference-
 
 A selbri is the predicate of a sentence. A bridi tail is a selbri with any terms after it.
 
-The BPFK recorded one decision on syntax, and this pipeline does not apply it. On 15 March 2016, the BPFK [ruled](https://mw.lojban.org/index.php?title=BPFK:_lo_nu_broda_ba_brode&oldid=119454) that a tense or modal attaches to a following selbri unless `ku` closes it. So `lo nu broda ba brode` means `lo nu broda cu ba brode`. This pipeline keeps the reading of CLL 1.1, where `ba` is a term inside the `nu` clause, the abstraction: `(lo [{nu (broda ba)} brode])`. camxes-std follows the decision and puts `ba` on `brode`.
+The BPFK recorded one decision on syntax, and this pipeline does not apply it. On 15 March 2016, the BPFK [ruled](https://mw.lojban.org/index.php?title=BPFK:_lo_nu_broda_ba_brode&oldid=119454) that a tense or modal attaches to a following selbri unless `ku` closes it. So `lo nu broda ba brode` means `lo nu broda cu ba brode`. This pipeline keeps the reading of CLL 1.1, where `ba` is a term inside the `nu` clause, the abstraction. Its tree is `(lo [{nu (broda ba)} brode])`. camxes-std follows the decision and puts `ba` on `brode`.
 
 ### Shared indicators and syntax
 
@@ -149,6 +149,7 @@ A tanru unit is a component of a selbri. In a tanru and in an operator, camxes-s
 
 The format 49 copy of this pipeline is `grammars/lojban/bpfk/pipeline.md`. Its stages, features and directives are the same. The deliberate changes are those of the shared documents:
 
+- [Word forms](../common/forms.md#differences-from-the-format-49-grammar): a material pause keeps the decomposed text of its mark as its value. The forms stage is the first stage that differs for a text with such a mark. Raw quotes and quoted marks in the words stage read that value.
 - [The word stream](../common/stream.md#differences-from-the-format-49-grammar): a y letteral, as in `.y. bu`, carries no `Y-Key` or `Ieho`. The words stage is the first stage that differs for it.
 - [Indicators](../cll/indicators.md#differences-from-the-format-49-grammar): a leading attitudinal with its `nai` is one token, and a token covers its satellites. The indicators stage is the first stage that differs for these.
 - [Syntax](../cll/syntax.md#differences-from-the-format-49-grammar): the rule `indicator` reads no `NAI`, because the indicators stage hands on the pair as one token.

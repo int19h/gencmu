@@ -1,6 +1,6 @@
 # Latin conventions
 
-This document adds to [../cll/latin.md](../cll/latin.md) the conventions that Lojban texts use beyond *The Complete Lojban Language* (CLL), edition 1.1.[^cll-c3] Both documents belong to the phoneme stage, the first stage of the pipeline. The [BPFK](../bpfk/pipeline.md) pipeline reads this document after [../cll/latin.md](../cll/latin.md). The experimental and Zantufa pipelines in `grammars/lojban/` read the same conventions. BPFK is the Lojban language planning committee. The [CLL](../cll/pipeline.md) pipeline does not. [The notation document](../../../docs/notation.md) explains the notation.
+This document adds to [../cll/latin.md](../cll/latin.md) the conventions that Lojban texts use beyond *The Complete Lojban Language* (CLL), edition 1.1.[^cll-c3] Both documents belong to the phoneme stage, the first stage of the pipeline. The [BPFK](../bpfk/pipeline.md) pipeline reads this document after [../cll/latin.md](../cll/latin.md). BPFK is the Lojban language planning committee. The experimental and Zantufa pipelines in `grammars/lojban/` read the same conventions. The [CLL](../cll/pipeline.md) pipeline does not. [The notation document](../../../docs/notation.md) explains the notation.
 
 A token is one unit that a stage reads or emits. A token's value is the string that exact comparisons read. Its image is the string that people see.
 
@@ -324,7 +324,7 @@ The `Vowel` tag marks the five full vowels `a`, `e`, `i`, `o` and `u`, and it do
 
 A vowel with an acute or a grave accent is the stressed phoneme, as a capital vowel is. A breve on `i`, `u`, `I` or `U` marks a glide in some texts. The word grammar finds a glide by its position, so the stage emits the letter plain. Stage zero gives a precomposed letter as its base and its marks.
 
-A combining mark that no letter rule takes makes its run foreign, whatever its category. So in `lojban/bpfk` and `lojban/zantufa`, `mï` and `mi` followed by U+093E are foreign. The experimental layer reads both marks ([../experimental/latin.md](../experimental/latin.md)).
+A combining mark that no letter rule takes makes its run foreign, whatever its category. So in `lojban/bpfk` and `lojban/zantufa`, `mï` and `mi` followed by U+093E are foreign. The experimental layer reads both marks (in `grammars/lojban/experimental/latin.md`).
 
 The `Vowel` tag marks the five full vowels and not `y`, so `accented-full-vowel` holds the stressed full vowels and carries `Vowel` on its header. The stressed `y` form stays in `stressed-vowel`.
 

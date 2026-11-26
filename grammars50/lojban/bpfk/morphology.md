@@ -56,7 +56,7 @@ The words stage drops hesitation in `lojban/bpfk` and `lojban/experimental`. Zan
 
 One template states the shape of each word. A word shape carries `Continued`, so another word can follow it directly. If no nucleus begins the word, it carries `Onset`. Only a word with `Onset` can follow another word without a pause.
 
-The word is the primary of its shape, so the shape has the whole bag of its word, and a reader of the result can follow the shape to its word. The value of a particle is the join of its letters' values, which `bu-form` of [../common/forms.md](../common/forms.md) tests. The three shapes are named instances of `word-shape`, so a layer can redefine one of them alone.
+The word is the primary of its shape, so the shape has the whole bag of its word. A reader of the result can follow the shape to its word. The value of a particle is the join of its letters' values, which `bu-form` of [../common/forms.md](../common/forms.md) tests. The three shapes are named instances of `word-shape`, so a layer can redefine one of them alone.
 
 Hesitation is a run of `y` letters, outside `cmavo`. Its name test excludes a name that begins at the same start. `cmavo` excludes a pure `y` run, so a particle is never hesitation.
 
@@ -824,7 +824,7 @@ Like the PEG's rule `n`, this grammar bans `ndj`, `ndz`, `ntc` and `nts` inside 
 
 The format 49 copy of this document is `grammars/lojban/bpfk/morphology.md`. Both copies read the same words, with the same tags and strings.
 
-Each word shape has its word as its primary. So it has the whole bag of its word, and a reader of the result can follow a particle, a name or a brivla to its word form. The format 49 `word-shape` writes only `Continued` and `Onset`, and its `cmevla-shape` and `brivla-shape` copy the tags of the shape.
+Each word shape has its word as its primary. So it has the whole bag of its word. A reader of the result can follow a particle, a name or a brivla to its word form. The format 49 `word-shape` writes only `Continued` and `Onset`, and its `cmevla-shape` and `brivla-shape` copy the tags of the shape.
 
 Each test reads the value of a node or a token. The format 49 copy joins the values of the input tokens in six rules. Five of them now read the value of a node: `initial-pair`, `initial-consonants`, `impermissible-pair`, `syllabic`, and `n-affricate` through `raw-affricate`. The pure-`y` test of `cmavo` is now a query. `diphthong-letters` reads one token in both copies, and here a string terminal in a query states the letter. Each of these tests gives the same answers as before.
 

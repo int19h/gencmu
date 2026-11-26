@@ -4,7 +4,7 @@ This document opens the forms stage. A stage is one step of a pipeline, with its
 
 A token is one unit that a stage reads or emits. A token's value is the string that exact comparisons read. Its image is the string that people see.
 
-The forms stage follows the phoneme stage in every Lojban pipeline. The [CLL pipeline](../cll/pipeline.md) is the one under this source root. The BPFK, experimental and Zantufa pipelines are under `grammars/lojban/`. The stage reads the phoneme values, images and tags.
+The forms stage follows the phoneme stage in every Lojban pipeline. The [CLL](../cll/pipeline.md) and [BPFK](../bpfk/pipeline.md) pipelines are under this source root. The experimental and Zantufa pipelines are under `grammars/lojban/`. The stage reads the phoneme values, images and tags.
 
 The stage divides the text into its source words and gives each word the keys of its class. A token carries a bag of keys. A tag is a capitalized key, which terminals and filters test. The stage hands the words to the words stage ([stream.md](stream.md)), where the magic words act on them. [The notation document](../../../docs/notation.md) explains the notation.
 
@@ -19,7 +19,7 @@ The prose uses these Lojban terms for words:
 - A rafsi is a word form used inside compounds.
 - A gismu is a root word.
 
-The `lojban/cll` pipeline stitches [../cll/shapes.md](../cll/shapes.md) and [../cll/morphology.md](../cll/morphology.md) as its word family. The other pipelines stitch [bpfk/morphology.md](../bpfk/morphology.md), with the experimental or Zantufa word forms after it. The lexicon of `lojban/cll` is [../cll/lexicon.md](../cll/lexicon.md). It gives each cmavo its selma'o.
+The `lojban/cll` pipeline stitches [../cll/shapes.md](../cll/shapes.md) and [../cll/morphology.md](../cll/morphology.md) as its word family. The other pipelines stitch [../bpfk/morphology.md](../bpfk/morphology.md), with the experimental or Zantufa word forms after it. The lexicon of `lojban/cll` and `lojban/bpfk` is [../cll/lexicon.md](../cll/lexicon.md). It gives each cmavo its selma'o.
 
 ## The stage interface
 
@@ -137,7 +137,7 @@ Ordinary word forms divide each run in one way only. Zantufa's `ra'oi` quote is 
 <p><img src="../../../docs/diagrams/50/lojban/common/forms/nonpause-phoneme.svg" alt="Railroad diagram of the rule nonpause-phoneme"></p>
 </details>
 
-The stage covers every input token. It preserves pause boundaries, values, images and keys. A pause token is its `PAUSE` phoneme, so it keeps that phoneme's whole bag. No rule of a later stage reads a pause by its value: each reads `PAUSE` and its filters, and each gap rule writes its own space.
+The stage covers every input token. It preserves pause boundaries, values, images and keys. A pause token is its `PAUSE` phoneme, so it keeps that phoneme's whole bag. No rule of a later stage matches a pause by its value. Each rule reads `PAUSE` and its filters, and each gap rule writes its own space.
 
 The stage passes foreign runs through and combines phonemes into words or foreign runs. A phoneme-stage `FOREIGN` token keeps its value, image, text and keys. The `foreign-token` rule adds `Run-Initial` and `Run-Final`.
 
@@ -315,11 +315,11 @@ camxes-std, the standard grammar of the camxes parser, rejects the whole text `k
 
 ## Differences from the format 49 grammar
 
-The format 49 copy of this document is `grammars/lojban/common/forms.md`. On the text input of `lojban/cll`, both copies hand on the same tokens, with the same strings and tags.
+The format 49 copy of this document is `grammars/lojban/common/forms.md`. On the text input of `lojban/cll`, both copies hand on the same tokens, with the same strings and tags. On `lojban/bpfk`, a material pause token has a different value. A later paragraph of this section explains it.
 
 The lookup gives `Indicator` where it gives an indicator class. The format 49 lexicon adds that tag to each emitted token with such a class. A token that a caller gives `UI` directly therefore needs `Indicator` from the caller too. The CLL phoneme stage gives no such token.
 
-A material pause token keeps the value of its phoneme token, the decomposed text of the mark. The format 49 copy gives every pause token the value of one space. A later stage needs the mark's text in a raw quote, and no later rule reads a pause by its value, so the one space overwrote a value that a later stage needs. On `lojban/cll`, which makes no material pause, no token changes.
+A material pause token keeps the value of its phoneme token, the decomposed text of the mark. The format 49 copy gives every pause token the value of one space. A raw quote in a later stage needs the text of the mark. No later rule matches a pause by its value, so the one space only removes text that a later stage needs. On `lojban/cll`, which makes no material pause, no token changes. On `lojban/bpfk`, the forms stage is the first stage that differs for a text with such a mark.
 
 Two rules put their tags on the node, and not only on the token. They are `foreign-token` with its run tags, and `ordinary-word` with `Run-Initial` and `Run-Final`. So a parent can read them, as `run-words` copies the tags of its later word. Run division tests no boundary flag.
 

@@ -1,6 +1,6 @@
 # The word stream
 
-This document defines the shared words stage of the Lojban pipelines. The `lojban/cll` pipeline includes it. Its rules also cover the classes and features of the `lojban/bpfk`, `lojban/experimental` and `lojban/zantufa` pipelines. A stage reads the tokens from the previous stage and emits tokens for the next stage.
+This document defines the shared words stage of the Lojban pipelines. The [CLL](../cll/pipeline.md) and [BPFK](../bpfk/pipeline.md) pipelines include it. Its rules also cover the classes and features of the `lojban/experimental` and `lojban/zantufa` pipelines. A stage reads the tokens from the previous stage and emits tokens for the next stage.
 
 A token is one unit that a stage reads or emits. A token's value is the string that exact comparisons read. Its image is the string that people see.
 
@@ -461,7 +461,7 @@ Ordinary compounds cannot become delimiters because the marker reads the delimit
 
 `delimiter-body-gap` reads the boundary after the opening delimiter. A marked opening delimiter can place its closing mark across a period-only pause. A period-only pause carries `Period-Only` from the phoneme grammar. It contains no whitespace or ignored characters. The first whitespace ends that opening edge. Separate material stretches remain in the raw body.
 
-`close-gap` reads the pause between the body and the closing delimiter. It writes `$PAUSE`, as each gap rule does. That pause can be a mark with no space around it, as the `"` in `zoi gy foo"gy`, and the quote's value then has one space there, as in `zoi gy foo gy`.
+`close-gap` reads the pause between the body and the closing delimiter. It writes `$PAUSE`, as each gap rule does. That pause can be a mark with no space around it, as the `"` in `zoi gy foo"gy`. The quote's value then has one space there, as in `zoi gy foo gy`.
 
 The body leaves its final quiet pause to the closing gap. The closing edge keeps an attached mark before a pause or the text end. These boundaries give each mark and pause one owner.
 
@@ -687,7 +687,7 @@ The quote hands on one token, which covers its markers and its words. They hand 
 
 ### Raw payloads
 
-`raw-tokens` and `single-run-payload` keep word and FOREIGN values. `payload-token` marks a material pause as its primary, so a raw body keeps the value and the image of each mark, as `zo-punctuation` does for a quoted mark. Delimited quotes take their images from their whole source intervals.
+`raw-tokens` and `single-run-payload` keep word and FOREIGN values. `payload-token` marks a material pause as its primary. So a raw body keeps the value and the image of each mark, as `zo-punctuation` does for a quoted mark. Delimited quotes take their images from their whole source intervals.
 
 `run-token` reads each token that is no pause: a word, a hesitation or a FOREIGN run, each with the value of its token. Its filter names only the kind that it leaves out, so a layer that adds a kind of token need not extend it. A closing run reads only these tokens, a cmavo through `cmavo-token`. So its value is the join of their values.
 
@@ -1018,7 +1018,7 @@ The Zantufa lexicon in `grammars/lojban/zantufa/lexicon.md` gives `zei` class SI
 
 The format 49 copy of this document is `grammars/lojban/common/stream.md`. This document accepts the same texts and hands on the same tokens, with the same values and images. The public keys are the same, except on a y letteral.
 
-`zo-punctuation` and `payload-token` take the value and the image of a material pause from its token. The format 49 copy reads them from the source text, because its forms stage gives the token one space. The strings are the same. `close-gap` writes one space for the pause before the closing delimiter of a `zoi` quote, where the format 49 copy reads the forms value of the pause, which was one space.
+`zo-punctuation` and `payload-token` take the value and the image of a material pause from its token. The format 49 copy reads them from the source text, because its forms stage gives the token one space. The strings are the same. `close-gap` writes one space for the pause before the closing delimiter of a `zoi` quote. The format 49 copy reads the forms value of that pause, which is one space.
 
 The tokens carry the public keys that `$OUTPUTS` names: the keys of the forms stage and the five tags that this stage writes. The format 49 tokens of a y letteral also carry `Y-Key` for `y` or `Ieho` for `ie'o`. Here these two tags are gone, because no stage reads them. A y letteral keeps its letter in the private key `letter`.
 
