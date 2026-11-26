@@ -35,6 +35,10 @@ export declare class Bridge {
     deferred: GencmuError[];
     /** @type {Set<string>} the rules whose keys a recognizer test reads */
     keyReaders: Set<string>;
+    /** @type {Map<string, Set<string>>} */
+    tagSources: Map<string, Set<string>>;
+    /** @type {Map<string, Set<string>>} */
+    captureRules: Map<string, Set<string>>;
     /** @type {any[]} the instance bindings of the document, with their format 50 calls */
     instances50: any[];
     /** @type {Set<string>} the constants that the recognizer gets a placeholder for */
@@ -101,6 +105,7 @@ export declare class Bridge {
         untranslated: Map<string, GencmuError>;
         deferred: GencmuError[];
         keyReaders: Set<string>;
+        tagSources: Map<string, Set<string>>;
         instances50: any[];
     };
     /** @param {any} value */
@@ -273,14 +278,24 @@ export declare class Bridge {
     /** @param {any} receiver */
     receiverTags(receiver: any): {
         forestRoot: boolean;
-        method?: undefined;
-        receiver?: undefined;
-        args?: undefined;
     } | {
-        forestRoot?: undefined;
         method: string;
         receiver: {
-            capture: any;
+            capture: string;
+        };
+        args: never[];
+    };
+    /** @param {any} forest @param {string} [method] */
+    forestTags(forest: any, method?: string): {
+        method: string;
+        receiver: any;
+        args: never[];
+    };
+    /** @param {string} capture */
+    capturedTags(capture: string): {
+        method: string;
+        receiver: {
+            capture: string;
         };
         args: never[];
     };
@@ -302,14 +317,10 @@ export declare class Bridge {
         };
         right: {
             forestRoot: boolean;
-            method?: undefined;
-            receiver?: undefined;
-            args?: undefined;
         } | {
-            forestRoot?: undefined;
             method: string;
             receiver: {
-                capture: any;
+                capture: string;
             };
             args: never[];
         };
@@ -321,14 +332,10 @@ export declare class Bridge {
             };
             right: {
                 forestRoot: boolean;
-                method?: undefined;
-                receiver?: undefined;
-                args?: undefined;
             } | {
-                forestRoot?: undefined;
                 method: string;
                 receiver: {
-                    capture: any;
+                    capture: string;
                 };
                 args: never[];
             };
@@ -342,14 +349,10 @@ export declare class Bridge {
             };
             right: {
                 forestRoot: boolean;
-                method?: undefined;
-                receiver?: undefined;
-                args?: undefined;
             } | {
-                forestRoot?: undefined;
                 method: string;
                 receiver: {
-                    capture: any;
+                    capture: string;
                 };
                 args: never[];
             };
@@ -370,14 +373,10 @@ export declare class Bridge {
                 };
                 right: {
                     forestRoot: boolean;
-                    method?: undefined;
-                    receiver?: undefined;
-                    args?: undefined;
                 } | {
-                    forestRoot?: undefined;
                     method: string;
                     receiver: {
-                        capture: any;
+                        capture: string;
                     };
                     args: never[];
                 };
@@ -398,14 +397,10 @@ export declare class Bridge {
             };
             right: {
                 forestRoot: boolean;
-                method?: undefined;
-                receiver?: undefined;
-                args?: undefined;
             } | {
-                forestRoot?: undefined;
                 method: string;
                 receiver: {
-                    capture: any;
+                    capture: string;
                 };
                 args: never[];
             };
@@ -417,14 +412,10 @@ export declare class Bridge {
                 };
                 right: {
                     forestRoot: boolean;
-                    method?: undefined;
-                    receiver?: undefined;
-                    args?: undefined;
                 } | {
-                    forestRoot?: undefined;
                     method: string;
                     receiver: {
-                        capture: any;
+                        capture: string;
                     };
                     args: never[];
                 };

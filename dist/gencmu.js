@@ -26828,6 +26828,12 @@
       this.deferred = [];
       /** @type {Set<string>} the rules whose keys a recognizer test reads */
       this.keyReaders = new Set();
+      // The rules whose keys flow into the keys of each rule, through its
+      // primary or its sole symbol.
+      /** @type {Map<string, Set<string>>} */
+      this.tagSources = new Map();
+      /** @type {Map<string, Set<string>>} */
+      this.captureRules = new Map();
       /** @type {any[]} the instance bindings of the document, with their format 50 calls */
       this.instances50 = [];
       /** @type {Set<string>} the constants that the recognizer gets a placeholder for */
@@ -26897,6 +26903,7 @@
         untranslated: this.untranslated,
         deferred: this.deferred,
         keyReaders: this.keyReaders,
+        tagSources: this.tagSources,
         instances50: this.instances50,
       };
     }
@@ -27014,6 +27021,8 @@
       this.bindings = rule.alternatives.map((/** @type {any} */ alternative) => ({ min: minBindings(alternative.expr), max: maxBindings(alternative.expr) }));
       this.repeated = new Set([...counts].filter(([, count]) => count > 1).map(([name]) => name));
       for (const alternative of rule.alternatives) collectCaptureSymbols(alternative.expr, this.captureSymbols);
+      this.captureRules = new Map();
+      for (const alternative of rule.alternatives) collectCaptureRules(alternative.expr, this.captureRules);
       // The tags of each alternative read the capture sets of this rule.
       copy.alternatives = rule.alternatives.map((/** @type {any} */ alternative) => this.alternative(alternative, rule));
       try {
@@ -27075,6 +27084,13 @@
       } else {
         this.origins.set(alternativeKey(this.path, rule.at, rule.alternatives.indexOf(alternative)), { ...record, document: this.path });
         copy = { gates: alternative.gates, expr };
+      }
+      // The keys of a primary or a sole symbol become the keys of this rule.
+      const sources = primary.name !== null ? primaryNames(alternative.expr)
+        : !rule.term && !alternative.term && isSingleSymbol(alternative.expr) ? symbolNames(alternative.expr) : new Set();
+      for (const source of sources) {
+        if (!this.tagSources.has(rule.name)) this.tagSources.set(rule.name, new Set());
+        this.tagSources.get(rule.name)?.add(source);
       }
       let tags;
       try {
@@ -27329,7 +27345,7 @@
           return { op: "=", left: this.string(node), right: { string: value } };
         }
         if (!this.hidden.domains.get(node.property)?.some(item => item === value)) return false;
-        return { op: "⊆", left: { tag: payloadTag(node.property, value) }, right: { method: "tags", receiver: { capture: node.receiver.capture }, args: [] } };
+        return { op: "⊆", left: { tag: payloadTag(node.property, value) }, right: this.capturedTags(node.receiver.capture) };
       }
       if (node.if !== undefined && node.else !== undefined) {
         const test = this.truth(node.if);
@@ -27381,7 +27397,7 @@
     tagsOf(node, at) {
       const inlined = this.inline(node);
       if (inlined) return this.tagsOf(inlined, at);
-      if (node.capture !== undefined) return { method: "tags", receiver: { capture: node.capture }, args: [] };
+      if (node.capture !== undefined) return this.capturedTags(node.capture);
       if (node.param !== undefined) return { param: node.param, ...(node.at ? { at: node.at } : {}) };
       if (node.const !== undefined) {
         // Only a key set of visible keys in this document has a tag term.
@@ -27406,10 +27422,10 @@
         if (receiver?.method === "union" && receiver.receiver?.map?.capture !== undefined &&
             receiver.receiver.by?.method === node.method) {
           const capture = receiver.receiver.map.capture;
-          return { if: { captured: capture }, then: { method, receiver: { capture }, args: [] } };
+          return { if: { captured: capture }, then: method === "tags" ? this.capturedTags(capture) : { method, receiver: { capture }, args: [] } };
         }
-        if (receiver?.capture !== undefined) return { method, receiver: { capture: receiver.capture }, args: [] };
-        if (receiver?.method === "parse" || receiver?.method === "error-free") return { method, receiver: this.expression(receiver), args: [] };
+        if (receiver?.capture !== undefined) return method === "tags" ? this.capturedTags(receiver.capture) : { method, receiver: { capture: receiver.capture }, args: [] };
+        if (receiver?.method === "parse" || receiver?.method === "error-free") return this.forestTags(receiver, method);
         // The keys of a span are those of its input tokens.
         if (receiver?.method !== undefined) return { method, receiver: this.expression(receiver), args: [] };
         return this.fail("read the keys of this expression", node.at ?? at);
@@ -27418,7 +27434,7 @@
       if (node.method === "union" && node.receiver?.map?.capture !== undefined && ["flags", "keys", "classes"].includes(node.receiver.by?.method)) {
         const capture = node.receiver.map.capture;
         const method = node.receiver.by.method === "classes" ? "classes" : "tags";
-        return { if: { captured: capture }, then: { method, receiver: { capture }, args: [] } };
+        return { if: { captured: capture }, then: method === "tags" ? this.capturedTags(capture) : { method, receiver: { capture }, args: [] } };
       }
       if (node.method === "select") {
         return { intersection: [this.tagsOf(node.receiver, at), this.tagsOf(node.args[0], at)] };
@@ -27427,7 +27443,7 @@
         return { method: "classify", receiver: this.string(node.args[0]), args: [{ classifier: classifierName(node.receiver.const) }] };
       }
       // A filtered forest is a forest too (part 1 §6).
-      if (node.method === "parse" || node.method === "error-free") return { method: "tags", receiver: this.expression(node), args: [] };
+      if (node.method === "parse" || node.method === "error-free") return this.forestTags(node);
       return this.fail("read the keys of this expression", node.at ?? at);
     }
 
@@ -27718,7 +27734,7 @@
       if (node.method === "any" && (node.receiver?.method === "parse" || node.receiver?.method === "error-free") &&
           node.args[0]?.lambda === "" && node.args[0].body?.property !== undefined && node.args[0].body.receiver?.item &&
           isVisibleKey(node.args[0].body.property)) {
-        return { op: "⊆", left: { tag: node.args[0].body.property }, right: { method: "tags", receiver: this.expression(node.receiver), args: [] } };
+        return { op: "⊆", left: { tag: node.args[0].body.property }, right: this.forestTags(node.receiver) };
       }
       // An overlap of two key sets is a nonempty intersection.
       if (node.method === "overlaps") {
@@ -27737,10 +27753,7 @@
         // A leaf that a terminal reads has the key of that terminal, also
         // where it is omitted.
         if (symbol === flag) return { captured: node.receiver.capture };
-        if (node.receiver.capture === "" || (symbol !== undefined && /^[a-z]/.test(symbol))) {
-          this.keyReaders.add(node.receiver.capture === "" ? this.currentRule : symbol);
-        }
-        return { op: "⊆", left: { tag: flag }, right: { method: "tags", receiver: { capture: node.receiver.capture }, args: [] } };
+        return { op: "⊆", left: { tag: flag }, right: this.capturedTags(node.receiver.capture) };
       }
       // A key set is true where it is not empty (part 3 §3).
       if (isKeySetRecord(node) && node.method !== "classify") {
@@ -27759,8 +27772,32 @@
     receiverTags(receiver) {
       if (receiver?.capture !== undefined && this.forestRoot && receiver.capture === this.forestRoot) return { forestRoot: true };
       if (receiver?.item && this.forestRoot) return { forestRoot: true };
-      if (receiver?.capture !== undefined) return { method: "tags", receiver: { capture: receiver.capture }, args: [] };
+      if (receiver?.capture !== undefined) return this.capturedTags(receiver.capture);
       return this.fail("read the keys of this receiver", receiver?.at);
+    }
+
+    // The keys of the roots of a forest, as a tag term. The rules at the root
+    // of its query become key readers.
+    /** @param {any} forest @param {string} [method] */
+    forestTags(forest, method = "tags") {
+      let query = forest;
+      while (query && query.method !== "parse" && query.receiver) query = query.receiver;
+      if (method === "tags" && query?.method === "parse") {
+        const body = query.args[0]?.body;
+        const parts = (body?.seq ?? [body]).filter((/** @type {any} */ part) => part && !part.remainder);
+        if (parts.length === 1) for (const name of symbolNames(parts[0])) if (isRuleName(name)) this.keyReaders.add(name);
+      }
+      return { method, receiver: this.expression(forest), args: [] };
+    }
+
+    // The keys of a captured node, as a tag term. The rules that the capture
+    // can bind become key readers, so a rule whose keys the bridge cannot
+    // translate fails at load, and is not read as empty.
+    /** @param {string} capture */
+    capturedTags(capture) {
+      const names = capture === "" ? [this.currentRule] : [...(this.captureRules.get(capture) ?? [])];
+      for (const name of names) if (isRuleName(name)) this.keyReaders.add(name);
+      return { method: "tags", receiver: { capture }, args: [] };
     }
 
     // A comparison of a payload that is not visible with a literal or with
@@ -27839,7 +27876,7 @@
     forestPredicate(node) {
       const predicate = node.args[0];
       if (!predicate || predicate.lambda === undefined) return null;
-      const forest = { method: "tags", receiver: this.expression(node.receiver), args: [] };
+      const forest = this.forestTags(node.receiver);
       /** @type {any} */
       const saved = this.forestRoot;
       this.forestRoot = predicate.lambda || " item";
@@ -28625,6 +28662,60 @@
       if (equals !== undefined && found !== null && /^[A-Z]/.test(found)) symbols.set(`${node.capture}=`, equals);
     }
     for (const value of Object.values(node)) if (value && typeof value === "object") collectCaptureSymbols(value, symbols);
+  }
+
+  /** @param {string} name */
+  function isRuleName(name) {
+    return !/^[A-Z_]/.test(name);
+  }
+
+  // The names that a single symbol, or each route of a choice of single
+  // symbols, reads: a rule, a template or a terminal.
+  /**
+   * @param {any} node
+   * @param {Set<string>} [into]
+   * @returns {Set<string>}
+   */
+  function symbolNames(node, into = new Set()) {
+    if (!node || typeof node !== "object") return into;
+    if (node.choice) {
+      for (const route of node.choice) symbolNames(route, into);
+      return into;
+    }
+    let base = node;
+    while (base && (base.capture !== undefined && base.expr || base.test !== undefined || base.primary)) base = base.expr ?? base.primary;
+    if (base?.ref !== undefined) into.add(base.ref);
+    else if (base?.call !== undefined) into.add(base.call);
+    else if (base?.splice !== undefined) symbolNames(base.splice, into);
+    return into;
+  }
+
+  // The names that the primary symbols of a body read.
+  /** @param {any} node @param {Set<string>} [into] */
+  function primaryNames(node, into = new Set()) {
+    if (!node || typeof node !== "object") return into;
+    if (Array.isArray(node)) {
+      for (const item of node) primaryNames(item, into);
+      return into;
+    }
+    if (node.primary) return symbolNames(node.primary, into);
+    for (const value of Object.values(node)) if (value && typeof value === "object") primaryNames(value, into);
+    return into;
+  }
+
+  // The names that each capture of a body can bind.
+  /** @param {any} node @param {Map<string, Set<string>>} rules */
+  function collectCaptureRules(node, rules) {
+    if (!node || typeof node !== "object") return;
+    if (Array.isArray(node)) {
+      for (const item of node) collectCaptureRules(item, rules);
+      return;
+    }
+    if (node.capture !== undefined && node.expr) {
+      if (!rules.has(node.capture)) rules.set(node.capture, new Set());
+      symbolNames(node.expr, rules.get(node.capture));
+    }
+    for (const value of Object.values(node)) if (value && typeof value === "object") collectCaptureRules(value, rules);
   }
 
   /** @param {any} node */
@@ -34495,7 +34586,23 @@
         inputStates = checker.outputStates(written, inputStates);
         const certificateFailures = [...checker.payloadRefinement(written), ...interfaceFailures, ...checker.certificates(written)];
         for (const document of documents) if (document.deferred.length) throw document.deferred[0];
+        // A rule is a key reader where a test reads its keys, or where its keys
+        // flow into the keys of a key reader.
         const readers = new Set(documents.flatMap(document => [...document.keyReaders]));
+        /** @type {Map<string, Set<string>>} */
+        const sources = new Map();
+        for (const document of documents) {
+          for (const [rule, names] of document.tagSources) sources.set(rule, new Set([...(sources.get(rule) ?? []), ...names]));
+        }
+        const pending = [...readers];
+        while (pending.length) {
+          for (const source of sources.get(/** @type {string} */ (pending.pop())) ?? []) {
+            if (!readers.has(source)) {
+              readers.add(source);
+              pending.push(source);
+            }
+          }
+        }
         for (const document of documents) {
           for (const [rule, error] of document.untranslated) if (readers.has(rule)) throw error;
         }
