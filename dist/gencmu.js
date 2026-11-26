@@ -31859,14 +31859,13 @@
        * @returns {number[][]}
        */
       const supportOf = node => node.kind === "projection" ? supportOf(node.part) : (support ??= supports(root)).get(node) ?? [];
-      // The tokens that each emission yields, in output order.
+      // The tokens that each executed emission yields, forwarded ones
+      // included, in output order. Insertions have no support.
       /** @type {Map<any, any[]>} */
       const yielded = new Map();
-      for (const token of tokens) {
-        if (token.insertedBy) continue;
-        const producer = token.node.kind === "projection" ? token.node.producer : token.node;
-        if (!yielded.has(producer)) yielded.set(producer, []);
-        /** @type {any[]} */ (yielded.get(producer)).push(token);
+      for (const [producer, list] of root.yields ?? []) {
+        const kept = list.filter((/** @type {any} */ token) => !token.insertedBy);
+        if (kept.length) yielded.set(producer, kept);
       }
       /**
        * @param {number[][]} own the support of the report
@@ -31879,6 +31878,7 @@
         for (let link = ancestry; link; link = link.up) {
           const list = yielded.get(link.node);
           if (!list) continue;
+          // A support ends at the boundary after its last leaf.
           return list.find(token => {
             const ranges = supportOf(token.node);
             const end = ranges.length ? /** @type {number[]} */ (ranges.at(-1))[1] : token.span[1];
@@ -32202,6 +32202,10 @@
       const tokens = [];
       /** @type {any[]} */
       const synthetic = [];
+      // The tokens that each executed emission yields, forwarded ones
+      // included, in output order (engine §11.4, rule 2).
+      /** @type {Map<any, any[]>} */
+      const yields = new Map();
       // A rule with no %emit hands on what its children hand on. Such chains
       // can be as deep as the text, so the walk uses its own stack.
       /** @param {any} start */
@@ -32215,7 +32219,9 @@
             for (let index = node.children.length - 1; index >= 0; index--) stack.push(node.children[index]);
             continue;
           }
-          for (const entry of emitted(node)) result.push(entry);
+          const entries = emitted(node);
+          yields.set(node, entries.map((/** @type {any} */ entry) => entry.token));
+          for (const entry of entries) result.push(entry);
         }
         return result;
       };
@@ -32280,6 +32286,7 @@
       };
       for (const { node, token } of outputs(root)) tokens.push(Object.assign(token, { node }));
       root.synthetic = synthetic;
+      root.yields = yields;
       for (let index = 1; index < tokens.length; index++) {
         const previous = tokens[index - 1], current = tokens[index];
         if (current.span[0] < previous.span[1] && previous.span[0] < previous.span[1] && current.span[0] < current.span[1] ||
