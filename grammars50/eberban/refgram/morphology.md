@@ -1059,7 +1059,7 @@ An unfinished level of a compound lacks a required component, holds an unfinishe
 
 As in a complete compound, no quote starts in a component slot of an unfinished one. An eraser is no component, so it ends the compound. So in `a e co [ra a mo`, `co` is a plain particle and the bracket is a gap. Then `ra` erases the unfinished compound, and the text keeps `a mo`.
 
-An unfinished level ends only where its next component cannot start. The empty rules `no-first`, `no-later` and `no-er-later` mark each place where a level stops short, and their conditions test that no slot of that level starts there. Without them, the reader could stop before a component that it can read, and a quote could start in that slot. Their queries read sealed copies of the slot rules, `sealed-first`, `sealed-later`, `sealed-er-component` and `sealed-open-later`. So a faulty component still counts as one that can start, as the `pban` of `a er pban co[pban ra] a mo` does. An `er` level uses `no-er-first`, which tests the same slots without `Spaced-E`, as the `er` reader does. The book says that a compound "ignores the grammatical rules of the individual words", so its components are read as words. So in `a e co[pban ra] a mo`, the compound reads `co` and then `pban` after the bracket, which is a gap. That compound is complete with a faulty component, and `ra` erases it, as in the PEG. The same holds in a later slot, as in `a e mi co[pban ra] a mo`.
+An unfinished level ends only where its next component cannot start. The empty rules `no-first`, `no-later` and `no-er-later` mark each place where a level stops short, and their conditions test that no slot of that level starts there. Without them, the reader could stop before a component that it can read, and a quote could start in that slot. Their queries read sealed copies of the slot rules, `sealed-first`, `sealed-later`, `sealed-er-component` and `sealed-open-later`. So a faulty component still counts as one that can start, as the `pban` of `a er pban co[pban ra] a mo` does. An `er` level uses `no-er-first`, which tests the same slots without `Spaced-E`, as the `er` reader does. An `er` level that its closer ends is not unfinished, so `no-er-first` and `no-er-later` also refuse a following `er-closer`. The book says that a compound "ignores the grammatical rules of the individual words", so its components are read as words. So in `a e co[pban ra] a mo`, the compound reads `co` and then `pban` after the bracket, which is a gap. That compound is complete with a faulty component, and `ra` erases it, as in the PEG. The same holds in a later slot, as in `a e mi co[pban ra] a mo`.
 
 The rule `open-compound` reads an unfinished compound. It follows `compound` level by level, with the same slot rules. Each level that it reads is unfinished, as defined above. An `e` level needs two components, and an `en` level needs three.
 
@@ -1107,7 +1107,8 @@ An empty `er e` retains its closing `e` as `Stray-Prefix`, without a second erro
 %rule no-er-first
   ε
 %conditions
-  ¬$.following-tokens.parse(sealed-first<¬Spaced-E> …)
+  ¬$.following-tokens.parse(sealed-first<¬Spaced-E> …),
+  ¬$.following-tokens.parse(er-closer …)
 
 %rule no-later
   ε
@@ -1117,7 +1118,8 @@ An empty `er e` retains its closing `e` as `Stray-Prefix`, without a second erro
 %rule no-er-later
   ε
 %conditions
-  ¬$.following-tokens.parse((sealed-er-component | sealed-open-later<¬Spaced-E>) …)
+  ¬$.following-tokens.parse((sealed-er-component | sealed-open-later<¬Spaced-E>) …),
+  ¬$.following-tokens.parse(er-closer …)
 
 %rule sealed-first
   first-component | open-first
