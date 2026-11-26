@@ -28040,11 +28040,21 @@
       return { method, receiver: this.expression(forest), args: [] };
     }
 
+    // The binder of a forest predicate names a root of the forest, which the
+    // recognizer reads only through its keys. Any other read of it fails.
+    /** @param {string} capture */
+    notForestRoot(capture) {
+      if (this.forestRoot !== undefined && this.forestRoot !== null && capture === this.forestRoot) {
+        this.fail(`read a root of a forest through $${capture} here`, undefined);
+      }
+    }
+
     // The keys of a captured node, as a tag term. The rules that the capture
     // can bind become key readers, so a rule whose keys the bridge cannot
     // translate fails at load, and is not read as empty.
     /** @param {string} capture */
     capturedTags(capture) {
+      this.notForestRoot(capture);
       const names = capture === "" ? [this.currentRule] : [...(this.captureRules.get(capture) ?? [])];
       for (const name of names) if (isRuleName(name)) this.keyReaders.add(name);
       return { method: "tags", receiver: { capture }, args: [] };
@@ -28270,7 +28280,10 @@
       if (node.property === "value" && node.receiver?.capture !== undefined && this.captureSymbols.has(`${node.receiver.capture}=`)) {
         return { string: this.captureSymbols.get(`${node.receiver.capture}=`) };
       }
-      if (node.property === "value" && node.receiver) return { method: "value", receiver: this.expression(node.receiver), args: [] };
+      if (node.property === "value" && node.receiver) {
+        if (node.receiver.capture !== undefined) this.notForestRoot(node.receiver.capture);
+        return { method: "value", receiver: this.expression(node.receiver), args: [] };
+      }
       if (node.property === "image" && node.receiver) return { method: "image", receiver: this.expression(node.receiver), args: [] };
       // The join of the input values or images of a span is the value or
       // the image of that span.
@@ -28290,7 +28303,10 @@
      * @returns {any}
      */
     expression(node) {
-      if (node.capture !== undefined) return { capture: node.capture };
+      if (node.capture !== undefined) {
+        this.notForestRoot(node.capture);
+        return { capture: node.capture };
+      }
       if (node.method === "span") return this.expression(node.receiver);
       if (node.method !== undefined && SPAN_READS.has(node.method)) {
         const args = node.args.map((/** @type {any} */ arg) => {

@@ -305,6 +305,8 @@ export declare class Bridge {
         args: never[];
     };
     /** @param {string} capture */
+    notForestRoot(capture: string): void;
+    /** @param {string} capture */
     capturedTags(capture: string): {
         method: string;
         receiver: {
