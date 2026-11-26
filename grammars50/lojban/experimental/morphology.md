@@ -63,18 +63,20 @@ Thus `atkuila` and `zgiaca'a` are borrowings, while `language` remains foreign. 
 
 The guard excludes neither cluster onsets nor CVV rafsi nor rafsi later in a borrowing. Thus `lanstia`, `baltcuiska`, `baistia` and `bailanguaska` remain borrowings. Borrowing rafsi retain their separate head exclusion. Their final onset before `y` remains ordinary, so `spagetiybroda` and `spagekuykla` stay foreign.
 
-The forms stage marks each CgV name or predicate word with `Cgv-Warning`. The part query reads only that word, so it cannot mark CgV in a later word. The shape keeps its word as its primary, so it keeps the word's tags and strings. `Cgv-Warning` is a public key of the stage, because the words stage reads it, so this layer adds it to `$OUTPUTS`. [The experimental word stream](stream.md) reads this tag and supplies the warning.
+The forms stage marks each CgV name or predicate word with `Cgv-Warning`. The part query reads only that word, so it cannot mark CgV in a later word. The base names its shapes as instances of `word-shape`. So this layer binds each name to an instance of `cgv-shape`, which reads the base instance as its primary and keeps the word's tags and strings. A redefinition by the name alone would edit the base instance, and its body would then read itself. `Cgv-Warning` is a public key of the stage, because the words stage reads it, so this layer adds it to `$OUTPUTS`. [The experimental word stream](stream.md) reads this tag and supplies the warning.
 
 ```jbogenbau
 %redefine-const $OUTPUTS {*$OUTPUTS, Cgv-Warning}
 
--- A name ends in a consonant, unlike a predicate word. It carries the template marks and its warning. The warning test inspects only this complete word.
-%redefine-rule cmevla-shape
-  ^$n:word-shape(cmevla) → {$n.parse(… cgv-form …)? Cgv-Warning}
+-- A word shape that carries the template marks and its warning. The warning test inspects only this complete word.
+%rule cgv-shape(@W)
+  ^$w:word-shape(@W) → {$w.parse(… cgv-form …)? Cgv-Warning}
 
--- A predicate word ends in a vowel, unlike a name. It carries the template marks and its warning. The warning test inspects only this complete word.
-%redefine-rule brivla-shape
-  ^$b:word-shape(brivla-word) → {$b.parse(… cgv-form …)? Cgv-Warning}
+-- A name ends in a consonant, unlike a predicate word.
+%redefine-rule cmevla-shape = cgv-shape(cmevla)
+
+-- A predicate word ends in a vowel, unlike a name.
+%redefine-rule brivla-shape = cgv-shape(brivla-word)
 
 -- A consonant, a glide and its nucleus. A part query finds it anywhere in a word.
 %rule cgv-form
@@ -116,7 +118,8 @@ The forms stage marks each CgV name or predicate word with `Cgv-Warning`. The pa
   h
 ```
 
-<details><summary>Railroad diagrams of the 10 rules from <code>cmevla-shape</code> to <code>banned-after-consonant</code></summary>
+<details><summary>Railroad diagrams of the 11 rules from <code>cgv-shape</code> to <code>banned-after-consonant</code></summary>
+<p><img src="../../../docs/diagrams/50/lojban/experimental/morphology/cgv-shape.svg" alt="Railroad diagram of the rule cgv-shape"></p>
 <p><img src="../../../docs/diagrams/50/lojban/experimental/morphology/cmevla-shape.svg" alt="Railroad diagram of the rule cmevla-shape"></p>
 <p><img src="../../../docs/diagrams/50/lojban/experimental/morphology/brivla-shape.svg" alt="Railroad diagram of the rule brivla-shape"></p>
 <p><img src="../../../docs/diagrams/50/lojban/experimental/morphology/cgv-form.svg" alt="Railroad diagram of the rule cgv-form"></p>
@@ -294,7 +297,7 @@ The experimental filler `ie'o` uses ordinary hesitation behavior, including the 
 
 The format 49 copy of this document is `grammars/lojban/experimental/morphology.md`. Both copies read the same words, with the same tags and strings.
 
-The two word shapes and `source-word` mark their word as the primary, where the format 49 copy copies the word's tags. So a reader of the result can follow a shape to its word. The stage interface names `Cgv-Warning`, which the format 49 copy hands on without a declaration.
+The two word shapes and `source-word` mark their word as the primary, where the format 49 copy copies the word's tags. The two shapes are instances of `cgv-shape`, where the format 49 copy restates each rule. So a reader of the result can follow a shape to its word. The stage interface names `Cgv-Warning`, which the format 49 copy hands on without a declaration.
 
 `cgv-form` is a consonant and a glide, and a part query finds it anywhere in a word. The format 49 copy writes the same search with repetitions of phonemes around them. `cgv-rafsi-continuation` tests its consonant in the body, as `consonant≠"r"`. `diphthong-letters` asks whether the next letter is `i` or `u`, where the format 49 copy reads the value of the next input token.
 

@@ -218,7 +218,7 @@ The `lojban/bpfk` and `lojban/zantufa` pipelines keep `~`, `～`, `〜` and `·`
 
 Stage zero sorts each uninterrupted run of marks of nonzero combining class by class. Within such a run, an ogonek comes before an accent, while an accent and a caron keep their written order. A mark of class zero, such as the grapheme joiner U+034F or U+093E, interrupts the run, and no mark moves across it. So in `a` U+0301 U+034F U+0328 the ogonek stays after the accent. The rules test only which tags a run has, so the order never matters.
 
-A letter rule tests only the marks that mean something on its letter. The letter rule ignores every other mark. So a breve on `a` and an ogonek on `i` change nothing. `named-mark` lists the five meaningful marks with their tags once. `letter-mark` reads a named mark, which keeps its tags, or any other combining mark, which has none.
+A letter rule tests only the marks that mean something on its letter. The letter rule ignores every other mark. So a breve on `a` and an ogonek on `i` change nothing. `named-mark` lists the five meaningful marks with their tags once. `letter-mark` reads a named mark, which keeps its tags, or any other combining mark, which has none. Its alternative writes an empty bag, so it hands on no key of the character.
 
 ```jbogenbau
 %rule letter-marks → {*$m.flags}
@@ -227,7 +227,7 @@ A letter rule tests only the marks that mean something on its letter. The letter
 
 %rule letter-mark
   | named-mark
-  | $m:combining-mark
+  | $m:combining-mark → {}
 %conditions
   ¬$m.parse(named-mark)
 
@@ -293,7 +293,7 @@ A breve on `i` or `u` makes a glide letter, which the next section reads. The vo
 
 The `Vowel` tag marks the five full vowels and not `y`. So `latin-full-vowel` holds the full vowels of `latin-vowel`, and the `y` forms and the glide letter stay in `latin-vowel`.
 
-`vowel-readings` gives the five readings of one vowel letter: plain, stressed by an accent, an accented capital, a capital, and a folded capital. Its last parameter names the marks that the letter cannot take, such as the ogonek on `a`, which makes a diphthong. A dieresis is a mark of the letter, so `latin-vowel` tests it with a query of the letter's own marks.
+`vowel-readings` gives the five readings of one vowel letter: plain, stressed by an accent, an accented capital, a capital, and a folded capital. Its last parameter names the marks that the letter cannot take, such as the ogonek on `a`, which makes a diphthong. A dieresis is a mark of the letter, so `latin-vowel` tests it with a query of the letter's own marks. The query names the mark by its tag, so `named-mark` stays the one list of the marks.
 
 ```jbogenbau
 %rule vowel-readings(@Lower, @Upper, @Value, @Image, @Excluded)
@@ -311,7 +311,7 @@ The `Vowel` tag marks the five full vowels and not `y`. So `latin-full-vowel` ho
   | ^vowel-readings("o", "O", = "o", = "O", <¬Ogonek>)
   | ^vowel-readings("u", "U", = "u", = "U", <¬Breve>)
 
-%rule latin-vowel → {$.parse(… "‹U+0308›" …)? Dieresis}
+%rule latin-vowel → {$.parse(… named-mark<Dieresis> …)? Dieresis}
   | ^latin-full-vowel
   | ^vowel-readings("y", "Y", = "y", = "Y", <>)
   | ^glide-letter
@@ -400,7 +400,7 @@ An ogonek and a caron together on `a` give no reading, so the run is foreign. On
   | @Upper letter-marks<¬Accent @Marks> → {Stressed, Capital, value: @Value, image: @Image}
   | @Upper letter-marks<¬Accent @Marks> → {Folded, Capital, image: value: @Value}
 
-%rule latin-diphthong-i → {$.parse(… "‹U+0308›" …)? Dieresis}
+%rule latin-diphthong-i → {$.parse(… named-mark<Dieresis> …)? Dieresis}
   | ^diphthong-readings("a", "A", = "a", = "A", <Ogonek ¬Caron>)
   | ^diphthong-readings("e", "E", = "e", = "E", <Ogonek>)
   | ^diphthong-readings("o", "O", = "o", = "O", <Ogonek>)
@@ -408,7 +408,7 @@ An ogonek and a caron together on `a` give no reading, so the run is foreign. On
   ${Vowel, $'Stressed},
   ε{Vowel, image: value: "i"}
 
-%rule latin-diphthong-u → {$.parse(… "‹U+0308›" …)? Dieresis}
+%rule latin-diphthong-u → {$.parse(… named-mark<Dieresis> …)? Dieresis}
   | ^diphthong-readings("a", "A", = "a", = "A", <Caron ¬Ogonek>)
   | ^vowel-readings("ꜷ", "Ꜷ", = "a", = "A", <>)
 %emit

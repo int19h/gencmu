@@ -16,7 +16,7 @@ The `Vowel` tag marks the letters of `a`, `e`, `i`, `o` and `u`, full vowels and
 
 The restated vowel rules read `cyrillic-vowel` instead of the inherited vowel and glide readers. Nothing reads `cyrillic-plain-full-vowel`, `cyrillic-stressed-full-vowel`, `cyrillic-folded-full-vowel`, `cyrillic-plain-glide` or `cyrillic-folded-glide` in this pipeline.
 
-Joined vowels use the same public tags as isolated vowels. A vowel token hands on only `Stressed`, `Syllabic` and `Vowel`, the public tags of the stage. The other tags stay inside the phoneme stage.
+Joined vowels use the same public tags as isolated vowels. Of the public tags of the stage, a Cyrillic vowel token has only `Stressed`, `Syllabic` and `Vowel`. The other tags stay inside the phoneme stage.
 
 ```jbogenbau
 %redefine-rule cyrillic-consonant → {Consonant}
