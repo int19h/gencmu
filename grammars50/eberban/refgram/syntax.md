@@ -30,8 +30,6 @@ Erased text after a complete sentence cannot start with a sentence starter eithe
 ```jbogenbau
 %rule text-of(@Open)
   [{DO}] [paragraphs-of(@Open)]
-%conditions
-  $ ≇ #·elided-cai-text ∨ $ ≇ $TEXT-RECOVERY
 
 %rule paragraphs-of(@Open)
   [po-head] sentences-of(@Open) [{po-head sentences-of(@Open)}]
@@ -120,7 +118,7 @@ The chapter erases back to the start of the last sentence that was still grammat
 
 In the whole text, a parenthetical or a quote with a written `cai`, the parameter is `open-sentence`. Such a sentence then does not block the erasure. In a quote whose `cai` is left out, a closer can end the quote. There, any error-free sentence with an error-free end blocks the words route. The parameter there is `quote-sentence-witness`. Each witness is a query only: the sentences themselves still use the ordinary sentence reader.
 
-A written paragraph mark at the start of a paragraph is always the paragraph's mark, so the second condition keeps it out of the erased text. A malformed `PO` is no such mark, so that condition tests an error-free `PO`. A `ra` can also stand where a sentence starts, with nothing to erase. That is `empty-erasure`.
+A written paragraph mark at the start of a paragraph is always the paragraph's mark. So the second condition keeps it out of the erased text. A malformed `PO` is no such mark, so that condition tests an error-free `PO`. A `ra` can also stand where a sentence starts, with nothing to erase. That is `empty-erasure`.
 
 ```jbogenbau
 %rule sentence-or-erasure-of(@Open)
@@ -198,7 +196,7 @@ A written paragraph mark at the start of a paragraph is always the paragraph's m
 
 Sentence erasure reads a sentence and then its `ra` run. Words erasure reads one or more words before that run. Either route can contain malformed words or syntax recovery. Its inner constituent is erased, so its errors, warnings, and measure disappear. The `ra` run stays outside and keeps its own diagnostics.
 
-`erased-sentence` holds the erased sentence, which must be free of errors. The chapter erases back to the start of the last sentence that was still grammatical, so a sentence with an error falls to the words route. `erased-words` holds the arbitrary words, with their first word named by `invalid-head`. The outer rules retain the erasure's following-token guards. An empty erasure reads `ra` alone and erases nothing.
+`erased-sentence` holds the erased sentence, which must be free of errors. The chapter erases back to the start of the last sentence that was still grammatical. So a sentence with an error falls to the words route. `erased-words` holds the arbitrary words, with their first word named by `invalid-head`. The outer rules retain the erasure's following-token guards. An empty erasure reads `ra` alone and erases nothing.
 
 At equal measures, the pipeline first prefers fewer words-erasure routes. Then it prefers the latest start of an erased constituent, which erases the shortest stretch. Thus `a sune mo ra a ke` retains its sentence route rather than a shorter words route. Key steps cannot count the words hidden by the erased seal.
 
@@ -208,7 +206,7 @@ The `@Open` bar rejects a words route only for an error-free sentence witness. O
 
 When its first word is an error-free `quote-ender`, the term of `erased-words` gives it the tag `Closer-Head`. When its first word is an error-free `cai`, with or without free prefixes, the term gives it `Cai-Head`, which the quote rules read. An erased node keeps its tags, so a pattern can still read it. A quote guard reads this tag because the seal hides the real head. Its pattern follows only that quote's own paragraphs and sentences. It does not enter nested text.
 
-The chapter erases back to the start of the last sentence that was still grammatical. A sentence inside a parenthetical that is still open is such a start, so an erasure cannot reach back past it. The condition of `erased-words` states that: its words hold no `da` that opens a sentence, unless a parenthetical from that `da` closes inside the erased words. `open-note-start` names such a `da`. So `ra` in `a mi da a ke ra a mo` erases `a ke` inside the open parenthetical, and the text ends with that parenthetical still open. An unclosed foreign quote gets the same treatment in the [word forms](morphology.md).
+The chapter erases back to the start of the last sentence that was still grammatical. A sentence inside a parenthetical that is still open is such a start, so an erasure cannot reach back past it. The condition of `erased-words` states that. Its words hold no `da` that opens a sentence, unless a parenthetical from that `da` closes inside them. `open-note-start` names such a `da`. So `ra` in `a mi da a ke ra a mo` erases `a ke` inside the open parenthetical, and the text ends with that parenthetical still open. An unclosed foreign quote gets the same treatment in the [word forms](morphology.md).
 
 The chapter says that `ra` "must be surrounded by spaces or pauses". The start of a text counts as a pause, as it does for hesitation in the [word forms](morphology.md). So a text can start with `ra`.
 
@@ -526,6 +524,7 @@ A quote holds several sentences in two cases: it has several paragraphs, or its 
   ¬$t.parse([{DO}] [{free-prefix}] CAI …).error-free,
   $t ≇ $CAI-HEAD-ERASURE,
   ¬$q.parse([{DO}] [{free-prefix}] CAI …).error-free,
+  $q ≇ $TEXT-RECOVERY,
   $q ≇ $CAI-HEAD-ERASURE,
   $q ≇ $CLOSER-HEAD-ERASURE,
   $q ≅ $SEVERAL-SENTENCES ⟹ $.following-tokens.parse(end-of-text …)
@@ -534,6 +533,7 @@ A quote holds several sentences in two cases: it has several paragraphs, or its 
   [{free-prefix}] CA $l:elided-cai-text [+CAI<_Elided>]
 %conditions
   ¬$l.parse([{DO}] [{free-prefix}] CAI …).error-free,
+  $l ≇ $TEXT-RECOVERY,
   $l ≇ $CAI-HEAD-ERASURE,
   $l ≇ $CLOSER-HEAD-ERASURE,
   $l ≅ $SEVERAL-SENTENCES,
@@ -700,7 +700,7 @@ A stray resumption reads its attempted verb and explains that its structure does
 
 Each recovery tail has the tag `DAI` where its own unmatched closer is `dai`. Its statement term also copies the tags of the later tail, and `DAI` is the only tag that a tail can have. It does not forward marks from nested definitions. `$OWNED-DAI-RECOVERY` finds those tails only in the parenthetical's own text skeleton. The parenthetical rejects that recovery, so its first available `dai` closes it.
 
-A quote with written `cai` retains its own recovery scope. Without `cai`, a quote leaves unmatched closers to the enclosing text. `$TEXT-RECOVERY` enforces that boundary without crossing into nested text scopes.
+A quote with written `cai` retains its own recovery scope. Without `cai`, a quote leaves unmatched closers to the enclosing text. The two quote rules whose `cai` is left out test `$TEXT-RECOVERY` on their own text. It finds a recovery tail in that text's own sentences, without crossing into nested text scopes.
 
 ```jbogenbau
 %extend-rule sentence-or-erasure-of(@Open)
@@ -1079,7 +1079,7 @@ The PEG rejects `a mi va mo bi fo ke`. Its chain negation reads `bi`, finds no v
 
 The numbers chapter says that a `JI` other than `jie` must follow a positive integer, with no fractional part. Whether a number is a positive integer depends on its value, as `to jei ti` shows. The grammar tests no values, so it accepts any `JI` after any number, as the PEG does. So `a to jo te ji mian` is a text here. This departs from the book's usage rule, not from the PEG.
 
-The PEG's `ci` reads a native word, a compound or a borrowing, so it reads no digit. A digit is a particle here, so `a ci 1 mian` is a text here and not in the PEG. The PEG's `ci` and this grammar both read `co` after `ci` as a particle and its brackets as spaces, so `a ci co [x] mian` is a text in both.
+The PEG's `ci` reads a native word, a compound or a borrowing, so it reads no digit. A digit is a particle here, so `a ci 1 mian` is a text here and not in the PEG. The PEG's `ci` and this grammar both read `co` after `ci` as a particle and its brackets as spaces. So `a ci co [x] mian` is a text in both.
 
 If no starter, paragraph mark or end of the whole text follows an erasure, the PEG queues its message about the starter. It applies that rule inside a quote or a parenthesis too. A later `ra` that erases ungrammatical text discards the message. So erased text can follow an erasure in the PEG, as it can here. This grammar also accepts the end of an enclosing quote or parenthesis after an erasure. So `a mi da a mo ra dai` is a text here and not in the PEG.
 
@@ -1171,7 +1171,19 @@ Warnings inside a syntax-erased stretch disappear, including warnings raised in 
 
 ## Differences from the format 49 grammar
 
-This document reads the same texts as its format 49 copy, `grammars/eberban/refgram/syntax.md`. It gives the same verdicts, errors, warnings and trees. Its brackets show the images of the word tokens, so they show each change of image of the forms stage. The changes below are changes of form.
+The format 49 copy of this document is `grammars/eberban/refgram/syntax.md`. This copy follows the book's rules in some places where the format 49 copy did not. The changes of outcome come first, each with its rule. Its brackets show the images of the word tokens, so they show each change of image of the forms stage.
+
+- The sentences chapter erases back to the start of the last sentence that was still grammatical. So a sentence that `ra` erases as a whole must be free of errors, and a sentence with an error falls to the words route. A malformed starter, paragraph mark or closer does not end a sentence. So `a mo anra ra a ke` erases `a mo anra` together, and `poh ra a mo` is a text. The format 49 copy kept `a mo` and rejected `poh ra a mo`.
+- A closer with free prefixes belongs to the sentence before it, as a bare closer does. So `a mo di fi ra a ke` erases `a mo di fi`, where the format 49 copy kept `a mo`.
+- A sentence inside a parenthetical that is still open is the last grammatical start. So `a mi da a ke ra a mo` and `a ca a mi da a ke cai ra a mo` are rejected with `unclosed-parenthetical`. The format 49 copy erased back to the outer sentence. With a closing `dai`, as in `a mi da a ke ra a mo dai`, both copies accept.
+- The quotes chapter says that `cai` matches its opening `ca`. So the first `cai` that can close a quote closes it. `a mi ca a mo cai ra a ke cai` and `a mi ca a mo ra cai ra a ke cai` are rejected, because the last `cai` has no owner. The format 49 copy erased the first `cai` inside the quote.
+- The annotations chapter ends a parenthetical with `dai`, so the first `dai` after `da` closes it. `a mi da a mo dai ra a ke dai` is rejected, where the format 49 copy erased the first `dai` inside the parenthetical. A parenthetical with no words is an error, so `a mi da dai` is rejected.
+- A missing `dai` before a written `cai` reports `unclosed-parenthetical`, as in `a ca a mi da mo cai`. The format 49 copy gave the default rejection.
+- The sentences chapter says that `ri` erases a chain that must be grammatical. A `ri` with no chain before it reports one `chain-empty` on that `ri`, and a written `pei` or `vei` after it closes its construct. So `a pe ri mo pei` reports one error, where the format 49 copy reported two.
+- `pa` resumes the latest matching verb. One step rule reads every step, so two equal verbs compare equal also where a `pa` follows one of them. So `a pe mi pa pe mi` is a text, and `a ca mi pa ca mi` keeps `mi` inside each quote, as the PEG does. The format 49 copy rejected the first and emptied the quotes of the second.
+- The quotes chapter says that `ci` quotes one word ignoring its grammar. So `a ci ce ci cei` and `a ci ce mi ci cei` are texts, as in the PEG. The empty spelling quote now reports in the [word forms](morphology.md), so a `ce` inside a compound draws no spelling error.
+
+The changes below are changes of form.
 
 - The two quotes whose `cai` is left out test the origin of the terminator with `[+CAI<_Elided>]`. The format 49 copy compared the value with the empty string, and only an omitted `cai` has that value.
 - `ra-run` has no term. The format 49 copy gave it the tags of its `RA` words, and no rule read them.

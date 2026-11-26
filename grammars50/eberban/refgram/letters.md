@@ -10,7 +10,7 @@ A letter written several times in a row is the same letter written once. The boo
 
 ## The text
 
-The text is a sequence of letters, spaces, foreign letters, hyphens, digits and brackets. The conditions of the letter rules and of `space` make a run of one repeated letter one token, and a run of plain spaces one token. The stage is greedy. Where two parses differ, it takes the one that reads the next character over the one that closes a constituent. A constituent is the text that one rule matches. That policy decides how many line breaks and how much indent a hyphen takes.
+The text is a sequence of letters, spaces, foreign letters, hyphens, digits and brackets. The conditions of the letter rules make a run of one repeated letter one token. The condition of `space` makes a run of plain spaces one token. The stage is greedy. Where two parses differ, it takes the one that reads the next character over the one that closes a constituent. A constituent is the text that one rule matches. That policy decides how many line breaks and how much indent a hyphen takes.
 
 The constant `$DEFAULTS` gives each rule node of the stage two strings. Its value joins the values of its children, and its image joins their images. So on text input a bracket token has the bracket as its value and its image. A digit writes its value in its rule, and its image is the value of the digit character that it reads. Each other token writes both its strings in its rule.
 

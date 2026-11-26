@@ -209,7 +209,7 @@ The morphology chapter says that a hyphen can stand at a syllable boundary insid
 
 Anywhere else, the grammar accepts a hyphen with the warning `hyphen-misplaced`. That includes the start and the end of a word. The rule `hyphen-misplaced` reads such a hyphen, and the pipeline turns the warning on. The PEG warns at most of these places, and the closing section lists the others.
 
-A delimiter of a foreign quote is an Eberban word, and the quote reads such a word in two ways. It reads its delimiters with warnings, and the words inside its text in silence ("Foreign quotes" below). So the rules that a delimiter reaches take the hyphen rule as the parameter `@Hyphen`. The ordinary words read them with `hyphen-misplaced`, which warns. The silent reader reads them with a plain `Hyphen`. A named instance gives each ordinary reading its own name, such as `vhowels`.
+A delimiter of a foreign quote is an Eberban word, and the quote reads such a word in two ways. It reads its delimiters with warnings, and the words inside its text in silence ("Foreign quotes" below). So the rules that a delimiter reaches take the hyphen rule as the parameter `@Hyphen`. The warned delimiter reader `native-delimiter` and the spelling units read them with `hyphen-misplaced`, which warns. The silent reader reads them with a plain `Hyphen`. A named instance gives each warned reading its own name, such as `vhowels` or `root-form`. Ordinary words do not use these strict readers. They use the recovering readers of the section on malformed words, which also admit a faulty piece.
 
 ```jbogenbau
 %rule vowel
@@ -542,7 +542,7 @@ A run of words starts with any word and continues with words that begin with a n
 
 A run that starts with compound prefixes starts a compound ("Compounds" below). Where the compound is not complete, its prefixes carry their errors and its components stay words. A vowel-initial particle or a borrowing can follow the prefixes directly, as the [compounds chapter](https://eberban.github.io/eberban/books/refgram/book/grammar/compounds.html) allows. A hyphen at the start of a run, after the prefixes or at the end of a word is a warning.
 
-Each word emits one token tagged `Word` and its kind. A particle also carries `Particle` and its family. The value of a spelled particle word and of a root word joins the values of its letters, so a hyphen adds nothing to it. Its image joins the images of its letters and of the hyphens that the word rule reads, so such a hyphen stays visible, as in `bja-n`. A hyphen that a run reads before the word stays outside the token, so `a -bjan` gives the image `bjan`. The book lets a hyphen mark a syllable that the writer wants to stand out, so the image keeps that mark. The value is the word that exact comparisons read, and the hyphen never changes it. A digit keeps the digit as its image, as the letters stage gives it.
+Each word emits one token tagged `Word` and its kind. A particle also carries `Particle` and its family. The value of a spelled particle word and of a root word joins the values of its letters, so a hyphen adds nothing to it. Its image joins the images of its letters and of the hyphens that the word rule reads. So such a hyphen stays visible, as in `bja-n`. A hyphen that a run reads before the word stays outside the token, so `a -bjan` gives the image `bjan`. The book lets a hyphen mark a syllable that the writer wants to stand out, so the image keeps that mark. The value is the word that exact comparisons read, and the hyphen never changes it. A digit keeps the digit as its image, as the letters stage gives it.
 
 The morphology chapter says: "Spaces are only mandatory before words starting with a vowel or a sonorant." A digit is a word, so that rule holds after a digit too. So a word that starts with a vowel or `n` never stands right after a digit, with or without a hyphen between them. The rule `after-digit` names that place.
 
@@ -632,7 +632,7 @@ The PEG lets a gap stand between the prefix and the content. The book writes con
 
 A cluster before more vowels has its syllable boundary before it or inside it. A single consonant and an initial pair start a syllable, so a hyphen before them is silent. A medial pair, a sonorant or `m` before a consonant, and a triplet split inside, as the section on hyphens says. The rule `sonorant-pair` reads a sonorant or `m` before a consonant that forms no medial pair. A pair of the same letter twice is no pair, as the morphology chapter says.
 
-The PEG warns about a hyphen before or after the prefix, and about content that starts with the prefix letter after a hyphen. A hyphen after a cluster at the start of the content also warns. Each carries `hyphen-misplaced` here. The token takes its strings from the defaults, as a spelled word does. `freeform-gap` gives any other gap the empty string as its value and its image. So the value is the prefix letter and the content, without the gap, and the image also keeps each hyphen that the rule reads, as in `u-bla`.
+The PEG warns about a hyphen before or after the prefix, and about content that starts with the prefix letter after a hyphen. A hyphen after a cluster at the start of the content also warns. Each carries `hyphen-misplaced` here. The token takes its strings from the defaults, as a spelled word does. `freeform-gap` gives any other gap the empty string as its value and its image. So the value is the prefix letter and the content, without the gap. The image also keeps each hyphen that the rule reads, as in `u-bla`.
 
 ```jbogenbau
 %rule prefix-content-word(@Prefix, @Kind)
@@ -859,7 +859,7 @@ The rule `prefixes` reads the prefixes at the start of a run as one form. The ju
 
 ### Components
 
-The rule `compound-run` reads a compound at the start of a run. The run can go on after the compound with more words, as in `eberbanmi`. The rules `first-slot` and `later-slot` read a component with what joins it to the part before it. `first-slot` follows a prefix, and `later-slot` follows a component. Each slot marks its component as its primary, so the slot gets the value of the component, without the gap, and any `Spaced-E` mark of it. Both read the gap between two parts, which holds spaces, brackets and hesitation. A gap holds no eraser, so an eraser ends the compound.
+The rule `compound-run` reads a compound at the start of a run. The run can go on after the compound with more words, as in `eberbanmi`. The rules `first-slot` and `later-slot` read a component with what joins it to the part before it. `first-slot` follows a prefix, and `later-slot` follows a component. Each slot marks its component as its primary. So the slot gets the value of the component, without the gap, and any `Spaced-E` mark of it. Both read the gap between two parts, which holds spaces, brackets and hesitation. A gap holds no eraser, so an eraser ends the compound.
 
 Without a gap, a component must be able to stand where it stands in a run of words. After a prefix, it can start with a vowel, as in `ea mi`, or it can be a borrowing. After another component, it starts with a non-sonorant consonant or it is a digit. An `NI` particle and a nested compound later in the compound need a gap before them. A word that starts with a vowel needs a space after a digit, as the conditions of the word rules say.
 
@@ -924,7 +924,7 @@ A component keeps its word value, so a digit stands as its `TI` word. The image 
 
 The rule `compound-tail` reads a compound and gives its value without the vowel of its own prefix. A compound puts `e` in front of its tail. A compound whose first component is a nested compound reads that component as a tail after `prefix-join`. It joins the tail with the vowel that the chapter gives.
 
-That vowel depends on the letter before it, so a tail comes in two kinds. `compound-tail` follows a vowel written `e`, and `joined-tail` follows one written `i`. The rule `fixed-tail` holds the alternatives that are the same in both kinds. `first-slot` holds no compound, so each first component has one reading. Each `er-component` adds a space and its value to the value of the list. A later component of an `er` list cannot start with a standalone `e`, because the compounds chapter makes a single `e` the closer of the list. So `fixed-tail` also gives a compound with the prefix `e` its attached form in the key `attached`, and `er-component` reads that form. So `a er mi eberban ban ke e` has the value `er mi eber ban ban ke e`. The spaced form `er mi e ber ban ban ke e` reads back as the list `er mi e`, which another reading then rejects.
+That vowel depends on the letter before it, so a tail comes in two kinds. `compound-tail` follows a vowel written `e`, and `joined-tail` follows one written `i`. The rule `fixed-tail` holds the alternatives that are the same in both kinds. `first-slot` holds no compound, so each first component has one reading. Each `er-component` adds a space and its value to the value of the list. A later component of an `er` list cannot start with a standalone `e`. The compounds chapter makes a single `e` the closer of the list. So `fixed-tail` also gives a compound with the prefix `e` its attached form in the key `attached`, and `er-component` reads that form. So `a er mi eberban ban ke e` has the value `er mi eber ban ban ke e`. The spaced form `er mi e ber ban ban ke e` reads back as the list `er mi e`, which another reading then rejects.
 
 ```jbogenbau
 %rule compound
@@ -999,6 +999,8 @@ The closer emits its gap and `e` where no whole compound covers them. An empty `
 %rule er-components
   er-first er-component er-component er-component [{er-component}]
 
+-- In a complete compound, the compound token replaces these emissions.
+-- In an empty er e, they reach the words stage.
 %rule er-closer
   $g:gap [hyphen-misplaced] $e:Letter="e" [hyphen-misplaced] run-end
 %emit
@@ -1036,7 +1038,7 @@ The step names `open-compound` and not `stray-compound`, because a hyphen before
 
 A reader can expect each quote rule to test the letters before it for an unfinished compound instead. Such a backward test needs the same counts as `open-compound`. Both quote rules and the bar on `co` then read it. The test also has to find where the compound starts. Otherwise the `en` at the end of `ben` in `a ben ce bu cei` counts as a prefix. The forward rule needs none of this, because `first-prefix` starts a compound only at the start of a run.
 
-The prefix errors stand on their prefix tokens. Each alternative of `stray-prefix` takes the bag of its call, so the arity marks of the prefix stay inside the reader. Its token takes only `Stray-Prefix` and its two strings. Its value is the prefix that the reader recognized, as `en` for `EE-N`, because a later stage reads a stray prefix as a word and compares its value. Its image is the source text, which shows the prefix as the text writes it. Syntax accepts only their emitted `Stray-Prefix` class.
+The prefix errors stand on their prefix tokens. Each alternative of `stray-prefix` takes the bag of its call, so the arity marks of the prefix stay inside the reader. Its token takes only `Stray-Prefix` and its two strings. Its value is the prefix that the reader recognized, as `en` for `EE-N`. A later stage reads a stray prefix as a word and compares its value. Its image is the source text, which shows the prefix as the text writes it. Syntax accepts only their emitted `Stray-Prefix` class.
 
 An empty `er e` retains its closing `e` as `Stray-Prefix`, without a second error. The token has the value `e` of its letter, and the source text as its image, as `EEE`. The shared closer reader emits that token and keeps its word boundary. The emitted `e` preserves the word sequence inside a later erasure. Its warnings also survive until an actual erasure removes them.
 
@@ -1133,7 +1135,7 @@ The token carries `CE`, `Quote`, `Word` and `Particle`. Its image is the written
 
 The quote is one unit that starts with `c`, so a run of words can hold it, as in `mice bu cei`. The `ce` is a complete particle, so a word must be able to end after it. After a gap, the first unit can start with any consonant, as the book spells `nu`, `ri` and `lu`. Without a gap, the first unit starts with a non-sonorant consonant, which can begin a word. So `a cenu cei` reads the root `cenu`, and `a ce nu cei` reads a quote of `nu`.
 
-A unit that starts with a vowel needs a gap before it. The quote ends at the first complete `cei` particle, which `complete-cei` reads with a word boundary after it, as the PEG's `CEI` does. So a unit can be `cei` where no word boundary follows it, as in `a ce bu ceinu cei`. A `ce` particle that no `cei` closes is an ordinary word if a first unit follows it, and then the missing `cei` retains the default rejection. If no first unit follows a `ce`, the quote is empty, as in `a ce` or `a ce cei`. The quotes chapter gives a quote at least one unit, so `empty-spelling-quote` reads such a quote with the error `spelling-empty`. After `ci`, a `ce` is a quoted word, so it reports nothing.
+A unit that starts with a vowel needs a gap before it. The quote ends at the first complete `cei` particle, which `complete-cei` reads with a word boundary after it, as the PEG's `CEI` does. So a unit can be `cei` where no word boundary follows it, as in `a ce bu ceinu cei`. A `ce` particle that no `cei` closes is an ordinary word if a first unit follows it. Then the missing `cei` retains the default rejection. If no first unit follows a `ce`, the quote is empty, as in `a ce` or `a ce cei`. The quotes chapter gives a quote at least one unit, so `empty-spelling-quote` reads such a quote with the error `spelling-empty`. After `ci`, a `ce` is a quoted word, so it reports nothing.
 
 The morphology chapter allows a hyphen at a syllable boundary. A consonant unit starts a syllable, so a hyphen right before it is silent, as in `a ce bu-nu cei`. Inside a unit, the hyphen rules of the words apply, so `a ce b-u cei` carries `hyphen-misplaced`. A hyphen beside a gap, after `ce` or before `cei` stands at the edge of a word, so it carries the warning too.
 
@@ -1613,8 +1615,6 @@ A bare quadruplet similarly retains one root token. A framed cluster retains con
 
 %rule freeform-multi-consonant-ending
   consonant [Hyphen] consonant [{[Hyphen] consonant}]
-%conditions
-  $.following-tokens.parse(freeform-ending-boundary …)
 %error "the ending " ++ $.source-text ++ " has more than one consonant"
 ```
 
@@ -1944,11 +1944,19 @@ Erased adjacent hyphens remain junk and emit no hyphen warning. So `a mi 1--2 ra
 
 ## Differences from the format 49 grammar
 
-This document reads the same texts as its format 49 copy, `grammars/eberban/refgram/morphology.md`. It reports the same errors and warnings at the same places, and it emits the same tokens at the same places. One tag, some images and three kinds of value differ.
+The format 49 copy of this document is `grammars/eberban/refgram/morphology.md`. This copy follows the book's rules in three places where the format 49 copy did not. Each changes an outcome.
 
-A borrowing or a freeform variable whose content starts with its prefix letter has the separator `'` in its value and image, as `u'ulis`. The format 49 value `uulis` reads back as another word, and the book writes the separator. A later component of an `er` list writes a nested compound in its attached form, as `eber ban`, because the book makes a standalone `e` the closer of the list. A stray prefix and the closing `e` of an empty `er e` have the value of the prefix or the letter that they read, as `en` for `EE-N`, where the format 49 value was the source text. Each image keeps the source text.
+- The quotes chapter says that `ci` quotes one word ignoring its grammar. So the word after `ci` is a plain word, and `a ci ce ci cei` is a text, as in the PEG. The format 49 copy read `ce ci cei` as a spelling quote and rejected the text.
+- The quotes chapter gives a spelling quote at least one unit. An empty one now reports `spelling-empty` in this stage, on a quote token. The format 49 copy marked the `ce` with `Missing-spelling-unit`, and syntax reported the error. So a `ce` inside a compound drew a false spelling error, as in `a e ce`.
+- The compounds chapter puts an attached `i` only after `e`. An `i` after `i-` is now read with the warning `prefix-i-not-after-e`, so `a ei-i ber ban ban ban` is a text. The format 49 copy rejected it as junk.
 
-The image of a spelled particle word, a root word, an eraser, a borrowing and a freeform variable now keeps each hyphen that the word rule reads. A compound keeps its canonical image, as before. So `bja-n` has the image `bja-n` and the value `bjan`. The format 49 image joined the values of the letters, so it dropped the hyphen. The image is what a person sees, and the book lets a hyphen mark a syllable that the writer wants to stand out.
+Three diagnostic codes have new names. `prefix-i-after-sonorant` is now `prefix-i-not-after-e`, because it also covers an `i` after `i-`. `pair-voiceness` is `pair-voicing`, and `freeform-multi-consonents-ending` is `freeform-multi-consonant-ending`. The table above keeps the PEG's names.
+
+It emits the same tokens at the same places otherwise. One tag, some images and three kinds of value differ.
+
+A borrowing or a freeform variable whose content starts with its prefix letter has the separator `'` in its value and image, as `u'ulis`. The format 49 value `uulis` reads back as another word, and the book writes the separator. A later component of an `er` list writes a nested compound in its attached form, as `eber ban`. The book makes a standalone `e` the closer of the list. A stray prefix has the value of the prefix that it reads, as `en` for `EE-N`. The closing `e` of an empty `er e` has the value of its letter. The format 49 value was the source text. Each image keeps the source text.
+
+The image of a spelled particle word, a root word or an eraser now keeps each hyphen that the word rule reads. So does the image of a borrowing or a freeform variable. A compound keeps its canonical image, as before. So `bja-n` has the image `bja-n` and the value `bjan`. The format 49 image joined the values of the letters, so it dropped the hyphen. The image is what a person sees, and the book lets a hyphen mark a syllable that the writer wants to stand out.
 
 A compound token no longer carries `Spaced-E`. The mark says that the prefix of a compound is a standalone `e`, and only the compound reader reads it. So it stays in this stage, as the other prefix marks do. `$OUTPUTS` names only the kinds of word, the particle families and the marks that the later stages read. So `a e mi mo` hands on a compound with `Word` and `Compound` alone.
 

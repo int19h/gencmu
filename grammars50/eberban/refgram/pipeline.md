@@ -88,3 +88,5 @@ mia, who designed Eberban, considers that reading a limitation of the PEG. Her i
 ## Differences from the format 49 grammar
 
 Each stage document closes with its own list of the differences from its format 49 copy under `grammars/eberban/refgram/`.
+
+The ranking of the syntax stage differs too. The format 49 copy ranked `fewest #·passed-step`, which counted the steps that a resumption passed over. Here one step rule reads every step, and `leftmost-longest #·step` comes last. Its late step leaves an elided `A` out, so the words after a left-out `cai` stay inside its quote. [The grammar](syntax.md#differences-from-the-format-49-grammar) lists the texts that change.
