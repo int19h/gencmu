@@ -23,7 +23,9 @@ The text rules are templates. Their parameter names what blocks an erasure at th
 
 The sentences chapter starts every sentence with a starter, and lets the first sentence of a paragraph leave it out. So a further sentence without a starter is always ungrammatical. `invalid-tail` reads it as erased text, even where the same words form a sentence at the start of a paragraph.
 
-A further sentence cannot start with a paragraph mark or the end of a parenthesis, because those end the paragraph. If no `ra` comes right before it, erased text after a complete sentence cannot start with a closer. A closer is `FI`, `VEI`, `PEI`, `BU`, `PA` or `cai`. Such a closer belongs to the sentence before it, which is then ungrammatical, so the erasure starts at that sentence.
+A further sentence cannot start with a paragraph mark or the end of a parenthesis, because those end the paragraph. If no `ra` comes right before it, erased text after a complete sentence cannot start with a sentence closer, with or without free prefixes. Such a closer belongs to the sentence before it, which is then ungrammatical, so the erasure starts at that sentence. The closers are those of `sentence-closer`.
+
+Erased text after a complete sentence cannot start with a sentence starter either. A malformed starter is the one exception, and only right after a `ra`. There the malformed word starts no sentence, so that `ra` cannot erase it, and a later `ra` erases it as words. A malformed paragraph mark or closer is not such an exception. It would otherwise leave the sentence before it standing, although the book erases back to the last grammatical sentence.
 
 ```jbogenbau
 %rule text-of(@Open)
@@ -44,23 +46,25 @@ A further sentence cannot start with a paragraph mark or the end of a parenthesi
   starter-sentence-of(@Open)
   | invalid-tail
 
+%const $ERASED-TAIL-SENTENCE
+  #·sentence-of⁅ (sentence-erasure | words-erasure) [unmatched-tail] ⁆
+
 %rule starter-sentence-of(@Open)
   $s:sentence-of(@Open)
 %conditions
-  $s.onward.parse(starter-head …)
+  $s.onward.parse(starter-head …),
+  $s ≅ $ERASED-TAIL-SENTENCE ⟹ $s.onward.parse(starter-head …).error-free
 
 %rule invalid-tail
   $s:words-erasure
 %conditions
-  ¬$s.onward.parse(starter-head …),
-  ¬$s.onward.parse((PO | DAI) …),
-  ¬$s.onward.parse(closer …) ∨ $s.preceding-tokens.parse(… RA)
+  ¬$s.onward.parse(starter-head …) ∨
+    (¬$s.onward.parse(starter-head …).error-free ∧ $s.preceding-tokens.parse(… RA)),
+  ¬$s.onward.parse((PO | DAI) …).error-free,
+  ¬$s.onward.parse((PO | sentence-closer) …) ∨ $s.preceding-tokens.parse(… RA)
 
 %rule starter-head
   [{prefix}] (A | O | NI)
-
-%rule closer
-  FI | VEI | PEI | BU | PA | CAI
 
 %rule text = text-of(open-sentence)
 %rule paragraphs = paragraphs-of(open-sentence)
@@ -69,15 +73,15 @@ A further sentence cannot start with a paragraph mark or the end of a parenthesi
 %rule starter-sentence = starter-sentence-of(open-sentence)
 %rule sentence = sentence-of(open-sentence)
 
-%rule open-quote-text = text-of(sentence-choice)
-%rule open-quote-paragraphs = paragraphs-of(sentence-choice)
-%rule open-quote-sentences = sentences-of(sentence-choice)
-%rule open-quote-tail-sentence = tail-sentence-of(sentence-choice)
-%rule open-quote-starter-sentence = starter-sentence-of(sentence-choice)
-%rule open-quote-sentence = sentence-of(sentence-choice)
+%rule open-quote-text = text-of(quote-sentence-witness)
+%rule open-quote-paragraphs = paragraphs-of(quote-sentence-witness)
+%rule open-quote-sentences = sentences-of(quote-sentence-witness)
+%rule open-quote-tail-sentence = tail-sentence-of(quote-sentence-witness)
+%rule open-quote-starter-sentence = starter-sentence-of(quote-sentence-witness)
+%rule open-quote-sentence = sentence-of(quote-sentence-witness)
 ```
 
-<details><summary>Railroad diagrams of the 21 rules from <code>text-of</code> to <code>open-quote-sentence</code></summary>
+<details><summary>Railroad diagrams of the 20 rules from <code>text-of</code> to <code>open-quote-sentence</code></summary>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/syntax/text-of.svg" alt="Railroad diagram of the rule text-of"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/syntax/paragraphs-of.svg" alt="Railroad diagram of the rule paragraphs-of"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/syntax/po-head.svg" alt="Railroad diagram of the rule po-head"></p>
@@ -86,7 +90,6 @@ A further sentence cannot start with a paragraph mark or the end of a parenthesi
 <p><img src="../../../docs/diagrams/50/eberban/refgram/syntax/starter-sentence-of.svg" alt="Railroad diagram of the rule starter-sentence-of"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/syntax/invalid-tail.svg" alt="Railroad diagram of the rule invalid-tail"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/syntax/starter-head.svg" alt="Railroad diagram of the rule starter-head"></p>
-<p><img src="../../../docs/diagrams/50/eberban/refgram/syntax/closer.svg" alt="Railroad diagram of the rule closer"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/syntax/text.svg" alt="Railroad diagram of the rule text"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/syntax/paragraphs.svg" alt="Railroad diagram of the rule paragraphs"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/syntax/sentences.svg" alt="Railroad diagram of the rule sentences"></p>
@@ -107,17 +110,17 @@ A sentence starts with `A`, `O` or `NI`. An `A` sentence is an inner predicate, 
 
 The first sentence of a paragraph can leave its `a` out. An elidable optional starts with its terminator, so no free prefix can stand before an elided `a`. So the second alternative of `a-sentence` reads one or more prefixes before a written `a`.
 
-A sentence ends where the next sentence, paragraph, quote end, parenthesis end or eraser begins, or at the end of the text. A particle that closes an outer construct ends the sentence too: `FI`, `VEI`, `PEI`, `BU` or `PA`. Such a particle ends a quote whose `cai` is left out, together with its last sentence. The rule `sentence-end` names these ends, and `sentence-choice` requires one after the sentence. `sentence-closer` names the closing particles.
+A sentence ends where the next sentence, paragraph, quote end, parenthesis end or eraser begins, or at the end of the text. A particle that closes an outer construct ends the sentence too: `FI`, `VEI`, `PEI`, `BU` or `PA`. Such a particle ends a quote whose `cai` is left out, together with its last sentence, and `quote-ender` names these particles. The rule `sentence-end` names these ends, and `sentence-choice` requires one after the sentence. `sentence-closer` names the closing particles, which are those of `quote-ender`, `cai` and `dai`.
 
-A free prefix can stand before `cai`, `fi` or `bu`, as in `ca mo di cai`, because the rules that read those particles allow one. An open sentence is one that ends at the next sentence, paragraph or eraser, or at the end of the text. No enclosing construct has to claim what follows it, so it is grammatical wherever it stands. `open-sentence` and `open-end` name it.
+A free prefix can stand before `cai`, `fi` or `bu`, as in `ca mo di cai`, because the rules that read those particles allow one. An open sentence is one that ends at the next sentence, paragraph or eraser, or at the end of the text. No enclosing construct has to claim what follows it, so it is grammatical wherever it stands. `open-sentence` and `open-end` name it. Its end must be free of errors, so a malformed starter or paragraph mark does not end it.
 
 The rule `sentence` also reads erasures. The chapter on sentences gives two erasers. `ra` erases everything since the start of the current sentence. It also erases ungrammatical text back to the start of the last grammatical sentence. `ri` erases the current chain, which must be grammatical.
 
 The chapter erases back to the start of the last sentence that was still grammatical. The words route cannot replace an error-free sentence at the start of a paragraph. The first condition of `sentence-of` states that rule. Its parameter selects the required sentence witness. A sentence ending only before a closer or `dai` needs an enclosing construct to claim that word.
 
-In the whole text, a parenthetical or a quote with a written `cai`, the parameter is `open-sentence`. Such a sentence then does not block the erasure. In a quote whose `cai` is left out, a closer can end the quote. There, any error-free sentence blocks the words route. The parameter there is `sentence-choice`.
+In the whole text, a parenthetical or a quote with a written `cai`, the parameter is `open-sentence`. Such a sentence then does not block the erasure. In a quote whose `cai` is left out, a closer can end the quote. There, any error-free sentence with an error-free end blocks the words route. The parameter there is `quote-sentence-witness`. Each witness is a query only: the sentences themselves still use the ordinary sentence reader.
 
-A paragraph mark at the start of a paragraph is always the paragraph's mark, so the second condition keeps it out of the erased text. A `ra` can also stand where a sentence starts, with nothing to erase. That is `empty-erasure`.
+A written paragraph mark at the start of a paragraph is always the paragraph's mark, so the second condition keeps it out of the erased text. A malformed `PO` is no such mark, so that condition tests an error-free `PO`. A `ra` can also stand where a sentence starts, with nothing to erase. That is `empty-erasure`.
 
 ```jbogenbau
 %rule sentence-of(@Open)
@@ -126,12 +129,17 @@ A paragraph mark at the start of a paragraph is always the paragraph's mark, so 
   | empty-erasure
 %conditions
   ¬$i.onward.parse(@Open …).error-free,
-  ¬$i.onward.parse(po-head …)
+  ¬$i.onward.parse(PO …).error-free
 
 %rule sentence-choice
   $s:sentence-body
 %conditions
   $s.following-tokens.parse(sentence-end …)
+
+%rule quote-sentence-witness
+  $s:sentence-body
+%conditions
+  $s.following-tokens.parse(sentence-end …).error-free
 
 %rule sentence-body
   o-sentence | ni-sentence | a-sentence
@@ -139,22 +147,22 @@ A paragraph mark at the start of a paragraph is always the paragraph's mark, so 
 %rule sentence-end
   open-end | sentence-closer
 
+%rule quote-ender
+  | [{prefix}] (FI | BU)
+  | VEI | PEI | PA
+
 %rule sentence-closer
-  [{prefix}] (CAI | FI | BU)
-  | DAI | VEI | PEI | PA
+  | quote-ender
+  | [{prefix}] CAI
+  | DAI
 
 %rule open-sentence
   $s:sentence-body
 %conditions
-  $s.following-tokens.parse(open-end …)
+  $s.following-tokens.parse(open-end …).error-free
 
 %rule open-end
   starter-head | PO | RA | end-of-text
-
-%rule elider-word
-  FI | VEI | PEI | BU | PA
-%conditions
-  $.onward.parse(erasure-reach …)
 
 %rule end-of-text
   ε
@@ -172,15 +180,16 @@ A paragraph mark at the start of a paragraph is always the paragraph's mark, so 
   [{prefix}] NI definable
 ```
 
-<details><summary>Railroad diagrams of the 12 rules from <code>sentence-of</code> to <code>ni-sentence</code></summary>
+<details><summary>Railroad diagrams of the 13 rules from <code>sentence-of</code> to <code>ni-sentence</code></summary>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/syntax/sentence-of.svg" alt="Railroad diagram of the rule sentence-of"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/syntax/sentence-choice.svg" alt="Railroad diagram of the rule sentence-choice"></p>
+<p><img src="../../../docs/diagrams/50/eberban/refgram/syntax/quote-sentence-witness.svg" alt="Railroad diagram of the rule quote-sentence-witness"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/syntax/sentence-body.svg" alt="Railroad diagram of the rule sentence-body"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/syntax/sentence-end.svg" alt="Railroad diagram of the rule sentence-end"></p>
+<p><img src="../../../docs/diagrams/50/eberban/refgram/syntax/quote-ender.svg" alt="Railroad diagram of the rule quote-ender"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/syntax/sentence-closer.svg" alt="Railroad diagram of the rule sentence-closer"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/syntax/open-sentence.svg" alt="Railroad diagram of the rule open-sentence"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/syntax/open-end.svg" alt="Railroad diagram of the rule open-end"></p>
-<p><img src="../../../docs/diagrams/50/eberban/refgram/syntax/elider-word.svg" alt="Railroad diagram of the rule elider-word"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/syntax/end-of-text.svg" alt="Railroad diagram of the rule end-of-text"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/syntax/a-sentence.svg" alt="Railroad diagram of the rule a-sentence"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/syntax/o-sentence.svg" alt="Railroad diagram of the rule o-sentence"></p>
@@ -189,7 +198,7 @@ A paragraph mark at the start of a paragraph is always the paragraph's mark, so 
 
 Sentence erasure reads a sentence and then its `ra` run. Words erasure reads one or more words before that run. Either route can contain malformed words or syntax recovery. Its inner constituent is erased, so its errors, warnings, and measure disappear. The `ra` run stays outside and keeps its own diagnostics.
 
-`erased-sentence` holds the erased sentence. `erased-words` holds the arbitrary words, with their first word named by `invalid-head`. The outer rules retain the erasure's following-token guards. An empty erasure reads `ra` alone and erases nothing.
+`erased-sentence` holds the erased sentence, which must be free of errors. The chapter erases back to the start of the last sentence that was still grammatical, so a sentence with an error falls to the words route. `erased-words` holds the arbitrary words, with their first word named by `invalid-head`. The outer rules retain the erasure's following-token guards. An empty erasure reads `ra` alone and erases nothing.
 
 At equal measures, the pipeline first prefers fewer words-erasure routes. Then it prefers the latest start of an erased constituent, which erases the shortest stretch. Thus `a sune mo ra a ke` retains its sentence route rather than a shorter words route. Key steps cannot count the words hidden by the erased seal.
 
@@ -197,13 +206,15 @@ The `@Open` bar rejects a words route only for an error-free sentence witness. O
 
 `invalid-head` needs a later `ra`, which `erasure-reach` tests. This query reads every token before that `ra`, including malformed words and unclassified junk. Without it, every failed text keeps a speculative erasure reading and reports only a missing `ra` at input end.
 
-When its own first word is an elider, the term of `erased-words` gives it the tag `Closer-Head`. An erased node keeps its tags, so a pattern can still read it. A quote guard reads this tag because the seal hides the real head. Its pattern follows only that quote's own paragraphs and sentences. It does not enter nested text.
+When its first word is an error-free `quote-ender`, the term of `erased-words` gives it the tag `Closer-Head`. When its first word is an error-free `cai`, with or without free prefixes, the term gives it `Cai-Head`, which the quote rules read. An erased node keeps its tags, so a pattern can still read it. A quote guard reads this tag because the seal hides the real head. Its pattern follows only that quote's own paragraphs and sentences. It does not enter nested text.
+
+The chapter erases back to the start of the last sentence that was still grammatical. A sentence inside a parenthetical that is still open is such a start, so an erasure cannot reach back past it. The condition of `erased-words` states that: its words hold no `da` that opens a sentence, unless a parenthetical from that `da` closes inside the erased words. `open-note-start` names such a `da`. So `ra` in `a mi da a ke ra a mo` erases `a ke` inside the open parenthetical, and the text ends with that parenthetical still open. An unclosed foreign quote gets the same treatment in the [word forms](morphology.md).
 
 The chapter says that `ra` "must be surrounded by spaces or pauses". The start of a text counts as a pause, as it does for hesitation in the [word forms](morphology.md). So a text can start with `ra`.
 
 The PEG requires a written starter after an erasure, and states this rule in an error message. The book supports it only by inference. It lets only the first sentence of a paragraph leave its starter out, and the sentence after an erasure is not the first.
 
-Erased text can follow an erasure too, because the later `ra` erases it. So `after-erasure` accepts a starter, a paragraph mark or more erased text. It also accepts the end of the text, or a particle that ends an enclosing quote or parenthesis. The particles of `elider-word` end a quote whose `cai` is left out.
+Erased text can follow an erasure too, because the later `ra` erases it. So `after-erasure` accepts a starter, a paragraph mark or more erased text. It also accepts the end of the text, or a particle that ends an enclosing quote or parenthesis. The particles of `quote-ender` end a quote whose `cai` is left out.
 
 ```jbogenbau
 %rule sentence-erasure
@@ -221,11 +232,17 @@ Erased text can follow an erasure too, because the later `ra` erases it. So `aft
     words-erasure⁅ erased-words<Closer-Head> ⋯ ⁆ ⋯ ⁆ ⋯ ⁆ ⁆
 
 %rule erased-sentence
-  sentence-choice
+  $s:sentence-choice
+%conditions
+  $s.parse(sentence-body).error-free
 %erased
 
 %rule erased-words
-  $h:invalid-head [{erasure-word}] → {$h ≅ #elider-word? Closer-Head}
+  $h:invalid-head [{erasure-word}]
+      → {$h.onward.parse(quote-ender …).error-free? Closer-Head,
+         $h.onward.parse([{prefix}] CAI …).error-free? Cai-Head}
+%conditions
+  ¬$.parse(… open-note-start …).error-free
 %erased
 
 %rule empty-erasure
@@ -234,22 +251,23 @@ Erased text can follow an erasure too, because the later `ra` erases it. So `aft
   $.following-tokens.parse(after-erasure …)
 
 %rule invalid-head
-  elider-word
-  | _<¬RA ¬FI ¬VEI ¬PEI ¬BU ¬PA>
+  _<¬RA>
 %conditions
   $.onward.parse(erasure-reach …)
 
 %rule erasure-reach
   {_<¬RA>} RA
 
+%rule open-note-start
+  DA [{DO}] (starter-head | sentence-body)
+%conditions
+  ¬$.onward.parse(parenthetical …).error-free
+
 %rule erasure-word
   _<¬RA>
 
 %rule ra-run
-  *ra-words [*erasure-needs-starter]
-
-%rule ra-words
-  {RA}
+  {RA} [*erasure-needs-starter]
 
 %rule after-erasure
   starter-head | PO | words-erasure | sentence-closer | end-of-text
@@ -263,9 +281,9 @@ Erased text can follow an erasure too, because the later `ra` erases it. So `aft
 <p><img src="../../../docs/diagrams/50/eberban/refgram/syntax/empty-erasure.svg" alt="Railroad diagram of the rule empty-erasure"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/syntax/invalid-head.svg" alt="Railroad diagram of the rule invalid-head"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/syntax/erasure-reach.svg" alt="Railroad diagram of the rule erasure-reach"></p>
+<p><img src="../../../docs/diagrams/50/eberban/refgram/syntax/open-note-start.svg" alt="Railroad diagram of the rule open-note-start"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/syntax/erasure-word.svg" alt="Railroad diagram of the rule erasure-word"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/syntax/ra-run.svg" alt="Railroad diagram of the rule ra-run"></p>
-<p><img src="../../../docs/diagrams/50/eberban/refgram/syntax/ra-words.svg" alt="Railroad diagram of the rule ra-words"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/syntax/after-erasure.svg" alt="Railroad diagram of the rule after-erasure"></p>
 </details>
 
@@ -363,7 +381,7 @@ A step is a verb with its free suffixes and binds, then the rest of the chain. T
 
 `PA` resumes the bindings of a verb earlier in the chain. The book does not describe `pa`, so the dictionary and the PEG are the sources. The dictionary says that `pa` "resumes bindings to a matching verb higher in the chain". The speaker repeats the verb after `pa`, then adds binds or continues the chain. The PEG resumes the latest matching verb, the deepest one in the right-grouped chain.
 
-The pipeline's step `fewest #·passed-step` states that preference. A step that takes no resumption, but stands right before one, is a step that the resumption passed over. The parse with the fewest such steps attaches the resumption as deep as the matching verb allows. The two conditions with `followed-by` tell the two kinds of step apart, so every step is exactly one of them.
+The pipeline's last step, `leftmost-longest #·step`, states that preference. Among the parses that remain, it takes the one whose steps start earliest and reach farthest. So an outer step holds the inner steps, and a resumption attaches as deep as the matching verb allows. A step has one rule name, whether a resumption follows it or not. So two equal verbs give equal trees, also where one of them stands right before a `pa`.
 
 A step takes any number of resumptions in a row. The repeated verb can carry its own binds and continue the chain. The condition compares each repeated verb with the verb of the step.
 
@@ -373,17 +391,8 @@ A written terminator never equals an elided one, so `to jie` and `to` are two ve
 
 ```jbogenbau
 %rule step
-  plain-step | passed-step | resumed-step
-
-%rule plain-step
-  [si-free] annotated-verb step-tail
-%conditions
-  ¬$.followed-by(resume-head)
-
-%rule passed-step
-  [si-free] annotated-verb step-tail
-%conditions
-  $.followed-by(resume-head)
+  | [si-free] annotated-verb step-tail
+  | resumed-step
 
 %rule resumed-step
   [si-free] $v:annotated-verb step-tail {resume-head $e:annotated-verb step-tail}
@@ -397,10 +406,8 @@ A written terminator never equals an elided one, so `to jie` and `to` are two ve
   PA [si-free]
 ```
 
-<details><summary>Railroad diagrams of the 6 rules from <code>step</code> to <code>resume-head</code></summary>
+<details><summary>Railroad diagrams of <code>step</code>, <code>resumed-step</code>, <code>step-tail</code> and <code>resume-head</code></summary>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/syntax/step.svg" alt="Railroad diagram of the rule step"></p>
-<p><img src="../../../docs/diagrams/50/eberban/refgram/syntax/plain-step.svg" alt="Railroad diagram of the rule plain-step"></p>
-<p><img src="../../../docs/diagrams/50/eberban/refgram/syntax/passed-step.svg" alt="Railroad diagram of the rule passed-step"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/syntax/resumed-step.svg" alt="Railroad diagram of the rule resumed-step"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/syntax/step-tail.svg" alt="Railroad diagram of the rule step-tail"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/syntax/resume-head.svg" alt="Railroad diagram of the rule resume-head"></p>
@@ -412,7 +419,7 @@ The comparison in `resumed-step` runs at the advance over each `$e`, before `ste
 
 Every verb at the start of a step therefore carries identities. Inside that operand, demand reaches every observable descendant up to a seal, which hides a ranked or erased interior. This includes chains, steps, `step-tail` and bind groups inside an enumeration, quote or parenthetical in the verb. The enclosing step's `step-tail`, binds and top-level `text` stand outside the operand and carry none.
 
-The cost is the tree of each verb at the start of a step. A quote, enumeration or parenthetical inside that verb splits its items by its inner tree, including its inner binds. The binds of the enclosing step do not split its items. The recognizer also reads the same verb in ordinary mode, from `plain-step` and `passed-step`.
+The cost is the tree of each verb at the start of a step. A quote, enumeration or parenthetical inside that verb splits its items by its inner tree, including its inner binds. The binds of the enclosing step do not split its items. The recognizer also reads the same verb in ordinary mode, from the first alternative of `step`.
 
 The recognizer therefore reads the verb subtrees of a step twice. Ordinary mode keeps the items of a grammar without the comparison. Observed mode retains tree identities and keeps a second set of items. No factor bounds that set against the first. One ordinary item can stand for many trees, while observed mode gives each distinct tree its own item. The total is the sum of the two modes.
 
@@ -487,7 +494,9 @@ The [quotes chapter](https://eberban.github.io/eberban/books/refgram/book/gramma
 
 The chapter does not say that `cai` can be left out. The PEG lets the speaker leave it out where the quoted text can end, and this grammar follows the PEG.
 
-A quote with a written `cai` reads `text`, like the whole text, because no closer inside it can end it. In a quote whose `cai` is left out, a particle that closes an outer construct ends the quoted text instead of starting erasable text. The second and third alternatives read such a quote. Their terminator `[+CAI<_Elided>]` allows only the omitted `cai`, because the test `<_Elided>` on its head accepts only an omitted leaf. Their first conditions exclude a closer-headed words erasure only in that quote's own sentence list. A nested quote with written `cai` or a closed parenthetical keeps its own closers.
+The quotes chapter says that `cai` matches its opening `ca`. So the first `cai` that can close a quote closes it. A `cai` can close the quote where the quoted text before it is grammatical. A quote with a written `cai` reads its text with the witness `quote-open-sentence`, which lets a sentence end before that `cai`. Then the words route cannot erase the sentence together with its `cai`. Two conditions of `grammatical-quote` cover the other places. The quoted text cannot start with a `cai`, as in `a mi ca cai ra a ke cai`. And a later sentence of the quoted text cannot be a words erasure that starts with a clean `cai`, as in `a mi ca a mo ra cai ra a ke cai`. `$CAI-HEAD-ERASURE` finds such an erasure in the quote's own paragraphs, through the tag `Cai-Head`. A quote whose `cai` is left out has the same two conditions, because a written `cai` would close it. A `cai` after faulty text, after a paragraph mark, or quoted by `ci` closes nothing, so `ra` can erase it.
+
+A quote with a written `cai` reads its text like the whole text in other respects, because no closer inside it can end it. In a quote whose `cai` is left out, a particle that closes an outer construct ends the quoted text instead of starting erasable text. The second and third alternatives read such a quote. Their terminator `[+CAI<_Elided>]` allows only the omitted `cai`, because the test `<_Elided>` on its head accepts only an omitted leaf. Their first conditions exclude a closer-headed words erasure only in that quote's own sentence list. A nested quote with written `cai` or a closed parenthetical keeps its own closers.
 
 Where a quote of several sentences leaves out its `cai` before the end of the text, the PEG warns. The end of the quote is then hard to see. The third alternative splices the warning rule `multi-sentence-cai-elided`.
 
@@ -499,17 +508,32 @@ A quote holds several sentences in two cases: it has several paragraphs, or its 
   #⁅ ⋯ open-quote-paragraphs⁅ [po-head] open-quote-sentences⁅ ⋯ sentence-choice ⋯
     sentence-choice ⋯ ⁆ ⋯ ⁆ ⁆
 
+%rule quote-open-sentence
+  $s:sentence-body
+%conditions
+  $s.following-tokens.parse((open-end | [{prefix}] CAI) …).error-free
+
+%const $CAI-HEAD-ERASURE
+  #text-of⁅ ⋯ paragraphs-of⁅ ⋯ sentences-of⁅ ⋯
+    tail-sentence-of⁅ invalid-tail⁅ words-erasure⁅ erased-words<Cai-Head> ⋯ ⁆ ⁆ ⁆ ⋯ ⁆ ⋯ ⁆ ⁆
+
 %rule grammatical-quote
-  | [{prefix}] CA text [{prefix}] CAI
+  | [{prefix}] CA $t:text-of(quote-open-sentence) [{prefix}] CAI
   | [{prefix}] CA $q:open-quote-text [+CAI<_Elided>]
   | *multi-sentence-cai-elided
 %conditions
+  ¬$t.parse([{DO}] [{prefix}] CAI …).error-free,
+  $t ≇ $CAI-HEAD-ERASURE,
+  ¬$q.parse([{DO}] [{prefix}] CAI …).error-free,
+  $q ≇ $CAI-HEAD-ERASURE,
   $q ≇ $CLOSER-HEAD-ERASURE,
   $q ≅ $SEVERAL-SENTENCES ⟹ $.following-tokens.parse(end-of-text …)
 
 %rule multi-sentence-cai-elided
   [{prefix}] CA $l:open-quote-text [+CAI<_Elided>]
 %conditions
+  ¬$l.parse([{DO}] [{prefix}] CAI …).error-free,
+  $l ≇ $CAI-HEAD-ERASURE,
   $l ≇ $CLOSER-HEAD-ERASURE,
   $l ≅ $SEVERAL-SENTENCES,
   ¬$.following-tokens.parse(end-of-text …)
@@ -525,7 +549,8 @@ A quote holds several sentences in two cases: it has several paragraphs, or its 
   [{prefix}] (CO<Quote> | COI)
 ```
 
-<details><summary>Railroad diagrams of the 5 rules from <code>grammatical-quote</code> to <code>foreign-quote</code></summary>
+<details><summary>Railroad diagrams of the 6 rules from <code>quote-open-sentence</code> to <code>foreign-quote</code></summary>
+<p><img src="../../../docs/diagrams/50/eberban/refgram/syntax/quote-open-sentence.svg" alt="Railroad diagram of the rule quote-open-sentence"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/syntax/grammatical-quote.svg" alt="Railroad diagram of the rule grammatical-quote"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/syntax/multi-sentence-cai-elided.svg" alt="Railroad diagram of the rule multi-sentence-cai-elided"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/syntax/word-quote.svg" alt="Railroad diagram of the rule word-quote"></p>
@@ -610,7 +635,9 @@ The chapter says that a `JI` other than `jie` "must follow positive integer (no 
 
 ## Annotations
 
-The [annotations chapter](https://eberban.github.io/eberban/books/refgram/book/grammar/annotations.html) gives free prefixes and suffixes. A prefix is a `DI` particle, with an optional `DU` scope before it. A suffix is `DE` with one verb, or a parenthetical text between `da` and `dai`. The chapter allows any valid text in a parenthetical, and an empty text is valid. So `da dai` is a parenthetical.
+The [annotations chapter](https://eberban.github.io/eberban/books/refgram/book/grammar/annotations.html) gives free prefixes and suffixes. A prefix is a `DI` particle, with an optional `DU` scope before it. A suffix is `DE` with one verb, or a parenthetical text between `da` and `dai`. The chapter allows any valid text in a parenthetical. It states an empty text only for a quote. The PEG treats a parenthetical with no words as an error, and this grammar follows that intent. So `a mi da dai` reports `empty-parenthetical`. Language flags are words, so `a mi da do dai` is a text.
+
+The chapter ends a parenthetical with `dai`. So the first `dai` after `da` closes it, and erasure inside the parenthetical cannot swallow that `dai`. The witness `paren-open-sentence` lets a sentence of the parenthetical end before `dai`. The last condition of `parenthetical` bars a text that starts with an erased `dai`, as in `a mi da dai ra a ke dai`.
 
 ```jbogenbau
 %rule prefix
@@ -628,16 +655,24 @@ The [annotations chapter](https://eberban.github.io/eberban/books/refgram/book/g
 %const $OWNED-DAI-RECOVERY
   #text-of⁅ ⋯ paragraphs-of⁅ ⋯ sentences-of⁅ ⋯ sentence-of⁅ ⋯ unmatched-tail<DAI> ⁆ ⋯ ⁆ ⋯ ⁆ ⁆
 
-%rule parenthetical
-  DA $t:text DAI
+%rule paren-open-sentence
+  $s:sentence-body
 %conditions
-  $t ≇ $OWNED-DAI-RECOVERY
+  $s.following-tokens.parse((open-end | DAI) …).error-free
+
+%rule parenthetical
+  DA $t:text-of(paren-open-sentence) DAI
+%conditions
+  $t ≇ $OWNED-DAI-RECOVERY,
+  ¬$t.parse(ε),
+  ¬$t.parse([{DO}] DAI …).error-free
 ```
 
-<details><summary>Railroad diagrams of <code>prefix</code>, <code>postfix</code>, <code>interjection</code> and <code>parenthetical</code></summary>
+<details><summary>Railroad diagrams of the 5 rules from <code>prefix</code> to <code>parenthetical</code></summary>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/syntax/prefix.svg" alt="Railroad diagram of the rule prefix"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/syntax/postfix.svg" alt="Railroad diagram of the rule postfix"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/syntax/interjection.svg" alt="Railroad diagram of the rule interjection"></p>
+<p><img src="../../../docs/diagrams/50/eberban/refgram/syntax/paren-open-sentence.svg" alt="Railroad diagram of the rule paren-open-sentence"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/syntax/parenthetical.svg" alt="Railroad diagram of the rule parenthetical"></p>
 </details>
 
@@ -674,7 +709,7 @@ A quote with written `cai` retains its own recovery scope. Without `cai`, a quot
   | unmatched-tail
 %conditions
   ¬$i.onward.parse(@Open …).error-free,
-  ¬$i.onward.parse(po-head …)
+  ¬$i.onward.parse(PO …).error-free
 
 %extend-rule base-verb
   *select-empty | *modified-empty
@@ -757,7 +792,7 @@ A quote with written `cai` retains its own recovery scope. Without `cai`, a quot
 <p><img src="../../../docs/diagrams/50/eberban/refgram/syntax/modified-empty.svg" alt="Railroad diagram of the rule modified-empty"></p>
 </details>
 
-An empty-chain recovery reads only its owner's opening token: `a`, `o`, `bi`, `be`, `ri`, `bu`, or `pe`. Its guard examines the following tokens after any postfixes. The `o` guard also passes its required target before it tests that boundary. Prefixes, postfixes, and argument markers remain outside the diagnostic.
+An empty-chain recovery reads only its owner's opening token: `a`, `o`, `bi`, `be`, `ri`, `bu`, or `pe`. The chapter says that `ri` erases the content of the current chain, which must be grammatical. So a `ri` with no chain before it is an empty chain, and the second `RI` alternative of `chain-empty` reports it on the `ri`. `chain` reads that recovery before the rest of its chain, so a written `pei` or `vei` after it still closes its construct, as in `a pe ri mo pei`. A missing operand of any other owner therefore ends at no `ri`, so `a bi ri mo` has one recovery and not two. Its guard examines the following tokens after any postfixes. The `o` guard also passes its required target before it tests that boundary. Prefixes, postfixes, and argument markers remain outside the diagnostic.
 
 The captured `recovery-postfixes` splice reads the actual postfixes, including their recovered errors. Its following tokens start at the boundary that the guard needs. The helper groups an optional sequence, because a capture cannot bind that sequence directly.
 
@@ -772,7 +807,8 @@ The boundary query recognizes annotated `vi` and `fi`, with optional `bi`, witho
   $p.following-tokens.parse(missing-operand-boundary …)
 
 %extend-rule chain
-  [{restart-chain RI}] restart-chain *chain-empty<RI>
+  | [{restart-chain RI}] restart-chain *chain-empty<RI>
+  | [{restart-chain RI}] *chain-empty<RI> [chain-inner]
 
 %extend-rule o-sentence
   [{prefix}] *chain-empty<O> [{postfix}] definable
@@ -807,7 +843,7 @@ The boundary query recognizes annotated `vi` and `fi`, with optional `bi`, witho
 -- What can stand where an operand is missing after a binder.
 
 %rule missing-operand-boundary
-  starter-head | PO | RA | RI | bind-start | sentence-closer | end-of-text
+  starter-head | PO | RA | bind-start | sentence-closer | end-of-text
 
 %rule bind-start
   [bi-free] [{prefix}] (VI | FI)
@@ -822,6 +858,12 @@ The boundary query recognizes annotated `vi` and `fi`, with optional `bi`, witho
   BE | RI | BU
 %conditions
   $.following-tokens.parse(missing-operand-boundary …)
+%error $CHAIN-EMPTY-MESSAGE
+
+%extend-rule chain-empty
+  RI
+%conditions
+  ¬$.preceded-by(chain-inner)
 %error $CHAIN-EMPTY-MESSAGE
 
 %rule bind-empty-vi
@@ -847,13 +889,14 @@ The boundary query recognizes annotated `vi` and `fi`, with optional `bi`, witho
 <p><img src="../../../docs/diagrams/50/eberban/refgram/syntax/bind-start.svg" alt="Railroad diagram of the rule bind-start"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/syntax/chain-empty.svg" alt="Railroad diagram of the rule chain-empty"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/syntax/chain-empty.2.svg" alt="Railroad diagram of the rule chain-empty"></p>
+<p><img src="../../../docs/diagrams/50/eberban/refgram/syntax/chain-empty.3.svg" alt="Railroad diagram of the rule chain-empty"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/syntax/bind-empty-vi.svg" alt="Railroad diagram of the rule bind-empty-vi"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/syntax/bind-empty-fi.svg" alt="Railroad diagram of the rule bind-empty-fi"></p>
 </details>
 
 An `o` or `ni` sentence needs a definable target before any definition. Its recovery reads the opening `o` or `ni` token alone. The `o` guard looks past any postfixes to its target.
 
-An unclosed parenthetical reports on its whole span, from `da` through the input end. A diagnostic on `da` alone permits a shorter recovery that loses the body. A written `dai` closes its parenthetical instead of becoming an unmatched closer there.
+An unclosed parenthetical reports on its whole span, from `da` through the input end or to the `cai` after it. A diagnostic on `da` alone permits a shorter recovery that loses the body. A written `dai` closes its parenthetical instead of becoming an unmatched closer there.
 
 ```jbogenbau
 %extend-rule o-sentence
@@ -875,23 +918,30 @@ An unclosed parenthetical reports on its whole span, from `da` through the input
 %error "ni needs a root, compound, freeform, or gi variable as its target"
 
 %extend-rule parenthetical
-  *unclosed-parenthetical
+  | *unclosed-parenthetical
+  | *empty-parenthetical
 
 %rule unclosed-parenthetical
-  DA $t:text
+  DA $t:text-of(paren-open-sentence)
 %conditions
   $t ≇ $OWNED-DAI-RECOVERY,
-  $.ends-input
+  ¬$t.parse([{DO}] DAI …).error-free,
+  $.ends-input ∨ $.following-tokens.parse([{prefix}] CAI …)
 %error "the parenthetical needs its closing dai"
+
+%rule empty-parenthetical
+  DA DAI
+%error "a parenthetical cannot be empty"
 ```
 
-<details><summary>Railroad diagrams of the 6 rules from <code>o-sentence</code> to <code>unclosed-parenthetical</code></summary>
+<details><summary>Railroad diagrams of the 7 rules from <code>o-sentence</code> to <code>empty-parenthetical</code></summary>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/syntax/o-sentence.3.svg" alt="Railroad diagram of the rule o-sentence"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/syntax/ni-sentence.2.svg" alt="Railroad diagram of the rule ni-sentence"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/syntax/not-definable-o.svg" alt="Railroad diagram of the rule not-definable-o"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/syntax/not-definable-ni.svg" alt="Railroad diagram of the rule not-definable-ni"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/syntax/parenthetical.2.svg" alt="Railroad diagram of the rule parenthetical"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/syntax/unclosed-parenthetical.svg" alt="Railroad diagram of the rule unclosed-parenthetical"></p>
+<p><img src="../../../docs/diagrams/50/eberban/refgram/syntax/empty-parenthetical.svg" alt="Railroad diagram of the rule empty-parenthetical"></p>
 </details>
 
 A written `ce cei` reports an empty spelling quote. Without `cei`, the error requires the forms mark for a missing first unit. The forms stage marks that absence before words become indivisible syntax tokens. A following digit or malformed pair starts no unit. A valid unit without `cei` remains an unclosed quote, including `a ce mi`.
@@ -1049,7 +1099,7 @@ Inside a quote with a written `cai`, the PEG ends the quoted text before a close
 
 The quotes chapter does not say that `cai` can be left out. The PEG lets the speaker leave `cai` out, and this grammar follows the PEG.
 
-The annotations chapter allows any valid text in a parenthetical, and an empty text is valid. The PEG rejects an empty parenthetical with a message. This grammar follows the book, so `a mi da dai` is a text here and not in the PEG.
+The annotations chapter allows any valid text in a parenthetical, and it does not say what an empty one is. The PEG rejects a parenthetical with no words, and this grammar follows that intent. The format 49 copy accepted `a mi da dai`. A parenthetical that holds only language flags, as `a mi da do dai`, is a text in both parsers.
 
 The sentences chapter says that where several prefixes stand in a row, `PO` is the first of them. The PEG reads free prefixes before `PO`, so `di po a mi` is a text there. This grammar follows the book, and the text is rejected here.
 
@@ -1090,7 +1140,8 @@ Morphology faults originate in the [forms stage](morphology.md#diagnostic-codes-
 | `bind-empty-fi` | The `FI` token in `bind-next` | [`E_BindEmptyFI`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L392) |
 | `not-definable-o` | The opening `O` token in `o-sentence` | [`E_NotDefinableO`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L297) |
 | `not-definable-ni` | The opening `NI` token in `ni-sentence` | [`E_NotDefinableNI`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L298) |
-| `unclosed-parenthetical` | The whole unclosed `parenthetical`, from `DA` through input end | [`E_UnclosedParenthetical`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L631) |
+| `unclosed-parenthetical` | The whole unclosed `parenthetical`, from `DA` through input end or to a following `cai` | [`E_UnclosedParenthetical`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L631) |
+| `empty-parenthetical` | The `DA` and `DAI` of an empty parenthetical | [`E_EmptyParenthetical`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L630) |
 | `spelling-empty` | `base-verb` | [`E_SpellingEmpty`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L524) |
 | `erasure-needs-starter` | The optional final child inside `ra-run` | [`E_ErasedMustBeFollowedBySentenceStarter`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L287) |
 | `number-end-alone` | `base-verb` | [`E_NumberEndAlone`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L611) |
@@ -1101,7 +1152,7 @@ Morphology faults originate in the [forms stage](morphology.md#diagnostic-codes-
 | `number-without-digits` | `base-verb` | [`Number`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L558) |
 | `number-part-order` | `base-verb` | [`NumberFormat`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L578) |
 
-`E_EmptyParenthetical` remains a book-based departure because any valid text, including an empty text, can occupy a parenthetical. The book-allowed `E_ErasedMustBeFollowedBySentenceStarter` cases also remain departures. An enclosing quote or parenthesis can end after erasure, and a later `ra` can erase the following invalid stretch.
+The book-allowed `E_ErasedMustBeFollowedBySentenceStarter` cases also remain departures. An enclosing quote or parenthesis can end after erasure, and a later `ra` can erase the following invalid stretch.
 
 A numeric word quoted by `ci` is not a number constituent. It does not block `number-end-alone`. A second written `JI` can also report after a number that already has its terminator.
 
@@ -1111,11 +1162,11 @@ The `ci` position accepts malformed roots, compounds, borrowings, and ordinary p
 
 An unclaimed `cai` keeps the default rejection, including `a mo ra cai`. This map has no named error for an unmatched `cai`.
 
-A parenthetical needs a preceding head. So `a ca da mi cai` retains plain rejection: its quoted text has no verb for `da` to annotate. A headed parenthetical before `cai` also retains plain rejection, as in `a ca a mi da mo cai`. The PEG can retain its parenthetical message from a failed reading of the first input.
+A parenthetical needs a preceding head. So `a ca da mi cai` retains plain rejection: its quoted text has no verb for `da` to annotate. A headed parenthetical before a written `cai` reports `unclosed-parenthetical`, as in `a ca a mi da mo cai`. The PEG can retain its parenthetical message from a failed reading of the first input.
 
 Missing-operand recovery stops at structural boundaries, including a bind opener. A dangling free prefix lies inside an unfinished operand and retains the default rejection. Examples are `a mi pa di` and `a mi dona va di`. The prefix supplies no complete operand for an independent resumption or binding diagnosis. A bare `be` also lies outside this boundary, so `a zi be` retains plain rejection. It supplies neither a modification operand nor a bind head.
 
-A missing parenthetical end reports only at input end. Recovery before `cai` needs the owning quote's own terminator status. Neighbor tests cannot qualify that node by its tags or a pattern. A named elided-quote constituent changes valid trees, and a splice cannot serve as a neighbor target. So a missing `dai` before `cai` retains ordinary rejection.
+A missing parenthetical end reports at input end, and before a `cai` with or without free prefixes. That `cai` closes the enclosing quote, so the parenthetical before it stays open. A text with an error is never erased as a sentence, so this report cannot hide a grammatical reading of the quote.
 
 Enclosing bind and enumeration closers lie outside that boundary. Examples are `a mi va ke da mo fi ke vei` and `a pe ke da mo pei`. Their chosen readings report the unclosed parenthetical before its swallowed closer errors. Its diagnostic spans from `da` through input end.
 

@@ -65,12 +65,12 @@ The stage drops the spaces and hands the syntax stage a stream of words.
 
 The stage builds the tree of the text. At equal engine measures, it prefers a specific failure to an unmatched closer or resumption. That preference never separates zero-error readings.
 
-An elided terminator is a closing word left unwritten. The stage first prefers fewer words-erasure routes, then the latest erasure start. It then prefers fewer steps passed before a resumption, as [the grammar](syntax.md) explains. It then ranks the parses with `late #·_<_Elided>`, so an elided terminator falls as late as the text allows. [The notation document](../../../docs/notation.md#elided-terminators) defines these steps.
+An elided terminator is a closing word left unwritten. The stage first prefers fewer words-erasure routes, then the latest erasure start. It then ranks the parses with `late #(·_<_Elided> ∖ ·A)`, so an elided terminator falls as late as the text allows. An elided sentence starter `A` does not count there, so the words after a left-out `cai` stay inside its quote. Last, `leftmost-longest #·step` attaches each resumption as deep as the matching verb allows, as [the grammar](syntax.md) explains. [The notation document](../../../docs/notation.md#elided-terminators) defines these steps.
 
 ```jbogenbau
 %ambiguity-resolution
   fewest $UNMATCHED-ERRORS, fewest #·words-erasure, late #(·erased-sentence ∪ ·erased-words),
-    fewest #·passed-step, late #·_<_Elided>
+    late #(·_<_Elided> ∖ ·A), leftmost-longest #·step
 ```
 
 ## Differences from the reference grammar and the PEG

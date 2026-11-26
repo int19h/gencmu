@@ -6,6 +6,6 @@
 <path d="M10 38v16m4 -16v16M14 46h6"/>
 <g class="terminal"><rect x="20" y="34" width="33" height="24" rx="12"/><text x="36.5" y="51" textLength="16.8" lengthAdjust="spacingAndGlyphs">DA</text></g>
 <path d="M53 46h10"/>
-<g class="rule"><rect x="63" y="34" width="50" height="24" rx="0"/><text x="88" y="51" textLength="33.6" lengthAdjust="spacingAndGlyphs">text</text></g>
-<path d="M113 46h6m0 -8v16m4 -16v16"/>
+<g class="terminal"><rect x="63" y="34" width="252" height="24" rx="12"/><text x="189" y="51" textLength="235.2" lengthAdjust="spacingAndGlyphs">text-of(paren-open-sentence)</text></g>
+<path d="M315 46h6m0 -8v16m4 -16v16"/>
 </svg>
