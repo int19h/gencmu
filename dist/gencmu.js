@@ -27328,6 +27328,13 @@
       } else {
         const side = left ?? right;
         const other = literalPayload(left ? node.right : node.left);
+        // A payload with a finite domain against a string: one disjunct for
+        // each value of the domain.
+        if (other === undefined && (node.op === "=" || node.op === "≠")) {
+          const string = this.string(left ? node.right : node.left);
+          const tests = domain(side).map(value => ({ all: [tagTest(side, value), { op: node.op, left: string, right: { string: String(value) } }] }));
+          return tests.length === 0 ? NEVER : tests.length === 1 ? tests[0] : { any: tests };
+        }
         if (other === undefined) return this.fail("compare a payload with this expression", node.at);
         if (node.op === "=" && !left !== !right) return tagTest(side, other);
         tests = domain(side).filter(value => left ? holds(value, other) : holds(other, value)).map(value => tagTest(side, value));
@@ -27403,6 +27410,11 @@
       }
       if (op === "∈" || op === "∉") {
         return { op, left: this.string(node.left), right: this.strings(node.right) };
+      }
+      // The tags of a node in recognition hold hidden keys beside its visible
+      // ones, so a test that needs the absence of other keys cannot read them.
+      if ((op === "⊆" || op === "⊈") && mayHoldHidden(node.left) || (op === "=" || op === "≠") && (mayHoldHidden(node.left) || mayHoldHidden(node.right))) {
+        return this.fail(`compare the keys of a node with ${op}`, node.at);
       }
       if (op === "⊆" || op === "⊈") return { op, left: this.keySet(node.left), right: this.keySet(node.right) };
       if ((op === "=" || op === "≠") && (isKeySetRecord(node.left) || isKeySetRecord(node.right))) {
@@ -27800,6 +27812,23 @@
   }
 
   // Whether a record is a key set by its form.
+  /**
+   * Whether a key set read in recognition can hold hidden keys: the keys of
+   * a node, unless an intersection with a written set bounds them.
+   * @param {any} node
+   * @returns {boolean}
+   */
+  function mayHoldHidden(node) {
+    if (!node || typeof node !== "object") return false;
+    // A class key ends in a capital letter, and a hidden key does not, so
+    // .classes holds no hidden key.
+    if (["flags", "keys", "tags"].includes(node.method)) return true;
+    if (node.union) return node.union.some(mayHoldHidden);
+    if (node.intersection) return node.intersection.every(mayHoldHidden);
+    if (node.difference) return mayHoldHidden(node.difference[0]);
+    return false;
+  }
+
   /** @param {any} node */
   function isKeySetRecord(node) {
     return !!node && (node.bag !== undefined || ["flags", "keys", "classes", "select", "classify", "union"].includes(node.method) ||

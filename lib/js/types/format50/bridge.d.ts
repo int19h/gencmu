@@ -327,7 +327,7 @@ export declare class Bridge {
         };
         any?: undefined;
     } | {
-        all: {
+        all: ({
             op: string;
             left: {
                 tag: string;
@@ -345,6 +345,41 @@ export declare class Bridge {
                 };
                 args: never[];
             };
+        } | {
+            op: any;
+            left: any;
+            right: {
+                string: string;
+            };
+        })[];
+    } | {
+        not?: undefined;
+        any: {
+            all: ({
+                op: string;
+                left: {
+                    tag: string;
+                };
+                right: {
+                    forestRoot: boolean;
+                    method?: undefined;
+                    receiver?: undefined;
+                    args?: undefined;
+                } | {
+                    forestRoot?: undefined;
+                    method: string;
+                    receiver: {
+                        capture: any;
+                    };
+                    args: never[];
+                };
+            } | {
+                op: any;
+                left: any;
+                right: {
+                    string: string;
+                };
+            })[];
         }[];
     } | {
         not?: undefined;
