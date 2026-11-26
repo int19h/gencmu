@@ -2,7 +2,7 @@
 
 This document opens the syntax stage of the [Eberban pipeline](pipeline.md). A stage is one step of a pipeline, with its own grammar. A token is one unit that a stage reads or emits. A tag is a capitalized key of a token's bag.
 
-The stage reads the words of the [words stage](stream.md). Each word carries its family as a tag, and the terminals of this grammar are those families. The stage is the last one, so it ends with its tree and hands on no tokens. The chapters of the reference grammar give the constructs. The PEG `eberban.peggy` is the executable baseline, and the closing section lists the departures from it.
+The stage reads the words of the [words stage](stream.md). Each word carries its kind or its family as a tag, and the terminals of this grammar are those tags. The stage is the last one, so it ends with its tree and hands on no tokens. The chapters of the reference grammar give the constructs. The PEG `eberban.peggy` is the executable baseline, and the closing section lists the departures from it.
 
 The prose uses these Eberban terms:
 

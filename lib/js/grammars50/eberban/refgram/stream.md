@@ -2,7 +2,7 @@
 
 This document opens the words stage of the [Eberban pipeline](pipeline.md). A stage is one step of a pipeline, with its own grammar. A token is one unit that a stage reads or emits. A tag is a capitalized key of a token's bag.
 
-The stage reads the words and spaces of the [forms stage](morphology.md). It keeps the words and drops the spaces, and it hands the syntax stage a stream of words. The forms stage reads each compound as one word token, and each spelling quote and foreign quote as one token. [The notation document](../../../docs/notation.md) explains jbogenbau, the notation of these grammars.
+The stage reads the words and spaces of the [forms stage](morphology.md). It keeps the words and drops the spaces, and it hands the syntax stage a stream of words. The forms stage reads each complete compound as one word token, and each spelling quote and foreign quote as one token. [The notation document](../../../docs/notation.md) explains jbogenbau, the notation of these grammars.
 
 ## The stream
 
@@ -10,7 +10,7 @@ The stream is a sequence of units with gaps between them. A gap is one or more s
 
 A unit is a word, a stray prefix, or junk. Each retains its forms diagnostics. A stray prefix belongs to an unfinished compound. The closing `e` of an empty `er e` uses that class without another error. Junk is a run that no word reader accepts. Syntax erases junk or rejects it with its carried error.
 
-Each unit is a token whose primary is the token that it reads. So the unit has the bag of that token, and a reader of the result follows the primary to the word of the forms stage. The stage passes the keys of its input on with `%const $OUTPUTS $INPUTS`. It defines no `$DEFAULTS`, because each token takes its strings from its primary.
+Each unit is a token whose primary is the token that it reads. So the unit has the bag of that token. A reader of the result follows the primary to the token of the forms stage, and from there to its core. The stage passes the keys of its input on with `%const $OUTPUTS $INPUTS`. It defines no `$DEFAULTS`, because each token takes its strings from its primary.
 
 ```jbogenbau
 %ambiguity-resolution lazy
@@ -41,4 +41,4 @@ This stage preserves every diagnostic and adds none. The [word forms](morphology
 
 ## Differences from the format 49 grammar
 
-This document reads the same texts as its format 49 copy, `grammars/eberban/refgram/stream.md`, and it emits the same tokens. The primary of each unit is new. It changes no token, but a reader of the result now finds the core of a word token in the forms stage.
+This document reads the same texts as its format 49 copy, `grammars/eberban/refgram/stream.md`, and it emits the same tokens. The primary of each unit is new. It changes no token. Each unit now shows the face of its forms token, whose core is the rule that built it. That rule stands in the forms stage, or in the letters stage for a digit or the closing `e` of an empty `er e`.

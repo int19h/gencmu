@@ -12,7 +12,7 @@ A letter written several times in a row is the same letter written once. The boo
 
 The text is a sequence of letters, spaces, foreign letters, hyphens, digits and brackets. The stage is greedy. Where two parses differ, it takes the one that reads the next character over the one that closes a constituent. A constituent is the text that one rule matches. So a run of one repeated letter is one token, and a run of plain spaces is one token.
 
-The constant `$DEFAULTS` gives each rule node of the stage two strings. Its value joins the values of its children, and its image joins their images. So a bracket token has the bracket as its value and its image. Each other token writes its two strings in its rule.
+The constant `$DEFAULTS` gives each rule node of the stage two strings. Its value joins the values of its children, and its image joins their images. So a bracket token takes both strings from the defaults. A digit writes its value in its rule and takes its image from the defaults. Each other token writes both its strings in its rule.
 
 A tag is a capitalized key of a token's bag. The stage publishes the tags in `$OUTPUTS`, which the sections below explain. The Unicode properties of the characters stay in this stage, so no token of the stage carries one.
 

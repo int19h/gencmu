@@ -37,7 +37,7 @@ The stage reads the characters of the text. It hands the forms stage one token p
   %include "morphology.md"
   ```
 
-The stage divides the letters into words and quotes and tags each token with its family. A compound is one word unit, and a spelling quote and a foreign quote are each one quote unit. The stage hands on one space token for each gap and drops hesitation.
+The stage divides the letters into words and quotes. It tags each word with its kind, and each particle also with its family. A compound is one word unit, and a spelling quote and a foreign quote are each one quote unit. The stage hands on one space token for each gap between two of its tokens, and it drops hesitation.
 
 ## Stage 3: words
 
