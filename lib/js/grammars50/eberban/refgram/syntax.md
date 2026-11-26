@@ -11,7 +11,7 @@ The prose uses these Eberban terms:
 - A bind is an explicit binding of a place of a verb, opened by `VI` or `FI` and closed by `vei`.
 - An annotation is a free prefix or suffix with no logical effect.
 
-[The notation document](../../../docs/notation.md) explains jbogenbau, the notation of these grammars. An elided terminator is a closing word left unwritten. The engine first compares source blame, unlocated errors, and then local error count. The pipeline then counts unmatched errors and words-erasure routes. It next prefers the latest erasure start, then fewer passed resumption steps. Its final step, `late #·_<_Elided>`, puts an elided terminator as late as the text allows.
+[The notation document](../../../docs/notation.md) explains jbogenbau, the notation of these grammars. An elided terminator is a closing word left unwritten. The engine first compares source blame, unlocated errors, and then local error count. The pipeline then counts unmatched errors and words-erasure routes. It next prefers the latest erasure start. The step `late #(·_<_Elided> ∖ ·A)` then puts an elided terminator other than a starter as late as the text allows. The last step, `leftmost-longest #·step`, attaches each resumption as deep as the matching verb allows.
 
 ## Texts and paragraphs
 
@@ -19,7 +19,7 @@ A text is language flags, then paragraphs, and an empty text is valid. The book 
 
 The chapter says that where several prefixes stand in a row, `PO` "must be the first" of them. So `po-head` reads no free prefix before `PO`, and `di po a mi` is invalid text. In `a mo di po ra a ke`, the `ra` erases `a mo di po`. A free prefix can follow it, as in `po di a mi`.
 
-The text rules are templates. Their parameter names what blocks an erasure at the start of a paragraph, as "Sentences and erasure" explains. `text` and its rules serve the whole text, a parenthetical and a quote with a written `cai`. `elided-cai-text` and its rules serve a quote whose `cai` is left out.
+The text rules are templates. Their parameter names what blocks an erasure at the start of a paragraph, as "Sentences and erasure" explains. `text` and its rules serve the whole text. A parenthetical reads `text-of(paren-open-sentence)`, and a quote with a written `cai` reads `text-of(quote-open-sentence)`. `elided-cai-text` and its rules serve a quote whose `cai` is left out.
 
 The sentences chapter starts every sentence with a starter, and lets the first sentence of a paragraph leave it out. So a further sentence without a starter is always ungrammatical. `invalid-tail` reads it as erased text, even where the same words form a sentence at the start of a paragraph.
 
@@ -116,7 +116,7 @@ The rule `sentence` also reads erasures. The chapter on sentences gives two eras
 
 The chapter erases back to the start of the last sentence that was still grammatical. The words route cannot replace an error-free sentence at the start of a paragraph. The first condition of `sentence-or-erasure-of` states that rule. Its parameter selects the required sentence witness. A sentence ending only before a closer or `dai` needs an enclosing construct to claim that word.
 
-In the whole text, a parenthetical or a quote with a written `cai`, the parameter is `open-sentence`. Such a sentence then does not block the erasure. In a quote whose `cai` is left out, a closer can end the quote. There, any error-free sentence with an error-free end blocks the words route. The parameter there is `quote-sentence-witness`. Each witness is a query only: the sentences themselves still use the ordinary sentence reader.
+In the whole text, the parameter is `open-sentence`. A parenthetical uses `paren-open-sentence`, and a quote with a written `cai` uses `quote-open-sentence`. Such a sentence then does not block the erasure. In a quote whose `cai` is left out, a closer can end the quote. There, any error-free sentence with an error-free end blocks the words route. The parameter there is `quote-sentence-witness`. Each witness is a query only: the sentences themselves still use the ordinary sentence reader.
 
 A written paragraph mark at the start of a paragraph is always the paragraph's mark. So the second condition keeps it out of the erased text. A malformed `PO` is no such mark, so that condition tests an error-free `PO`. A `ra` can also stand where a sentence starts, with nothing to erase. That is `empty-erasure`.
 
@@ -206,7 +206,7 @@ The `@Open` bar rejects a words route only for an error-free sentence witness. O
 
 When its first word is an error-free `quote-ender`, the term of `erased-words` gives it the tag `Closer-Head`. When its first word is an error-free `cai`, with or without free prefixes, the term gives it `Cai-Head`, which the quote rules read. An erased node keeps its tags, so a pattern can still read it. A quote guard reads this tag because the seal hides the real head. Its pattern follows only that quote's own paragraphs and sentences. It does not enter nested text.
 
-The chapter erases back to the start of the last sentence that was still grammatical. A sentence inside a parenthetical that is still open is such a start, so an erasure cannot reach back past it. The condition of `erased-words` states that. Its words hold no `da` that opens a sentence, unless a parenthetical from that `da` closes inside them. `open-note-start` names such a `da`. So `ra` in `a mi da a ke ra a mo` erases `a ke` inside the open parenthetical, and the text ends with that parenthetical still open. An unclosed foreign quote gets the same treatment in the [word forms](morphology.md).
+The chapter erases back to the start of the last sentence that was still grammatical. A sentence inside a parenthetical that is still open is such a start, so an erasure cannot reach back past it. The condition of `erased-words` states that. Its words hold no `da` that opens a sentence, unless the `dai` that closes that `da` stands inside them. `open-note-start` names such a `da`. Its condition finds the closing `dai` by tokens, through `closed-note`, which skips each nested pair of `da` and `dai`. A `dai` that `ci` quotes closes nothing. The test reads tokens and not a parse of the note, because a closed note can hold an error. So in `a mi da a pban dai ra a mo` and `a mi da a vi dai ra a mo`, the note is closed, and `ra` erases the whole first sentence. So `ra` in `a mi da a ke ra a mo` erases `a ke` inside the open parenthetical, and the text ends with that parenthetical still open. An unclosed foreign quote gets the same treatment in the [word forms](morphology.md).
 
 The chapter says that `ra` "must be surrounded by spaces or pauses". The start of a text counts as a pause, as it does for hesitation in the [word forms](morphology.md). So a text can start with `ra`.
 
@@ -259,7 +259,16 @@ Erased text can follow an erasure too, because the later `ra` erases it. So `aft
 %rule open-note-start
   DA [{DO}] (starter-head | sentence-body)
 %conditions
-  ¬$.onward.parse(parenthetical …).error-free
+  ¬$.onward.parse(closed-note …)
+
+-- A note closes at the DAI that balances its DA, by tokens.
+%rule closed-note
+  DA [{note-token}] DAI
+
+%rule note-token
+  | _<¬DA ¬DAI ¬CI>
+  | CI _
+  | closed-note
 
 %rule erasure-word
   _<¬RA>
@@ -271,7 +280,7 @@ Erased text can follow an erasure too, because the later `ra` erases it. So `aft
   starter-head | PO | words-erasure | sentence-closer | end-of-text
 ```
 
-<details><summary>Railroad diagrams of the 11 rules from <code>sentence-erasure</code> to <code>after-erasure</code></summary>
+<details><summary>Railroad diagrams of the 13 rules from <code>sentence-erasure</code> to <code>after-erasure</code></summary>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/syntax/sentence-erasure.svg" alt="Railroad diagram of the rule sentence-erasure"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/syntax/words-erasure.svg" alt="Railroad diagram of the rule words-erasure"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/syntax/erased-sentence.svg" alt="Railroad diagram of the rule erased-sentence"></p>
@@ -280,6 +289,8 @@ Erased text can follow an erasure too, because the later `ra` erases it. So `aft
 <p><img src="../../../docs/diagrams/50/eberban/refgram/syntax/invalid-head.svg" alt="Railroad diagram of the rule invalid-head"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/syntax/erasure-reach.svg" alt="Railroad diagram of the rule erasure-reach"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/syntax/open-note-start.svg" alt="Railroad diagram of the rule open-note-start"></p>
+<p><img src="../../../docs/diagrams/50/eberban/refgram/syntax/closed-note.svg" alt="Railroad diagram of the rule closed-note"></p>
+<p><img src="../../../docs/diagrams/50/eberban/refgram/syntax/note-token.svg" alt="Railroad diagram of the rule note-token"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/syntax/erasure-word.svg" alt="Railroad diagram of the rule erasure-word"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/syntax/ra-run.svg" alt="Railroad diagram of the rule ra-run"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/syntax/after-erasure.svg" alt="Railroad diagram of the rule after-erasure"></p>
@@ -464,7 +475,7 @@ The empty-bind alternatives test the boundary after the postfixes that they read
 
 ## Verbs
 
-A verb is a definable word with its namespace, or an inline assignment with `bo`. The book describes `bo` before a `KI` or `GI` variable, so `bo-variable` reads a `GI` variable, with its namespace steps and free prefixes. So `a mi bo mi pi gi` is a text, and `a mi bo mian`, `a mi bo eberban` and `a mi bo ibar` are rejected. It can also be a `KI`, `BA` or `MI` particle, a quote, an enumeration, a borrowing group or a number. A `KI`, a number and a borrowing group take no free prefix of their own, as in the PEG. So `a di 1` and `a di ualis` are rejected. The others can take free prefixes. Any verb of a chain can take free suffixes, as in `a ke de mi`, because `annotated-verb` reads them.
+A verb is a definable word with its namespace, or an inline assignment with `bo`. The book describes `bo` before a `KI` or `GI` variable, so `bo-variable` reads a `GI` variable, with its free prefixes. The variable can have a namespace whose parents are definable words, as in `a mi bo gi pi ga`. A `mi` parent is not definable, as in the PEG's `VerbDefinable` and as for `o` and `ni`. So `a mi bo mi pi gi` is rejected, as are `a mi bo mian`, `a mi bo eberban` and `a mi bo ibar`. It can also be a `KI`, `BA` or `MI` particle, a quote, an enumeration, a borrowing group or a number. A `KI`, a number and a borrowing group take no free prefix of their own, as in the PEG. So `a di 1` and `a di ualis` are rejected. The others can take free prefixes. Any verb of a chain can take free suffixes, as in `a ke de mi`, because `annotated-verb` reads them.
 
 ```jbogenbau
 %rule base-verb
@@ -476,7 +487,7 @@ A verb is a definable word with its namespace, or an inline assignment with `bo`
   [{free-prefix}] BO (KI | bo-variable)
 
 %rule bo-variable
-  [{namespace-step}] [{free-prefix}] GI
+  [{definable-part PI}] [{free-prefix}] GI
 
 %rule prefixed-ba
   [{free-prefix}] BA
@@ -653,7 +664,7 @@ The book says that free prefixes stand before many elements, and it does not lis
 - the quote openers `CA`, `CI`, `CE`, `CO` and `COI`, and `PE`
 - the verbs `MI`, `BA` and `BO`, a `GI` variable, and a definable root, compound or freeform
 
-No free prefix stands before `PO`, `DAI`, `VEI`, `PEI`, `PA`, `PI`, `BE`, `JI`, `KI`, `DA`, `DE` or a number word.
+No free prefix stands before `PO`, `DAI`, `VEI`, `PEI`, `PA`, `PI`, `BE`, `JI`, `KI`, `DA`, `DE`, a number word or a borrowing.
 
 The chapter ends a parenthetical with `dai`. So the first `dai` after `da` closes it, and erasure inside the parenthetical cannot swallow that `dai`. The witness `paren-open-sentence` lets a sentence of the parenthetical end before `dai`. The last condition of `parenthetical` bars a text that starts with an erased `dai`, as in `a mi da dai ra a ke dai`.
 
@@ -1107,7 +1118,7 @@ Inside a quote with a written `cai`, the PEG ends the quoted text before a close
 
 The quotes chapter does not say that `cai` can be left out. The PEG lets the speaker leave `cai` out, and this grammar follows the PEG.
 
-The annotations chapter allows any valid text in a parenthetical, and it does not say what an empty one is. The PEG rejects a parenthetical with no words, and this grammar follows that intent. The format 49 copy accepted `a mi da dai`. A parenthetical that holds only language flags, as `a mi da do dai`, is a text in both parsers.
+The annotations chapter allows any valid text in a parenthetical, and it does not say what an empty one is. The PEG rejects a parenthetical with no words, and this grammar follows that intent. A parenthetical that holds only language flags, as `a mi da do dai`, is a text in both parsers.
 
 The sentences chapter says that where several prefixes stand in a row, `PO` is the first of them. The PEG reads free prefixes before `PO`, so `di po a mi` is a text there. This grammar follows the book, and the text is rejected here.
 
@@ -1123,9 +1134,23 @@ The PEG bars closer-headed erasure at every quote depth, including inside writte
 
 A sentence contains another text only through a quote or parenthetical. An omitted quote applies its own guard. An unclosed parenthetical ends at input end and cannot precede an erasure's `ra`. Thus no closer-headed erasure can require forwarding through an erased sentence without crossing a closed construct. The sealed sentence needs no forwarding tag.
 
+The quotes chapter says that `cai` matches its opening `ca`, so the first `cai` that can close a quote closes it. The PEG's paragraph tail has no guard against `cai`, so its erasure can swallow a `cai` inside the quote. So the PEG accepts `a mi ca a mo cai ra a ke cai` and `a mi ca a mo ra cai ra a ke cai`. Here the last `cai` has no owner, and both texts are rejected.
+
+The annotations chapter ends a parenthetical with `dai`, so the first `dai` after `da` closes it. The PEG's first sentence of a note has no guard against `dai`, so it reads `dai ra` as erased text. So the PEG accepts `a mi da dai ra a ke dai`, and this grammar rejects it with `unmatched-dai`. The PEG also rejects `a mi da a mo dai ra a ke dai`, for another reason.
+
+The sentences chapter erases back to the start of the last grammatical sentence. A sentence inside a parenthetical that is still open is such a start. So `a mi da a ke ra a mo` and `a ca a mi da a ke cai ra a mo` are rejected here with `unclosed-parenthetical`. The PEG erases back past the `da` in the first text, and it erases inside the quote in the second.
+
+The book describes `bo` before a `KI` or `GI` variable. The PEG reads `bo` before any definable word, so `a mi bo mian` is a text there and not here.
+
+The transformations chapter lets `bi` repeat, and each occurrence negates the scope of the next. The PEG reads one `BI` before a bind and in an enumeration item, so it rejects `a mi bi bi va mo` and `a pe bu bi bi mi pei`. Both are texts here.
+
+The annotations chapter lets `DU` prefix an annotation. The PEG reads `DU` only before `DI`, so it rejects `a mi du de gali` and `a mi duo da a mo dai`. Both are texts here.
+
+`pa` resumes the latest matching verb. In `a ca mi pa ca mi ra a ke`, the PEG's second quote reads on past the `ra`, so the two quotes do not match. It keeps `a ca mi` and erases only `pa ca mi`. Here the quotes match, and `ra` erases the whole first sentence.
+
 ### Diagnostic codes and PEG sources
 
-Each named error adds the failed relation or states the default rejection's information more briefly. The engine's blame measure precedes every grammar step. At equal measures, the steps prefer specific errors, sentence erasure, shorter erasure, deeper resumption, and later omitted terminators, in that order.
+Each named error adds the failed relation or states the default rejection's information more briefly. The engine's blame measure precedes every grammar step. At equal measures, the steps prefer specific errors, sentence erasure, shorter erasure, later omitted terminators, and deeper resumption, in that order.
 
 An erased constituent removes its inner errors and warnings. Thus `a tkco ra a mo` reports no error. The strict chain before `ri` is not erased, so `a mi duna vo ri ke` and `a mi fa ri bjan` still report.
 
@@ -1185,7 +1210,7 @@ The PEG can queue a message from a reading that later fails. This grammar report
 
 The warning counts only sentences that are not erased. The PEG's erased-sentence counting departure remains as described above.
 
-Warnings inside a syntax-erased stretch disappear, including warnings raised in forms. The PEG retains some of these warnings, as in `a co zao[x]zao-pt ra a mo`. This grammar follows the erasure rule. Warnings on an unerased gap survive, including a foreign letter after an unclassified run before a quote bracket.
+Warnings inside a syntax-erased stretch disappear, including warnings raised in forms. The PEG retains some of these warnings, as in `a co zao[x]zao-pt ra a mo`. This grammar follows the erasure rule. A gap belongs to the unit before it ([stream.md](stream.md)). So the warning of a foreign letter in a gap goes with an erased unit before it, as in `a ntco [x] ra a mo`. Warnings on a gap after a unit that stays survive.
 
 ## Differences from the format 49 grammar
 
@@ -1199,8 +1224,8 @@ The format 49 copy of this document is `grammars/eberban/refgram/syntax.md`. Thi
 - A missing `dai` before a written `cai` reports `unclosed-parenthetical`, as in `a ca a mi da mo cai`. The format 49 copy gave the default rejection.
 - The sentences chapter says that `ri` erases a chain that must be grammatical. A `ri` with no chain before it reports one `chain-empty` on that `ri`, and a written `pei` or `vei` after it closes its construct. So `a pe ri mo pei` reports one error, where the format 49 copy reported two.
 - `pa` resumes the latest matching verb. One step rule reads every step, so two equal verbs compare equal also where a `pa` follows one of them. So `a pe mi pa pe mi` is a text, and `a ca mi pa ca mi` keeps `mi` inside each quote, as the PEG does. The format 49 copy rejected the first and emptied the quotes of the second.
-- The quotes chapter says that `ci` quotes one word ignoring its grammar. So `a ci ce ci cei` and `a ci ce mi ci cei` are texts, as in the PEG. The empty spelling quote now reports in the [word forms](morphology.md), so a `ce` inside a compound draws no spelling error.
-- The book describes `bo` before a `KI` or `GI` variable. So `bo` reads only those, and `a mi bo mian` is rejected, where the format 49 copy accepted any definable word. `a mi bo mi pi gi`, with a namespace, is a text.
+- The quotes chapter says that `ci` quotes one word ignoring its grammar. So `a ci ce ci cei` and `a ci ce mi ci cei` are texts, as in the PEG. The empty spelling quote reports in the [word forms](morphology.md), so a `ce` inside a compound draws no spelling error.
+- The book describes `bo` before a `KI` or `GI` variable. So `bo` reads only those, and `a mi bo mian` is rejected, where the format 49 copy accepted any definable word. `a mi bo gi pi ga`, with a definable namespace, is a text, and `a mi bo mi pi gi` is rejected.
 - The transformations chapter lets `bi` repeat, and each occurrence negates the scope of the next. So `a mi bi bi va mo` and `a pe bu bi bi mi pei` are texts. The format 49 copy repeated `BI` only before a chain.
 - The annotations chapter lets `DU` prefix an annotation. So `a mi du de gali` and `a mi duo da a mo dai` are texts. The format 49 copy read `DU` only before `DI`.
 
