@@ -19,7 +19,7 @@ The prose uses these Lojban terms for words:
 - A rafsi is a word form used inside compounds.
 - A gismu is a root word.
 
-The `lojban/cll` pipeline stitches [../cll/shapes.md](../cll/shapes.md) and [../cll/morphology.md](../cll/morphology.md) as its word family. The other pipelines stitch `grammars/lojban/bpfk/morphology.md`, with the experimental or Zantufa word forms after it. The lexicon of `lojban/cll` is [../cll/lexicon.md](../cll/lexicon.md). It gives each cmavo its selma'o.
+The `lojban/cll` pipeline stitches [../cll/shapes.md](../cll/shapes.md) and [../cll/morphology.md](../cll/morphology.md) as its word family. The other pipelines stitch [bpfk/morphology.md](../bpfk/morphology.md), with the experimental or Zantufa word forms after it. The lexicon of `lojban/cll` is [../cll/lexicon.md](../cll/lexicon.md). It gives each cmavo its selma'o.
 
 ## The stage interface
 
@@ -72,7 +72,7 @@ In Zantufa, a second lookahead applies before a quoted form. There, a `ra'oi` be
 
 A run is a sequence of words or a foreign run. A foreign run is a stretch that the pipeline did not read as words. It carries the tag `FOREIGN`. A run with a character that no script reads becomes a foreign run in the phoneme stage. A run whose phonemes divide into no words becomes a foreign run in the forms stage.
 
-A `Quote-Material` pause token preserves punctuation or ignored source text in `grammars/lojban/common/latin.md`. This stage preserves each pause token separately, with its keys and image. Every pause receives the value of one space. Raw quote recipes recover material from its source text. A punctuation apostrophe tagged `PAUSE` is no word phoneme.
+A `Quote-Material` pause token preserves punctuation or ignored source text in [latin.md](latin.md). This stage preserves each pause token separately, with its keys, its value and its image. A quiet pause has the value of one space from the phoneme stage. A material pause keeps its decomposed text as its value, so a raw quote reads the mark from its token. A punctuation apostrophe tagged `PAUSE` is no word phoneme.
 
 A foreign run is not an error here. The words stage decides whether a foreign run can stand where it is. The words stage takes it as the body of a quote, such as `zoi` or `zo'oi`, and after `fa'o`. Elsewhere it rejects a foreign run ([stream.md](stream.md)). So this stage never rejects a text.
 
@@ -92,7 +92,7 @@ Ordinary word forms divide each run in one way only. Zantufa's `ra'oi` quote is 
   {pause-token}
 
 %rule pause-token
-  ^PAUSE → {value: " "}
+  ^PAUSE
 %emit
 
 %rule run
@@ -137,7 +137,7 @@ Ordinary word forms divide each run in one way only. Zantufa's `ra'oi` quote is 
 <p><img src="../../../docs/diagrams/50/lojban/common/forms/nonpause-phoneme.svg" alt="Railroad diagram of the rule nonpause-phoneme"></p>
 </details>
 
-The stage covers every input token. It preserves pause boundaries, images and keys, and sets pause values to one space. A pause token is its `PAUSE` phoneme, so it keeps that phoneme's bag and image. The term replaces only its value.
+The stage covers every input token. It preserves pause boundaries, values, images and keys. A pause token is its `PAUSE` phoneme, so it keeps that phoneme's whole bag. No rule of a later stage reads a pause by its value: each reads `PAUSE` and its filters, and each gap rule writes its own space.
 
 The stage passes foreign runs through and combines phonemes into words or foreign runs. A phoneme-stage `FOREIGN` token keeps its value, image, text and keys. The `foreign-token` rule adds `Run-Initial` and `Run-Final`.
 
@@ -164,7 +164,7 @@ The stage reads the words of a run from the left. A word after the first needs p
 
 A nucleus is the vowel or diphthong of a syllable.
 
-The BPFK word forms set only `Onset` and `Continued`, with the meaning that the PEG gives them. The PEG is the parsing expression grammar from which `grammars/lojban/bpfk/morphology.md` derives its word forms. That document states the morphology's rules directly and lists its departures. Every word is `Continued`, and a word that does not begin with a nucleus is `Onset`, a name included. Their words look past their own ends, as the words of the PEG do, and decide the rest themselves.
+The BPFK word forms set only `Onset` and `Continued`, with the meaning that the PEG gives them. The PEG is the parsing expression grammar from which [bpfk/morphology.md](../bpfk/morphology.md) derives its word forms. That document states the morphology's rules directly and lists its departures. Every word is `Continued`, and a word that does not begin with a nucleus is `Onset`, a name included. Their words look past their own ends, as the words of the PEG do, and decide the rest themselves.
 
 ```jbogenbau
 %rule run-words
@@ -309,7 +309,7 @@ The words stage drops hesitation, or reads it as the base of the letter word `.y
 
 ## Differences from camxes
 
-Separate material tokens preserve punctuation for raw quotes. Each mark is a pause token, so it bounds a delimiter run. The words stage recovers the raw spelling through source recipes, as [stream.md](stream.md) specifies.
+Separate material tokens preserve punctuation for raw quotes. Each mark is a pause token, so it bounds a delimiter run. Its value is the mark's decomposed text, which a raw quote reads, as [stream.md](stream.md) specifies.
 
 camxes-std, the standard grammar of the camxes parser, rejects the whole text `kyyykerlo`. camxes-exp, the experimental grammar of the camxes parser, rejects it too. Their [standard spaces rule](https://github.com/lojban/ilmentufa/blob/778ea138f7d150121ca722db7536ce3b123943ac/camxes.peg#L1529-L1531) and [experimental spaces rule](https://github.com/lojban/ilmentufa/blob/778ea138f7d150121ca722db7536ce3b123943ac/camxes-exp.peg#L1625-L1627) refuse a leading Y token. The words stages of `lojban/bpfk` and `lojban/experimental` instead drop the hesitation `yy`.
 
@@ -319,7 +319,9 @@ The format 49 copy of this document is `grammars/lojban/common/forms.md`. On the
 
 The lookup gives `Indicator` where it gives an indicator class. The format 49 lexicon adds that tag to each emitted token with such a class. A token that a caller gives `UI` directly therefore needs `Indicator` from the caller too. The CLL phoneme stage gives no such token.
 
-Three rules put their tags or strings on the node, and not only on the token. They are `pause-token` with its value, `foreign-token` with its run tags, and `ordinary-word` with `Run-Initial` and `Run-Final`. So a parent can read them, as `run-words` copies the tags of its later word. Run division tests neither the boundary flags nor the replacement pause value.
+A material pause token keeps the value of its phoneme token, the decomposed text of the mark. The format 49 copy gives every pause token the value of one space. A later stage needs the mark's text in a raw quote, and no later rule reads a pause by its value, so the one space overwrote a value that a later stage needs. On `lojban/cll`, which makes no material pause, no token changes.
+
+Two rules put their tags on the node, and not only on the token. They are `foreign-token` with its run tags, and `ordinary-word` with `Run-Initial` and `Run-Final`. So a parent can read them, as `run-words` copies the tags of its later word. Run division tests no boundary flag.
 
 A repetition passes no tags from a single item. No rule of a Lojban pipeline reads a tag that reaches it only that way.
 

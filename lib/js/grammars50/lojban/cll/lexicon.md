@@ -1,6 +1,6 @@
 # The CLL lexicon
 
-This document supplies the forms-stage lexicon for the [CLL](pipeline.md) pipeline. The BPFK pipeline reads the same words from its copy, `grammars/lojban/cll/lexicon.md`. BPFK is the Lojban language planning committee.
+This document supplies the forms-stage lexicon for the [CLL](pipeline.md) pipeline. The [BPFK pipeline](../bpfk/pipeline.md) reads the same words from this document. BPFK is the Lojban language planning committee.
 
 A lexicon is a list of words, each with its classes. The forms stage follows the phoneme stage. It divides the phonemes of the text into words. A cmavo is a particle, a short structure word. A selma'o is a word class of cmavo.
 

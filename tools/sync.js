@@ -32,7 +32,7 @@ import { DOM_FORMAT } from "../lib/js/src/dom.js";
 import { compareCodePoints } from "../lib/js/src/tags.js";
 import { extractGrammarText } from "../lib/js/src/markdown.js";
 import { sourceIncludeEdges } from "./grammar-sources.js";
-import { includeLinks, headingAnchors, localAnchorProblems } from "./links.js";
+import { includeLinks, headingAnchors, localAnchorProblems, formatPathProblems } from "./links.js";
 import { layoutProblems } from "./alternatives.js";
 import { quotedTextProblems } from "./quoted-texts.js";
 import { proseLineProblems } from "./prose-lines.js";
@@ -213,6 +213,14 @@ function checkSources(documents, documents50, loader) {
     }
     if (missingAnchors.length) {
       console.error(missingAnchors.join("\n"));
+      process.exit(1);
+    }
+    // A format 50 document links the format 50 copy of each grammar file
+    // that has one (tools/links.js).
+    const oldPaths = Object.keys(documents50).flatMap((file) =>
+      formatPathProblems(fs.readFileSync(path.join(root, file), "utf8"), file, (relative) => fs.existsSync(path.join(root, relative))));
+    if (oldPaths.length) {
+      console.error(oldPaths.join("\n"));
       process.exit(1);
     }
     // The packages' copies of grammars/ are checked as grammars/, which

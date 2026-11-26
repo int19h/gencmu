@@ -129,7 +129,7 @@ Spacing and skipped regions reject surviving punctuation before the word `zei`, 
 
 `$MATERIAL` names `Quote-Material` and `Punctuation-Material`. It is the material that can survive in a gap, as quoted material or as visible punctuation. `$GAP-MARKS` adds `Gap-Pause` to it. A gap rule copies only these keys from its parts.
 
-A quiet pause carries only a spacing boundary. A material pause preserves punctuation or ignored text. The forms stage gives both kinds the value `" "`, and `$PAUSE` names that string. Their source text retains raw material. Gap rules give one space for surviving pauses.
+A quiet pause carries only a spacing boundary, and its value is one space. A material pause preserves punctuation or ignored text, and its value is the decomposed text of the mark. `$PAUSE` names the one space. Each gap rule writes `$PAUSE` itself, so a material pause in a gap adds one space, whatever its text.
 
 An optional part, such as the hesitations of `spacing`, is a list of zero or one node. A gap rule joins the keys of each such list with `.union`.
 
@@ -324,7 +324,7 @@ Quotes and the right operand of ZEI share this rule. It executes no erasure. Quo
 
 ZO quotes one word from the shared reader or one standalone material stretch. Inside that quote, an eraser, compounder, or quote marker executes no operation. The reader still forms the y letteral.
 
-`word-quote-gap` reads a clean `word-gap` and any punctuation attached to the target word. Standalone punctuation or ignored material cannot disappear into that gap. `word-quote-target` keeps attached closing punctuation in the quote image. A material target must fill its stretch between whitespace or periods. `zo-punctuation` also reads ignored material, including a comma or a format character. Its value is the decomposed source text of the mark, not the value of its pause token. The forms stage gives that token one space, which marks a word boundary, and a quoted mark must keep its own text.
+`word-quote-gap` reads a clean `word-gap` and any punctuation attached to the target word. Standalone punctuation or ignored material cannot disappear into that gap. `word-quote-target` keeps attached closing punctuation in the quote image. A material target must fill its stretch between whitespace or periods. `zo-punctuation` also reads ignored material, including a comma or a format character. It marks its pause token as its primary, so its value and image are those of the mark.
 
 An attached opening mark supplies one gap space, even without whitespace. `marker-attachment` also keeps a mark attached to the marker before whitespace. A period after that mark leaves it available as a standalone material target. `Period-Initial` identifies that boundary through the phoneme classification.
 
@@ -362,7 +362,7 @@ An attached opening mark supplies one gap space, even without whitespace. `marke
   ^PAUSE<Quote-Material> → {image: value: ""}
 
 %rule zo-punctuation
-  ^PAUSE<Quote-Material> → {value: $.decomposed-source-text, image: $.source-text}
+  ^PAUSE<Quote-Material>
 %conditions
   $.ends-input ∨ $.following-tokens.parse(quiet-pause …)
 
@@ -461,13 +461,15 @@ Ordinary compounds cannot become delimiters because the marker reads the delimit
 
 `delimiter-body-gap` reads the boundary after the opening delimiter. A marked opening delimiter can place its closing mark across a period-only pause. A period-only pause carries `Period-Only` from the phoneme grammar. It contains no whitespace or ignored characters. The first whitespace ends that opening edge. Separate material stretches remain in the raw body.
 
+`close-gap` reads the pause between the body and the closing delimiter. It writes `$PAUSE`, as each gap rule does. That pause can be a mark with no space around it, as the `"` in `zoi gy foo"gy`, and the quote's value then has one space there, as in `zoi gy foo gy`.
+
 The body leaves its final quiet pause to the closing gap. The closing edge keeps an attached mark before a pause or the text end. These boundaries give each mark and pause one owner.
 
 `$ZOI-MARKERS` names the classes that open delimited quotes. Layers extend this set while keeping the shared delimiter rules.
 
 ```jbogenbau
 %rule zoi-y-quote → {*$m.flags, image: $.source-text}
-  | $m:zoi-marker $g:delimiter-gap $open:y-bu-word $b:delimiter-body-gap $content:zoi-body PAUSE
+  | $m:zoi-marker $g:delimiter-gap $open:y-bu-word $b:delimiter-body-gap $content:zoi-body close-gap
     [quote-attachment] $close:raw-y-close [word-end-attachment]
   | $m:zoi-marker $g:delimiter-gap $open:y-bu-word $b:delimiter-body-gap $content:empty-zoi-body
     [quote-attachment] $close:raw-y-close [word-end-attachment]
@@ -482,7 +484,7 @@ The body leaves its final quiet pause to the closing gap. The closing edge keeps
 
 %rule zoi-quote → {*$m.flags, image: $.source-text}
   | $m:zoi-marker $g:delimiter-gap $open:delimiter $b:delimiter-body-gap $content:zoi-body
-    PAUSE [quote-attachment] $close:raw-run [word-end-attachment]
+    close-gap [quote-attachment] $close:raw-run [word-end-attachment]
   | $m:zoi-marker $g:delimiter-gap $open:delimiter $b:delimiter-body-gap
     $content:empty-zoi-body [quote-attachment] $close:raw-run [word-end-attachment]
 %conditions
@@ -509,6 +511,9 @@ The body leaves its final quiet pause to the closing gap. The closing edge keeps
   | word-end-attachment PAUSE<¬Quote-Material>
   | ^interword-mark
   | period-pause (word-end-attachment PAUSE<¬Quote-Material> | interword-mark) → {Delimiter-Edge}
+
+%rule close-gap
+  PAUSE → {image: value: $PAUSE}
 
 %rule period-pause
   PAUSE<¬Quote-Material Period-Only>
@@ -550,13 +555,14 @@ The body leaves its final quiet pause to the closing gap. The closing edge keeps
   ^PAUSE<¬Quote-Material> → {image: value: ""}
 ```
 
-<details><summary>Railroad diagrams of the 15 rules from <code>zoi-y-quote</code> to <code>quiet-pause</code></summary>
+<details><summary>Railroad diagrams of the 16 rules from <code>zoi-y-quote</code> to <code>quiet-pause</code></summary>
 <p><img src="../../../docs/diagrams/50/lojban/common/stream/zoi-y-quote.svg" alt="Railroad diagram of the rule zoi-y-quote"></p>
 <p><img src="../../../docs/diagrams/50/lojban/common/stream/zoi-quote.svg" alt="Railroad diagram of the rule zoi-quote"></p>
 <p><img src="../../../docs/diagrams/50/lojban/common/stream/zoi-marker.svg" alt="Railroad diagram of the rule zoi-marker"></p>
 <p><img src="../../../docs/diagrams/50/lojban/common/stream/delimiter.svg" alt="Railroad diagram of the rule delimiter"></p>
 <p><img src="../../../docs/diagrams/50/lojban/common/stream/delimiter-gap.svg" alt="Railroad diagram of the rule delimiter-gap"></p>
 <p><img src="../../../docs/diagrams/50/lojban/common/stream/delimiter-body-gap.svg" alt="Railroad diagram of the rule delimiter-body-gap"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/stream/close-gap.svg" alt="Railroad diagram of the rule close-gap"></p>
 <p><img src="../../../docs/diagrams/50/lojban/common/stream/period-pause.svg" alt="Railroad diagram of the rule period-pause"></p>
 <p><img src="../../../docs/diagrams/50/lojban/common/stream/interword-mark.svg" alt="Railroad diagram of the rule interword-mark"></p>
 <p><img src="../../../docs/diagrams/50/lojban/common/stream/delimiter-spacing.svg" alt="Railroad diagram of the rule delimiter-spacing"></p>
@@ -681,7 +687,7 @@ The quote hands on one token, which covers its markers and its words. They hand 
 
 ### Raw payloads
 
-`raw-tokens` and `single-run-payload` keep word and FOREIGN values. Their material tokens take their value and image from source text. The forms stage gives a material pause the value of one space, because that value marks a boundary between words. A raw body keeps the mark itself, so `payload-token` reads its source text, as `zo-punctuation` does for a quoted mark. Delimited quotes take their images from their whole source intervals.
+`raw-tokens` and `single-run-payload` keep word and FOREIGN values. `payload-token` marks a material pause as its primary, so a raw body keeps the value and the image of each mark, as `zo-punctuation` does for a quoted mark. Delimited quotes take their images from their whole source intervals.
 
 `run-token` reads each token that is no pause: a word, a hesitation or a FOREIGN run, each with the value of its token. Its filter names only the kind that it leaves out, so a layer that adds a kind of token need not extend it. A closing run reads only these tokens, a cmavo through `cmavo-token`. So its value is the join of their values.
 
@@ -702,7 +708,7 @@ Only `single-run-payload` gives its body its own image. Its `.verbatim-text` pre
 
 %rule payload-token
   | run-token
-  | ^PAUSE<Quote-Material> → {value: $.decomposed-source-text, image: $.source-text}
+  | ^PAUSE<Quote-Material>
 
 %rule run-token
   _<¬PAUSE>
@@ -1000,7 +1006,7 @@ Period tags keep these boundaries independent of script spelling. Zbalermorna an
 
 Unlike camxes-exp, this stage accepts formatting marks attached to a quote marker or delimiter. Their source images keep the marks, which add no value. Whitespace ends an opening formatting edge, so standalone material cannot disappear. Raw body material retains its spelling.
 
-Unlike camxes-exp, a decimal point between digits stays inside a raw run, as `grammars/lojban/common/latin.md` specifies. Thus `zo'oi 3.14 broda` quotes `3.14`, while camxes-exp quotes `3`. This keeps numeric spellings intact.
+Unlike camxes-exp, a decimal point between digits stays inside a raw run, as [latin.md](latin.md) specifies. Thus `zo'oi 3.14 broda` quotes `3.14`, while camxes-exp quotes `3`. This keeps numeric spellings intact.
 
 Unlike camxes-exp, a raw one-word quote takes a standalone comma instead of skipping it. Thus `zo'oi , broda` and `la'oi , klama` quote the comma here. camxes-exp quotes the following word. This follows the decision that ignored characters can form the quote body.
 
@@ -1011,6 +1017,8 @@ The Zantufa lexicon in `grammars/lojban/zantufa/lexicon.md` gives `zei` class SI
 ## Differences from the format 49 grammar
 
 The format 49 copy of this document is `grammars/lojban/common/stream.md`. This document accepts the same texts and hands on the same tokens, with the same values and images. The public keys are the same, except on a y letteral.
+
+`zo-punctuation` and `payload-token` take the value and the image of a material pause from its token. The format 49 copy reads them from the source text, because its forms stage gives the token one space. The strings are the same. `close-gap` writes one space for the pause before the closing delimiter of a `zoi` quote, where the format 49 copy reads the forms value of the pause, which was one space.
 
 The tokens carry the public keys that `$OUTPUTS` names: the keys of the forms stage and the five tags that this stage writes. The format 49 tokens of a y letteral also carry `Y-Key` for `y` or `Ieho` for `ie'o`. Here these two tags are gone, because no stage reads them. A y letteral keeps its letter in the private key `letter`.
 
