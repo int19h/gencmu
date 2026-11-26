@@ -41,6 +41,7 @@ export declare class Bridge {
     captureSymbols: Map<string, string>;
     currentRule: any;
     atMostOne: Set<any> | undefined;
+    bindings: any;
     repeated: Set<any> | undefined;
     hasClosed: boolean | undefined;
     forestRoot: any;
@@ -236,8 +237,9 @@ export declare class Bridge {
      * checks a clause that names such a capture on each of its items, and an
      * empty list has none, as `.all` requires (part 1 §9).
      * @param {any} node
+     * @returns {any[]}
      */
-    clauses(node: any): any;
+    clauses(node: any): any[];
     /** @param {any} node */
     inline(node: any): any;
     /**
@@ -289,6 +291,27 @@ export declare class Bridge {
             args: never[];
         };
     } | {
+        not: {
+            op: string;
+            left: {
+                tag: string;
+            };
+            right: {
+                forestRoot: boolean;
+                method?: undefined;
+                receiver?: undefined;
+                args?: undefined;
+            } | {
+                forestRoot?: undefined;
+                method: string;
+                receiver: {
+                    capture: any;
+                };
+                args: never[];
+            };
+        };
+        any?: undefined;
+    } | {
         all: {
             op: string;
             left: {
@@ -309,6 +332,7 @@ export declare class Bridge {
             };
         }[];
     } | {
+        not?: undefined;
         any: {
             op: string;
             left: {

@@ -26534,6 +26534,8 @@
         for (const [name, count] of maxBindings(alternative.expr)) counts.set(name, Math.max(counts.get(name) ?? 0, count));
       }
       for (const [name, count] of counts) if (count <= 1) this.atMostOne.add(name);
+      // The fewest and the most nodes that each alternative binds to a name.
+      this.bindings = rule.alternatives.map((/** @type {any} */ alternative) => ({ min: minBindings(alternative.expr), max: maxBindings(alternative.expr) }));
       this.repeated = new Set([...counts].filter(([, count]) => count > 1).map(([name]) => name));
       for (const alternative of rule.alternatives) collectCaptureSymbols(alternative.expr, this.captureSymbols);
       // The tags of each alternative read the capture sets of this rule.
@@ -27096,9 +27098,29 @@
      * checks a clause that names such a capture on each of its items, and an
      * empty list has none, as `.all` requires (part 1 §9).
      * @param {any} node
+     * @returns {any[]}
      */
     clauses(node) {
       if (Array.isArray(node.all)) return node.all.flatMap((/** @type {any} */ item) => this.clauses(item));
+      // A guard $d ⟹ P in a shared clause, where every alternative that binds
+      // a capture of P also binds $d, holds as P does. An alternative without
+      // the captures of P gives P no meaning (part 1 §5).
+      if (node.if !== undefined && node.else === undefined && node.if.capture && !node.if.expr && node.if.receiver === undefined) {
+        const guard = node.if.capture;
+        /** @type {Set<string>} */
+        const names = new Set();
+        /** @param {any} item */
+        const collect = item => {
+          if (!item || typeof item !== "object") return;
+          if (Array.isArray(item)) return item.forEach(collect);
+          if (typeof item.capture === "string" && item.capture !== "") names.add(item.capture);
+          for (const [key, value] of Object.entries(item)) if (key !== "at") collect(value);
+        };
+        collect(node.then);
+        names.delete(guard);
+        if (names.size && (this.bindings ?? []).every((/** @type {any} */ { min, max }) =>
+          ![...names].some(name => (max.get(name) ?? 0) > 0) || (min.get(guard) ?? 0) >= 1)) return this.clauses(node.then);
+      }
       if (node.method === "all" && node.receiver?.capture && !this.atMostOne?.has(node.receiver.capture) &&
           this.repeated?.has(node.receiver.capture) && node.args[0]?.lambda !== undefined) {
         return [this.truth(itemAsCapture(node.args[0], node.receiver.capture))];
@@ -27152,6 +27174,14 @@
       }
       // A presence or payload test of a key that is not visible, and a
       // comparison of a payload, read the hidden tags of the key.
+      // A token of the stage input carries the hidden key of each payload, so
+      // .has-value of a visible key reads it too.
+      if (node.method === "has-value" && node.args[0]?.key !== undefined && isVisibleKey(node.args[0].key) && node.receiver?.capture !== undefined) {
+        const symbol = this.captureSymbols.get(node.receiver.capture);
+        if (typeof symbol === "string" && !/^[a-z]/.test(symbol)) {
+          return { op: "⊆", left: { tag: payloadTag(node.args[0].key) }, right: this.receiverTags(node.receiver) };
+        }
+      }
       if ((node.method === "has" || node.method === "has-value") && node.args[0]?.key !== undefined && !isVisibleKey(node.args[0].key)) {
         const tag = node.method === "has" ? presentTag(node.args[0].key) : payloadTag(node.args[0].key);
         return { op: "⊆", left: { tag }, right: this.receiverTags(node.receiver) };
@@ -27231,11 +27261,28 @@
     /** @param {any} node */
     payloadComparison(node) {
       if (!["=", "≠", "<", "≤", ">", "≥"].includes(node.op)) return null;
+      // A capture of a token of the stage input: its payloads stand on the
+      // token as hidden keys, whatever the case of the key.
+      /** @param {any} receiver */
+      const tokenCapture = receiver => {
+        const symbol = receiver?.capture !== undefined ? this.captureSymbols.get(receiver.capture) : undefined;
+        return typeof symbol === "string" && !/^[a-z]/.test(symbol);
+      };
       /** @param {any} side */
-      const read = side => side?.property !== undefined && !isVisibleKey(side.property) && side.property !== "value" &&
-        side.property !== "image" && (side.receiver?.capture !== undefined || side.receiver?.item) ? side : null;
+      const read = side => side?.property !== undefined && side.property !== "value" && side.property !== "image" &&
+        (!isVisibleKey(side.property) && (side.receiver?.capture !== undefined || side.receiver?.item) || tokenCapture(side.receiver)) ? side : null;
       const [left, right] = [read(node.left), read(node.right)];
       if (!left && !right) return null;
+      // A visible key of a token has no domain from this document. Equality
+      // with a literal needs none.
+      const visible = [left, right].some(side => side && isVisibleKey(side.property));
+      if (visible) {
+        const side = left ?? right;
+        const other = literalPayload(left ? node.right : node.left);
+        if (left && right || other === undefined || (node.op !== "=" && node.op !== "≠")) return this.fail(`compare the payload ${side.property} of a token with this expression`, node.at);
+        const test = { op: "⊆", left: { tag: payloadTag(side.property, other) }, right: this.receiverTags(side.receiver) };
+        return node.op === "=" ? test : { not: test };
+      }
       /**
        * @param {any} a
        * @param {any} b
@@ -27931,6 +27978,37 @@
     /** @param {any} item */
     const replaceInner = item => Object.fromEntries(Object.entries(item).map(/** @returns {any} */ ([key, value]) => [key, replace(value)]));
     return replace(predicate.body);
+  }
+
+  // The fewest nodes that every route binds to each capture of a body.
+  /**
+   * @param {any} node
+   * @returns {Map<string, number>}
+   */
+  function minBindings(node) {
+    /** @type {Map<string, number>} */
+    const result = new Map();
+    if (!node || typeof node !== "object") return result;
+    if (node.capture !== undefined && node.expr) {
+      const inner = minBindings(node.expr);
+      inner.set(node.capture, (inner.get(node.capture) ?? 0) + 1);
+      return inner;
+    }
+    if (node.primary) return minBindings(node.primary);
+    if (node.test !== undefined) return minBindings(node.expr);
+    if (node.seq || node.and) {
+      for (const part of node.seq ?? node.and) for (const [name, count] of minBindings(part)) result.set(name, (result.get(name) ?? 0) + count);
+      return result;
+    }
+    if (node.choice || node.ranked) {
+      const branches = (node.choice ?? node.ranked).map(minBindings);
+      for (const name of new Set(branches.flatMap((/** @type {Map<string, number>} */ branch) => [...branch.keys()]))) {
+        result.set(name, branches.reduce((/** @type {number} */ least, /** @type {Map<string, number>} */ branch) => Math.min(least, branch.get(name) ?? 0), Infinity));
+      }
+      return result;
+    }
+    // An optional or a repetition can bind nothing.
+    return result;
   }
 
   // The most nodes that one route binds to each capture of a body, with 2
