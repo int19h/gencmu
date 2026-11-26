@@ -15,9 +15,9 @@ The prose uses these Eberban terms:
 
 ## Texts and paragraphs
 
-A text is language flags, then paragraphs, and an empty text is valid. The [sentences chapter](https://eberban.github.io/eberban/books/refgram/book/logic/sentences.html) marks a new paragraph with `PO`. The first paragraph can lack it. A paragraph is a sentence and any number of further sentences. A further sentence starts with a sentence starter, a particle of family `A`, `O` or `NI`. Or it is ungrammatical text that `ra` erases.
+A text is language flags, then paragraphs, and an empty text is valid. The book does not document the flags `DO`. The dictionary lists `do`, which disables the automatic import of the standard dictionary, and the PEG places the flags at the start of a text. So this grammar keeps `DO` on those two sources. Both parsers give the family to every particle that starts with `do`. No source states the scope of a flag inside a nested text. The [sentences chapter](https://eberban.github.io/eberban/books/refgram/book/logic/sentences.html) marks a new paragraph with `PO`. The first paragraph can lack it. A paragraph is a sentence and any number of further sentences. A further sentence starts with a sentence starter, a particle of family `A`, `O` or `NI`. Or it is ungrammatical text that `ra` erases.
 
-The chapter says that where several prefixes stand in a row, `PO` is the first of them. So `po-head` reads no free prefix before `PO`, and `di po a mi` is rejected. A free prefix can follow it, as in `po di a mi`.
+The chapter says that where several prefixes stand in a row, `PO` "must be the first" of them. So `po-head` reads no free prefix before `PO`, and `di po a mi` is invalid text. In `a mo di po ra a ke`, the `ra` erases `a mo di po`. A free prefix can follow it, as in `po di a mi`.
 
 The text rules are templates. Their parameter names what blocks an erasure at the start of a paragraph, as "Sentences and erasure" explains. `text` and its rules serve the whole text, a parenthetical and a quote with a written `cai`. `elided-cai-text` and its rules serve a quote whose `cai` is left out.
 
@@ -329,7 +329,7 @@ An inner predicate is a chain, with an optional arguments list before it. The ar
 
 ## Chains
 
-A chain is one or more steps, grouped from the right. `ri` erases the chain read so far, and the chain starts again after it. `bi` before a chain negates the whole of it, as the chapter on [transformations](https://eberban.github.io/eberban/books/refgram/book/logic/transformations.html) says.
+A chain is one or more steps, grouped from the right. `ri` erases the chain read so far, and the chain starts again after it. `bi` before a chain negates the whole of it, as the chapter on [transformations](https://eberban.github.io/eberban/books/refgram/book/logic/transformations.html) says. The chapter also says that "both `zi` and `bi` can be repeated. Each occurrence negates the scope of the next one". So a `BI` can repeat in every place where one `BI` stands: before a chain, before a bind and before an enumeration item. So `a mi bi bi va mo` and `a pe bu bi bi mi pei` are texts.
 
 After `bi`, `ri` replaces the chain that the `bi` negates, and the `bi` stays. So `a mi bi mo ri ke` negates `ke`, as in the PEG. The chain after `bi` can read the `ri` itself, so `restart-chain` refuses a replaced chain that ends in a `bi` chain. Without that condition, each such text has two readings. This strict chain is not erased, so its errors still report.
 
@@ -436,14 +436,14 @@ The empty-bind alternatives test the boundary after the postfixes that they read
   bind-first [{bind-next}] [+VEI]
 
 %rule bind-first
-  | [annotated-bi] annotated-vi inner-predicate
-  | [annotated-bi] [{free-prefix}] *bind-empty-vi $p:*recovery-suffixes
+  | [{annotated-bi}] annotated-vi inner-predicate
+  | [{annotated-bi}] [{free-prefix}] *bind-empty-vi $p:*recovery-suffixes
 %conditions
   $p.following-tokens.parse(missing-operand-boundary …)
 
 %rule bind-next
-  | [annotated-bi] annotated-fi inner-predicate
-  | [annotated-bi] [{free-prefix}] *bind-empty-fi $p:*recovery-suffixes
+  | [{annotated-bi}] annotated-fi inner-predicate
+  | [{annotated-bi}] [{free-prefix}] *bind-empty-fi $p:*recovery-suffixes
 %conditions
   $p.following-tokens.parse(missing-operand-boundary …)
 
@@ -464,7 +464,7 @@ The empty-bind alternatives test the boundary after the postfixes that they read
 
 ## Verbs
 
-A verb is a definable word with its namespace, or an inline assignment with `bo`. It can also be a `KI`, `BA` or `MI` particle, a quote, an enumeration, a borrowing group or a number. A `KI`, a number and a borrowing group take no free prefix of their own, as in the PEG. So `a di 1` and `a di ualis` are rejected. The others can take free prefixes. Any verb of a chain can take free suffixes, as in `a ke de mi`, because `annotated-verb` reads them.
+A verb is a definable word with its namespace, or an inline assignment with `bo`. The book describes `bo` before a `KI` or `GI` variable, so `bo-variable` reads a `GI` variable, with its namespace steps and free prefixes. So `a mi bo mi pi gi` is a text, and `a mi bo mian`, `a mi bo eberban` and `a mi bo ibar` are rejected. It can also be a `KI`, `BA` or `MI` particle, a quote, an enumeration, a borrowing group or a number. A `KI`, a number and a borrowing group take no free prefix of their own, as in the PEG. So `a di 1` and `a di ualis` are rejected. The others can take free prefixes. Any verb of a chain can take free suffixes, as in `a ke de mi`, because `annotated-verb` reads them.
 
 ```jbogenbau
 %rule base-verb
@@ -473,15 +473,19 @@ A verb is a definable word with its namespace, or an inline assignment with `bo`
   | enumeration | borrowing-group | number
 
 %rule inline-assignment
-  [{free-prefix}] BO (KI | definable)
+  [{free-prefix}] BO (KI | bo-variable)
+
+%rule bo-variable
+  [{namespace-step}] [{free-prefix}] GI
 
 %rule prefixed-ba
   [{free-prefix}] BA
 ```
 
-<details><summary>Railroad diagrams of <code>base-verb</code>, <code>inline-assignment</code> and <code>prefixed-ba</code></summary>
+<details><summary>Railroad diagrams of the 4 rules from <code>base-verb</code> to <code>prefixed-ba</code></summary>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/syntax/base-verb.svg" alt="Railroad diagram of the rule base-verb"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/syntax/inline-assignment.svg" alt="Railroad diagram of the rule inline-assignment"></p>
+<p><img src="../../../docs/diagrams/50/eberban/refgram/syntax/bo-variable.svg" alt="Railroad diagram of the rule bo-variable"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/syntax/prefixed-ba.svg" alt="Railroad diagram of the rule prefixed-ba"></p>
 </details>
 
@@ -568,7 +572,7 @@ The [enumeration chapter](https://eberban.github.io/eberban/books/refgram/book/g
   [{free-prefix}] PE [{free-suffix}] (prefix-form | separator-form) [+PEI]
 
 %rule prefix-form
-  prefixed-bu [{[annotated-bi] enumerated-verb}]
+  prefixed-bu [{[{annotated-bi}] enumerated-verb}]
 
 %rule enumerated-verb
   [prefixed-si] annotated-verb [{bind-group}]
@@ -638,6 +642,19 @@ The chapter says that a `JI` other than `jie` "must follow positive integer (no 
 
 The [annotations chapter](https://eberban.github.io/eberban/books/refgram/book/grammar/annotations.html) gives free prefixes and suffixes. A prefix is a `DI` particle, with an optional `DU` scope before it. A suffix is `DE` with one verb, or a parenthetical text between `da` and `dai`. The chapter allows any valid text in a parenthetical. It states an empty text only for a quote. The PEG treats a parenthetical with no words as an error, and this grammar follows that intent. So `a mi da dai` reports `empty-parenthetical`. Language flags are words, so `a mi da do dai` is a text.
 
+The chapter says that prefixing an annotation with `DU` changes its scope. So `free-suffix` reads an optional `DU` too, as in `a mi du de gali` and `a mi duo da a mo dai`. The families `DU`, `PE` and `JI` stay open by shape. The book names `du` and `duo`, six `PE` words and six `JI` words, and both parsers read every word of the right shape.
+
+The book's summary comments out its `from_scratch` chapters, so this grammar leaves them out. They give `PA` context functions, `PO` definitions, `PU` axioms and `BU` lists without `PE`. No rule reads `PU` or `CU` outside quotes, compounds and delimiters, so `a pu mi` is rejected.
+
+The book says that free prefixes stand before many elements, and it does not list them. This grammar takes the places of the PEG, with `PO` first among prefixes. Free prefixes stand before these words:
+
+- the sentence starters `A`, `O` and `NI`, and the closers `CAI`, `FI` and `BU`
+- the binders `VI`, `FI` and `BI`, the modifiers `ZI` and `SI`, and the separator `BU`
+- the quote openers `CA`, `CI`, `CE`, `CO` and `COI`, and `PE`
+- the verbs `MI`, `BA` and `BO`, a `GI` variable, and a definable root, compound or freeform
+
+No free prefix stands before `PO`, `DAI`, `VEI`, `PEI`, `PA`, `PI`, `BE`, `JI`, `KI`, `DA`, `DE` or a number word.
+
 The chapter ends a parenthetical with `dai`. So the first `dai` after `da` closes it, and erasure inside the parenthetical cannot swallow that `dai`. The witness `paren-open-sentence` lets a sentence of the parenthetical end before `dai`. The last condition of `parenthetical` bars a text that starts with an erased `dai`, as in `a mi da dai ra a ke dai`.
 
 ```jbogenbau
@@ -645,7 +662,7 @@ The chapter ends a parenthetical with `dai`. So the first `dai` after `da` close
   [DU] DI
 
 %rule free-suffix
-  interjection | parenthetical
+  [DU] (interjection | parenthetical)
 
 %rule interjection
   DE [prefixed-si] verb
@@ -849,7 +866,7 @@ The boundary query recognizes annotated `vi` and `fi`, with optional `bi`, witho
   starter-head | PO | RA | bind-start | sentence-closer | end-of-text
 
 %rule bind-start
-  [annotated-bi] [{free-prefix}] (VI | FI)
+  [{annotated-bi}] [{free-prefix}] (VI | FI)
 
 %const $CHAIN-EMPTY-MESSAGE "a chain needs at least one non-erased verb"
 
@@ -1183,6 +1200,9 @@ The format 49 copy of this document is `grammars/eberban/refgram/syntax.md`. Thi
 - The sentences chapter says that `ri` erases a chain that must be grammatical. A `ri` with no chain before it reports one `chain-empty` on that `ri`, and a written `pei` or `vei` after it closes its construct. So `a pe ri mo pei` reports one error, where the format 49 copy reported two.
 - `pa` resumes the latest matching verb. One step rule reads every step, so two equal verbs compare equal also where a `pa` follows one of them. So `a pe mi pa pe mi` is a text, and `a ca mi pa ca mi` keeps `mi` inside each quote, as the PEG does. The format 49 copy rejected the first and emptied the quotes of the second.
 - The quotes chapter says that `ci` quotes one word ignoring its grammar. So `a ci ce ci cei` and `a ci ce mi ci cei` are texts, as in the PEG. The empty spelling quote now reports in the [word forms](morphology.md), so a `ce` inside a compound draws no spelling error.
+- The book describes `bo` before a `KI` or `GI` variable. So `bo` reads only those, and `a mi bo mian` is rejected, where the format 49 copy accepted any definable word. `a mi bo mi pi gi`, with a namespace, is a text.
+- The transformations chapter lets `bi` repeat, and each occurrence negates the scope of the next. So `a mi bi bi va mo` and `a pe bu bi bi mi pei` are texts. The format 49 copy repeated `BI` only before a chain.
+- The annotations chapter lets `DU` prefix an annotation. So `a mi du de gali` and `a mi duo da a mo dai` are texts. The format 49 copy read `DU` only before `DI`.
 
 The changes below are changes of form.
 

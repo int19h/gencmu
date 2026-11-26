@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="758" height="132" viewBox="0 0 758 132" role="img" aria-label="Railroad diagram of the rule bind-next">
+<svg xmlns="http://www.w3.org/2000/svg" width="798" height="142" viewBox="0 0 798 142" role="img" aria-label="Railroad diagram of the rule bind-next">
 <style>path{fill:none;stroke:#333;stroke-width:1.5}.rule rect{fill:#e8eefc;stroke:#333;stroke-width:1.5}.terminal rect{fill:#fdf6d8;stroke:#333;stroke-width:1.5}text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"DejaVu Sans Mono","Liberation Mono",monospace;font-size:14px;fill:#111;text-anchor:middle}text.label{font-size:12px;font-style:italic;fill:#555;text-anchor:start}text.title{font-weight:bold;text-anchor:start}</style>
 <rect width="100%" height="100%" fill="#fff"/>
 <text class="title" x="10" y="24" textLength="75.6" lengthAdjust="spacingAndGlyphs">bind-next</text>
@@ -6,31 +6,37 @@
 <path d="M10 48v16m4 -16v16M14 56h6"/>
 <path d="M20 56h20"/>
 <path d="M40 56h20"/>
-<g class="rule"><rect x="60" y="44" width="117" height="24" rx="0"/><text x="118.5" y="61" textLength="100.8" lengthAdjust="spacingAndGlyphs">annotated-bi</text></g>
-<path d="M177 56H197"/>
-<path d="M40 56a10 10 0 0 0 10 -10V44a10 10 0 0 1 10 -10H177a10 10 0 0 1 10 10V46a10 10 0 0 0 10 10"/>
-<path d="M197 56h10"/>
-<g class="rule"><rect x="207" y="44" width="117" height="24" rx="0"/><text x="265.5" y="61" textLength="100.8" lengthAdjust="spacingAndGlyphs">annotated-fi</text></g>
-<path d="M324 56h10"/>
-<g class="rule"><rect x="334" y="44" width="142" height="24" rx="0"/><text x="405" y="61" textLength="126" lengthAdjust="spacingAndGlyphs">inner-predicate</text></g>
-<path d="M476 56H738"/>
-<path d="M20 56a10 10 0 0 1 10 10V90a10 10 0 0 0 10 10"/>
-<path d="M40 100h20"/>
-<g class="rule"><rect x="60" y="88" width="117" height="24" rx="0"/><text x="118.5" y="105" textLength="100.8" lengthAdjust="spacingAndGlyphs">annotated-bi</text></g>
-<path d="M177 100H197"/>
-<path d="M40 100a10 10 0 0 0 10 -10V88a10 10 0 0 1 10 -10H177a10 10 0 0 1 10 10V90a10 10 0 0 0 10 10"/>
-<path d="M197 100h10"/>
-<path d="M207 100h20"/>
-<path d="M227 100h20"/>
-<g class="rule"><rect x="247" y="88" width="109" height="24" rx="0"/><text x="301.5" y="105" textLength="92.4" lengthAdjust="spacingAndGlyphs">free-prefix</text></g>
-<path d="M356 100H376"/>
-<path d="M356 100a10 10 0 0 1 10 10V112a10 10 0 0 1 -10 10H247a10 10 0 0 1 -10 -10V110a10 10 0 0 1 10 -10"/>
-<path d="M376 100H396"/>
-<path d="M207 100a10 10 0 0 0 10 -10V88a10 10 0 0 1 10 -10H376a10 10 0 0 1 10 10V90a10 10 0 0 0 10 10"/>
-<path d="M396 100h10"/>
-<g class="terminal"><rect x="406" y="88" width="134" height="24" rx="12"/><text x="473" y="105" textLength="117.6" lengthAdjust="spacingAndGlyphs">*bind-empty-fi</text></g>
-<path d="M540 100h10"/>
-<g class="terminal"><rect x="550" y="88" width="168" height="24" rx="12"/><text x="634" y="105" textLength="151.2" lengthAdjust="spacingAndGlyphs">*recovery-suffixes</text></g>
-<path d="M718 100H718a10 10 0 0 0 10 -10V66a10 10 0 0 1 10 -10"/>
-<path d="M738 56h6m0 -8v16m4 -16v16"/>
+<path d="M60 56h20"/>
+<g class="rule"><rect x="80" y="44" width="117" height="24" rx="0"/><text x="138.5" y="61" textLength="100.8" lengthAdjust="spacingAndGlyphs">annotated-bi</text></g>
+<path d="M197 56H217"/>
+<path d="M197 56a10 10 0 0 1 10 10V68a10 10 0 0 1 -10 10H80a10 10 0 0 1 -10 -10V66a10 10 0 0 1 10 -10"/>
+<path d="M217 56H237"/>
+<path d="M40 56a10 10 0 0 0 10 -10V44a10 10 0 0 1 10 -10H217a10 10 0 0 1 10 10V46a10 10 0 0 0 10 10"/>
+<path d="M237 56h10"/>
+<g class="rule"><rect x="247" y="44" width="117" height="24" rx="0"/><text x="305.5" y="61" textLength="100.8" lengthAdjust="spacingAndGlyphs">annotated-fi</text></g>
+<path d="M364 56h10"/>
+<g class="rule"><rect x="374" y="44" width="142" height="24" rx="0"/><text x="445" y="61" textLength="126" lengthAdjust="spacingAndGlyphs">inner-predicate</text></g>
+<path d="M516 56H778"/>
+<path d="M20 56a10 10 0 0 1 10 10V100a10 10 0 0 0 10 10"/>
+<path d="M40 110h20"/>
+<path d="M60 110h20"/>
+<g class="rule"><rect x="80" y="98" width="117" height="24" rx="0"/><text x="138.5" y="115" textLength="100.8" lengthAdjust="spacingAndGlyphs">annotated-bi</text></g>
+<path d="M197 110H217"/>
+<path d="M197 110a10 10 0 0 1 10 10V122a10 10 0 0 1 -10 10H80a10 10 0 0 1 -10 -10V120a10 10 0 0 1 10 -10"/>
+<path d="M217 110H237"/>
+<path d="M40 110a10 10 0 0 0 10 -10V98a10 10 0 0 1 10 -10H217a10 10 0 0 1 10 10V100a10 10 0 0 0 10 10"/>
+<path d="M237 110h10"/>
+<path d="M247 110h20"/>
+<path d="M267 110h20"/>
+<g class="rule"><rect x="287" y="98" width="109" height="24" rx="0"/><text x="341.5" y="115" textLength="92.4" lengthAdjust="spacingAndGlyphs">free-prefix</text></g>
+<path d="M396 110H416"/>
+<path d="M396 110a10 10 0 0 1 10 10V122a10 10 0 0 1 -10 10H287a10 10 0 0 1 -10 -10V120a10 10 0 0 1 10 -10"/>
+<path d="M416 110H436"/>
+<path d="M247 110a10 10 0 0 0 10 -10V98a10 10 0 0 1 10 -10H416a10 10 0 0 1 10 10V100a10 10 0 0 0 10 10"/>
+<path d="M436 110h10"/>
+<g class="terminal"><rect x="446" y="98" width="134" height="24" rx="12"/><text x="513" y="115" textLength="117.6" lengthAdjust="spacingAndGlyphs">*bind-empty-fi</text></g>
+<path d="M580 110h10"/>
+<g class="terminal"><rect x="590" y="98" width="168" height="24" rx="12"/><text x="674" y="115" textLength="151.2" lengthAdjust="spacingAndGlyphs">*recovery-suffixes</text></g>
+<path d="M758 110H758a10 10 0 0 0 10 -10V66a10 10 0 0 1 10 -10"/>
+<path d="M778 56h6m0 -8v16m4 -16v16"/>
 </svg>

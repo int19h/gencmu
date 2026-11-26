@@ -312,11 +312,13 @@ The numbers chapter says that `+`, `*` and `/` are spaces, and that verbs expres
 
 A hyphen can stand at a syllable boundary to make the syllable stand out, and it lets a word continue on the next line. The book names the hyphen-minus `-`. The PEG also reads U+2010, the hyphen of Unicode, and this stage does the same. An em dash is a space. A hyphen token has an empty value, so it never changes the value of a word. Its image is `-`.
 
-The line breaks after a hyphen belong to its token. The [new course](https://eberban.github.io/eberban/books/new_course/book/02_01_morphology.html) allows spaces on the new line before the rest of the word. So the spaces and tabs after those line breaks belong to the token too. Then `bja-` and an indented `n` on the next line form `bjan`. In the same way, `mi-` and an indented `an` on the next line form `mian`. The letters after the indent continue the word, whatever letter starts them.
+The line breaks after a hyphen belong to its token. The [new course](https://eberban.github.io/eberban/books/new_course/book/02_01_morphology.html) allows spaces on the new line before the rest of the word. So the spaces and tabs after those line breaks belong to the token too. Then `bja-` and an indented `n` on the next line form `bjan`. In the same way, `mi-` and an indented `an` on the next line form `mian`. The letters after the indent continue the word, whatever letter starts them. The book says only that a hyphen "allows a word to continue on the next line". So this grammar names the new course as the source of the indent. A hyphen takes the indent only after a letter, because only then does a word go on. So a hyphen alone at a line end, as in `$'a mi -\n   mo'`, takes no indent. After a digit, as in `$'a 1-\n\t+ mo'`, the tab stays a space, and it hides the math symbol after it.
 
 ```jbogenbau
 %rule hyphen
-  hyphen-char [{line-break} [indent]] → {Hyphen, value: "", image: "-"}
+  hyphen-char [{line-break} [$i:indent]] → {Hyphen, value: "", image: "-"}
+%conditions
+  ¬$i ∨ $.preceded-by(letter)
 %emit
 
 %rule indent
@@ -387,4 +389,6 @@ The new course says that spaces can stand on the new line before the rest of a w
 
 ## Differences from the format 49 grammar
 
-This document reads the same texts as its format 49 copy, `grammars/eberban/refgram/letters.md`. It emits the same tokens with the same values, images, places and tags. That holds for caller tokens too: a digit's image is the value of its input token, in both formats. `$OUTPUTS` names only the tags of the stage, so a token carries no Unicode property of its characters, as before.
+A hyphen takes the indent of the next line only after a letter, because only then does a word go on. So `$'a mi -\n   mo'` is rejected, as in the PEG, and `$'a 1-\n\t+ mo'` no longer warns `math-symbol`. The format 49 copy let every hyphen take the indent.
+
+Apart from that, this document reads the same texts as its format 49 copy, `grammars/eberban/refgram/letters.md`. It emits the same tokens with the same values, images, places and tags. That holds for caller tokens too: a digit's image is the value of its input token, in both formats. `$OUTPUTS` names only the tags of the stage, so a token carries no Unicode property of its characters, as before.
