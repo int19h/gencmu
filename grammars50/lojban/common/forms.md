@@ -141,7 +141,7 @@ The stage covers every input token. It preserves pause boundaries, images and ke
 
 The stage passes foreign runs through and combines phonemes into words or foreign runs. A phoneme-stage `FOREIGN` token keeps its value, image, text and keys. The `foreign-token` rule adds `Run-Initial` and `Run-Final`.
 
-A run of phonemes that divides into no words becomes one `FOREIGN` token. Its value is its source text, the run as the author wrote it, in the decomposed form of stage zero. Its image joins its phoneme images, which the projection takes from the rule's default. A word's value never equals such a text, so the run never closes a quote that a word opened. A delimiter must be a word, and such a run is none. The token's text retains what the author wrote.
+A run of phonemes that divides into no words becomes one `FOREIGN` token. Its value is its source text, the run as the author wrote it, in the decomposed form of stage zero. Its image joins its phoneme images, which the projection takes from the rule's default. On text that the pipeline tokenizes, a word's value never equals such a text, so the run never closes a quote that a word opened. A caller token can give the run the value of a word, as `gy`, and the run then closes a quote that `gy` opened. A delimiter must be a word, and such a run is none. The token's text retains what the author wrote.
 
 The new token is a projection over the rule's node. So the decomposed spelling stays on the token, and the rule node keeps the joined phoneme values.
 
@@ -309,7 +309,7 @@ The words stage drops hesitation, or reads it as the base of the letter word `.y
 
 ## Differences from camxes
 
-Separate material tokens preserve punctuation for raw quotes. Their normalized pause values also let delimiter comparisons find punctuation boundaries. The words stage recovers the raw spelling through source recipes, as [stream.md](stream.md) specifies.
+Separate material tokens preserve punctuation for raw quotes. Each mark is a pause token, so it bounds a delimiter run. The words stage recovers the raw spelling through source recipes, as [stream.md](stream.md) specifies.
 
 camxes-std, the standard grammar of the camxes parser, rejects the whole text `kyyykerlo`. camxes-exp, the experimental grammar of the camxes parser, rejects it too. Their [standard spaces rule](https://github.com/lojban/ilmentufa/blob/778ea138f7d150121ca722db7536ce3b123943ac/camxes.peg#L1529-L1531) and [experimental spaces rule](https://github.com/lojban/ilmentufa/blob/778ea138f7d150121ca722db7536ce3b123943ac/camxes-exp.peg#L1625-L1627) refuse a leading Y token. The words stages of `lojban/bpfk` and `lojban/experimental` instead drop the hesitation `yy`.
 
