@@ -1,0 +1,336 @@
+# Word forms
+
+This document opens the forms stage. A stage is one step of a pipeline, with its own grammar ([engine §1](../../../docs/engine.md#1-tokens)).
+
+A token is one unit that a stage reads or emits. A token's value is the string that exact comparisons read. Its image is the string that people see.
+
+The forms stage follows the phoneme stage in every Lojban pipeline. The [CLL pipeline](../cll/pipeline.md) is the one under this source root. The BPFK, experimental and Zantufa pipelines are under `grammars/lojban/`. The stage reads the phoneme values, images and tags.
+
+The stage divides the text into its source words and gives each word the keys of its class. A token carries a bag of keys. A tag is a capitalized key, which terminals and filters test. The stage hands the words to the words stage ([stream.md](stream.md)), where the magic words act on them. [The notation document](../../../docs/notation.md) explains the notation.
+
+This document does not decide what a word looks like. The loader stitches other documents into the stage with this one: the word forms of one word family, and one lexicon. A word family is a set of word forms that pipelines use. The word family defines three of the shapes this grammar reads: `cmavo-shape`, `brivla-shape` and `cmevla-shape`. It gives each the pause tags below.
+
+The prose uses these Lojban terms for words:
+
+- A cmavo is a particle, a short structure word.
+- A selma'o is a word class of cmavo.
+- A brivla is a predicate word.
+- A cmevla is a name word.
+- A rafsi is a word form used inside compounds.
+- A gismu is a root word.
+
+The `lojban/cll` pipeline stitches [../cll/shapes.md](../cll/shapes.md) and [../cll/morphology.md](../cll/morphology.md) as its word family. The other pipelines stitch `grammars/lojban/bpfk/morphology.md`, with the experimental or Zantufa word forms after it. The lexicon of `lojban/cll` is [../cll/lexicon.md](../cll/lexicon.md). It gives each cmavo its selma'o.
+
+## The stage interface
+
+The stage joins the strings of each rule's children by default. So a word's value and image are the values and images of its phonemes, in order. A rule that needs another string writes it.
+
+The public keys are the keys of the phoneme stage, every class of the lexicon, and the tags that this stage writes. The words stage reads them. The two splats name the keys of the input and the classes of the stitched lexicon. A pause tag or a class of another lexicon needs no name of its own. A layer that writes a new tag adds it with `%redefine-const`.
+
+```jbogenbau
+%const $DEFAULTS $n ↦ {value: $n.children!'value.join(), image: $n.children!'image.join()}
+%const $OUTPUTS {
+  *$INPUTS,
+  *$LEXICON.keys,
+  FOREIGN,
+  Word,
+  Cmavo,
+  BRIVLA,
+  CMEVLA,
+  Hesitation,
+  Cmavo-Warning,
+  Run-Initial,
+  Run-Final,
+  Spacing,
+  Onset,
+  Continued,
+  Cy,
+  Uncounted,
+  Name-Intro,
+  Name-Onset,
+  Initial-Stress,
+  Final-Stress,
+  Open-Stress,
+  Stress-Guard,
+  Gismu,
+  Lujvo,
+  Fuhivla
+}
+```
+
+## Runs
+
+The text is runs and pauses. A run is a stretch of text with no pause inside. The phoneme stage emits a pause as one or more `PAUSE` tokens. The phoneme stage decides what counts as a pause. In the orthography of *The Complete Lojban Language* (CLL), a pause is a space or a period. In the conventions that the other pipelines read, other punctuation is a pause too.
+
+In the CLL word family, the numbered pause rules of CLL[^cll-s4-9] and its stress rule[^cll-s4-2] hold within one run. A pause satisfies each of them, so two words with a pause between them never constrain each other. Inside one run, the BPFK word family breaks two numbered pause rules, for [letter words](#words-in-a-run) and [hesitation](#words).
+
+A lookahead tests following input without consuming it. The BPFK word forms look ahead only as far as the next pause. BPFK is the Lojban language planning committee. This stage reads each run on its own, except for two lookaheads.
+
+A prolonged y run tests for `bu` across one pause. In the BPFK word family, `cmavo-shape` ends with the PEG's `post_word` test, so this lookahead requires the whole cmavo. In the CLL word family, it tests only the letters `bu`, even at the start of another word.
+
+In Zantufa, a second lookahead applies before a quoted form. There, a `ra'oi` before a pause changes how the stage divides the next run (`grammars/lojban/zantufa/morphology.md`).
+
+A run is a sequence of words or a foreign run. A foreign run is a stretch that the pipeline did not read as words. It carries the tag `FOREIGN`. A run with a character that no script reads becomes a foreign run in the phoneme stage. A run whose phonemes divide into no words becomes a foreign run in the forms stage.
+
+A `Quote-Material` pause token preserves punctuation or ignored source text in `grammars/lojban/common/latin.md`. This stage preserves each pause token separately, with its keys and image. Every pause receives the value of one space. Raw quote recipes recover material from its source text. A punctuation apostrophe tagged `PAUSE` is no word phoneme.
+
+A foreign run is not an error here. The words stage decides whether a foreign run can stand where it is. The words stage takes it as the body of a quote, such as `zoi` or `zo'oi`, and after `fa'o`. Elsewhere it rejects a foreign run ([stream.md](stream.md)). So this stage never rejects a text.
+
+In `lojban/cll`, a syllable comma has an empty value, so `nonpause-phoneme` reads its `Syllable-Break` tag. The other Lojban pipelines drop commas in the phoneme stage.
+
+Ordinary word forms divide each run in one way only. Zantufa's `ra'oi` quote is the exception, and its pipeline states a `leftmost-longest` step for it. The other word forms fix every boundary, so a stage's `lazy` step decides nothing else. Each pipeline states the directive of its forms stage in its pipeline document.
+
+```jbogenbau
+%rule text
+  | ε | pause-run
+  | [pause-run] runs [pause-run]
+
+%rule runs
+  run | runs pause-run run
+
+%rule pause-run
+  {pause-token}
+
+%rule pause-token
+  ^PAUSE → {value: " "}
+%emit
+
+%rule run
+  segmented-run | foreign-token | unsegmentable-run
+
+%rule segmented-run
+  run-words
+
+%rule foreign-token
+  ^FOREIGN → {Run-Initial, Run-Final}
+%emit
+
+%rule unsegmentable-run
+  $f:phoneme-sequence
+%conditions
+  ¬$f.following-tokens.parse(nonpause-phoneme …),
+  ¬$f.parse(segmented-run)
+%emit
+  ${FOREIGN, Run-Initial, Run-Final, value: $.decomposed-source-text}
+
+%rule phoneme-sequence
+  {nonpause-phoneme}
+
+%rule nonpause-phoneme
+  | "a" | "e" | "i" | "o" | "u" | "y"
+  | "'"<¬PAUSE>
+  | Syllable-Break
+  | "b" | "c" | "d" | "f" | "g" | "j" | "k" | "l" | "m"
+  | "n" | "p" | "r" | "s" | "t" | "v" | "x" | "z"
+```
+
+<details><summary>Railroad diagrams of the 10 rules from <code>text</code> to <code>nonpause-phoneme</code></summary>
+<p><img src="../../../docs/diagrams/50/lojban/common/forms/text.svg" alt="Railroad diagram of the rule text"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/forms/runs.svg" alt="Railroad diagram of the rule runs"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/forms/pause-run.svg" alt="Railroad diagram of the rule pause-run"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/forms/pause-token.svg" alt="Railroad diagram of the rule pause-token"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/forms/run.svg" alt="Railroad diagram of the rule run"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/forms/segmented-run.svg" alt="Railroad diagram of the rule segmented-run"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/forms/foreign-token.svg" alt="Railroad diagram of the rule foreign-token"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/forms/unsegmentable-run.svg" alt="Railroad diagram of the rule unsegmentable-run"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/forms/phoneme-sequence.svg" alt="Railroad diagram of the rule phoneme-sequence"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/forms/nonpause-phoneme.svg" alt="Railroad diagram of the rule nonpause-phoneme"></p>
+</details>
+
+The stage covers every input token. It preserves pause boundaries, images and keys, and sets pause values to one space. A pause token is its `PAUSE` phoneme, so it keeps that phoneme's bag and image. The term replaces only its value.
+
+The stage passes foreign runs through and combines phonemes into words or foreign runs. A phoneme-stage `FOREIGN` token keeps its value, image, text and keys. The `foreign-token` rule adds `Run-Initial` and `Run-Final`.
+
+A run of phonemes that divides into no words becomes one `FOREIGN` token. Its value is its source text, the run as the author wrote it, in the decomposed form of stage zero. Its image joins its phoneme images, which the projection takes from the rule's default. A word's value never equals such a text, so the run never closes a quote that a word opened. A delimiter must be a word, and such a run is none. The token's text retains what the author wrote.
+
+The new token is a projection over the rule's node. So the decomposed spelling stays on the token, and the rule node keeps the joined phoneme values.
+
+The stage tests only a whole run, and it tests the run in isolation. No rule except the two lookaheads reads past the run, so the isolated test agrees with a test in place. A `yy` that the y lookahead splits divides into words either way.
+
+The rule `segmented-run` is a run that divides into words. A pipeline that divides a run in another way extends `segmented-run`, as `grammars/lojban/zantufa/morphology.md` does for `ra'oi`. So `unsegmentable-run` never takes a run that one of these ways reads.
+
+A repetition passes no keys from its items. So `pause-run` and `phoneme-sequence` have only their default strings, and no rule reads a tag from them.
+
+## Words in a run
+
+The stage reads the words of a run from the left. A word after the first needs pause rules that let it stand beside the word before it with no pause. The word family tags each word with the keys that these rules test. The run copies the tags of its last word, so the condition sees the word before and the word after. The following list describes the CLL word family:
+
+- `Onset`: The word can follow another word directly. It begins with a consonant and is not a name (rules 3 and 4).
+- `Continued`: Another word can follow this one directly. A name never has it (rule 2), nor a `Cy` letter, nor a brivla whose stress is not marked.
+- `Name-Intro` and `Name-Onset`: `Name-Intro` marks `la`, `lai`, `la'i` and `doi`, and `Name-Onset` marks a name that begins with a consonant. The name can follow the cmavo directly (rule 4).
+- `Cy`: A `Cy` letter, which only another `Cy` letter can follow directly (rule 6).
+- `Final-Stress`, `Initial-Stress` and `Stress-Guard`: The word's last or first syllable is stressed, or the word is a brivla. A word with `Initial-Stress` cannot directly follow a word with `Final-Stress`.[^cll-s4-2] Neither can a brivla with `Stress-Guard` (pause rule 5).[^cll-s4-9]
+- `Open-Stress` and `Uncounted`: `Open-Stress` marks a brivla whose stress is not marked, and `Uncounted` marks a word with no counted syllable. CLL[^cll-s3-9] puts its stress on its penultimate syllable, so no counted syllable can follow it before the next pause. The run carries `Open-Stress` on through them.
+
+A nucleus is the vowel or diphthong of a syllable.
+
+The BPFK word forms set only `Onset` and `Continued`, with the meaning that the PEG gives them. The PEG is the parsing expression grammar from which `grammars/lojban/bpfk/morphology.md` derives its word forms. That document states the morphology's rules directly and lists its departures. Every word is `Continued`, and a word that does not begin with a nucleus is `Onset`, a name included. Their words look past their own ends, as the words of the PEG do, and decide the rest themselves.
+
+```jbogenbau
+%rule run-words
+  | first-word
+  | $r:run-words $v:later-word
+      → {*$v.flags, ($v'Uncounted ∧ $r'Open-Stress)? Open-Stress}
+%conditions
+  $r.flags.overlaps({Continued, Cy, Name-Intro, Open-Stress}),
+  $r'Cy ∧ $v'Cy ∨
+    $r'Continued ∧ ¬$r'Open-Stress ∧ $v'Onset ∨
+    $r'Name-Intro ∧ $v'Name-Onset ∨
+    $r'Open-Stress ∧ ¬$r'Cy ∧ $v'Onset,
+  ¬$r'Final-Stress ∨ ¬$v.flags.overlaps({Stress-Guard, Initial-Stress}),
+  ¬$r'Open-Stress ∨ $v'Uncounted
+```
+
+<details><summary>Railroad diagram of <code>run-words</code></summary>
+<p><img src="../../../docs/diagrams/50/lojban/common/forms/run-words.svg" alt="Railroad diagram of the rule run-words"></p>
+</details>
+
+A join permits two words without a pause. No two joins apply to the same pair. The general join excludes `Open-Stress`, which has its own join.
+
+For example, in the CLL word family, a word tagged `Cy` never carries `Continued`. So only the `Cy` rule joins two `Cy` letters there, and the general join, a continued word followed by an onset, never follows one. The BPFK word forms tag no word `Cy`. They join a `Cy`-shaped word such as `fy` by the general join, so `fyno` is `fy` and `no`.
+
+The first condition of `run-words` follows from the second. Each join of the second needs one of four tags on the words before: `Continued`, `Cy`, `Name-Intro` or `Open-Stress`. The first condition stays because it uses only `$r`.
+
+The parser tests it as soon as it reads `$r`. If the condition fails, the parser drops the join before reading another word. Engine §4 gives this order of evaluation. Without the condition, the parser tries every word shape after a word that no word can join.
+
+The longer alternative copies the tags of the later word, and not its strings. So the node of a run keeps the joined value of all its words.
+
+Before the cmavo `bu`, this stage splits prolonged y hesitation into a prefix and a final y token, with or without a pause. In the BPFK word family, the `post_word` test requires the whole cmavo, so `yy buntu` keeps `yy` whole. In the CLL word family, the test reads only the letters `bu`, so `yy buntu` splits `yy`. Both pieces stay hesitation, so the split changes no reading there.
+
+`y-prefix` stays recursive so that the forms stage can compare each prefix end before the final y.
+
+Both split rules mark their final y with `Spacing` for the Zantufa word stream. Other pipelines ignore it. The word reader drops the prefix and joins only the final y with BU. This split preserves source positions and leaves raw quote bodies unjoined.
+
+The words stage needs to know where a run begins and ends. A name that `bu` takes needs a pause before it (CLL[^cll-s17-4]). A `zoi` quote and a `zo'oi` quote end at the end of a run. So this stage tags the first word of each run `Run-Initial`, and the last word `Run-Final`.
+
+The templates `ordinary-word` and `split-y` take a key set: `{Run-Initial}` for the first word of a run, or the empty set for later words. `ordinary-word` also takes the matching split rule, so the ordinary and split readings remain exclusive.
+
+An ordinary word is its source word, with these run tags added. The word is its primary, so the token keeps the bag and the strings of the source word. A reader of the result follows the primary to the word's shape.
+
+The split rule hands on two tokens, one at the place of each part. Each takes its strings from its part and the tags of the whole word from the rule.
+
+```jbogenbau
+%rule first-word
+  ordinary-first-word | split-first-y
+
+%rule ordinary-first-word = ordinary-word(= {Run-Initial}, split-first-y)
+
+%rule later-word
+  ordinary-later-word | split-later-y
+
+%rule ordinary-later-word = ordinary-word(= {}, split-later-y)
+
+%rule ordinary-word(@Initial, @Split)
+  ^$w:source-word
+      → {*@Initial, ¬$w.following-tokens.parse(nonpause-phoneme …)? Run-Final}
+%conditions
+  ¬$w.onward.parse(@Split …)
+%emit
+
+%rule split-first-y = split-y(= {Run-Initial})
+%rule split-later-y = split-y(= {})
+
+%rule split-y(@Initial)
+  $p:y-prefix $y:y-atom → {*$.parse(source-word).flags}
+%conditions
+  $.parse(hesitation-shape),
+  $.following-tokens.parse(bu-form-ahead …)
+%emit
+  $p{*@Initial, *$.flags},
+  $y{Spacing, *$.flags, ¬$.following-tokens.parse(nonpause-phoneme …)? Run-Final}
+
+%rule y-prefix
+  y-atom | y-prefix y-atom
+
+%rule y-atom
+  [Syllable-Break] "y"
+
+-- The lookahead finds a bu form after optional pauses.
+%rule bu-form-ahead
+  [pause-run] bu-form
+
+%rule bu-form
+  cmavo-shape="bu"
+```
+
+<details><summary>Railroad diagrams of the 12 rules from <code>first-word</code> to <code>bu-form</code></summary>
+<p><img src="../../../docs/diagrams/50/lojban/common/forms/first-word.svg" alt="Railroad diagram of the rule first-word"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/forms/ordinary-first-word.svg" alt="Railroad diagram of the rule ordinary-first-word"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/forms/later-word.svg" alt="Railroad diagram of the rule later-word"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/forms/ordinary-later-word.svg" alt="Railroad diagram of the rule ordinary-later-word"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/forms/ordinary-word.svg" alt="Railroad diagram of the rule ordinary-word"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/forms/split-first-y.svg" alt="Railroad diagram of the rule split-first-y"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/forms/split-later-y.svg" alt="Railroad diagram of the rule split-later-y"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/forms/split-y.svg" alt="Railroad diagram of the rule split-y"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/forms/y-prefix.svg" alt="Railroad diagram of the rule y-prefix"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/forms/y-atom.svg" alt="Railroad diagram of the rule y-atom"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/forms/bu-form-ahead.svg" alt="Railroad diagram of the rule bu-form-ahead"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/forms/bu-form.svg" alt="Railroad diagram of the rule bu-form"></p>
+</details>
+
+`bu-form` tests the value of `cmavo-shape`. That value is the stage's default join of its phonemes, so it equals the join of its input values. The value test needs this proof. Both `bu` and `bU` give the value `bu`.
+
+## Words
+
+A source word is a cmavo, a brivla, a name, or hesitation. The stage hands it on with its kind: `Word` and `Cmavo`, `BRIVLA` or `CMEVLA` for a word, and `Hesitation` for hesitation. A cmavo also carries the selma'o that the lexicon gives it: `$LEXICON.classify($c'value)` looks the cmavo's value up in the lexicon. A cmavo unknown to the lexicon is still a word, of no class.
+
+Each alternative marks its shape as the primary. So the source word has the shape's bag, with its tags and strings, and the term adds the kind.
+
+```jbogenbau
+%rule source-word
+  | ^$c:cmavo-shape → {Word, Cmavo, *$LEXICON.classify($c'value)}
+  | ^brivla-shape → {Word, BRIVLA}
+  | ^cmevla-shape → {Word, CMEVLA}
+  | ^hesitation-shape → {Hesitation}
+```
+
+<details><summary>Railroad diagram of <code>source-word</code></summary>
+<p><img src="../../../docs/diagrams/50/lojban/common/forms/source-word.svg" alt="Railroad diagram of the rule source-word"></p>
+</details>
+
+Hesitation is `y` of any length. It is a source word of its own here, because the pause rules hold for it as for any word. It begins with a vowel, so a pause comes before it, unless the word family gives it `Onset`. The BPFK word forms read `kyyykerlo` as `ky`, `yy` and `kerlo`. The first `y` of `yy` is not a nucleus there.
+
+CLL[^cll-s19-14] requires pauses before and after `.y.`. These pipelines omit the following pause because they treat `y` as whitespace, as the Magic Words proposal does. That proposal states no pause rule. [Departure 4](stream.md#cll-and-magic-words) records this difference from CLL.
+
+The words stage drops hesitation, or reads it as the base of the letter word `.y bu`. The terminal `"y"` reads a `y` with or without `Stressed`. Two letters `y` never form one syllable, so a comma between them changes nothing, and `y,y` is hesitation as `yy` is (CLL[^cll-s3-3]).
+
+```jbogenbau
+%rule hesitation-shape
+  ^y-run → {Continued, Uncounted}
+
+%rule y-run
+  "y" | "y" y-run | "y" Syllable-Break y-run
+```
+
+<details><summary>Railroad diagrams of <code>hesitation-shape</code> and <code>y-run</code></summary>
+<p><img src="../../../docs/diagrams/50/lojban/common/forms/hesitation-shape.svg" alt="Railroad diagram of the rule hesitation-shape"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/forms/y-run.svg" alt="Railroad diagram of the rule y-run"></p>
+</details>
+
+## Differences from camxes
+
+Separate material tokens preserve punctuation for raw quotes. Their normalized pause values also let delimiter comparisons find punctuation boundaries. The words stage recovers the raw spelling through source recipes, as [stream.md](stream.md) specifies.
+
+camxes-std, the standard grammar of the camxes parser, rejects the whole text `kyyykerlo`. camxes-exp, the experimental grammar of the camxes parser, rejects it too. Their [standard spaces rule](https://github.com/lojban/ilmentufa/blob/778ea138f7d150121ca722db7536ce3b123943ac/camxes.peg#L1529-L1531) and [experimental spaces rule](https://github.com/lojban/ilmentufa/blob/778ea138f7d150121ca722db7536ce3b123943ac/camxes-exp.peg#L1625-L1627) refuse a leading Y token. The words stages of `lojban/bpfk` and `lojban/experimental` instead drop the hesitation `yy`.
+
+## Differences from the format 49 grammar
+
+The format 49 copy of this document is `grammars/lojban/common/forms.md`. On the text input of `lojban/cll`, both copies hand on the same tokens, with the same strings and tags.
+
+The lookup gives `Indicator` where it gives an indicator class. The format 49 lexicon adds that tag to each emitted token with such a class. A token that a caller gives `UI` directly therefore needs `Indicator` from the caller too. The CLL phoneme stage gives no such token.
+
+Three rules put their tags or strings on the node, and not only on the token. They are `pause-token` with its value, `foreign-token` with its run tags, and `ordinary-word` with `Run-Initial` and `Run-Final`. So a parent can read them, as `run-words` copies the tags of its later word. Run division tests neither the boundary flags nor the replacement pause value.
+
+A repetition passes no tags from a single item. No rule of a Lojban pipeline reads a tag that reaches it only that way.
+
+[^cll-s4-9]: [CLL 1.1, section 4.9](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-pauses.html).
+
+[^cll-s4-2]: [CLL 1.1, section 4.2](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-cmavo.html).
+
+[^cll-s3-9]: [CLL 1.1, section 3.9](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-stress.html).
+
+[^cll-s17-4]: [CLL 1.1, section 17.4](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-bu.html).
+
+[^cll-s3-3]: [CLL 1.1, section 3.3](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-lojban-characters.html).
+
+[^cll-s19-14]: [CLL 1.1, section 19.14](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-hesitation.html).

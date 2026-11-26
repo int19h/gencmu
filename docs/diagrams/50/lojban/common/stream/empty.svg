@@ -1,0 +1,77 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="564" height="360" viewBox="0 0 564 360" role="img" aria-label="Railroad diagram of the rule empty">
+<style>path{fill:none;stroke:#333;stroke-width:1.5}.rule rect{fill:#e8eefc;stroke:#333;stroke-width:1.5}.terminal rect{fill:#fdf6d8;stroke:#333;stroke-width:1.5}text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"DejaVu Sans Mono","Liberation Mono",monospace;font-size:14px;fill:#111;text-anchor:middle}text.label{font-size:12px;font-style:italic;fill:#555;text-anchor:start}text.title{font-weight:bold;text-anchor:start}</style>
+<rect width="100%" height="100%" fill="#fff"/>
+<text class="title" x="10" y="24" textLength="42" lengthAdjust="spacingAndGlyphs">empty</text>
+<path d="M10 38v16m4 -16v16M14 46h6"/>
+<path d="M20 46h20"/>
+<g class="rule"><rect x="40" y="34" width="100" height="24" rx="0"/><text x="90" y="51" textLength="84" lengthAdjust="spacingAndGlyphs">text-start</text></g>
+<path d="M140 46h10"/>
+<g class="rule"><rect x="150" y="34" width="75" height="24" rx="0"/><text x="187.5" y="51" textLength="58.8" lengthAdjust="spacingAndGlyphs">spacing</text></g>
+<path d="M225 46H544"/>
+<path d="M20 46a10 10 0 0 1 10 10V70a10 10 0 0 0 10 10"/>
+<g class="rule"><rect x="40" y="68" width="58" height="24" rx="0"/><text x="69" y="85" textLength="42" lengthAdjust="spacingAndGlyphs">empty</text></g>
+<path d="M98 80h10"/>
+<g class="rule"><rect x="108" y="68" width="75" height="24" rx="0"/><text x="145.5" y="85" textLength="58.8" lengthAdjust="spacingAndGlyphs">si-word</text></g>
+<path d="M183 80h10"/>
+<g class="rule"><rect x="193" y="68" width="75" height="24" rx="0"/><text x="230.5" y="85" textLength="58.8" lengthAdjust="spacingAndGlyphs">spacing</text></g>
+<path d="M268 80H524a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V104a10 10 0 0 0 10 10"/>
+<g class="rule"><rect x="40" y="102" width="58" height="24" rx="0"/><text x="69" y="119" textLength="42" lengthAdjust="spacingAndGlyphs">empty</text></g>
+<path d="M98 114h10"/>
+<g class="rule"><rect x="108" y="102" width="75" height="24" rx="0"/><text x="145.5" y="119" textLength="58.8" lengthAdjust="spacingAndGlyphs">erasure</text></g>
+<path d="M183 114h10"/>
+<g class="rule"><rect x="193" y="102" width="75" height="24" rx="0"/><text x="230.5" y="119" textLength="58.8" lengthAdjust="spacingAndGlyphs">spacing</text></g>
+<path d="M268 114H524a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V142a10 10 0 0 0 10 10"/>
+<path d="M40 152h52"/>
+<text class="label" x="44" y="147" textLength="43.2" lengthAdjust="spacingAndGlyphs">sa-su?</text>
+<path d="M92 152h10"/>
+<g class="rule"><rect x="102" y="140" width="58" height="24" rx="0"/><text x="131" y="157" textLength="42" lengthAdjust="spacingAndGlyphs">empty</text></g>
+<path d="M160 152h10"/>
+<g class="rule"><rect x="170" y="140" width="75" height="24" rx="0"/><text x="207.5" y="157" textLength="58.8" lengthAdjust="spacingAndGlyphs">su-word</text></g>
+<path d="M245 152h10"/>
+<g class="rule"><rect x="255" y="140" width="75" height="24" rx="0"/><text x="292.5" y="157" textLength="58.8" lengthAdjust="spacingAndGlyphs">spacing</text></g>
+<path d="M330 152H524a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V180a10 10 0 0 0 10 10"/>
+<path d="M40 190h152"/>
+<text class="label" x="44" y="185" textLength="144" lengthAdjust="spacingAndGlyphs">sa-su? ¬su-boundary?</text>
+<path d="M192 190h10"/>
+<g class="rule"><rect x="202" y="178" width="67" height="24" rx="0"/><text x="235.5" y="195" textLength="50.4" lengthAdjust="spacingAndGlyphs">stream</text></g>
+<path d="M269 190h10"/>
+<g class="rule"><rect x="279" y="178" width="75" height="24" rx="0"/><text x="316.5" y="195" textLength="58.8" lengthAdjust="spacingAndGlyphs">spacing</text></g>
+<path d="M354 190h10"/>
+<g class="rule"><rect x="364" y="178" width="75" height="24" rx="0"/><text x="401.5" y="195" textLength="58.8" lengthAdjust="spacingAndGlyphs">su-word</text></g>
+<path d="M439 190h10"/>
+<g class="rule"><rect x="449" y="178" width="75" height="24" rx="0"/><text x="486.5" y="195" textLength="58.8" lengthAdjust="spacingAndGlyphs">spacing</text></g>
+<path d="M524 190H524a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V214a10 10 0 0 0 10 10"/>
+<g class="rule"><rect x="40" y="212" width="100" height="24" rx="0"/><text x="90" y="229" textLength="84" lengthAdjust="spacingAndGlyphs">su-cleared</text></g>
+<path d="M140 224H524a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V252a10 10 0 0 0 10 10"/>
+<path d="M40 262h52"/>
+<text class="label" x="44" y="257" textLength="43.2" lengthAdjust="spacingAndGlyphs">sa-su?</text>
+<path d="M92 262h10"/>
+<g class="rule"><rect x="102" y="250" width="84" height="24" rx="0"/><text x="144" y="267" textLength="67.2" lengthAdjust="spacingAndGlyphs">sa-wiped</text></g>
+<path d="M186 262h10"/>
+<g class="rule"><rect x="196" y="250" width="75" height="24" rx="0"/><text x="233.5" y="267" textLength="58.8" lengthAdjust="spacingAndGlyphs">spacing</text></g>
+<path d="M271 262H524a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V290a10 10 0 0 0 10 10"/>
+<path d="M40 300h52"/>
+<text class="label" x="44" y="295" textLength="43.2" lengthAdjust="spacingAndGlyphs">sa-su?</text>
+<path d="M92 300h10"/>
+<g class="rule"><rect x="102" y="288" width="58" height="24" rx="0"/><text x="131" y="305" textLength="42" lengthAdjust="spacingAndGlyphs">empty</text></g>
+<path d="M160 300h10"/>
+<g class="rule"><rect x="170" y="288" width="75" height="24" rx="0"/><text x="207.5" y="305" textLength="58.8" lengthAdjust="spacingAndGlyphs">sa-tail</text></g>
+<path d="M245 300H524a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V328a10 10 0 0 0 10 10"/>
+<path d="M40 338h52"/>
+<text class="label" x="44" y="333" textLength="43.2" lengthAdjust="spacingAndGlyphs">sa-su?</text>
+<path d="M92 338h10"/>
+<g class="rule"><rect x="102" y="326" width="67" height="24" rx="0"/><text x="135.5" y="343" textLength="50.4" lengthAdjust="spacingAndGlyphs">stream</text></g>
+<path d="M169 338h10"/>
+<g class="rule"><rect x="179" y="326" width="75" height="24" rx="0"/><text x="216.5" y="343" textLength="58.8" lengthAdjust="spacingAndGlyphs">spacing</text></g>
+<path d="M254 338h10"/>
+<g class="rule"><rect x="264" y="326" width="75" height="24" rx="0"/><text x="301.5" y="343" textLength="58.8" lengthAdjust="spacingAndGlyphs">sa-tail</text></g>
+<path d="M339 338H524a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M544 46h6m0 -8v16m4 -16v16"/>
+</svg>
