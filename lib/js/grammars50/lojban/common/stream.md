@@ -196,13 +196,13 @@ The forms stage supplies source words, their lexical classes, and their run boun
 
 The shared reader reads a cmavo, brivla, cmevla, or the y letteral. A cmavo is a particle. A brivla is a predicate word. A cmevla is a name word.
 
-Every cmavo read in this shared reader uses `cmavo-token`. The replacement-quote closer of `grammars/lojban/common/lohai.md` reads `LEhAI` directly to preserve its specific expectation.
+Every cmavo read in this shared reader uses `cmavo-token`. The replacement-quote closer of [lohai.md](lohai.md) reads `LEhAI` directly to preserve its specific expectation.
 
 Only the `zei-spelling` test reads `Cmavo` directly, and it matches one spelling. CLL is *The Complete Lojban Language*. The CLL word family adds optional word-form warnings in `cmavo-token`. `brivla-token` and `cmevla-token` likewise let a pipeline warn on a predicate word or name. A warning travels on the unit that holds the word. An eraser that removes the word or its unit drops the warning.
 
 A failed words stage publishes no warnings from that stage. A successful stage keeps warnings from its chosen derivation. Raw quote bodies and the suffix after active `fa'o` supply no word reads.
 
-The lexicon gives each cmavo its classes. Operators use these classes rather than spelling, except the punctuation restriction on `zei`. The experimental word layer in `grammars/lojban/experimental/stream.md` extends that restriction to `ze'ei`. The experimental syntax can treat names as predicates without changing their lexical class.
+The lexicon gives each cmavo its classes. Operators use these classes rather than spelling, except the punctuation restriction on `zei`. The experimental word layer in [experimental/stream.md](../experimental/stream.md) extends that restriction to `ze'ei`. The experimental syntax can treat names as predicates without changing their lexical class.
 
 The feature `sa-su` enables the two long-range erasers. If any input token has class SA or SU, the stage enables it. If the condition holds and the caller disables `sa-su`, the parse gives a `feature-conflict` result ([engine §13](../../../docs/engine.md#13-the-pipeline)).
 
@@ -455,7 +455,7 @@ Both spacing routes use `delimiter-hesitation`, which refuses the opening y lett
 
 The quotes close at the first matching whole run of nonpause tokens by exact value. Every pause, including punctuation, bounds such a delimiter run. ZOI compares foreign runs by their exact values too. Each test of `zoi-quote` reads the value of a node. A run's value joins the values of its tokens, and no rule below a run writes a string of its own.
 
-The rule `zoi-y-quote` reads letteral delimiters formed from hesitation. The `lojban/zantufa` and `lojban/experimental` pipelines also form such a delimiter from `ie'o`. `grammars/lojban/zantufa/morphology.md` and `grammars/lojban/experimental/lexicon.md` describe it. Its opening delimiter is a `y-bu-word`, and its close is a `raw-y-close`. The rule `zoi-quote` reads every other delimiter, a cmavo, brivla or name, through `delimiter`. Its close is one `raw-run`. Each rule includes empty and nonempty bodies. A layer that adds a kind of word delimiter extends `delimiter`.
+The rule `zoi-y-quote` reads letteral delimiters formed from hesitation. The `lojban/zantufa` and `lojban/experimental` pipelines also form such a delimiter from `ie'o`. `grammars/lojban/zantufa/morphology.md` and [experimental/lexicon.md](../experimental/lexicon.md) describe it. Its opening delimiter is a `y-bu-word`, and its close is a `raw-y-close`. The rule `zoi-quote` reads every other delimiter, a cmavo, brivla or name, through `delimiter`. Its close is one `raw-run`. Each rule includes empty and nonempty bodies. A layer that adds a kind of word delimiter extends `delimiter`.
 
 Ordinary compounds cannot become delimiters because the marker reads the delimiter before a later compounder acts. An empty body contributes empty strings to the quote token. Punctuation tokens form a nonempty body and retain their source text. A pause separates the body from the closing run. Attached marks around either delimiter add no value. A mark before another word stays in spacing.
 
@@ -824,7 +824,7 @@ SA at normal end has no key and erases back to the start of the text. SA before 
 
 A reach is the stretch from a candidate unit to SA. Its keys are the classes of its first unit that no later live unit shares. Thus a surviving class identifies the nearest candidate for that key. Each nested SA intersects the possible target classes from its reaches. The rule `sa-wipe-core` handles too few matching units. No reach searches inside a quote or compound.
 
-In `lojban/cll`, `lojban/bpfk`, and `lojban/experimental`, SU uses these four shared stopping classes: NIhO, LU, TUhE, and TO. Experimental adds LUhEI through its word layer in `grammars/lojban/experimental/stream.md`. The last surviving boundary word remains. Later LIhU, TOI, and TUhU do not cancel an earlier boundary. In Zantufa, SU erases everything before it.
+In `lojban/cll`, `lojban/bpfk`, and `lojban/experimental`, SU uses these four shared stopping classes: NIhO, LU, TUhE, and TO. Experimental adds LUhEI through its word layer in [experimental/stream.md](../experimental/stream.md). The last surviving boundary word remains. Later LIhU, TOI, and TUhU do not cancel an earlier boundary. In Zantufa, SU erases everything before it.
 
 The feature `su-boundary` makes SU keep its stopping boundary. A boundary inside an opaque unit cannot stop SU. With no boundary, SU erases the whole prefix. When a boundary survives SU, the grammar groups both into one unit. Thus `unit` includes `su-survivor`.
 
@@ -956,7 +956,7 @@ The pipelines use eight departures from CLL.[^cll-c19] Items 2, 4, and 8 differ 
 6. ZOI compares whole raw runs by exact stored values, including FOREIGN values from decomposed source text. The CLL examples[^cll-e19-50][^cll-e19-51] instead forbid the delimiter's spelling or sound inside a longer run.
 7. Every finished quote emits one token, with indicators after it and BAhE before it marking the whole quote. The Magic Words proposal names whole quotes as attitudinal targets. In camxes-std, the quote clauses take `pre_clause` before the quote and `post_clause` after it. This policy also applies to the newer quote kinds. CLL[^cll-s19-16] says that UI marks the previous word and BAhE the following word. In `zo coi ui` and `ba'e zo coi`, those words are `coi` and `zo`.
 
-8. Except in Zantufa, SU erases back to the last surviving boundary word, and that word survives. The shared boundary classes are NIhO, LU, TUhE, and TO. Magic Words and camxes-std name these four boundaries. Experimental also stops at LUhEI through its word layer in `grammars/lojban/experimental/stream.md`. Later closing words do not cancel it. The boundary survives as in camxes-std, whose [`su_word`](https://github.com/lojban/ilmentufa/blob/778ea138f7d150121ca722db7536ce3b123943ac/camxes.peg#L402) excludes `NIhO_clause`, `LU_clause`, `TUhE_clause`, and `TO_clause`.
+8. Except in Zantufa, SU erases back to the last surviving boundary word, and that word survives. The shared boundary classes are NIhO, LU, TUhE, and TO. Magic Words and camxes-std name these four boundaries. Experimental also stops at LUhEI through its word layer in [experimental/stream.md](../experimental/stream.md). Later closing words do not cancel it. The boundary survives as in camxes-std, whose [`su_word`](https://github.com/lojban/ilmentufa/blob/778ea138f7d150121ca722db7536ce3b123943ac/camxes.peg#L402) excludes `NIhO_clause`, `LU_clause`, `TUhE_clause`, and `TO_clause`.
 
    CLL[^cll-s19-13] says that SU "erases the entire text". A stop at an open LU or TO agrees with CLL's `LU text` and `TO text`[^cll-c21]. CLL[^cll-s19-15] names these subordinate texts. A closed LU or TO is one that a later LIhU or TOI closed. A stop at a closed LU or TO follows Magic Words and camxes-std alone.
 

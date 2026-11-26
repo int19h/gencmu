@@ -1,6 +1,6 @@
 # The CLL grammar
 
-This document gives the grammar of *The Complete Lojban Language* (CLL), edition 1.1. This grammar forms the syntax stage of the [CLL](pipeline.md) pipeline. The BPFK is the Lojban language planning committee. This grammar also forms the syntax stage of the [BPFK pipeline](../bpfk/pipeline.md). The experimental layer, `grammars/lojban/experimental/syntax.md`, can replace the rules and ranking of its format 49 copy. A pipeline document defines an ordered sequence of stages. A stage is one step of a pipeline, with its own grammar.
+This document gives the grammar of *The Complete Lojban Language* (CLL), edition 1.1. This grammar forms the syntax stage of the [CLL](pipeline.md) pipeline. The BPFK is the Lojban language planning committee. This grammar also forms the syntax stage of the [BPFK pipeline](../bpfk/pipeline.md). The [experimental layer](../experimental/syntax.md) can replace its rules and ranking. A pipeline document defines an ordered sequence of stages. A stage is one step of a pipeline, with its own grammar.
 
 A token is one unit that a stage reads or emits. A token's value is the string that exact comparisons read. Its image is the string that people see.
 

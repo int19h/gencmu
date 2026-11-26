@@ -324,7 +324,7 @@ The `Vowel` tag marks the five full vowels `a`, `e`, `i`, `o` and `u`, and it do
 
 A vowel with an acute or a grave accent is the stressed phoneme, as a capital vowel is. A breve on `i`, `u`, `I` or `U` marks a glide in some texts. The word grammar finds a glide by its position, so the stage emits the letter plain. Stage zero gives a precomposed letter as its base and its marks.
 
-A combining mark that no letter rule takes makes its run foreign, whatever its category. So in `lojban/bpfk` and `lojban/zantufa`, `mï` and `mi` followed by U+093E are foreign. The experimental layer reads both marks (in `grammars/lojban/experimental/latin.md`).
+A combining mark that no letter rule takes makes its run foreign, whatever its category. So in `lojban/bpfk` and `lojban/zantufa`, `mï` and `mi` followed by U+093E are foreign. The [experimental layer](../experimental/latin.md) reads both marks.
 
 The `Vowel` tag marks the five full vowels and not `y`, so `accented-full-vowel` holds the stressed full vowels and carries `Vowel` on its header. The stressed `y` form stays in `stressed-vowel`.
 

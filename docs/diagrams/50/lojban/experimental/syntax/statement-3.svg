@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="663" height="138" viewBox="0 0 663 138" role="img" aria-label="Railroad diagram of the rule statement-3">
+<style>path{fill:none;stroke:#333;stroke-width:1.5}.rule rect{fill:#e8eefc;stroke:#333;stroke-width:1.5}.terminal rect{fill:#fdf6d8;stroke:#333;stroke-width:1.5}text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"DejaVu Sans Mono","Liberation Mono",monospace;font-size:14px;fill:#111;text-anchor:middle}text.label{font-size:12px;font-style:italic;fill:#555;text-anchor:start}text.title{font-weight:bold;text-anchor:start}</style>
+<rect width="100%" height="100%" fill="#fff"/>
+<text class="title" x="10" y="24" textLength="92.4" lengthAdjust="spacingAndGlyphs">statement-3</text>
+<path d="M10 48v16m4 -16v16M14 56h6"/>
+<path d="M20 56h20"/>
+<g class="rule"><rect x="40" y="44" width="126" height="24" rx="0"/><text x="103" y="61" textLength="109.2" lengthAdjust="spacingAndGlyphs">reset-opening</text></g>
+<path d="M166 56H186"/>
+<path d="M20 56a10 10 0 0 0 10 -10V44a10 10 0 0 1 10 -10H166a10 10 0 0 1 10 10V46a10 10 0 0 0 10 10"/>
+<path d="M186 56h10"/>
+<path d="M196 56h20"/>
+<g class="rule"><rect x="216" y="44" width="117" height="24" rx="0"/><text x="274.5" y="61" textLength="100.8" lengthAdjust="spacingAndGlyphs">top-sentence</text></g>
+<path d="M333 56H643"/>
+<path d="M196 56a10 10 0 0 1 10 10V106a10 10 0 0 0 10 10"/>
+<path d="M216 116h20"/>
+<g class="rule"><rect x="236" y="104" width="42" height="24" rx="0"/><text x="257" y="121" textLength="25.2" lengthAdjust="spacingAndGlyphs">tag</text></g>
+<path d="M278 116H298"/>
+<path d="M216 116a10 10 0 0 0 10 -10V104a10 10 0 0 1 10 -10H278a10 10 0 0 1 10 10V106a10 10 0 0 0 10 10"/>
+<path d="M298 116h10"/>
+<g class="terminal"><rect x="308" y="104" width="50" height="24" rx="12"/><text x="333" y="121" textLength="33.6" lengthAdjust="spacingAndGlyphs">TUhE</text></g>
+<path d="M358 116h10"/>
+<g class="rule"><rect x="368" y="104" width="33" height="24" rx="0"/><text x="384.5" y="121" textLength="16.8" lengthAdjust="spacingAndGlyphs">🆓</text></g>
+<path d="M401 116h10"/>
+<g class="rule"><rect x="411" y="104" width="67" height="24" rx="0"/><text x="444.5" y="121" textLength="50.4" lengthAdjust="spacingAndGlyphs">text-1</text></g>
+<path d="M478 116h10"/>
+<path d="M488 116h20"/>
+<g class="terminal"><rect x="508" y="104" width="50" height="24" rx="12"/><text x="533" y="121" textLength="33.6" lengthAdjust="spacingAndGlyphs">TUhU</text></g>
+<path d="M558 116H580"/>
+<path d="M488 116a10 10 0 0 0 10 -10V104a10 10 0 0 1 10 -10H560a10 10 0 0 1 10 10V106a10 10 0 0 0 10 10"/>
+<text class="label" x="512" y="89" textLength="43.2" lengthAdjust="spacingAndGlyphs">elided</text>
+<path d="M580 116h10"/>
+<g class="rule"><rect x="590" y="104" width="33" height="24" rx="0"/><text x="606.5" y="121" textLength="16.8" lengthAdjust="spacingAndGlyphs">🆓</text></g>
+<path d="M623 116H623a10 10 0 0 0 10 -10V66a10 10 0 0 1 10 -10"/>
+<path d="M643 56h6m0 -8v16m4 -16v16"/>
+</svg>
