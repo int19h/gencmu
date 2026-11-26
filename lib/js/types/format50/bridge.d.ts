@@ -45,6 +45,10 @@ export declare class Bridge {
     opaque: Set<string>;
     /** @type {Map<string, GencmuError>} */
     constantReads: Map<string, GencmuError>;
+    /** @type {Map<string, Set<string>>} */
+    constantDeps: Map<string, Set<string>>;
+    /** @type {string | null} */
+    defining: string | null;
     /** @type {Map<string, string>} the symbol of each capture of the rule in hand */
     captureSymbols: Map<string, string>;
     currentRule: any;
@@ -76,38 +80,7 @@ export declare class Bridge {
         constants: {
             name: any;
             op: any;
-            value: Readonly<{
-                string: "";
-            }> | {
-                const: any;
-                at: any;
-            } | {
-                string: any;
-                pattern?: undefined;
-                tag?: undefined;
-                union?: undefined;
-            } | {
-                string?: undefined;
-                pattern: any;
-                tag?: undefined;
-                union?: undefined;
-            } | {
-                string?: undefined;
-                pattern?: undefined;
-                tag: any;
-                union?: undefined;
-            } | {
-                string?: undefined;
-                pattern?: undefined;
-                tag?: undefined;
-                union: any;
-            } | {
-                emptySet: boolean;
-                union?: undefined;
-            } | {
-                emptySet?: undefined;
-                union: any[];
-            };
+            value: any;
             at: any;
             origin50: string;
         }[];
@@ -118,6 +91,7 @@ export declare class Bridge {
         keyReaders: Set<string>;
         tagSources: Map<string, Set<string>>;
         opaque: Set<string>;
+        constantDeps: Map<string, Set<string>>;
         constantReads: Map<string, GencmuError>;
         instances50: any[];
     };
@@ -130,35 +104,7 @@ export declare class Bridge {
         at: any;
     };
     /** @param {any} value */
-    data(value: any): Readonly<{
-        string: "";
-    }> | {
-        string: any;
-        pattern?: undefined;
-        tag?: undefined;
-        union?: undefined;
-    } | {
-        string?: undefined;
-        pattern: any;
-        tag?: undefined;
-        union?: undefined;
-    } | {
-        string?: undefined;
-        pattern?: undefined;
-        tag: any;
-        union?: undefined;
-    } | {
-        string?: undefined;
-        pattern?: undefined;
-        tag?: undefined;
-        union: any;
-    } | {
-        emptySet: boolean;
-        union?: undefined;
-    } | {
-        emptySet?: undefined;
-        union: any[];
-    };
+    data(value: any): any;
     /**
      * A recognizer read of a constant, which fails where the constant has a
      * placeholder only (cause B of the Eberban review).
@@ -168,6 +114,34 @@ export declare class Bridge {
         const: any;
         at?: any;
     };
+    /**
+     * A placeholder with the type of the form of a value: a key set, a list
+     * of strings, a pattern or a string. The recognizer never reads it.
+     * @param {any} value
+     * @returns {any}
+     */
+    placeholder(value: any, depth?: number): any;
+    /**
+     * The kind of value that the form of an expression gives, or "string".
+     * @param {any} value
+     * @returns {"keys" | "strings" | "pattern" | "string"}
+     */
+    formKind(value: any, depth?: number): "keys" | "strings" | "pattern" | "string";
+    /**
+     * The recognizer's value of a constant. A constant that the definition
+     * refers to is a dependency, and not a read.
+     * @param {any} constant
+     */
+    definitionData(constant: any): any;
+    /**
+     * The recognizer's term for a key set of visible keys or a list of
+     * strings, with its constants as references, or null. A splat of a
+     * constant and a set operation keep their operands.
+     * @param {any} value
+     * @param {"keys" | "strings"} kind
+     * @returns {any}
+     */
+    setTerm(value: any, kind: "keys" | "strings"): any;
     /**
      * Notes a recognizer read of a constant. Every form that hands a constant
      * to the recognizer notes it: a string, a key set, a requirement, a
