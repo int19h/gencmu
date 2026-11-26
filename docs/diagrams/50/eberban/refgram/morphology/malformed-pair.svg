@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="755" height="194" viewBox="0 0 755 194" role="img" aria-label="Railroad diagram of the rule malformed-pair">
+<style>path{fill:none;stroke:#333;stroke-width:1.5}.rule rect{fill:#e8eefc;stroke:#333;stroke-width:1.5}.terminal rect{fill:#fdf6d8;stroke:#333;stroke-width:1.5}text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"DejaVu Sans Mono","Liberation Mono",monospace;font-size:14px;fill:#111;text-anchor:middle}text.label{font-size:12px;font-style:italic;fill:#555;text-anchor:start}text.title{font-weight:bold;text-anchor:start}.rank-frame{fill:none;stroke:#777;stroke-width:1;stroke-dasharray:3 3}</style>
+<rect width="100%" height="100%" fill="#fff"/>
+<text class="title" x="10" y="24" textLength="117.6" lengthAdjust="spacingAndGlyphs">malformed-pair</text>
+<path d="M10 52v16m4 -16v16M14 60h6"/>
+<path d="M20 60h88"/>
+<text class="label" x="24" y="55" textLength="79.2" lengthAdjust="spacingAndGlyphs">≻ same span</text>
+<path d="M108 60h10"/>
+<g class="ranked-choice"><rect class="rank-frame" x="123" y="39" width="210" height="114" rx="4"/>
+<path d="M118 60h10"/>
+<path d="M128 60h20"/>
+<path d="M148 60h16"/>
+<text class="label" x="152" y="55" textLength="7.2" lengthAdjust="spacingAndGlyphs">1</text>
+<path d="M164 60h10"/>
+<g class="rule"><rect x="174" y="48" width="117" height="24" rx="0"/><text x="232.5" y="65" textLength="100.8" lengthAdjust="spacingAndGlyphs">doubled-pair</text></g>
+<path d="M291 60H328"/>
+<path d="M128 60a10 10 0 0 1 10 10V88a10 10 0 0 0 10 10"/>
+<path d="M148 98h16"/>
+<text class="label" x="152" y="93" textLength="7.2" lengthAdjust="spacingAndGlyphs">2</text>
+<path d="M164 98h10"/>
+<g class="rule"><rect x="174" y="86" width="134" height="24" rx="0"/><text x="241" y="103" textLength="117.6" lengthAdjust="spacingAndGlyphs">pair-voiceness</text></g>
+<path d="M308 98H308a10 10 0 0 0 10 -10V70a10 10 0 0 1 10 -10"/>
+<path d="M128 60a10 10 0 0 1 10 10V126a10 10 0 0 0 10 10"/>
+<path d="M148 136h16"/>
+<text class="label" x="152" y="131" textLength="7.2" lengthAdjust="spacingAndGlyphs">3</text>
+<path d="M164 136h10"/>
+<g class="rule"><rect x="174" y="124" width="126" height="24" rx="0"/><text x="237" y="141" textLength="109.2" lengthAdjust="spacingAndGlyphs">sibilant-pair</text></g>
+<path d="M300 136H308a10 10 0 0 0 10 -10V70a10 10 0 0 1 10 -10"/>
+<path d="M328 60h10"/>
+</g>
+<path d="M338 60h6m0 -8v16m4 -16v16"/>
+<text class="label" x="10" y="180" textLength="734.4" lengthAdjust="spacingAndGlyphs">A qualified higher proof removes a lower proof only over the same span and with dominating open facts.</text>
+</svg>
