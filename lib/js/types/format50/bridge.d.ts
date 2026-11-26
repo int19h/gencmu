@@ -225,7 +225,15 @@ export declare class Bridge {
     /** @param {any} node */
     message(node: any): any;
     /** @param {any} arg */
+    /** @param {any} arg */
     argument(arg: any): any;
+    /** @param {any} target */
+    target(target: any): any;
+    /** @param {any} item */
+    requirementItem(item: any): {
+        negated: any;
+        value: any;
+    };
     /**
      * @param {any} node
      * @param {any} primary
