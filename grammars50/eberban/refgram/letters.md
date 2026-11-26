@@ -391,4 +391,4 @@ The new course says that spaces can stand on the new line before the rest of a w
 
 A hyphen takes the indent of the next line only after a letter, because only then does a word go on. So `$'a mi -\n   mo'` is rejected, as in the PEG, and `$'a 1-\n\t+ mo'` warns no `math-symbol`, because the tab stays a space. The format 49 copy let every hyphen take the indent.
 
-Apart from that, this document reads the same texts as its format 49 copy, `grammars/eberban/refgram/letters.md`. It emits the same tokens with the same values, images, places and tags. That holds for caller tokens too: a digit's image is the value of its input token, in both formats. `$OUTPUTS` names only the tags of the stage, so a token carries no Unicode property of its characters, as before.
+Apart from that, this document reads the same texts as its format 49 copy, `grammars/eberban/refgram/letters.md`. It emits the same tokens with the same values, images, places and tags. That holds for caller tokens too: a digit's image is the value of its input token, in both formats. `$OUTPUTS` names only the tags of the stage, so a token carries no Unicode property of its characters, in both copies.

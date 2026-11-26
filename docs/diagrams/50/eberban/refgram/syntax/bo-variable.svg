@@ -1,26 +1,23 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="539" height="88" viewBox="0 0 539 88" role="img" aria-label="Railroad diagram of the rule bo-variable">
+<svg xmlns="http://www.w3.org/2000/svg" width="457" height="88" viewBox="0 0 457 88" role="img" aria-label="Railroad diagram of the rule bo-variable">
 <style>path{fill:none;stroke:#333;stroke-width:1.5}.rule rect{fill:#e8eefc;stroke:#333;stroke-width:1.5}.terminal rect{fill:#fdf6d8;stroke:#333;stroke-width:1.5}text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"DejaVu Sans Mono","Liberation Mono",monospace;font-size:14px;fill:#111;text-anchor:middle}text.label{font-size:12px;font-style:italic;fill:#555;text-anchor:start}text.title{font-weight:bold;text-anchor:start}</style>
 <rect width="100%" height="100%" fill="#fff"/>
 <text class="title" x="10" y="24" textLength="92.4" lengthAdjust="spacingAndGlyphs">bo-variable</text>
 <path d="M10 48v16m4 -16v16M14 56h6"/>
 <path d="M20 56h20"/>
-<path d="M40 56h20"/>
-<g class="rule"><rect x="60" y="44" width="134" height="24" rx="0"/><text x="127" y="61" textLength="117.6" lengthAdjust="spacingAndGlyphs">definable-part</text></g>
-<path d="M194 56h10"/>
-<g class="terminal"><rect x="204" y="44" width="33" height="24" rx="12"/><text x="220.5" y="61" textLength="16.8" lengthAdjust="spacingAndGlyphs">PI</text></g>
-<path d="M237 56H257"/>
-<path d="M237 56a10 10 0 0 1 10 10V68a10 10 0 0 1 -10 10H60a10 10 0 0 1 -10 -10V66a10 10 0 0 1 10 -10"/>
-<path d="M257 56H277"/>
-<path d="M20 56a10 10 0 0 0 10 -10V44a10 10 0 0 1 10 -10H257a10 10 0 0 1 10 10V46a10 10 0 0 0 10 10"/>
-<path d="M277 56h10"/>
-<path d="M287 56h20"/>
-<path d="M307 56h20"/>
-<g class="rule"><rect x="327" y="44" width="109" height="24" rx="0"/><text x="381.5" y="61" textLength="92.4" lengthAdjust="spacingAndGlyphs">free-prefix</text></g>
-<path d="M436 56H456"/>
-<path d="M436 56a10 10 0 0 1 10 10V68a10 10 0 0 1 -10 10H327a10 10 0 0 1 -10 -10V66a10 10 0 0 1 10 -10"/>
-<path d="M456 56H476"/>
-<path d="M287 56a10 10 0 0 0 10 -10V44a10 10 0 0 1 10 -10H456a10 10 0 0 1 10 10V46a10 10 0 0 0 10 10"/>
-<path d="M476 56h10"/>
-<g class="terminal"><rect x="486" y="44" width="33" height="24" rx="12"/><text x="502.5" y="61" textLength="16.8" lengthAdjust="spacingAndGlyphs">GI</text></g>
-<path d="M519 56h6m0 -8v16m4 -16v16"/>
+<g class="rule"><rect x="40" y="44" width="92" height="24" rx="0"/><text x="86" y="61" textLength="75.6" lengthAdjust="spacingAndGlyphs">definable</text></g>
+<path d="M132 56h10"/>
+<g class="terminal"><rect x="142" y="44" width="33" height="24" rx="12"/><text x="158.5" y="61" textLength="16.8" lengthAdjust="spacingAndGlyphs">PI</text></g>
+<path d="M175 56H195"/>
+<path d="M20 56a10 10 0 0 0 10 -10V44a10 10 0 0 1 10 -10H175a10 10 0 0 1 10 10V46a10 10 0 0 0 10 10"/>
+<path d="M195 56h10"/>
+<path d="M205 56h20"/>
+<path d="M225 56h20"/>
+<g class="rule"><rect x="245" y="44" width="109" height="24" rx="0"/><text x="299.5" y="61" textLength="92.4" lengthAdjust="spacingAndGlyphs">free-prefix</text></g>
+<path d="M354 56H374"/>
+<path d="M354 56a10 10 0 0 1 10 10V68a10 10 0 0 1 -10 10H245a10 10 0 0 1 -10 -10V66a10 10 0 0 1 10 -10"/>
+<path d="M374 56H394"/>
+<path d="M205 56a10 10 0 0 0 10 -10V44a10 10 0 0 1 10 -10H374a10 10 0 0 1 10 10V46a10 10 0 0 0 10 10"/>
+<path d="M394 56h10"/>
+<g class="terminal"><rect x="404" y="44" width="33" height="24" rx="12"/><text x="420.5" y="61" textLength="16.8" lengthAdjust="spacingAndGlyphs">GI</text></g>
+<path d="M437 56h6m0 -8v16m4 -16v16"/>
 </svg>
