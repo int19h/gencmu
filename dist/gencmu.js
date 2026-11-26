@@ -26069,7 +26069,8 @@
         case "preceding-tokens": return new Span(stage, 0, span.start);
         case "starts-input": return span.start === 0;
         case "ends-input": return span.end === count;
-        case "source-text": case "verbatim-text": return sourceText(stage, span);
+        case "source-text": return sourceText(stage, span);
+        case "verbatim-text": return verbatimText(stage, span);
         case "decomposed-source-text": return sourceText(stage, span).normalize("NFD");
         default: return this.fail(`.${name} cannot run after the choice of a parse`, node, scope);
       }
@@ -26090,6 +26091,88 @@
       end = Math.max(end, to);
     }
     return stage.sourceText.slice(start, end).join("");
+  }
+
+  /**
+   * The first index of a sorted list whose value is at least the target.
+   * @param {number[]} values
+   * @param {number} target
+   */
+  function firstAtLeast(values, target) {
+    let low = 0;
+    let high = values.length;
+    while (low < high) {
+      const middle = (low + high) >> 1;
+      if (values[middle] < target) low = middle + 1;
+      else high = middle;
+    }
+    return low;
+  }
+
+  /**
+   * The verbatim text of a span (part 2 §6). It starts with the source of
+   * the span. Each side extends through the adjacent original text that no
+   * input token covers, up to the neighbor token of the stage input. The
+   * extension claims that text. Two spans with the same input share a claim,
+   * and two different spans cannot claim the same text. An empty span gives
+   * an empty string and claims nothing. Format 49 reads the text the same way.
+   * @param {any} stage
+   * @param {Span} span
+   */
+  function verbatimText(stage, span) {
+    if (span.start >= span.end) return "";
+    const tokens = stage.tokens;
+    const length = stage.sourceText.length;
+    if (!stage.verbatim) {
+      // Every input source counts as covered, inside a capture or not.
+      /** @type {number[][]} */
+      const ranges = [];
+      const covered = tokens.map((/** @type {any} */ token) => token.source).filter((/** @type {number[]} */ [a, b]) => a < b)
+        .sort((/** @type {number[]} */ a, /** @type {number[]} */ b) => a[0] - b[0]);
+      for (const [a, b] of covered) {
+        const previous = ranges.at(-1);
+        if (previous && a <= previous[1]) previous[1] = Math.max(previous[1], b);
+        else ranges.push([a, b]);
+      }
+      const points = new Set([0, length]);
+      for (const token of tokens) for (const point of token.source) points.add(point);
+      stage.verbatim = {
+        ranges, starts: ranges.map(range => range[0]), ends: ranges.map(range => range[1]),
+        points: [...points].sort((a, b) => a - b), claims: new Set(), cells: new Set(),
+      };
+    }
+    const { ranges, starts, ends, points, claims, cells } = stage.verbatim;
+    let l = Infinity;
+    let r = -Infinity;
+    for (let index = span.start; index < span.end; index++) {
+      l = Math.min(l, tokens[index].source[0]);
+      r = Math.max(r, tokens[index].source[1]);
+    }
+    const p = span.start > 0 ? tokens[span.start - 1].source[1] : 0;
+    const q = span.end < tokens.length ? tokens[span.end].source[0] : length;
+    let left = l;
+    let right = r;
+    if (p < l) {
+      const previous = firstAtLeast(starts, l) - 1;
+      left = Math.max(p, previous < 0 ? 0 : Math.min(l, ranges[previous][1]));
+    }
+    if (r < q) {
+      const following = firstAtLeast(ends, r + 1);
+      right = Math.max(r, following === ranges.length ? q : Math.min(q, ranges[following][0]));
+    }
+    const key = `${span.start}/${span.end}`;
+    if (!claims.has(key)) {
+      for (const [start, end] of [[left, l], [r, right]]) {
+        if (start >= end) continue;
+        const limit = firstAtLeast(points, end);
+        for (let cell = firstAtLeast(points, start); cell < limit; cell++) {
+          if (cells.has(cell)) throw new GencmuError("grammar", "different verbatim spans claim the same uncovered source text");
+          cells.add(cell);
+        }
+      }
+      claims.add(key);
+    }
+    return stage.sourceText.slice(left, right).join("");
   }
 
   /**
