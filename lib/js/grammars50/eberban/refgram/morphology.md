@@ -33,7 +33,7 @@ Five forms can hold a space inside one token: a borrowing, a freeform variable, 
 
 It never chooses where a foreign quote ends, because the quote rule fixes its end. The one exception is a trailing hyphen after a digit closer ("Delimiters" below). So a spelling quote at `ce` wins over an inner `co` by its earlier start, and `a ce co [ba] cei` is one spelling quote. In the same way, an unfinished compound wins over a quote in one of its slots. A complete compound wins over an unfinished one ("Unfinished compounds" below).
 
-The constant `$DEFAULTS` gives each rule node of the stage two strings. Its value joins the values of its children, and its image joins their images. So a node that writes no value joins the values of its parts. A hyphen adds the empty string, a gap adds one space and a digit adds its `TI` word. Each spelled particle word, root word, borrowing, freeform variable and eraser takes both its strings from the defaults. A compound takes its image from the defaults and writes its canonical value. A digit word takes its strings from its digit token. A stray prefix, the closing `e` of an empty `er e` and a quote write their own.
+The constant `$DEFAULTS` gives each rule node of the stage two strings. Its value joins the values of its children, and its image joins their images. So a node that writes no value joins the values of its parts. A hyphen adds the empty string, a gap adds one space and a digit adds its `TI` word. Each spelled particle word, root word, borrowing, freeform variable and eraser takes both its strings from the defaults. A digit word takes its strings from its digit token. A stray prefix, the closing `e` of an empty `er e`, a compound and a quote write their own.
 
 The stage publishes the keys in `$OUTPUTS`. These are the kinds of word, the particle families of `$FAMILIES`, and the marks that the later stages read. The prefix marks of a compound stay in this stage. No letter class passes on, because each token writes its own tags.
 
@@ -898,7 +898,7 @@ A hyphen after a prefix or at the start of a run carries `hyphen-misplaced`, as 
 
 A compound emits one token tagged `Word` and `Compound`. Its value is the compound in the shortest canonical form of the compounds chapter, which the dictionary uses. When a nested compound is the first component of another, their prefixes join into one unit. The joined prefix spells its vowel `i` after `e` and `e` after `n` or `r`. So `e e ber ban ban` and `ei ber ban ban` both have the value `ei ber ban ban`. Single spaces separate the other parts.
 
-A component keeps its word value, so a digit stands as its `TI` word. The image of the compound comes from the defaults. It joins the images of the prefixes, the components and the gaps, so it shows the compound as the text spells it, with one space for each gap and every hyphen that the compound reads. So `a eber -ban` has the value `e ber ban` and the image `eber -ban`. Each rule below with several parts writes the value of its node from the values of those parts. `compound-tail` and `joined-tail` take the value of `fixed-tail`, and the defaults join the values of the components of an `er` list.
+A component keeps its word value, so a digit stands as its `TI` word. The image of the compound is its value, the canonical form that the dictionary uses. A compound joins several words, and the canonical form spells the prefix in full and puts one space between its parts. A join of the images of its parts cannot show the gaps, because each slot takes the image of its component. So `e ber ban` and `eber ban` both show as `e ber ban`, and a hyphen inside a component does not show. Each rule below with several parts writes the value of its node from the values of those parts. `compound-tail` and `joined-tail` take the value of `fixed-tail`, and the defaults join the values of the components of an `er` list.
 
 The rule `compound-tail` reads a compound and gives its value without the vowel of its own prefix. A compound puts `e` in front of its tail. A compound whose first component is a nested compound reads that component as a tail after `prefix-join`. It joins the tail with the vowel that the chapter gives.
 
@@ -906,7 +906,7 @@ That vowel depends on the letter before it, so a tail comes in two kinds. `compo
 
 ```jbogenbau
 %rule compound
-  $t:compound-tail → {Word, Compound, $t'Spaced-E, value: "e" ++ $t'value}
+  $t:compound-tail → {Word, Compound, $t'Spaced-E, image: value: "e" ++ $t'value}
 %emit
 
 %rule compound-tail
@@ -1889,7 +1889,7 @@ Erased adjacent hyphens remain junk and emit no hyphen warning. So `a mi 1--2 ra
 
 This document reads the same texts as its format 49 copy, `grammars/eberban/refgram/morphology.md`. It reports the same errors and warnings at the same places, and it emits the same tokens with the same values and places. One tag and some images differ.
 
-The image of a spelled particle word, a root word, an eraser, a borrowing, a freeform variable and a compound now keeps each hyphen that the word rule reads. The image of a compound also keeps the spelling of its prefixes, as `eber ban`, where its value is the canonical `e ber ban`. So `bja-n` has the image `bja-n` and the value `bjan`. The format 49 image joined the values of the letters, so it dropped the hyphen. The image is what a person sees, and the book lets a hyphen mark a syllable that the writer wants to stand out.
+The image of a spelled particle word, a root word, an eraser, a borrowing and a freeform variable now keeps each hyphen that the word rule reads. A compound keeps its canonical image, as before. So `bja-n` has the image `bja-n` and the value `bjan`. The format 49 image joined the values of the letters, so it dropped the hyphen. The image is what a person sees, and the book lets a hyphen mark a syllable that the writer wants to stand out.
 
 A compound token no longer carries `Spaced-E`. The mark says that the prefix of a compound is a standalone `e`, and only the compound reader reads it. So it stays in this stage, as the other prefix marks do. `$OUTPUTS` names only the kinds of word, the particle families and the marks that the later stages read. So `a e mi mo` hands on a compound with `Word` and `Compound` alone.
 
