@@ -4,6 +4,7 @@ import { isDeepStrictEqual } from "node:util";
 import { expressionChildren } from "../lib/js/src/clause-walk.js";
 import { capturesMentioned, capturesUsed, DOM_TRUE, simplify, termType } from "../lib/js/src/dom.js";
 import { SPAN_METHODS } from "../lib/js/src/methods.js";
+import { captureKinds } from "../lib/js/src/format50/stage.js";
 import { layeredPatternText } from "../lib/js/src/pattern-shapes.js";
 import { stringName } from "../lib/js/src/tags.js";
 
@@ -218,6 +219,18 @@ class Printer {
       const local = new Set();
       findRepeated(alt.expr, local);
       alternativesWithItem.push(local);
+    }
+    // A capture in an optional, or on only some routes of an alternative, is
+    // a list of zero or one in format 50 (engine §3.5). It reads like a
+    // repeated capture whose item can be absent.
+    for (const [index, alt] of (item.alternatives ?? []).entries()) {
+      for (const [name, kind] of captureKinds(alt.expr)) {
+        if (kind !== "list" || this.repeated.has(name)) continue;
+        this.repeated.add(name);
+        scalar.delete(name);
+        alternativesWithItem[index].add(name);
+        partialItems.add(name);
+      }
     }
     this.sharedItems = [...this.repeated].filter(name => !scalar.has(name) && alternativesWithItem.every(local => local.has(name)));
     this.partialItems = partialItems;
@@ -522,6 +535,8 @@ class Printer {
       const capture = `$${name === this.item?.name ? this.item.local : name}`;
       return context === "string" ? this.stringRead(capture, node, "value") : capture;
     }
+    // A span in a string position reads the value of its tokens.
+    if (node.method && SPAN_METHODS.has(node.method) && context === "string") return this.stringRead(this.method(node), node, "value");
     if (node.tag) return bag([node.tag]);
     if (node.const) return `$${node.const}`;
     if (node.param) return `@${node.param}`;
@@ -543,14 +558,22 @@ class Printer {
     if (node.op) return this.compare(node);
     for (const kind of ["any", "all", "concat", "union", "intersection", "difference"]) {
       if (!node[kind]) continue;
-      const type = ["any", "all"].includes(kind) ? "truth" : kind === "concat" ? "string" : this.type(node);
+      let type = ["any", "all"].includes(kind) ? "truth" : kind === "concat" ? "string" : this.type(node);
+      // An empty set inside a pattern stays a pattern.
+      if (context === "pattern" && !["strings", "tags", "truth", "string"].includes(type)) type = "pattern";
       if (type === "strings" && kind === "union") {
-        return list(node.union.map(child => this.type(child) === "string" ? this.term(child) : `*${this.term(child, "strings")}`));
+        // A guarded string is a guarded item of the list.
+        return list(node.union.map(child => child.if && this.type(child.then) === "string" ? `(${this.term(child.if, "truth")})? ${this.term(child.then, "string")}` :
+          this.type(child) === "string" ? this.term(child) : `*${this.term(child, "strings")}`));
       }
       if (type === "strings" && kind === "intersection") {
         this.changes.push("Express string intersection as list difference. The surviving members preserve the left operand order.");
         return node.intersection.map(child => this.stringList(child)).reduce((left, right) =>
           `(${left} ∖ (${left} ∖ ${right}))`);
+      }
+      if (type === "strings" && kind === "difference") {
+        // A string operand of a set of strings is a list of that string.
+        return `(${node.difference.map(child => this.stringList(child)).join(operators.difference)})`;
       }
       const operands = node[kind].map(child => this.term(child, type));
       return operands.length === 1 ? operands[0] : `(${operands.join(operators[kind])})`;
@@ -562,7 +585,7 @@ class Printer {
     if (node.if && this.type(node.then) === "string") {
       return list([`(${this.term(node.if, "truth")})? ${this.term(node.then, "string")}`]);
     }
-    return this.type(node) === "string" ? list([this.term(node, "string")]) : this.term(node, "strings");
+    return ["string", "span"].includes(this.type(node)) ? list([this.term(node, "string")]) : this.term(node, "strings");
   }
 
   compare(node) {
@@ -578,7 +601,13 @@ class Printer {
       const target = this.stringList(right);
       return `(${this.term(left, "string")} ${op} ${target})`;
     }
-    if (["=", "≠", "⊆", "⊈"].includes(op) && [this.type(left), this.type(right)].includes("strings")) {
+    // Format 49 compares a string or a span with a set of strings as the set
+    // of that one string. So inclusion of strings, and the empty set against
+    // a string, compare lists.
+    const types = [this.type(left), this.type(right)];
+    const scalar = types.some(type => type === "string" || type === "span");
+    if (["=", "≠", "⊆", "⊈"].includes(op) && (types.includes("strings") ||
+        ["⊆", "⊈"].includes(op) && scalar && !types.includes("tags") || (left.emptySet || right.emptySet) && scalar)) {
       const a = this.stringList(left);
       const b = this.stringList(right);
       if (op === "⊆" || op === "⊈") {
@@ -611,7 +640,12 @@ class Printer {
     }
     if (method === "classify") return `$${classifierName(args[0].classifier)}.classify(${this.term(receiver, "string")})`;
     if (method === "parse") return `${this.term(receiver)}.parse(${this.body(args[0].body)})`;
-    if (method === "tags") return `${this.term(receiver)}.flags`;
+    if (method === "tags") {
+      // The keys of a list of nodes are the union of the keys of each.
+      const capture = receiver.capture ?? receiver.captured;
+      if (capture !== undefined && this.repeated.has(capture) && capture !== this.item?.name) return `${this.term(receiver)}!.flags.union`;
+      return `${this.term(receiver)}.flags`;
+    }
     if (method === "emitted") this.hand("Select the computed value or image of the occurrence.");
     if (method === "split" || method === "ngrams") {
       return `${this.term(receiver, "string")}.${method}(${args.map(arg => this.term(arg, "string")).join(", ")})`;

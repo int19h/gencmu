@@ -86,7 +86,7 @@ export declare function evaluationError(description: any, at: any, document: any
  * of key-set constants stays a key set.
  * @param {any} node
  */
-export declare function isPatternSet(node: any): any;
+export declare function isPatternSet(node: any, nested?: boolean): any;
 export declare class Evaluator {
     stage: StageData;
     /** @type {Map<any, any>} */
