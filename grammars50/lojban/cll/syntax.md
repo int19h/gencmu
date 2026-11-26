@@ -1,6 +1,6 @@
 # The CLL grammar
 
-This document gives the grammar of *The Complete Lojban Language* (CLL), edition 1.1. This grammar forms the syntax stage of the [CLL](pipeline.md) pipeline. The BPFK is the Lojban language planning committee. The format 49 copy of this grammar, `grammars/lojban/cll/syntax.md`, also forms the syntax stage of the `lojban/bpfk` pipeline. The experimental layer, `grammars/lojban/experimental/syntax.md`, can replace the rules and ranking of that copy. A pipeline document defines an ordered sequence of stages. A stage is one step of a pipeline, with its own grammar.
+This document gives the grammar of *The Complete Lojban Language* (CLL), edition 1.1. This grammar forms the syntax stage of the [CLL](pipeline.md) pipeline. The BPFK is the Lojban language planning committee. This grammar also forms the syntax stage of the [BPFK pipeline](../bpfk/pipeline.md). The [experimental layer](../experimental/syntax.md) can replace its rules and ranking. A pipeline document defines an ordered sequence of stages. A stage is one step of a pipeline, with its own grammar.
 
 A token is one unit that a stage reads or emits. A token's value is the string that exact comparisons read. Its image is the string that people see.
 
@@ -916,7 +916,7 @@ The official parser, CLL's reference implementation, uses a YACC grammar. YACC i
 
 Earlier stages also depart from CLL. [The word stream](../common/stream.md) lists eight departures under ["Departures from CLL, Magic Words, and the reference parsers"](../common/stream.md#departures-from-cll-magic-words-and-the-reference-parsers). They concern SI, ZEI, BU, hesitation, LOhU, ZOI, whole-quote attachment, and SU boundaries. The Magic Words proposal specifies word processing before syntax. The stream prose states each relationship to that proposal.
 
-[The indicator stage](indicators.md) permits several FUhE groups and several BAhE words. Printed rules 411 and 1100 each allow only one. Printed rule 413 writes `[NAI]` in `indicator`. Here the indicator stage reads a `nai` with its attitudinal, and the syntax reads the pair as one `UI` or `CAI` token. The [CLL pipeline's differences section](pipeline.md#differences-from-cll-and-the-official-parser) and BPFK pipeline's differences section in `grammars/lojban/bpfk/pipeline.md` index pipeline choices and source comparisons.
+[The indicator stage](indicators.md) permits several FUhE groups and several BAhE words. Printed rules 411 and 1100 each allow only one. Printed rule 413 writes `[NAI]` in `indicator`. Here the indicator stage reads a `nai` with its attitudinal, and the syntax reads the pair as one `UI` or `CAI` token. The [CLL pipeline's differences section](pipeline.md#differences-from-cll-and-the-official-parser) and BPFK pipeline's differences section in [bpfk/pipeline.md](../bpfk/pipeline.md) index pipeline choices and source comparisons.
 
 The words stage replaces CLL's non-formal erasure rule `null = any-word SI | utterance SA | text SU` with the left-to-right Magic Words model. A non-formal rule runs before syntax. CLL never defines the `utterance` that `sa` erases. The [stream's departure list](../common/stream.md#departures-from-cll-magic-words-and-the-reference-parsers) explains the differences.
 
