@@ -1131,7 +1131,7 @@ Warnings inside a syntax-erased stretch disappear, including warnings raised in 
 
 ## Differences from the format 49 grammar
 
-This document reads the same texts as its format 49 copy, `grammars/eberban/refgram/syntax.md`. It gives the same verdicts, errors, warnings and trees. The changes below are changes of form.
+This document reads the same texts as its format 49 copy, `grammars/eberban/refgram/syntax.md`. It gives the same verdicts, errors, warnings and trees. Its brackets show the images of the word tokens, so they show each change of image of the forms stage. The changes below are changes of form.
 
 - The two quotes whose `cai` is left out test the origin of the terminator with `[+CAI<_Elided>]`. The format 49 copy compared the value with the empty string, and only an omitted `cai` has that value.
 - `ra-run` has no term. The format 49 copy gave it the tags of its `RA` words, and no rule read them.

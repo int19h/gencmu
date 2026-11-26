@@ -33,7 +33,7 @@ Five forms can hold a space inside one token: a borrowing, a freeform variable, 
 
 It never chooses where a foreign quote ends, because the quote rule fixes its end. The one exception is a trailing hyphen after a digit closer ("Delimiters" below). So a spelling quote at `ce` wins over an inner `co` by its earlier start, and `a ce co [ba] cei` is one spelling quote. In the same way, an unfinished compound wins over a quote in one of its slots. A complete compound wins over an unfinished one ("Unfinished compounds" below).
 
-The constant `$DEFAULTS` gives each rule node of the stage two strings. Its value joins the values of its children, and its image joins their images. So a node that writes no value joins the values of its parts. A hyphen adds the empty string, a gap adds one space and a digit adds its `TI` word. Each spelled particle word, root word, borrowing, freeform variable and eraser takes both its strings from the defaults. A digit word takes its strings from its digit token. A stray prefix, the closing `e` of an empty `er e`, a compound and a quote write their own.
+The constant `$DEFAULTS` gives each rule node of the stage two strings. Its value joins the values of its children, and its image joins their images. So a node with no primary, no sole symbol and no written value joins the values of its parts. A primary or a sole symbol gives its own value first, so the slot of `mo` in `a e mi mo` has the value `mo`, without its gap. A hyphen adds the empty string, a gap adds one space and a digit adds its `TI` word. Each spelled particle word, root word, borrowing, freeform variable and eraser takes both its strings from the defaults. A digit word takes its strings from its digit token. A stray prefix and the closing `e` of an empty `er e` take their value from what they read and write their image. A compound and a quote write their own strings.
 
 The stage publishes the keys in `$OUTPUTS`. These are the kinds of word, the particle families of `$FAMILIES`, and the marks that the later stages read. The prefix marks of a compound stay in this stage. No letter class passes on, because each token writes its own tags.
 
@@ -606,15 +606,16 @@ A borrowing is `u`, then its content. The book says that spaces must follow a bo
 
 The content has looser rules than a root. An initial pair can stand in the middle, and a medial pair at the start. A sonorant or `m` before a consonant counts as a pair. A sonorant before an initial pair or a consonant-sonorant medial pair counts as a triplet. The content can start with a vowel, a consonant, a pair, a triplet or `h`. It ends with a vowel or with one consonant.
 
-The PEG lets a gap stand between the prefix and the content. The book writes content that starts with `u` after `u'`, and the apostrophe is a space. Two copies of the prefix letter merge into one letter, so a gap must stand there.
+The PEG lets a gap stand between the prefix and the content. The book writes content that starts with `u` after `u'`, and the apostrophe is a space. Two copies of the prefix letter merge into one letter, so a gap must stand there. `prefix-gap-of` owns that boundary. Where the content starts with the prefix letter, it gives the boundary the value and the image `'`, as the book writes it. So `u'ulis`, `u ulis` and `u-ulis` all have the value `u'ulis`. A compound that holds the borrowing then spells it as `u'ulis`, which reads back as the same word. Without the mark, `e uulis ban` reads `uu` as one letter, and so another borrowing.
 
 A cluster before more vowels has its syllable boundary before it or inside it. A single consonant and an initial pair start a syllable, so a hyphen before them is silent. A medial pair, a sonorant or `m` before a consonant, and a triplet split inside, as the section on hyphens says. The rule `sonorant-pair` reads a sonorant or `m` before a consonant that forms no medial pair. A pair of the same letter twice is no pair, as the morphology chapter says.
 
-The PEG warns about a hyphen before or after the prefix, and about content that starts with the prefix letter after a hyphen. A hyphen after a cluster at the start of the content also warns. Each carries `hyphen-misplaced` here. The token takes its strings from the defaults, as a spelled word does. `freeform-gap` gives the gap the empty string as its value and its image. So the value is the prefix letter and the content, without the gap, and the image also keeps each hyphen that the rule reads, as in `u-bla`.
+The PEG warns about a hyphen before or after the prefix, and about content that starts with the prefix letter after a hyphen. A hyphen after a cluster at the start of the content also warns. Each carries `hyphen-misplaced` here. The token takes its strings from the defaults, as a spelled word does. `freeform-gap` gives any other gap the empty string as its value and its image. So the value is the prefix letter and the content, without the gap, and the image also keeps each hyphen that the rule reads, as in `u-bla`.
 
 ```jbogenbau
 %rule freeform-word(@Prefix, @Kind)
-  [hyphen-misplaced] $p:Letter=@Prefix prefix-gap malformed-content [hyphen-misplaced] space-after
+  [hyphen-misplaced] $p:Letter=@Prefix prefix-gap-of(@Prefix) malformed-content [hyphen-misplaced]
+    space-after
       → {Word, *@Kind}
 %conditions
   ¬$p.preceding-tokens.parse(… after-digit)
@@ -623,8 +624,12 @@ The PEG warns about a hyphen before or after the prefix, and about content that 
 %rule borrowing = freeform-word(= "u", = {Borrowing})
 %rule freeform-variable = freeform-word(= "i", = {Freeform})
 
-%rule prefix-gap
-  [freeform-gap] [hyphen-misplaced]
+%rule prefix-gap-of(@Prefix)
+  [freeform-gap] [$h:hyphen-misplaced]
+      → {
+          $.following-tokens.parse(Letter=@Prefix …)? value: "'",
+          $.following-tokens.parse(Letter=@Prefix …)? image: "'" ++ $h!'image.join()
+        }
 
 %rule freeform-gap
   gap → {image: value: ""}
@@ -660,7 +665,7 @@ The PEG warns about a hyphen before or after the prefix, and about content that 
 <p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/freeform-word.svg" alt="Railroad diagram of the rule freeform-word"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/borrowing.svg" alt="Railroad diagram of the rule borrowing"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/freeform-variable.svg" alt="Railroad diagram of the rule freeform-variable"></p>
-<p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/prefix-gap.svg" alt="Railroad diagram of the rule prefix-gap"></p>
+<p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/prefix-gap-of.svg" alt="Railroad diagram of the rule prefix-gap-of"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/freeform-gap.svg" alt="Railroad diagram of the rule freeform-gap"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/content.svg" alt="Railroad diagram of the rule content"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/content-onset.svg" alt="Railroad diagram of the rule content-onset"></p>
@@ -898,15 +903,22 @@ A hyphen after a prefix or at the start of a run carries `hyphen-misplaced`, as 
 
 A compound emits one token tagged `Word` and `Compound`. Its value is the compound in the shortest canonical form of the compounds chapter, which the dictionary uses. When a nested compound is the first component of another, their prefixes join into one unit. The joined prefix spells its vowel `i` after `e` and `e` after `n` or `r`. So `e e ber ban ban` and `ei ber ban ban` both have the value `ei ber ban ban`. Single spaces separate the other parts.
 
-A component keeps its word value, so a digit stands as its `TI` word. The image of the compound is its value, the canonical form that the dictionary uses. A compound joins several words, and the canonical form spells the prefix in full and puts one space between its parts. A join of the images of its parts cannot show the gaps, because each slot takes the image of its component. So `e ber ban` and `eber ban` both show as `e ber ban`, and a hyphen inside a component does not show. Each rule below with several parts writes the value of its node from the values of those parts. `compound-tail` and `joined-tail` take the value of `fixed-tail`, and the defaults join the values of the components of an `er` list.
+A component keeps its word value, so a digit stands as its `TI` word. The image of the compound is its value, the canonical form that the dictionary uses. A compound joins several words, and the canonical form puts one space between its parts. It spells the prefixes of the first group in their shortest form, as `ei ber ban ban` for `e e ber ban ban`. A join of the images of its parts cannot show the gaps, because each slot takes the image of its component. So `e ber ban` and `eber ban` both show as `e ber ban`, and a hyphen inside a component does not show. Each rule below with several parts writes the value of its node from the values of those parts. `compound-tail` and `joined-tail` take the value of `fixed-tail`, and the defaults join the values of the components of an `er` list.
 
 The rule `compound-tail` reads a compound and gives its value without the vowel of its own prefix. A compound puts `e` in front of its tail. A compound whose first component is a nested compound reads that component as a tail after `prefix-join`. It joins the tail with the vowel that the chapter gives.
 
-That vowel depends on the letter before it, so a tail comes in two kinds. `compound-tail` follows a vowel written `e`, and `joined-tail` follows one written `i`. The rule `fixed-tail` holds the alternatives that are the same in both kinds. `first-slot` holds no compound, so each first component has one reading. Each `er-component` adds a space and its value to the value of the list.
+That vowel depends on the letter before it, so a tail comes in two kinds. `compound-tail` follows a vowel written `e`, and `joined-tail` follows one written `i`. The rule `fixed-tail` holds the alternatives that are the same in both kinds. `first-slot` holds no compound, so each first component has one reading. Each `er-component` adds a space and its value to the value of the list. A later component of an `er` list cannot start with a standalone `e`, because the compounds chapter makes a single `e` the closer of the list. So `fixed-tail` also gives a compound with the prefix `e` its attached form in the key `attached`, and `er-component` reads that form. So `a er mi eberban ban ke e` has the value `er mi eber ban ban ke e`. The spaced form `er mi e ber ban ban ke e` reads back as the list `er mi e`, which another reading then rejects.
 
 ```jbogenbau
 %rule compound
-  $t:compound-tail → {Word, Compound, $t'Spaced-E, image: value: "e" ++ $t'value}
+  $t:compound-tail
+      → {
+          Word,
+          Compound,
+          $t'Spaced-E,
+          image: value: "e" ++ $t'value,
+          $t.has-value(attached)? attached: "e" ++ $t'attached
+        }
 %emit
 
 %rule compound-tail
@@ -921,7 +933,11 @@ That vowel depends on the letter before it, so a tail comes in two kinds. `compo
 
 %rule fixed-tail
   | $p:prefix<E-PREFIX> $a:first-slot $b:later-slot
-      → {$p'Standalone? Spaced-E, value: " " ++ $a'value ++ " " ++ $b'value}
+      → {
+          $p'Standalone? Spaced-E,
+          value: " " ++ $a'value ++ " " ++ $b'value,
+          attached: $a'value ++ " " ++ $b'value
+        }
   | prefix<EN-PREFIX> $a:first-slot $b:later-slot $c:later-slot
       → {value: "n " ++ $a'value ++ " " ++ $b'value ++ " " ++ $c'value}
   | prefix<EN-PREFIX> prefix-join $n:compound-tail $b:later-slot $c:later-slot
@@ -958,7 +974,7 @@ The closer emits its gap and `e` where no whole compound covers them. An empty `
   | prefix-join $n:compound-tail<¬Spaced-E> → {value: "e" ++ $n'value}
 
 %rule er-component
-  $c:later-slot<¬Spaced-E> → {value: " " ++ $c'value}
+  $c:later-slot<¬Spaced-E> → {value: " " ++ ($c.has-value(attached) ? $c'attached | $c'value)}
 
 %rule few-er-components
   er-first [er-component [er-component]]
@@ -970,7 +986,7 @@ The closer emits its gap and `e` where no whole compound covers them. An empty `
   $g:gap [hyphen-misplaced] $e:Letter="e" [hyphen-misplaced] run-end
 %emit
   $g,
-  $e{Stray-Prefix, value: $e.decomposed-source-text, image: $e.source-text}
+  $e{Stray-Prefix, image: $e.source-text}
 ```
 
 <details><summary>Railroad diagrams of the 5 rules from <code>er-first</code> to <code>er-closer</code></summary>
@@ -1003,9 +1019,9 @@ The step names `open-compound` and not `stray-compound`, because a hyphen before
 
 A reader can expect each quote rule to test the letters before it for an unfinished compound instead. Such a backward test needs the same counts as `open-compound`. Both quote rules and the bar on `co` then read it. The test also has to find where the compound starts. Otherwise the `en` at the end of `ben` in `a ben ce bu cei` counts as a prefix. The forward rule needs none of this, because `first-prefix` starts a compound only at the start of a run.
 
-The prefix errors stand on their prefix tokens. Each alternative of `stray-prefix` takes the bag of its call, so the arity marks of the prefix stay inside the reader. Its token takes only `Stray-Prefix` and its two strings. Syntax accepts only their emitted `Stray-Prefix` class.
+The prefix errors stand on their prefix tokens. Each alternative of `stray-prefix` takes the bag of its call, so the arity marks of the prefix stay inside the reader. Its token takes only `Stray-Prefix` and its two strings. Its value is the prefix that the reader recognized, as `en` for `EE-N`, because a later stage reads a stray prefix as a word and compares its value. Its image is the source text, which shows the prefix as the text writes it. Syntax accepts only their emitted `Stray-Prefix` class.
 
-An empty `er e` retains its closing `e` as `Stray-Prefix`, without a second error. The shared closer reader emits that token and keeps its word boundary. The emitted `e` preserves the word sequence inside a later erasure. Its warnings also survive until an actual erasure removes them.
+An empty `er e` retains its closing `e` as `Stray-Prefix`, without a second error. The token has the value `e` of its letter, and the source text as its image, as `EEE`. The shared closer reader emits that token and keeps its word boundary. The emitted `e` preserves the word sequence inside a later erasure. Its warnings also survive until an actual erasure removes them.
 
 `empty-er-closer` names the closing token of that empty recovery. Its name distinguishes this role from the closer of a complete compound. It calls the shared `er-closer`, which emits the gap and closing `e`, without another diagnostic.
 
@@ -1025,11 +1041,11 @@ An empty `er e` retains its closing `e` as `Stray-Prefix`, without a second erro
   | *compound-empty
   | *incomplete-compound
 %emit
-  ${Stray-Prefix, value: $.decomposed-source-text, image: $.source-text}
+  ${Stray-Prefix, image: $.source-text}
 
 -- The tail of a spaced i compound is a gap, an i letter and the content after it.
 %rule spaced-i-tail
-  gap [Hyphen] Letter="i" prefix-gap content
+  gap [Hyphen] Letter="i" prefix-gap-of(= "i") content
 
 %rule spaced-i-prefix
   $p:prefix
@@ -1887,7 +1903,9 @@ Erased adjacent hyphens remain junk and emit no hyphen warning. So `a mi 1--2 ra
 
 ## Differences from the format 49 grammar
 
-This document reads the same texts as its format 49 copy, `grammars/eberban/refgram/morphology.md`. It reports the same errors and warnings at the same places, and it emits the same tokens with the same values and places. One tag and some images differ.
+This document reads the same texts as its format 49 copy, `grammars/eberban/refgram/morphology.md`. It reports the same errors and warnings at the same places, and it emits the same tokens at the same places. One tag, some images and three kinds of value differ.
+
+A borrowing or a freeform variable whose content starts with its prefix letter has the separator `'` in its value and image, as `u'ulis`. The format 49 value `uulis` reads back as another word, and the book writes the separator. A later component of an `er` list writes a nested compound in its attached form, as `eber ban`, because the book makes a standalone `e` the closer of the list. A stray prefix and the closing `e` of an empty `er e` have the value of the prefix or the letter that they read, as `en` for `EE-N`, where the format 49 value was the source text. Each image keeps the source text.
 
 The image of a spelled particle word, a root word, an eraser, a borrowing and a freeform variable now keeps each hyphen that the word rule reads. A compound keeps its canonical image, as before. So `bja-n` has the image `bja-n` and the value `bjan`. The format 49 image joined the values of the letters, so it dropped the hyphen. The image is what a person sees, and the book lets a hyphen mark a syllable that the writer wants to stand out.
 

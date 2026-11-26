@@ -41,4 +41,4 @@ This stage preserves every diagnostic and adds none. The [word forms](morphology
 
 ## Differences from the format 49 grammar
 
-This document reads the same texts as its format 49 copy, `grammars/eberban/refgram/stream.md`, and it emits the same tokens. The primary of each unit is new. It changes no token. Each unit now shows the face of its forms token, whose core is the rule that built it. That rule stands in the forms stage, or in the letters stage for a digit or the closing `e` of an empty `er e`.
+This document reads the same texts as its format 49 copy, `grammars/eberban/refgram/stream.md`, and it emits the same tokens. The primary of each unit is new. Given the same input tokens, it emits the same tokens. Each unit now shows the face of its forms token, whose core is the rule that built it. That rule stands in the forms stage, or in the letters stage for a digit or the closing `e` of an empty `er e`.

@@ -12,7 +12,7 @@ A letter written several times in a row is the same letter written once. The boo
 
 The text is a sequence of letters, spaces, foreign letters, hyphens, digits and brackets. The stage is greedy. Where two parses differ, it takes the one that reads the next character over the one that closes a constituent. A constituent is the text that one rule matches. So a run of one repeated letter is one token, and a run of plain spaces is one token.
 
-The constant `$DEFAULTS` gives each rule node of the stage two strings. Its value joins the values of its children, and its image joins their images. So a bracket token takes both strings from the defaults. A digit writes its value in its rule and takes its image from the defaults. Each other token writes both its strings in its rule.
+The constant `$DEFAULTS` gives each rule node of the stage two strings. Its value joins the values of its children, and its image joins their images. So on text input a bracket token has the bracket as its value and its image. A digit writes its value in its rule, and its image is the value of the digit character that it reads. Each other token writes both its strings in its rule.
 
 A tag is a capitalized key of a token's bag. The stage publishes the tags in `$OUTPUTS`, which the sections below explain. The Unicode properties of the characters stay in this stage, so no token of the stage carries one.
 
@@ -342,24 +342,24 @@ The line breaks after a hyphen belong to its token. The [new course](https://ebe
 <p><img src="../../../docs/diagrams/50/eberban/refgram/letters/indent-char.svg" alt="Railroad diagram of the rule indent-char"></p>
 </details>
 
-The [numbers chapter](https://eberban.github.io/eberban/books/refgram/book/grammar/numbers.html) accepts the digit characters `0` to `9` as `TI` particles, so `42` is `tu ta`. A token's value is the canonical word, and the spelling stays in its image. So the stage emits each digit as a `Digit` token whose value is its `TI` word and whose image is the digit. Each alternative of `digit` gives the word of the chapter's table as its value. The defaults give the image, which is the digit as written.
+The [numbers chapter](https://eberban.github.io/eberban/books/refgram/book/grammar/numbers.html) accepts the digit characters `0` to `9` as `TI` particles, so `42` is `tu ta`. A token's value is the canonical word, and the spelling stays in its image. So the stage emits each digit as a `Digit` token whose value is its `TI` word and whose image is the digit. Each alternative of `digit` gives the word of the chapter's table as its value. The statement term gives the image, the value of the digit character that the alternative reads. So a caller's digit token shows its digit, whatever image the caller gives it.
 
 The digits 0 to 4 are `ti`, `te`, `ta`, `to` and `tu`. The digits 5 to 9 are `tie`, `tia`, `tio`, `tiu` and `tei`. So an exact comparison sees `1` and `te` as one word, as speech does.
 
 The brackets `[` and `]` delimit foreign quotes. Outside a quote they are spaces, which the forms stage decides. A bracket token takes its two strings from the defaults.
 
 ```jbogenbau
-%rule digit → {Digit}
-  | "0" → {value: "ti"}
-  | "1" → {value: "te"}
-  | "2" → {value: "ta"}
-  | "3" → {value: "to"}
-  | "4" → {value: "tu"}
-  | "5" → {value: "tie"}
-  | "6" → {value: "tia"}
-  | "7" → {value: "tio"}
-  | "8" → {value: "tiu"}
-  | "9" → {value: "tei"}
+%rule digit → {Digit, image: $d'value}
+  | $d:"0" → {value: "ti"}
+  | $d:"1" → {value: "te"}
+  | $d:"2" → {value: "ta"}
+  | $d:"3" → {value: "to"}
+  | $d:"4" → {value: "tu"}
+  | $d:"5" → {value: "tie"}
+  | $d:"6" → {value: "tia"}
+  | $d:"7" → {value: "tio"}
+  | $d:"8" → {value: "tiu"}
+  | $d:"9" → {value: "tei"}
 %emit
 
 %rule open-bracket
@@ -387,4 +387,4 @@ The new course says that spaces can stand on the new line before the rest of a w
 
 ## Differences from the format 49 grammar
 
-This document reads the same texts as its format 49 copy, `grammars/eberban/refgram/letters.md`. It emits the same tokens with the same values, images, places and tags. `$OUTPUTS` names only the tags of the stage, so a token carries no Unicode property of its characters, as before.
+This document reads the same texts as its format 49 copy, `grammars/eberban/refgram/letters.md`. It emits the same tokens with the same values, images, places and tags. That holds for caller tokens too: a digit's image is the value of its input token, in both formats. `$OUTPUTS` names only the tags of the stage, so a token carries no Unicode property of its characters, as before.
