@@ -27413,7 +27413,19 @@
       }
       // The tags of a node in recognition hold hidden keys beside its visible
       // ones, so a test that needs the absence of other keys cannot read them.
-      if ((op === "⊆" || op === "⊈") && mayHoldHidden(node.left) || (op === "=" || op === "≠") && (mayHoldHidden(node.left) || mayHoldHidden(node.right))) {
+      /** @param {any} receiver */
+      const tokenCapture = receiver => {
+        const symbol = receiver?.capture !== undefined ? this.captureSymbols.get(receiver.capture) : undefined;
+        return typeof symbol === "string" && !/^[a-z]/.test(symbol);
+      };
+      const hidden = (/** @type {any} */ side) => mayHoldHidden(side, tokenCapture);
+      // A written token holds its visible terminal key, so a comparison with
+      // the empty set has the same answer with or without the hidden keys.
+      /** @param {any} side */
+      const empty = side => side?.emptySet || Array.isArray(side?.bag) && side.bag.length === 0;
+      const withEmpty = empty(node.left) || empty(node.right);
+      if ((op === "⊆" || op === "⊈") && hidden(node.left) && !empty(node.right) ||
+          (op === "=" || op === "≠") && !withEmpty && (hidden(node.left) || hidden(node.right))) {
         return this.fail(`compare the keys of a node with ${op}`, node.at);
       }
       if (op === "⊆" || op === "⊈") return { op, left: this.keySet(node.left), right: this.keySet(node.right) };
@@ -27813,19 +27825,21 @@
 
   // Whether a record is a key set by its form.
   /**
-   * Whether a key set read in recognition can hold hidden keys: the keys of
-   * a node, unless an intersection with a written set bounds them.
+   * Whether a key set read in recognition holds hidden keys: the keys of a
+   * token of the stage input, which carries the written-token key and a key
+   * for each payload, unless an intersection with a written set bounds them.
    * @param {any} node
+   * @param {(receiver: any) => boolean} tokenCapture
    * @returns {boolean}
    */
-  function mayHoldHidden(node) {
+  function mayHoldHidden(node, tokenCapture) {
     if (!node || typeof node !== "object") return false;
     // A class key ends in a capital letter, and a hidden key does not, so
     // .classes holds no hidden key.
-    if (["flags", "keys", "tags"].includes(node.method)) return true;
-    if (node.union) return node.union.some(mayHoldHidden);
-    if (node.intersection) return node.intersection.every(mayHoldHidden);
-    if (node.difference) return mayHoldHidden(node.difference[0]);
+    if (["flags", "keys", "tags"].includes(node.method)) return tokenCapture(node.receiver);
+    if (node.union) return node.union.some((/** @type {any} */ item) => mayHoldHidden(item, tokenCapture));
+    if (node.intersection) return node.intersection.every((/** @type {any} */ item) => mayHoldHidden(item, tokenCapture));
+    if (node.difference) return mayHoldHidden(node.difference[0], tokenCapture);
     return false;
   }
 
