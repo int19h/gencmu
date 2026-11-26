@@ -25167,6 +25167,13 @@
 
 
 
+  /**
+   * Work counts of the format 50 engine, for the cost measurements of part 2
+   * §10: the values that bags compute, the writes into bags, the lookups of
+   * one key, and the parts that string joins share. A caller resets them.
+   */
+  const counts50 = { values: 0, writes: 0, lookups: 0, joinParts: 0 };
+
   /** A key that names a class (engine §3.7). */
   const CLASS_KEY = /^[A-Z](.*[A-Z])?$/;
 
@@ -25233,6 +25240,7 @@
       if (this.computing) throw new GencmuError("grammar", "a value of a bag reads itself");
       this.computing = true;
       depth++;
+      counts50.values++;
       try {
         this.payload = this.compute();
         this.done = true;
@@ -25297,6 +25305,7 @@
      * @param {(() => boolean) | null} guard
      */
     write(keys, entry, guard) {
+      counts50.writes++;
       this.writes.push({ kind: "write", keys: new Set(keys), entry, guard: once(guard) });
     }
 
@@ -25350,6 +25359,7 @@
      * @returns {Entry | null}
      */
     resolve(key) {
+      counts50.lookups++;
       let found = null;
       for (let index = this.writes.length - 1; index >= 0; index--) {
         const write = this.writes[index];
@@ -25521,6 +25531,7 @@
    * @param {string} separator
    */
   function concatenate(parts, separator) {
+    counts50.joinParts += parts.length;
     let text = "";
     for (const [index, part] of parts.entries()) text = index ? text + separator + part : part;
     return text;
