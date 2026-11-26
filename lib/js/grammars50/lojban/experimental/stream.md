@@ -1,0 +1,173 @@
+# The experimental word stream
+
+This document is part of the words stage in the [experimental](pipeline.md) pipeline, after [../common/stream.md](../common/stream.md). A stage is one step of the pipeline. A token is one unit that a stage reads or emits. A tag is a capitalized key of a token's bag.
+
+[The word forms](morphology.md) tag CgV names and predicate words with `Cgv-Warning`. A nucleus is the vowel, diphthong or `y` at the center of a syllable. A glide is `i` or `u` before a nucleus. CgV combines a consonant, glide and nucleus. This stage enables the warning `experimental-cgv` by default. Disabling it changes no reading.
+
+The warning covers each marked word that the chosen derivation reads as Lojban. ZO targets, grammatical quotes, and ungrammatical quotes retain it. Replacement quotes still read Lojban words, so their marked words warn too. A word that erasure removes drops its warning, and a word that survives keeps it. An opening delimiter also reads as a word and can warn.
+
+An opaque foreign body contains no such word reads. Thus ZOI bodies, including `la'o`, and raw one-word bodies cannot warn about their contents. Text after active FAhO cannot warn either. A raw closing delimiter also supplies no predicate or name read. `zoi gy. atkuila .gy.` needs no CgV word form in its body.
+
+`brivla-token` and `cmevla-token` read the marked and unmarked cases separately. `experimental-cgv` keeps the word as its primary and deletes the marker tag after the test. Each warning retains the whole word's source range.
+
+```jbogenbau
+%features experimental-cgv
+
+%redefine-rule brivla-token
+  | BRIVLA<¬Cgv-Warning>
+  | *experimental-cgv<BRIVLA>
+
+%redefine-rule cmevla-token
+  | CMEVLA<¬Cgv-Warning>
+  | *experimental-cgv<CMEVLA>
+
+%rule experimental-cgv
+  | ^BRIVLA<Cgv-Warning> → {¬Cgv-Warning}
+  | ^CMEVLA<Cgv-Warning> → {¬Cgv-Warning}
+%warning "this word uses an experimental CgV form"
+```
+
+<details><summary>Railroad diagrams of <code>brivla-token</code>, <code>cmevla-token</code> and <code>experimental-cgv</code></summary>
+<p><img src="../../../docs/diagrams/50/lojban/experimental/stream/brivla-token.svg" alt="Railroad diagram of the rule brivla-token"></p>
+<p><img src="../../../docs/diagrams/50/lojban/experimental/stream/cmevla-token.svg" alt="Railroad diagram of the rule cmevla-token"></p>
+<p><img src="../../../docs/diagrams/50/lojban/experimental/stream/experimental-cgv.svg" alt="Railroad diagram of the rule experimental-cgv"></p>
+</details>
+
+## Word quotations
+
+GOhOI quotes the same targets as ZO and makes a predicate unit. `ta'ai` describes word shape, `go'oi` repeats a bridi, and `ze'oi` describes meaning.
+
+GOhOI uses ZO's marker rule, with its word reader and standalone material targets. MUhOI uses ZOI's marker rule, with its delimiters and raw body, including an empty body.
+
+DOhOI quotes one raw run as a listener's name. Its body follows the same boundaries as ZOhOI and MEhOI.
+
+Each completed quotation is one opaque unit. Each constant here adds its classes to the set of the word stream by a splat. Later erasers and joiners act on the whole quotation, and indicators mark it as a whole.
+
+`$MAGIC-WORDS` excludes these openers and the global eraser from ordinary words. A missing quote target rejects instead of becoming a plain word.
+
+```jbogenbau
+%redefine-const $MAGIC-WORDS {*$MAGIC-WORDS, SUhUhUhUhUhUhUhU, ZEhEI}
+
+%redefine-const $WORD-QUOTE-MARKERS {*$WORD-QUOTE-MARKERS, GOhOI}
+
+%redefine-const $ZOI-MARKERS {*$ZOI-MARKERS, MUhOI}
+
+%redefine-const $SINGLE-RUN-QUOTE-MARKERS {*$SINGLE-RUN-QUOTE-MARKERS, DOhOI}
+```
+
+## Nonce words
+
+A nonce word is a word coined for one use. The joiner `ze'ei` takes its meaning from the left word and its grammar from the right word.
+
+The published word keeps the right word's classes and value. Its image retains the complete source expression, and its words tree retains both operands. Its value is the value of the right word node.
+
+The value matters for syntax tests such as `LE="la"`. Keeping the joiner's source spelling as the value breaks that inherited grammar.
+
+Two readers need different strings from the nonce word. The next stage reads the published token, so the emission gives it the right word's value and the whole source image. A later constructor of this stage reads the grammar node instead, as in `mi ze'ei do bu` or `mi ze'ei do zei ta`. It joins the strings of its parts, so the node keeps the default join of its live children. Thus the letteral of `mi ze'ei do bu` has the value `mi ze'ei do bu`. In `mi do si ze'ei ta bu`, the erased `do si` stays out of both its value and its image. The node keeps the classes and the fault flag, and the emission copies them with `*$.flags`.
+
+The left operand is the preceding live unit. The right operand is one raw word, so its contents execute no operation.
+
+The joiner uses ZEI's clean gaps and groups repeated operations from the left. BU, ZEI, and SI then act on the complete result.
+
+SA matches an existing nonce word by its inherited class, as in `broda ze'ei ko'a sa ko'a`. Before constructing a nonce word, SA instead takes its next raw word as the key. Thus `ko'e brodi sa broda ze'ei ko'a` keeps `ko'e` and the nonce word.
+
+Inherited BAhE, UI, CAI, NAI, DAhO, FUhE, and FUhO classes act in the indicator stage like their template words. In `mi broda ze'ei ba'e klama`, the nonce word emphasizes `klama`. In `mi broda ze'ei fu'e ui klama`, it opens the indicator run.
+
+A magic right word rejects because this construction does not dispatch new word operations. The named right-word rule supplies a diagnostic with its forbidden classes.
+
+The right reader keeps the shared y-letter exception and predicate-word warnings. Its particle alternative tests `Cmavo` directly, not through `cmavo-token`, so the diagnostic names the forbidden classes. It also forbids LOhAI and LEhAI, whose raw quote markers have special plain-word fallbacks.
+
+The spelling guard also covers `ze'ei`, so punctuation cannot escape into an earlier spacing region. The lexicon gives the joiner its own class, ZEhEI, so SI reads only erasers. The constructor hook also lets `ze'ei` take an unfinished replacement opener as its base. Nothing in this pipeline then reads `punctuation-word-gap`, which the shared rule still needs for Zantufa.
+
+```jbogenbau
+%extend-rule unit
+  zehei-compound
+
+%extend-rule constructor-word
+  zehei-word
+
+%rule zehei-compound
+    → {Word,
+       *$r.classes,
+       *$r.flags ∩ {Cmavo, Indicator, Y-Letter},
+       $l'Fault}
+  | $l:unit<¬Trailing-Pause> compound-gap<¬Punctuation-Material> zehei-word zei-right-gap
+    $r:nonmagic-zehei-right
+  | su-boundary? $l:unit<Trailing-Pause> suppressed-gap<¬Punctuation-Material> zehei-word
+    zei-right-gap $r:nonmagic-zehei-right
+%emit
+  ${*$.flags, value: $r'value, image: $.source-text}
+
+%const $ZEHEI-MAGIC-RIGHT $MAGIC-WORDS ∪ {LOhAI, LEhAI}
+
+%rule nonmagic-zehei-right
+  | Cmavo<¬$ZEHEI-MAGIC-RIGHT>
+  | brivla-token | cmevla-token | y-bu-word
+
+%rule zehei-word
+  cmavo-token<ZEhEI>
+
+%redefine-rule zei-spelling
+  | Cmavo="zei"
+  | Cmavo="ze'ei"
+```
+
+<details><summary>Railroad diagrams of the 6 rules from <code>unit</code> to <code>zei-spelling</code></summary>
+<p><img src="../../../docs/diagrams/50/lojban/experimental/stream/unit.svg" alt="Railroad diagram of the rule unit"></p>
+<p><img src="../../../docs/diagrams/50/lojban/experimental/stream/constructor-word.svg" alt="Railroad diagram of the rule constructor-word"></p>
+<p><img src="../../../docs/diagrams/50/lojban/experimental/stream/zehei-compound.svg" alt="Railroad diagram of the rule zehei-compound"></p>
+<p><img src="../../../docs/diagrams/50/lojban/experimental/stream/nonmagic-zehei-right.svg" alt="Railroad diagram of the rule nonmagic-zehei-right"></p>
+<p><img src="../../../docs/diagrams/50/lojban/experimental/stream/zehei-word.svg" alt="Railroad diagram of the rule zehei-word"></p>
+<p><img src="../../../docs/diagrams/50/lojban/experimental/stream/zei-spelling.svg" alt="Railroad diagram of the rule zei-spelling"></p>
+</details>
+
+## Erasure and grammatical quotations
+
+LUhEI opens grammatical quoted text, as LU does. SU therefore stops at its last surviving opener, including after a written LIhAU.
+
+The global eraser `su'u'u'u'u'u'u'u` removes the readable prefix without an SU boundary. It also removes a surviving LU or LUhEI opener.
+
+The erased prefix emits no token. A later SI, SA, or SU cannot restore it or find an erased boundary.
+
+Opaque quotations keep an internal eraser literal. A grammatical quotation does not hide its words from word operations.
+
+An active FAhO ends the text before a later eraser can act. The eraser cannot remove text that the words stage rejects, so `ß su'u'u'u'u'u'u'u mi klama` still fails at `ß`.
+
+One alternative of `empty` reads the eraser at the start of the text, and the other reads it after other words. This eraser operates independently of `sa-su` and `su-boundary`.
+
+```jbogenbau
+%redefine-const $SU-STOPS {*$SU-STOPS, LUhEI}
+
+%extend-rule empty
+  | empty cmavo-token<SUhUhUhUhUhUhUhU> spacing
+  | stream spacing cmavo-token<SUhUhUhUhUhUhUhU> spacing
+%erased
+```
+
+<details><summary>Railroad diagram of <code>empty</code></summary>
+<p><img src="../../../docs/diagrams/50/lojban/experimental/stream/empty.svg" alt="Railroad diagram of the rule empty"></p>
+</details>
+
+## Differences from camxes-exp
+
+camxes-exp rejects CgV in names and borrowings. This pipeline admits those word forms, as [morphology.md](morphology.md) explains. The default warning reports only word reads that rely on this extension. Opaque bodies and post-FAhO text do not rely on it.
+
+GOhOI, MUhOI, DOhOI, `ze'ei`, and the global eraser add word operations that camxes-exp lacks. Their quotations retain the shared Magic Words opacity rules.
+
+GOhOI shares ZO's marker to keep one target reader for both quote kinds. Upstream Zantufa reads only a Lojban word after GOhOI, through `any_word`. This pipeline also admits ZO's standalone material targets. The Zantufa word stream, `grammars/lojban/zantufa/stream.md`, shares that wider reader. MUhOI uses ZOI's empty and nonempty bodies.
+
+Experimental rejects a bare MUhOI before SI or BU, as it rejects a bare ZOI. Zantufa permits that fallback, so this pipeline deliberately differs.
+
+Zantufa puts `ze'ei` in SI and erases its left word. Experimental instead follows its dictionary definition's right-word grammar, while rejecting magic right operands.
+
+An unfinished `lo'ai` can also serve as its base and then carries no fault. camxes-exp lacks `ze'ei`. Zantufa has no such reading because `ze'ei` erases there.
+
+The LUhEI boundary extends this pipeline's SU stopping classes by analogy with LU. The global eraser ignores every such boundary and has no Zantufa counterpart.
+
+## Differences from the format 49 grammar
+
+The format 49 copy of this document is `grammars/lojban/experimental/stream.md`. Both copies read the same texts and hand on the same tokens, also inside an outer constructor. On a rejected raw quote, the expected terminals differ, as below.
+
+`experimental-cgv` keeps its word as the primary and deletes `Cgv-Warning`. The format 49 copy copies the word's tags without that key. `zei-spelling` tests each spelling in the body, as `Cmavo="ze'ei"`. The format 49 copy compares the value in a condition. `zehei-compound` gives its published token the value of the node of its right word, where the format 49 copy reads the string that the right word emits. As in the format 49 copy, its grammar node keeps the joined strings of its children, so an outer `bu`, `zei` or `ze'ei` joins the whole compound.
+
+The raw quotes of `zo'oi`, `do'oi` and `mu'oi` use the payload rules of [the shared word stream](../common/stream.md#differences-from-the-format-49-grammar). So a rejected text in such a quote names `run-token` in `expected`, where the format 49 copy names `payload-token`. That document explains when it happens.

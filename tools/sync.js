@@ -32,7 +32,7 @@ import { DOM_FORMAT } from "../lib/js/src/dom.js";
 import { compareCodePoints } from "../lib/js/src/tags.js";
 import { extractGrammarText } from "../lib/js/src/markdown.js";
 import { sourceIncludeEdges } from "./grammar-sources.js";
-import { includeLinks, headingAnchors, localAnchorProblems } from "./links.js";
+import { includeLinks, headingAnchors, localAnchorProblems, formatPathProblems } from "./links.js";
 import { layoutProblems } from "./alternatives.js";
 import { quotedTextProblems } from "./quoted-texts.js";
 import { proseLineProblems } from "./prose-lines.js";
@@ -205,14 +205,27 @@ function checkSources(documents, documents50, loader) {
       }
       return anchors.get(relative);
     };
+    // Every local link of a grammar document names an existing file, and a
+    // heading fragment names an existing heading (tools/links.js).
+    const exists = (relative) => fs.existsSync(path.join(root, relative));
+    const isFile = (relative) => fs.statSync(path.join(root, relative), { throwIfNoEntry: false })?.isFile() ?? false;
+    const grammars50Files = markdownFiles(root).filter((file) => file.startsWith("grammars50/"));
     const missingAnchors = grammarFiles().filter(file => file.endsWith(".md")).flatMap((file) =>
-      localAnchorProblems(fs.readFileSync(path.join(grammars, file), "utf8"), `grammars/${file}`, readAnchors));
-    for (const file of Object.keys(documents50)) {
+      localAnchorProblems(fs.readFileSync(path.join(grammars, file), "utf8"), `grammars/${file}`, readAnchors, exists));
+    for (const file of grammars50Files) {
       const text = fs.readFileSync(path.join(root, file), "utf8");
-      for (const problem of localAnchorProblems(text, file, readAnchors)) missingAnchors.push(problem);
+      for (const problem of localAnchorProblems(text, file, readAnchors, exists)) missingAnchors.push(problem);
     }
     if (missingAnchors.length) {
       console.error(missingAnchors.join("\n"));
+      process.exit(1);
+    }
+    // A format 50 document links the format 50 copy of each grammar file
+    // that has one (tools/links.js).
+    const oldPaths = grammars50Files.flatMap((file) =>
+      formatPathProblems(fs.readFileSync(path.join(root, file), "utf8"), file, isFile));
+    if (oldPaths.length) {
+      console.error(oldPaths.join("\n"));
       process.exit(1);
     }
     // The packages' copies of grammars/ are checked as grammars/, which

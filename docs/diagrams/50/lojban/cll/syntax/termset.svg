@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="699" height="154" viewBox="0 0 699 154" role="img" aria-label="Railroad diagram of the rule termset">
+<style>path{fill:none;stroke:#333;stroke-width:1.5}.rule rect{fill:#e8eefc;stroke:#333;stroke-width:1.5}.terminal rect{fill:#fdf6d8;stroke:#333;stroke-width:1.5}text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"DejaVu Sans Mono","Liberation Mono",monospace;font-size:14px;fill:#111;text-anchor:middle}text.label{font-size:12px;font-style:italic;fill:#555;text-anchor:start}text.title{font-weight:bold;text-anchor:start}</style>
+<rect width="100%" height="100%" fill="#fff"/>
+<text class="title" x="10" y="24" textLength="58.8" lengthAdjust="spacingAndGlyphs">termset</text>
+<path d="M10 64v16m4 -16v16M14 72h6"/>
+<path d="M20 72h20"/>
+<g class="terminal"><rect x="40" y="60" width="50" height="24" rx="12"/><text x="65" y="77" textLength="33.6" lengthAdjust="spacingAndGlyphs">NUhI</text></g>
+<path d="M90 72h10"/>
+<g class="rule"><rect x="100" y="60" width="33" height="24" rx="0"/><text x="116.5" y="77" textLength="16.8" lengthAdjust="spacingAndGlyphs">🆓</text></g>
+<path d="M133 72h10"/>
+<g class="rule"><rect x="143" y="60" width="42" height="24" rx="0"/><text x="164" y="77" textLength="25.2" lengthAdjust="spacingAndGlyphs">gek</text></g>
+<path d="M185 72h10"/>
+<g class="rule"><rect x="195" y="60" width="58" height="24" rx="0"/><text x="224" y="77" textLength="42" lengthAdjust="spacingAndGlyphs">terms</text></g>
+<path d="M253 72h10"/>
+<path d="M263 72h20"/>
+<g class="terminal"><rect x="283" y="60" width="50" height="24" rx="12"/><text x="308" y="77" textLength="33.6" lengthAdjust="spacingAndGlyphs">NUhU</text></g>
+<path d="M333 72h10"/>
+<g class="rule"><rect x="343" y="60" width="33" height="24" rx="0"/><text x="359.5" y="77" textLength="16.8" lengthAdjust="spacingAndGlyphs">🆓</text></g>
+<path d="M376 72H396"/>
+<path d="M263 72a10 10 0 0 0 10 -10V60a10 10 0 0 1 10 -10H376a10 10 0 0 1 10 10V62a10 10 0 0 0 10 10"/>
+<text class="label" x="287" y="45" textLength="43.2" lengthAdjust="spacingAndGlyphs">elided</text>
+<path d="M396 72h10"/>
+<g class="rule"><rect x="406" y="60" width="42" height="24" rx="0"/><text x="427" y="77" textLength="25.2" lengthAdjust="spacingAndGlyphs">gik</text></g>
+<path d="M448 72h10"/>
+<g class="rule"><rect x="458" y="60" width="58" height="24" rx="0"/><text x="487" y="77" textLength="42" lengthAdjust="spacingAndGlyphs">terms</text></g>
+<path d="M516 72h10"/>
+<path d="M526 72h20"/>
+<g class="terminal"><rect x="546" y="60" width="50" height="24" rx="12"/><text x="571" y="77" textLength="33.6" lengthAdjust="spacingAndGlyphs">NUhU</text></g>
+<path d="M596 72h10"/>
+<g class="rule"><rect x="606" y="60" width="33" height="24" rx="0"/><text x="622.5" y="77" textLength="16.8" lengthAdjust="spacingAndGlyphs">🆓</text></g>
+<path d="M639 72H659"/>
+<path d="M526 72a10 10 0 0 0 10 -10V60a10 10 0 0 1 10 -10H639a10 10 0 0 1 10 10V62a10 10 0 0 0 10 10"/>
+<text class="label" x="550" y="45" textLength="43.2" lengthAdjust="spacingAndGlyphs">elided</text>
+<path d="M659 72H679"/>
+<path d="M20 72a10 10 0 0 1 10 10V122a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="40" y="120" width="50" height="24" rx="12"/><text x="65" y="137" textLength="33.6" lengthAdjust="spacingAndGlyphs">NUhI</text></g>
+<path d="M90 132h10"/>
+<g class="rule"><rect x="100" y="120" width="33" height="24" rx="0"/><text x="116.5" y="137" textLength="16.8" lengthAdjust="spacingAndGlyphs">🆓</text></g>
+<path d="M133 132h10"/>
+<g class="rule"><rect x="143" y="120" width="58" height="24" rx="0"/><text x="172" y="137" textLength="42" lengthAdjust="spacingAndGlyphs">terms</text></g>
+<path d="M201 132h10"/>
+<path d="M211 132h20"/>
+<g class="terminal"><rect x="231" y="120" width="50" height="24" rx="12"/><text x="256" y="137" textLength="33.6" lengthAdjust="spacingAndGlyphs">NUhU</text></g>
+<path d="M281 132h10"/>
+<g class="rule"><rect x="291" y="120" width="33" height="24" rx="0"/><text x="307.5" y="137" textLength="16.8" lengthAdjust="spacingAndGlyphs">🆓</text></g>
+<path d="M324 132H344"/>
+<path d="M211 132a10 10 0 0 0 10 -10V120a10 10 0 0 1 10 -10H324a10 10 0 0 1 10 10V122a10 10 0 0 0 10 10"/>
+<text class="label" x="235" y="105" textLength="43.2" lengthAdjust="spacingAndGlyphs">elided</text>
+<path d="M344 132H659a10 10 0 0 0 10 -10V82a10 10 0 0 1 10 -10"/>
+<path d="M679 72h6m0 -8v16m4 -16v16"/>
+</svg>

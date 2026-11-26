@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="339" height="112" viewBox="0 0 339 112" role="img" aria-label="Railroad diagram of the rule separator-form">
+<style>path{fill:none;stroke:#333;stroke-width:1.5}.rule rect{fill:#e8eefc;stroke:#333;stroke-width:1.5}.terminal rect{fill:#fdf6d8;stroke:#333;stroke-width:1.5}text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"DejaVu Sans Mono","Liberation Mono",monospace;font-size:14px;fill:#111;text-anchor:middle}text.label{font-size:12px;font-style:italic;fill:#555;text-anchor:start}text.title{font-weight:bold;text-anchor:start}</style>
+<rect width="100%" height="100%" fill="#fff"/>
+<text class="title" x="10" y="24" textLength="117.6" lengthAdjust="spacingAndGlyphs">separator-form</text>
+<path d="M10 48v16m4 -16v16M14 56h6"/>
+<path d="M20 56h20"/>
+<g class="rule"><rect x="40" y="44" width="134" height="24" rx="0"/><text x="107" y="61" textLength="117.6" lengthAdjust="spacingAndGlyphs">arguments-list</text></g>
+<path d="M174 56H194"/>
+<path d="M20 56a10 10 0 0 0 10 -10V44a10 10 0 0 1 10 -10H174a10 10 0 0 1 10 10V46a10 10 0 0 0 10 10"/>
+<path d="M194 56h10"/>
+<path d="M204 56h20"/>
+<g class="rule"><rect x="224" y="44" width="58" height="24" rx="0"/><text x="253" y="61" textLength="42" lengthAdjust="spacingAndGlyphs">chain</text></g>
+<path d="M282 56H319"/>
+<path d="M299 56a10 10 0 0 1 10 10V80a10 10 0 0 1 -10 10H299"/>
+<g class="rule"><rect x="224" y="78" width="75" height="24" rx="0"/><text x="261.5" y="95" textLength="58.8" lengthAdjust="spacingAndGlyphs">bu-free</text></g>
+<path d="M224 90H224a10 10 0 0 1 -10 -10V66a10 10 0 0 1 10 -10"/>
+<path d="M319 56h6m0 -8v16m4 -16v16"/>
+</svg>

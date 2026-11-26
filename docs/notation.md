@@ -927,7 +927,7 @@ This forms stage fragment uses a `cmavo-shape` whose value is certified as the i
 
 Each effective table entry needs a value. An empty list declares a class with no direct strings. The empty string counts as a string member. An unknown reference is a load error. A known name that a gate or deletion removes contributes nothing. A reference or deletion alone cannot declare that name.
 
-A layer can use `%redefine-const $LEXICON {*$LEXICON, KIhEI: "ki'ei", A: $LEXICON'A ∖ "ji"}`. Outside a lookup, a producer supplies each key that its consumers require.
+A layer can use `%redefine-const $LEXICON {*$LEXICON, PAIhU: "pai'u", A: $LEXICON'A ∖ "ji"}`, where `PAIhU` and `pai'u` are made up. Outside a lookup, a producer supplies each key that its consumers require.
 
 ## Captures
 
