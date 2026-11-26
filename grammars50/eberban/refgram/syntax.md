@@ -866,7 +866,8 @@ The boundary query recognizes annotated `vi` and `fi`, with optional `bi`, witho
 %extend-rule chain-empty
   RI
 %conditions
-  ¬$.preceded-by(chain-inner)
+  ¬$.preceded-by(chain-inner),
+  ¬$.following-tokens.parse(missing-operand-boundary …)
 %error $CHAIN-EMPTY-MESSAGE
 
 %rule bind-empty-vi
