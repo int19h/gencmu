@@ -33249,7 +33249,14 @@
       }
       for (const value of Object.values(node)) if (value && typeof value === "object") visit(value);
     };
-    visit(dom);
+    // A directive holds template calls only in its conditions and steps. Its
+    // other members, such as the annotation of a stage, are not operands.
+    visit(dom.rules);
+    visit(dom.constants);
+    for (const directive of dom.directives ?? []) {
+      visit(directive.conditions);
+      visit(directive.steps);
+    }
   }
 
   class Loader50 {
