@@ -1577,7 +1577,7 @@ Junk is the total fallback of this stage, so a bar on junk is safe only where an
 
 Two conditions keep junk from standing where a word reads. First, a run that another reader of a run reads is no junk. The bar reads the same rules as those readers: `run-body` and `quoted-run-body`, which `word-run` and `quoted-run` splice, and `compound-run` and `stray-compound`. It reads them through `sealed-run`, or `sealed-quoted-run` after the gap of a `ci`, so a faulty word does not hide the reading. A word run with an unclosed quote reads a longer stretch than the junk, and its blame is greater. Without the bar, the junk and a quote in the next run would win. So `a pbanco[x ra a mo`, `a mhico[x ra a mo` and `a hmico[x ra a mo` are unclosed quotes and are rejected, as `a mhi co[x ra a mo` is. In the same way, the prefix `e` of `a e co[pban ra] a mo` is no junk, because the compound reads it. A run such as `ntco` before a bracket stays junk, because no word reading of it exists. A quote never ends inside a junk run, so `a ntco [x] ra a mo` reads the junk `ntco`, then a gap. After a `ci`, the first word is plain, so `a ci cebup ra a mo` reads the junk `cebup`, and `ra` erases it.
 
-The query reads its words from the start of the run and cannot see what stands before the run. So the bar does not apply where a digit stands before a run that starts with a vowel or a sonorant, as `space-required-start` reads it. No word reading of that run exists, because such a word needs a space before it. So `a 1anco[x ra a mo` is junk that `ra` erases, while `a 1 anco[x ra a mo` is rejected. A compound cannot start there either, as the condition of `first-prefix` says, so `a 1eco[x ra a mo` is junk too.
+The query reads its words from the start of the run and cannot see what stands before the run. So the bar does not apply where a digit stands before a run that starts with a vowel or a sonorant, after any edge `h` letters, as `space-required-start` reads it. The word readers test the digit before their edge `h` letters too. No word reading of that run exists, because such a word needs a space before it. So `a 1anco[x ra a mo` is junk that `ra` erases, while `a 1 anco[x ra a mo` is rejected. A compound cannot start there either, as the condition of `first-prefix` says, so `a 1eco[x ra a mo` is junk too.
 
 Second, a single hyphen beside a digit belongs to the digit word, so it is no junk. A row of hyphens beside a digit stays junk, so the syntax stage accepts it only where `ra` erases it. So `a mi 1--2 ra a mo` is a text, and `mi 1--2 bjan` is not. A hyphen with no digit beside it stays junk, so `a mi - bjan mo` is rejected.
 
@@ -1603,7 +1603,7 @@ Before a longer junk run, a hyphen beside a digit belongs to the digit, with its
 %erased
 
 %rule space-required-start
-  [Hyphen] (vowel | sonorant)
+  [Hyphen] [{Letter<H> [Hyphen]}] (vowel | sonorant)
 ```
 
 <details><summary>Railroad diagrams of the 4 rules from <code>junk-run</code> to <code>space-required-start</code></summary>
@@ -1619,7 +1619,7 @@ A malformed word retains its word class. These readers admit a faulty piece wher
 
 The strict delimiter rules never call these readers. A malformed root can therefore stand after `ci`, but cannot delimit a foreign quote. Spelling units also keep their strict readers.
 
-Recovering gaps retain a misplaced `h` between the letters of a word shape. Thus `mhi` keeps its particle family, and `bhjan` keeps its root onset. Their consonant captures still compare the actual consonants. The strict rules never call these gaps. The ordinary cluster shapes retain their strict tables but use recovering joins. The final sonorant uses the same join.
+Recovering gaps retain a misplaced `h` between the letters of a word shape. Thus `mhi` keeps its particle family, and `bhjan` keeps its root onset. Before the middle cluster of a root, `middle-gap` keeps an `h` only where a sonorant follows it. Before a non-sonorant consonant a new word can start, so the `h` ends the word, as in "Runs of words". So `bahjan` is `bah` and `jan`, and `pdahpban` is `pdah` and `pban`, each with its errors. Their consonant captures still compare the actual consonants. The strict rules never call these gaps. The ordinary cluster shapes retain their strict tables but use recovering joins. The final sonorant uses the same join.
 
 Fault productions retain their literal restrictions, so a pair fault never spans an intervening `h`.
 
@@ -1736,15 +1736,21 @@ A bare medial pair or quadruplet can retain its root error without a vowel frame
 
 %rule recovering-root-middle
   | recovering-gap(Hyphen) sonorant recovering-gap(hyphen-misplaced) recovering-vhowels
-  | recovering-gap(hyphen-misplaced) (recovering-medial-pair | (faulty-pair ≻ invalid-medial-pair)
+  | middle-gap (recovering-medial-pair | (faulty-pair ≻ invalid-medial-pair)
       | recovering-root-triplet | faulty-root-triplet | faulty-long-cluster)
       recovering-gap(hyphen-misplaced) recovering-vhowels
+
+-- An h before a non-sonorant consonant ends the word, because a new word can start there.
+%rule middle-gap
+  $g:recovering-gap(hyphen-misplaced)
+%conditions
+  ¬$g.parse(… Letter<H> …) ∨ $g.following-tokens.parse(sonorant …)
 
 %rule faulty-root-triplet
   triplet-middle-m ≻ triplet-root-first-pair ≻ triplet-root-shape
 ```
 
-<details><summary>Railroad diagrams of the 7 rules from <code>recovering-root</code> to <code>faulty-root-triplet</code></summary>
+<details><summary>Railroad diagrams of the 8 rules from <code>recovering-root</code> to <code>faulty-root-triplet</code></summary>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/recovering-root.svg" alt="Railroad diagram of the rule recovering-root"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/recovering-root.2.svg" alt="Railroad diagram of the rule recovering-root"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/bare-root-piece.svg" alt="Railroad diagram of the rule bare-root-piece"></p>
@@ -1753,6 +1759,7 @@ A bare medial pair or quadruplet can retain its root error without a vowel frame
 <p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/recovering-root-onset.svg" alt="Railroad diagram of the rule recovering-root-onset"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/faulty-root-onset.svg" alt="Railroad diagram of the rule faulty-root-onset"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/recovering-root-middle.svg" alt="Railroad diagram of the rule recovering-root-middle"></p>
+<p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/middle-gap.svg" alt="Railroad diagram of the rule middle-gap"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/faulty-root-triplet.svg" alt="Railroad diagram of the rule faulty-root-triplet"></p>
 </details>
 
