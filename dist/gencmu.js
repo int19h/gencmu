@@ -28948,9 +28948,11 @@
   }
 
   /**
-   * @typedef {{demanded: Set<string>, domains: Map<string, any[]>}} HiddenKeys
+   * @typedef {{demanded: Set<string>, domains: Map<string, any[]>, roots: Map<string, Set<string>>}} HiddenKeys
    * The keys that are not visible and that recognizer tests read, with the
-   * finite set of values of each key that has one.
+   * finite set of values of each key that has one. `roots` gives, for `value`
+   * and `image`, the rules at the root of a forest whose predicate reads that
+   * key of the root.
    */
 
   class Bridge {
@@ -28968,7 +28970,9 @@
       /** @type {any[]} */
       this.classifiers = [];
       /** @type {HiddenKeys} the hidden keys that recognizer tests read */
-      this.hidden = { demanded: new Set(), domains: new Map() };
+      this.hidden = { demanded: new Set(), domains: new Map(), roots: new Map() };
+      /** @type {string | undefined} the rule at the root of the forest of the predicate being lowered */
+      this.forestRootRule = undefined;
       /** @type {Map<string, GencmuError>} the rules whose keys have no tag term */
       this.untranslated = new Map();
       /** @type {GencmuError[]} the conditions that the recognizer cannot test */
@@ -29342,6 +29346,20 @@
     }
 
     /**
+     * Notes a fault that the loader reports once it has read the stage.
+     * @param {string} description
+     * @param {any} at
+     */
+    deferFault(description, at) {
+      try {
+        this.fail(description, at);
+      } catch (error) {
+        if (!(error instanceof GencmuError)) throw error;
+        this.deferred.push(error);
+      }
+    }
+
+    /**
      * Notes a read of the run-time value tag of a payload.
      * @param {string} key
      * @param {any} at
@@ -29401,6 +29419,9 @@
         // The stage checks read the format 50 actuals, which stay beside the
         // document that the recognizer reads.
         this.instances50.push({ name: rule.name, op: rule.op, at: rule.at, instance: rule.instance, conditions: [] });
+        for (const [key, rules] of this.hidden.roots) {
+          if (rules.has(rule.name)) this.deferFault(`read the ${key} of a root of a forest that the instance binding ${rule.name} gives`, rule.at);
+        }
         return { ...rule, instance: { ...rule.instance, args: rule.instance.args.map((/** @type {any} */ arg) => this.argument(arg)) } };
       }
       /** @type {any} */
@@ -29425,6 +29446,15 @@
       for (const alternative of rule.alternatives) collectCaptureRules(alternative.expr, this.captureRules);
       // The tags of each alternative read the capture sets of this rule.
       copy.alternatives = rule.alternatives.map((/** @type {any} */ alternative) => this.alternative(alternative, rule));
+      // A forest predicate reads the value or image of a root of this rule
+      // through a hidden tag, which only a write in the terms of each
+      // alternative gives. The stage defaults and the symbols give no tag.
+      for (const [key, rules] of this.hidden.roots) {
+        if (!rules.has(rule.name)) continue;
+        const silent = rule.alternatives.find((/** @type {any} */ alternative) =>
+          !writesLast([...rule.term?.bag ?? [], ...alternative.term?.bag ?? []], key));
+        if (silent) this.deferFault(`read the ${key} of a root of a forest, which an alternative of ${rule.name} does not write in its term`, silent.term?.at ?? rule.at);
+      }
       try {
         copy.conditions = rule.conditions.flatMap((/** @type {any} */ node) => this.clauses(node));
         // The recognizer evaluates the tags of an emission item only when it
@@ -29566,7 +29596,7 @@
         let deleted = null;
         let condition = null;
         /** @param {any} key */
-        const hidden = key => !isVisibleKey(key) && this.hidden.demanded.has(key);
+        const hidden = key => !isVisibleKey(key) && (this.hidden.demanded.has(key) || !!this.hidden.roots.get(key)?.has(this.currentRule));
         switch (entry.kind) {
           case "bare":
             if (isVisibleKey(entry.key)) written = { tag: entry.key };
@@ -30310,8 +30340,14 @@
         const symbol = receiver?.capture !== undefined ? this.captureSymbols.get(receiver.capture) : undefined;
         return typeof symbol === "string" && !/^[a-z]/.test(symbol);
       };
+      // The value or image of a root of a forest, where its rule writes the
+      // hidden tag of that key.
       /** @param {any} side */
-      const read = side => side?.property !== undefined && side.property !== "value" && side.property !== "image" &&
+      const rootRead = side => (side?.property === "value" || side?.property === "image") && this.forestRoot !== undefined &&
+        this.forestRoot !== null && (side.receiver?.capture === this.forestRoot || side.receiver?.item) &&
+        this.forestRootRule !== undefined && !!this.hidden.roots.get(side.property)?.has(this.forestRootRule);
+      /** @param {any} side */
+      const read = side => rootRead(side) || side?.property !== undefined && side.property !== "value" && side.property !== "image" &&
         (!isVisibleKey(side.property) && (side.receiver?.capture !== undefined || side.receiver?.item) || tokenCapture(side.receiver)) ? side : null;
       const [left, right] = [read(node.left), read(node.right)];
       if (!left && !right) return null;
@@ -30386,12 +30422,15 @@
       const forest = this.forestTags(node.receiver);
       /** @type {any} */
       const saved = this.forestRoot;
+      const savedRule = this.forestRootRule;
       this.forestRoot = predicate.lambda || " item";
+      this.forestRootRule = forestRootRule(node.receiver);
       let body;
       try {
         body = this.truth(predicate.body);
       } finally {
         this.forestRoot = saved;
+        this.forestRootRule = savedRule;
       }
       const disjuncts = normalForm(body);
       if (disjuncts === null) return null;
@@ -30712,6 +30751,28 @@
       }
     }
     const entries = writes.map(write => write.entry);
+    // The rules whose roots a forest predicate reads the value or image of.
+    /** @type {Map<string, Set<string>>} */
+    const roots = new Map();
+    /** @param {any} node */
+    const forests = node => {
+      if (!node || typeof node !== "object") return;
+      if (Array.isArray(node)) {
+        for (const item of node) forests(item);
+        return;
+      }
+      if ((node.method === "any" || node.method === "all") && node.args?.[0]?.lambda !== undefined) {
+        const rule = forestRootRule(node.receiver);
+        if (rule !== undefined) {
+          for (const key of rootKeysRead(node.args[0])) {
+            if (!roots.has(key)) roots.set(key, new Set());
+            roots.get(key)?.add(rule);
+          }
+        }
+      }
+      for (const value of Object.values(node)) if (value && typeof value === "object") forests(value);
+    };
+    for (const dom of doms) forests([dom.rules, dom.constants]);
     // The keys that the writers of a demanded key read are demanded too.
     for (let size = -1; size !== demanded.size;) {
       size = demanded.size;
@@ -30747,7 +30808,61 @@
       }
     }
     for (const domain of domains.values()) domain.sort((a, b) => typeof a === typeof b ? (a < b ? -1 : a > b ? 1 : 0) : typeof a === "number" ? -1 : 1);
-    return { demanded, domains };
+    return { demanded, domains, roots };
+  }
+
+  /**
+   * The rule at the root of the query of a forest, where the query has one
+   * target and that target is one rule. Otherwise undefined.
+   * @param {any} forest
+   * @returns {string | undefined}
+   */
+  function forestRootRule(forest) {
+    let query = forest;
+    while (query && query.method !== "parse" && query.receiver) query = query.receiver;
+    if (query?.method !== "parse") return undefined;
+    const body = query.args?.[0]?.body;
+    const parts = (body?.seq ?? [body]).filter((/** @type {any} */ part) => part && !part.remainder);
+    if (parts.length !== 1) return undefined;
+    let base = parts[0];
+    while (base?.test !== undefined) base = base.expr;
+    return typeof base?.ref === "string" && isRuleName(base.ref) ? base.ref : undefined;
+  }
+
+  /**
+   * The keys among value and image that a predicate reads of its item.
+   * @param {any} predicate
+   */
+  function rootKeysRead(predicate) {
+    /** @type {Set<string>} */
+    const keys = new Set();
+    /** @param {any} node */
+    const visit = node => {
+      if (!node || typeof node !== "object") return;
+      if (Array.isArray(node)) {
+        for (const item of node) visit(item);
+        return;
+      }
+      if ((node.property === "value" || node.property === "image") &&
+          (predicate.lambda ? node.receiver?.capture === predicate.lambda : node.receiver?.item)) keys.add(node.property);
+      for (const value of Object.values(node)) if (value && typeof value === "object") visit(value);
+    };
+    visit(predicate.body);
+    return keys;
+  }
+
+  /**
+   * Whether the last entry of a bag that can change a key writes it with no
+   * guard and no gate. A splat can change any key.
+   * @param {any[]} entries
+   * @param {string} key
+   */
+  function writesLast(entries, key) {
+    let last;
+    for (const entry of entries) {
+      if (entry.kind === "splat" || (entry.kind === "write" ? entry.keys.includes(key) : entry.key === key)) last = entry;
+    }
+    return last?.kind === "write" && !last.guard && !last.gates?.length;
   }
 
   /**
@@ -32021,7 +32136,7 @@
         }
         if (condition === undefined) {
           const bridge = new Bridge({ rules: [], directives: [], constants: [] }, scope.document ?? "", new Map());
-          bridge.hidden = { demanded: new Set(), domains: new Map() };
+          bridge.hidden = { demanded: new Set(), domains: new Map(), roots: new Map() };
           condition = bridge.truth(node);
         }
         if (condition.constant !== undefined) return condition.constant;
@@ -32048,7 +32163,7 @@
        */
       const rebase = item => item === base ? { capture: "" } : item.receiver ? { ...item, receiver: rebase(item.receiver) } : item;
       const bridge = new Bridge({ rules: [], directives: [], constants: [] }, scope.document ?? "", new Map());
-      bridge.hidden = { demanded: new Set(), domains: new Map() };
+      bridge.hidden = { demanded: new Set(), domains: new Map(), roots: new Map() };
       // The recognizer reads a late scope as it reads a scope of its chart.
       const recognizerScope = /** @type {any} */ (new LateScope(occurrence.derivation, data.context, occurrence.reading));
       if (kind === "keys") {
@@ -35620,7 +35735,7 @@
       // the hidden keys of all the documents of the stages that each serves.
       if (!hidden) {
         const tables = stageHiddenKeys(spliced.stages, doms);
-        const own = (/** @type {string} */ document) => hiddenKeys([doms.get(document)]);
+        const own = (/** @type {string} */ document) => relevantHiddenKeys(hiddenKeys([doms.get(document)]), doms.get(document));
         if ([...tables].some(([document, table]) => !sameHiddenKeys(table, own(document)))) return this.build(path, domOf, tables);
       }
       // The inferred states of the keys that each stage hands on.
@@ -36198,14 +36313,29 @@
       const group = [...(neighbors.get(path) ?? [path])].filter(other => doms.has(other)).sort();
       const key = JSON.stringify(group);
       if (!cache.has(key)) cache.set(key, hiddenKeys(group.map(other => doms.get(other))));
-      const table = /** @type {import("./bridge.js").HiddenKeys} */ (cache.get(key));
-      const mentioned = mentionedKeys(doms.get(path));
-      tables.set(path, {
-        demanded: new Set([...table.demanded].filter(name => mentioned.has(name))),
-        domains: new Map([...table.domains].filter(([name]) => mentioned.has(name))),
-      });
+      tables.set(path, relevantHiddenKeys(/** @type {import("./bridge.js").HiddenKeys} */ (cache.get(key)), doms.get(path)));
     }
     return tables;
+  }
+
+  /**
+   * The part of a table of hidden keys that changes how the bridge lowers a
+   * document: the keys that it mentions, and the root rules that it defines or
+   * that its forest predicates read.
+   * @param {import("./bridge.js").HiddenKeys} table
+   * @param {any} dom
+   * @returns {import("./bridge.js").HiddenKeys}
+   */
+  function relevantHiddenKeys(table, dom) {
+    const mentioned = mentionedKeys(dom);
+    const defined = new Set(dom.rules.map((/** @type {any} */ rule) => rule.name));
+    for (const rules of hiddenKeys([dom]).roots.values()) for (const name of rules) defined.add(name);
+    return {
+      demanded: new Set([...table.demanded].filter(name => mentioned.has(name))),
+      domains: new Map([...table.domains].filter(([name]) => mentioned.has(name))),
+      roots: new Map([...table.roots].map(([key, rules]) => /** @type {[string, Set<string>]} */ ([key, new Set([...rules].filter(name => defined.has(name)))]))
+        .filter(([, rules]) => rules.size)),
+    };
   }
 
   /**
@@ -36213,8 +36343,11 @@
    * @param {import("./bridge.js").HiddenKeys} b
    */
   function sameHiddenKeys(a, b) {
+    /** @param {any[]} pairs */
+    const sorted = pairs => pairs.sort(([x], [y]) => x < y ? -1 : x > y ? 1 : 0);
     /** @param {import("./bridge.js").HiddenKeys} table */
-    const text = table => JSON.stringify([[...table.demanded].sort(), [...table.domains].sort(([x], [y]) => x < y ? -1 : x > y ? 1 : 0)]);
+    const text = table => JSON.stringify([[...table.demanded].sort(), sorted([...table.domains]),
+      sorted([...table.roots].map(([key, rules]) => [key, [...rules].sort()]))]);
     return text(a) === text(b);
   }
 
