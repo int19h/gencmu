@@ -689,7 +689,7 @@ The quote hands on one token, which covers its markers and its words. They hand 
 
 `raw-tokens` and `single-run-payload` keep word and FOREIGN values. `payload-token` marks a material pause as its primary, so a raw body keeps the value and the image of each mark, as `zo-punctuation` does for a quoted mark. Delimited quotes take their images from their whole source intervals.
 
-`run-token` reads each token that is no pause: a word, a hesitation or a FOREIGN run, each with the value of its token. Its filter names only the kind that it leaves out, so a layer that adds a kind of token need not extend it. A closing run reads only these tokens, a cmavo through `cmavo-token`. So its value is the join of their values.
+`run-token` reads each token that is no pause, such as a word, a hesitation or a FOREIGN run, with the value of its token. Its filter names only `PAUSE`, so it covers any nonpause kind that a layer adds, and no layer adds a nonpause kind to `payload-token`. A closing run reads only nonpause tokens, a cmavo through `cmavo-token`. So its value is the join of their values.
 
 Only `single-run-payload` gives its body its own image. Its `.verbatim-text` preserves raw spelling and adjacent uncovered characters. The single-run quote reads that image through `'image`. A query and an erased body after FAhO never evaluate it.
 
@@ -1027,6 +1027,8 @@ The closing test of a y letteral delimiter compares `letter` on the two delimite
 `zei-spelling` tests the value in its body, as `Cmavo="zei"`. The format 49 copy states the same test as a condition.
 
 The delimiter tests of `zoi-quote` and `raw-y-close` read the values of nodes. The format 49 copy joins the values of their input tokens. The two are the same strings, because no rule below a delimiter or a run writes a string. The test for a delimiter inside the body finds each run of the body with `body-with-run`. The format 49 copy splits the joined input at each pause. Both divide the body at every pause, punctuation included.
+
+On an unclosed raw quote, `expected` names `_<¬PAUSE>` of `run-token` in place of `Word`, `Hesitation` and `FOREIGN` of `payload-token`. Each `zoi` rule also names only its own closer, so `expected` omits the other closer's start.
 
 [^cll-s19-16]: [CLL 1.1, section 19.16](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-cmavo-interactions.html).
 
