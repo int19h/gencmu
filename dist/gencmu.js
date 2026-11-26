@@ -28618,8 +28618,11 @@
   function withoutTestPositions(node) {
     if (Array.isArray(node)) return node.map(withoutTestPositions);
     if (!node || typeof node !== "object") return node;
+    // The recognizer's pattern check admits no position on a test or on a
+    // set operation, which DOM 50 gives one.
     const isTest = node.test !== undefined && node.expr !== undefined;
-    return Object.fromEntries(Object.entries(node).filter(([key]) => !(isTest && key === "at"))
+    const isSet = ["union", "intersection", "difference"].some(key => Array.isArray(node[key]));
+    return Object.fromEntries(Object.entries(node).filter(([key]) => !((isTest || isSet) && key === "at"))
       .map(/** @returns {any} */ ([key, value]) => [key, withoutTestPositions(value)]));
   }
 
@@ -29264,7 +29267,12 @@
         const total = new Map();
         for (const name of names) {
           const values = branches.map((/** @type {any} */ branch) => branch.get(name) ?? 0);
-          total.set(name, values.every((/** @type {any} */ value) => value === 1) ? 1 : 2);
+          // A condition that reads a capture of a ranked option runs in each
+          // option expansion, where the capture is one node or absent
+          // (engine, ranked choices). So a name bound at most once in each
+          // option is one node there.
+          const once = node.ranked ? values.every((/** @type {any} */ value) => value <= 1) : values.every((/** @type {any} */ value) => value === 1);
+          total.set(name, once ? 1 : 2);
         }
         return total;
       }
