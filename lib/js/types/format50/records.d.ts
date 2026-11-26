@@ -17,4 +17,13 @@ export type Record50 = {
     flags: string[];
     open?: boolean;
 };
+export type Constraint50 = {
+    required?: string[];
+    values?: Record<string, any[]>;
+    types?: Record<string, string>;
+    min?: Record<string, number>;
+    max?: Record<string, number>;
+    kinds?: Record<string, string[]>;
+    notKinds?: Record<string, string[]>;
+};
 export {};
