@@ -29183,6 +29183,10 @@
       // A key set of visible keys holds its tags.
       const keys = keySetKeys(value, this.dom.constants);
       if (keys?.length) return keys.length === 1 ? { tag: keys[0] } : { union: keys.map((/** @type {any} */ key) => ({ tag: key })) };
+      // A closed set with no item, such as {A} ∖ {A}, keeps its written form,
+      // which gives the recognizer its kind.
+      const empty = this.setTerm(value, "keys") ?? this.setTerm(value, "strings");
+      if (empty && !empty.emptySet) return empty;
       // The recognizer reads only strings, lists of strings, patterns and key
       // sets from a constant. Any other constant gets a placeholder, and a
       // recognizer read of it fails at load.
