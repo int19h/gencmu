@@ -43,6 +43,8 @@ export declare class Bridge {
     instances50: any[];
     /** @type {Set<string>} the constants that the recognizer gets a placeholder for */
     opaque: Set<string>;
+    /** @type {Map<string, GencmuError>} */
+    constantReads: Map<string, GencmuError>;
     /** @type {Map<string, string>} the symbol of each capture of the rule in hand */
     captureSymbols: Map<string, string>;
     currentRule: any;
@@ -77,6 +79,9 @@ export declare class Bridge {
             value: Readonly<{
                 string: "";
             }> | {
+                const: any;
+                at: any;
+            } | {
                 string: any;
                 pattern?: undefined;
                 tag?: undefined;
@@ -96,6 +101,12 @@ export declare class Bridge {
                 pattern?: undefined;
                 tag?: undefined;
                 union: any;
+            } | {
+                emptySet: boolean;
+                union?: undefined;
+            } | {
+                emptySet?: undefined;
+                union: any[];
             };
             at: any;
             origin50: string;
@@ -106,6 +117,8 @@ export declare class Bridge {
         deferred: GencmuError[];
         keyReaders: Set<string>;
         tagSources: Map<string, Set<string>>;
+        opaque: Set<string>;
+        constantReads: Map<string, GencmuError>;
         instances50: any[];
     };
     /** @param {any} value */
@@ -139,6 +152,12 @@ export declare class Bridge {
         pattern?: undefined;
         tag?: undefined;
         union: any;
+    } | {
+        emptySet: boolean;
+        union?: undefined;
+    } | {
+        emptySet?: undefined;
+        union: any[];
     };
     /**
      * A recognizer read of a constant, which fails where the constant has a
@@ -149,6 +168,14 @@ export declare class Bridge {
         const: any;
         at?: any;
     };
+    /**
+     * Notes a recognizer read of a constant. Every form that hands a constant
+     * to the recognizer notes it: a string, a key set, a requirement, a
+     * pattern and a template argument.
+     * @param {string} name
+     * @param {any} at
+     */
+    noteConstantRead(name: string, at: any): void;
     /** @param {any} directive */
     directive(directive: any): any;
     /** @param {any} rule */

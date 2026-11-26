@@ -26838,6 +26838,10 @@
       this.instances50 = [];
       /** @type {Set<string>} the constants that the recognizer gets a placeholder for */
       this.opaque = new Set();
+      // The first recognizer read of each constant. A read fails at load where
+      // any document of the stage gives the constant only a placeholder.
+      /** @type {Map<string, GencmuError>} */
+      this.constantReads = new Map();
       /** @type {Map<string, string>} the symbol of each capture of the rule in hand */
       this.captureSymbols = new Map();
     }
@@ -26890,7 +26894,9 @@
         }
         if (kinds.get(constant.name) === "mixed") this.opaque.add(constant.name);
         const data = kinds.get(constant.name) === "mixed" ? OPAQUE : this.data(constant.value);
-        const value = data === OPAQUE ? { string: "" } : data;
+        // A redefinition names the version before it, which keeps the type
+        // of a version in another document, such as {*$OUTPUTS, K}.
+        const value = data !== OPAQUE ? data : constant.op === "redefine" ? { const: constant.name, at: constant.at } : { string: "" };
         constants.push({ name: constant.name, op: constant.op, value, at: constant.at, origin50 });
       }
       return {
@@ -26904,6 +26910,8 @@
         deferred: this.deferred,
         keyReaders: this.keyReaders,
         tagSources: this.tagSources,
+        opaque: this.opaque,
+        constantReads: this.constantReads,
         instances50: this.instances50,
       };
     }
@@ -26954,7 +26962,7 @@
       if (folded !== undefined) return { string: folded };
       // A list of strings, with its splats in place (part 1 §8).
       const strings = closedStringList(value, this.dom.constants);
-      if (strings?.length) return { union: strings.map(text => ({ string: text })) };
+      if (strings?.length) return setOf(strings.map(text => ({ string: text })));
       // A pattern constant holds its pattern.
       if (value.pattern !== undefined) return { pattern: this.pattern(value.pattern) };
       if (isPatternSet(value)) {
@@ -26977,8 +26985,27 @@
      * @param {any} node
      */
     constantRead(node) {
-      if (this.opaque.has(node.const)) return this.fail(`read the constant $${node.const}, whose value it cannot hold`, node.at);
+      this.noteConstantRead(node.const, node.at);
       return { const: node.const, ...(node.at ? { at: node.at } : {}) };
+    }
+
+    /**
+     * Notes a recognizer read of a constant. Every form that hands a constant
+     * to the recognizer notes it: a string, a key set, a requirement, a
+     * pattern and a template argument.
+     * @param {string} name
+     * @param {any} at
+     */
+    noteConstantRead(name, at) {
+      // The loader fails on the read once it knows every placeholder of the
+      // stage, so a read before a later version of this document counts too.
+      if (!this.constantReads.has(name)) {
+        try {
+          this.fail(`read the constant $${name}, whose value it cannot hold`, at);
+        } catch (error) {
+          this.constantReads.set(name, /** @type {GencmuError} */ (error));
+        }
+      }
     }
 
     /** @param {any} directive */
@@ -27405,6 +27432,7 @@
         if (!versions.length || !versions.every((/** @type {any} */ constant) => keySetKeys(constant.value, this.dom.constants)?.length)) {
           return this.fail("read the keys of the constant " + node.const, node.at ?? at);
         }
+        this.noteConstantRead(node.const, node.at ?? at);
         return { const: node.const, ...(node.at ? { at: node.at } : {}) };
       }
       if (node.bag?.every((/** @type {any} */ entry) => (entry.kind === "bare" || entry.kind === "splat") && !entry.gates.length && !entry.guard)) {
@@ -27467,6 +27495,7 @@
       const kind = recordKind50(arg, "argument");
       switch (kind) {
         case "expressionArgument": {
+          if (arg.expression.const !== undefined) this.noteConstantRead(arg.expression.const, arg.expression.at ?? at);
           const term = argumentTerm(arg.expression) ?? foldedArgument(arg.expression);
           if (term === null) this.fail("pass this expression to a template", at);
           return term;
@@ -27569,7 +27598,7 @@
     /** @param {any} value */
     requirement(value) {
       if (value.tag !== undefined || value.param !== undefined) return { ...value };
-      if (value.const !== undefined) return { const: value.const, ...(value.at ? { at: value.at } : {}) };
+      if (value.const !== undefined) return this.constantRead(value);
       return this.fail("read this requirement", value.at);
     }
 
@@ -27610,6 +27639,7 @@
           while (base && (base.test !== undefined || base.capture !== undefined)) base = base.expr;
           if (typeof base?.name === "string") this.keyReaders.add(base.name);
         }
+        if (typeof node.constant === "string") this.noteConstantRead(node.constant, node.at);
         for (const [key, value] of Object.entries(node)) if (key !== "at" && value && typeof value === "object") stack.push(value);
       }
     }
@@ -27723,7 +27753,7 @@
         const grams = { method: "ngrams", receiver: this.string(node.receiver.receiver), args: [{ integer: node.receiver.args[0].integer }] };
         const test = ngramPredicate(node.args[0]);
         if (test) {
-          const set = test.op === "∈" ? this.strings(test.right) : { union: [this.string(test.right)] };
+          const set = test.op === "∈" ? this.strings(test.right) : setOf([this.string(test.right)]);
           const inside = test.op === "∈" || test.op === "=";
           if (node.method === "all") return { op: inside ? "⊆" : "=", left: inside ? grams : { intersection: [grams, set] }, right: inside ? set : { emptySet: true } };
           return { op: "≠", left: inside ? { intersection: [grams, set] } : { difference: [grams, set] }, right: { emptySet: true } };
@@ -27929,7 +27959,7 @@
       if ((op === "≅" || op === "≇") && (node.left.capture !== undefined || node.left.item)) {
         const right = node.right.pattern !== undefined ? { pattern: this.pattern(node.right.pattern) } :
           node.right.capture !== undefined ? { capture: node.right.capture } :
-          node.right.const !== undefined ? { const: node.right.const, at: node.right.at } : null;
+          node.right.const !== undefined ? this.constantRead(node.right) : null;
         if (right && node.left.capture !== undefined) return { op, left: { capture: node.left.capture }, right };
       }
       if (op === "∈" || op === "∉") {
@@ -27964,10 +27994,10 @@
     strings(node) {
       if (node.list) {
         const closed = closedStringList(node, this.dom.constants);
-        if (closed?.length) return { union: closed.map(text => ({ string: text })) };
+        if (closed?.length) return setOf(closed.map(text => ({ string: text })));
         // A splat, a guard or a gate decides which items the list holds.
         if (node.list.some((/** @type {any} */ item) => item.kind === "splat" || item.guard || item.gates?.length)) return this.fail("read this list", node.at);
-        return { union: node.list.map((/** @type {any} */ item) => this.string(item.value)) };
+        return setOf(node.list.map((/** @type {any} */ item) => this.string(item.value)));
       }
       if (node.method === "split") return { method: "split", receiver: this.string(node.receiver), args: [this.string(node.args[0])] };
       if (node.const !== undefined) return this.constantRead(node);
@@ -28662,6 +28692,14 @@
       if (equals !== undefined && found !== null && /^[A-Z]/.test(found)) symbols.set(`${node.capture}=`, equals);
     }
     for (const value of Object.values(node)) if (value && typeof value === "object") collectCaptureSymbols(value, symbols);
+  }
+
+  // A set of strings for the recognizer, whose unions take at least two
+  // operands. A set of one string repeats it, and a set of none is empty.
+  /** @param {any[]} items */
+  function setOf(items) {
+    if (!items.length) return { emptySet: true };
+    return { union: items.length === 1 ? [items[0], items[0]] : items };
   }
 
   /** @param {string} name */
@@ -34605,6 +34643,12 @@
         }
         for (const document of documents) {
           for (const [rule, error] of document.untranslated) if (readers.has(rule)) throw error;
+        }
+        // The recognizer reads the final version of a constant in the whole
+        // stage, so a placeholder in one document hides it from every read.
+        const opaque = new Set(documents.flatMap(document => [...document.opaque]));
+        for (const document of documents) {
+          for (const [name, error] of document.constantReads) if (opaque.has(name)) throw error;
         }
         const constants = new Map();
         for (const run of stage.documents) {
