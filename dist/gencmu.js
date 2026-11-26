@@ -26372,6 +26372,8 @@
       this.deferred = [];
       /** @type {Set<string>} the rules whose keys a recognizer test reads */
       this.keyReaders = new Set();
+      /** @type {any[]} the instance bindings of the document, with their format 50 calls */
+      this.instances50 = [];
       /** @type {Map<string, string>} the symbol of each capture of the rule in hand */
       this.captureSymbols = new Map();
     }
@@ -26433,6 +26435,7 @@
         untranslated: this.untranslated,
         deferred: this.deferred,
         keyReaders: this.keyReaders,
+        instances50: this.instances50,
       };
     }
 
@@ -26477,11 +26480,14 @@
     /** @param {any} value */
     data(value) {
       if (value.string !== undefined) return { string: value.string };
-      if (value.list?.length && value.list.every((/** @type {any} */ item) => item.value.string !== undefined)) return { union: value.list.map((/** @type {any} */ item) => this.data(item.value)) };
+      // A list of strings, with its splats in place (part 1 §8).
+      const strings = closedStringList(value, this.dom.constants);
+      if (strings?.length) return { union: strings.map(text => ({ string: text })) };
       // A pattern constant holds its pattern.
       if (value.pattern !== undefined) return { pattern: this.pattern(value.pattern) };
       if (isPatternSet(value)) {
         const pattern = patternSet(value);
+        this.notePatternReaders(pattern);
         if (pattern !== EMPTY_PATTERN) return { pattern };
       }
       // A key set of visible keys holds its tags.
@@ -26510,13 +26516,15 @@
     rule(rule) {
       if (rule.instance) {
         this.registerCall(rule.instance);
+        // The stage checks read the format 50 actuals, which stay beside the
+        // document that the recognizer reads.
+        this.instances50.push({ name: rule.name, op: rule.op, at: rule.at, instance: rule.instance, conditions: [] });
         return { ...rule, instance: { ...rule.instance, args: rule.instance.args.map((/** @type {any} */ arg) => this.argument(arg)) } };
       }
       /** @type {any} */
       const copy = { name: rule.name, op: rule.op };
       if (rule.params) copy.params = rule.params;
       if (rule.args) copy.args = rule.args.map((/** @type {any} */ arg) => this.argument(arg));
-      copy.alternatives = rule.alternatives.map((/** @type {any} */ alternative) => this.alternative(alternative, rule));
       this.captureSymbols = new Map();
       this.currentRule = rule.name;
       // The captures that bind at most one node on every route of the rule.
@@ -26528,6 +26536,8 @@
       for (const [name, count] of counts) if (count <= 1) this.atMostOne.add(name);
       this.repeated = new Set([...counts].filter(([, count]) => count > 1).map(([name]) => name));
       for (const alternative of rule.alternatives) collectCaptureSymbols(alternative.expr, this.captureSymbols);
+      // The tags of each alternative read the capture sets of this rule.
+      copy.alternatives = rule.alternatives.map((/** @type {any} */ alternative) => this.alternative(alternative, rule));
       try {
         copy.conditions = rule.conditions.flatMap((/** @type {any} */ node) => this.clauses(node));
         // The recognizer evaluates the tags of an emission item only when it
@@ -26938,7 +26948,8 @@
       if (node.method === "classify" && node.receiver.const !== undefined) {
         return { method: "classify", receiver: this.string(node.args[0]), args: [{ classifier: classifierName(node.receiver.const) }] };
       }
-      if (node.method === "parse") return { method: "tags", receiver: this.expression(node), args: [] };
+      // A filtered forest is a forest too (part 1 §6).
+      if (node.method === "parse" || node.method === "error-free") return { method: "tags", receiver: this.expression(node), args: [] };
       return this.fail("read the keys of this expression", node.at ?? at);
     }
 
@@ -27047,7 +27058,35 @@
 
     /** @param {any} node */
     pattern(node) {
-      return node;
+      this.notePatternReaders(node);
+      // A test record of DOM 50 keeps its position, which the pattern checks
+      // of the recognizer do not admit on a test (part 2 §9).
+      return withoutTestPositions(node);
+    }
+
+    /**
+     * A tag test of a rule atom in a tree pattern reads the keys of that rule,
+     * as a body filter does. A rule term that cannot be translated then fails
+     * at load, and is not dropped.
+     * @param {any} pattern
+     */
+    notePatternReaders(pattern) {
+      /** @type {any[]} */
+      const stack = [pattern];
+      while (stack.length) {
+        const node = stack.pop();
+        if (!node || typeof node !== "object") continue;
+        if (Array.isArray(node)) {
+          for (const item of node) stack.push(item);
+          continue;
+        }
+        if (node.test === "tags") {
+          let base = node.expr;
+          while (base && (base.test !== undefined || base.capture !== undefined)) base = base.expr;
+          if (typeof base?.name === "string") this.keyReaders.add(base.name);
+        }
+        for (const [key, value] of Object.entries(node)) if (key !== "at" && value && typeof value === "object") stack.push(value);
+      }
     }
 
     /**
@@ -27100,7 +27139,7 @@
       if (node.method === "classify" && node.receiver.const !== undefined) {
         return { op: "≠", left: this.tagsOf(node), right: { emptySet: true } };
       }
-      if (node.method === "parse" || node.method === "starts-input" || node.method === "ends-input" ||
+      if (node.method === "parse" || node.method === "error-free" || node.method === "starts-input" || node.method === "ends-input" ||
           node.method === "followed-by" || node.method === "preceded-by") return this.expression(node);
       // A predicate on a capture that binds at most one node: .all(P) holds
       // where the capture is absent or P holds of it, .any(P) where it is
@@ -27286,6 +27325,7 @@
         // that can match nothing makes the comparison a constant.
         const pattern = patternSet(node.right);
         if (pattern === EMPTY_PATTERN) return op === "≅" ? DOM_FALSE : DOM_TRUE;
+        this.notePatternReaders(pattern);
         return { op, left: { capture: node.left.capture }, right: { pattern } };
       }
       if ((op === "≅" || op === "≇") && (node.left.capture !== undefined || node.left.item)) {
@@ -27307,9 +27347,16 @@
 
     /** @param {any} node */
     strings(node) {
-      if (node.list) return { union: node.list.map((/** @type {any} */ item) => this.string(item.value)) };
+      if (node.list) {
+        const closed = closedStringList(node, this.dom.constants);
+        if (closed?.length) return { union: closed.map(text => ({ string: text })) };
+        // A splat, a guard or a gate decides which items the list holds.
+        if (node.list.some((/** @type {any} */ item) => item.kind === "splat" || item.guard || item.gates?.length)) return this.fail("read this list", node.at);
+        return { union: node.list.map((/** @type {any} */ item) => this.string(item.value)) };
+      }
       if (node.method === "split") return { method: "split", receiver: this.string(node.receiver), args: [this.string(node.args[0])] };
       if (node.const !== undefined) return { const: node.const, at: node.at };
+      if (node.param !== undefined) return { ...node };
       return this.fail("read this list", node.at);
     }
 
@@ -27329,6 +27376,9 @@
       if (inlined) return this.string(inlined);
       if (node.string !== undefined) return { string: node.string };
       if (node.const !== undefined) return { const: node.const, at: node.at };
+      // A template parameter stands for its actual, which the recognizer
+      // substitutes in each instance (part 3 §10).
+      if (node.param !== undefined) return { ...node };
       if (node.concat) return { concat: node.concat.map((/** @type {any} */ item) => this.string(item)) };
       // A leaf bound under T="s" has the value s, written or omitted.
       if (node.property === "value" && node.receiver?.capture !== undefined && this.captureSymbols.has(`${node.receiver.capture}=`)) {
@@ -27445,19 +27495,34 @@
   const MAX_DOMAIN = 64;
 
   /**
-   * The bag of a function constant applied to a capture, with the capture in
-   * place of the parameter, or null. Only a function whose body is a bag
-   * constructor qualifies.
+   * The body of a function constant applied to an argument, with the argument
+   * in place of the parameter, or null. A function is pure, so the argument
+   * can stand in each place of the parameter (part 1 §8). Where bagsOnly
+   * holds, only a function whose body is a bag constructor qualifies.
    * @param {any} node
    * @param {any} constants
    * @returns {any}
    */
   function inlineFunction(node, constants, bagsOnly = true) {
-    if (node?.apply === undefined || node.arg?.capture === undefined) return null;
+    if (node?.apply === undefined || !node.arg || typeof node.arg !== "object") return null;
     const versions = constants.filter((/** @type {any} */ constant) => constant.name === node.apply);
     if (versions.length !== 1) return null;
     const value = versions[0].value;
     if (value.lambda === undefined || bagsOnly && !value.body?.bag) return null;
+    // An argument that names a binder of the body would change its meaning
+    // inside that binder.
+    const binders = new Set();
+    const names = new Set();
+    /** @param {any} item @param {Set<string>} into @param {string} key */
+    const collect = (item, into, key) => {
+      if (!item || typeof item !== "object") return;
+      if (Array.isArray(item)) return item.forEach(child => collect(child, into, key));
+      if (typeof item[key] === "string" && item[key] !== "") into.add(item[key]);
+      for (const [field, child] of Object.entries(item)) if (field !== "at") collect(child, into, key);
+    };
+    collect(value.body, binders, "lambda");
+    collect(node.arg, names, "capture");
+    for (const name of names) if (binders.has(name)) return null;
     /**
      * @param {any} item
      * @returns {any}
@@ -27586,14 +27651,7 @@
     if (!guard) return null;
     // A constant list of literals in this document stands for its items.
     /** @param {any} node */
-    const literals = node => {
-      if (node.list) return node.list;
-      if (node.const !== undefined) {
-        const versions = constants.filter((/** @type {any} */ constant) => constant.name === node.const);
-        return versions.length === 1 ? versions[0].value.list ?? null : null;
-      }
-      return null;
-    };
+    const literals = node => closedStringList(node, constants)?.map(text => ({ value: { string: text } })) ?? null;
     /**
      * @param {any} a
      * @param {any} b
@@ -27756,6 +27814,19 @@
   }
 
   /**
+   * A pattern with the positions of its test records left out.
+   * @param {any} node
+   * @returns {any}
+   */
+  function withoutTestPositions(node) {
+    if (Array.isArray(node)) return node.map(withoutTestPositions);
+    if (!node || typeof node !== "object") return node;
+    const isTest = node.test !== undefined && node.expr !== undefined;
+    return Object.fromEntries(Object.entries(node).filter(([key]) => !(isTest && key === "at"))
+      .map(/** @returns {any} */ ([key, value]) => [key, withoutTestPositions(value)]));
+  }
+
+  /**
    * @param {any} node
    * @returns {any}
    */
@@ -27763,6 +27834,38 @@
     if (Array.isArray(node)) return node.map(withoutPositions);
     if (!node || typeof node !== "object") return node;
     return Object.fromEntries(Object.entries(node).filter(([key]) => key !== "at").map(/** @returns {any} */ ([key, value]) => [key, withoutPositions(value)]));
+  }
+
+  /**
+   * The strings of a closed list: a list literal or a constant of this
+   * document, with each splat of a closed list in place. Null where a guard,
+   * a gate or another expression decides the items.
+   * @param {any} node
+   * @param {any[]} constants
+   * @returns {string[] | null}
+   */
+  function closedStringList(node, constants, depth = 0) {
+    if (!node || typeof node !== "object" || depth > 32) return null;
+    if (node.const !== undefined) {
+      const versions = constants.filter(constant => constant.name === node.const);
+      return versions.length === 1 ? closedStringList(versions[0].value, constants, depth + 1) : null;
+    }
+    if (!Array.isArray(node.list)) return null;
+    /** @type {string[]} */
+    const strings = [];
+    for (const item of node.list) {
+      if (item.guard || item.gates?.length) return null;
+      if (item.kind === "splat") {
+        const inner = closedStringList(item.value, constants, depth + 1);
+        if (inner === null) return null;
+        for (const text of inner) strings.push(text);
+      } else if (item.value?.string !== undefined) {
+        strings.push(item.value.string);
+      } else {
+        return null;
+      }
+    }
+    return strings;
   }
 
   // The strings or the class references of a classifier entry, or null.
@@ -27914,7 +28017,7 @@
    * @returns {any}
    */
   function patternSet(node) {
-    if (node.pattern !== undefined) return node.pattern;
+    if (node.pattern !== undefined) return withoutTestPositions(node.pattern);
     // A constant inside a pattern of the recognizer is a constant atom.
     if (node.const !== undefined) return { constant: node.const };
     if (node.emptySet) return EMPTY_PATTERN;
@@ -32937,6 +33040,14 @@
      */
     certificates(rules) {
       const byName = new Map();
+      // A rule bound to an instance, as `%rule a = t(…)`, has the alternatives
+      // of its template with each parameter replaced by its actual.
+      const templates = new Map(rules.filter((/** @type {any} */ { rule }) => rule.params).map((/** @type {any} */ { rule }) => [rule.name, rule]));
+      for (const entry of rules) {
+        if (!entry.rule.instance || !templates.has(entry.rule.instance.call)) continue;
+        const expanded = expandInstance(entry.rule, templates.get(entry.rule.instance.call));
+        if (expanded) rules = [...rules.filter((/** @type {any} */ other) => other !== entry), { ...entry, rule: expanded }];
+      }
       for (const entry of rules) {
         if (entry.rule.params || entry.rule.instance) continue;
         if (!byName.has(entry.rule.name) || entry.rule.op !== "extend") byName.set(entry.rule.name, []);
@@ -32944,6 +33055,8 @@
       }
       const joinsChildren = this.defaultsJoinChildren();
       const certified = new Set(byName.keys());
+      /** @type {Map<string, boolean>} the proofs of template calls in bodies */
+      const callProofs = new Map();
       /**
        * @param {any} node
        * @returns {boolean}
@@ -32954,6 +33067,20 @@
         if (node.capture !== undefined && node.expr) return symbolPasses(node.expr);
         if (node.test !== undefined) return symbolPasses(node.expr);
         if (node.ref !== undefined) return !/^[a-z]/.test(node.ref) || certified.has(node.ref);
+        // A call of a template passes where each alternative of its instance
+        // passes. A call that is still being checked passes, as in the
+        // greatest fixed point of the certificate.
+        if (node.call !== undefined && Array.isArray(node.args)) {
+          const template = templates.get(node.call);
+          if (!template) return false;
+          const key = JSON.stringify(node, (field, value) => field === "at" ? undefined : value);
+          if (callProofs.has(key)) return /** @type {boolean} */ (callProofs.get(key));
+          callProofs.set(key, true);
+          const expanded = expandInstance({ name: node.call, op: "define", instance: node }, template);
+          const passes = !!expanded && expanded.alternatives.every((/** @type {any} */ alternative) => alternativePasses(expanded, alternative));
+          callProofs.set(key, passes);
+          return passes;
+        }
         if (node.literal || node.range || node.wildcard || node.empty) return true;
         // A splice adds its called rule's value.
         if (node.splice) return symbolPasses(node.splice);
@@ -32989,6 +33116,8 @@
       const reasons = new Map();
       for (let changed = true; changed;) {
         changed = false;
+        // The proofs of calls read the certified rules, which shrink.
+        callProofs.clear();
         for (const name of [...certified]) {
           const failing = byName.get(name).flatMap((/** @type {any} */ { rule }) => rule.alternatives.map((/** @type {any} */ alternative, /** @type {any} */ index) => [rule, alternative, index]))
             .find((/** @type {any} */ [rule, alternative]) => !alternativePasses(rule, alternative));
@@ -33511,6 +33640,43 @@
     for (const value of Object.values(node)) if (value && typeof value === "object") collectConstants(value, visit);
   }
 
+  /**
+   * The rule that an instance binding names, with the alternatives and the
+   * term of its template, or null where the actuals do not fit. In a
+   * body, a terminal or rule actual becomes a reference to it. In a term, an
+   * expression actual stands for itself.
+   * @param {any} rule the binding, `%rule a = t(…)`
+   * @param {any} template
+   */
+  function expandInstance(rule, template) {
+    const args = rule.instance.args;
+    if (args.length !== template.params.length) return null;
+    const env = new Map(template.params.map((/** @type {any} */ param, /** @type {number} */ index) => [param, args[index]]));
+    /**
+     * @param {any} node
+     * @returns {any}
+     */
+    const substitute = node => {
+      if (Array.isArray(node)) return node.map(substitute);
+      if (!node || typeof node !== "object") return node;
+      if (node.param !== undefined && env.has(node.param)) {
+        const arg = env.get(node.param);
+        if (arg.expression) return arg.expression;
+        if (arg.tag !== undefined) return { ref: arg.tag };
+        if (arg.rule !== undefined) return { ref: arg.rule };
+        return arg;
+      }
+      return Object.fromEntries(Object.entries(node).map(/** @returns {any} */ ([key, value]) => [key, substitute(value)]));
+    };
+    const alternatives = template.alternatives.map(substitute);
+    return {
+      name: rule.name, op: rule.op, at: rule.at,
+      ...(template.term ? { term: substitute(template.term) } : {}),
+      alternatives,
+      conditions: rule.conditions ?? [],
+    };
+  }
+
   // ---- format50/faces.js
   // Display faces (part 2 §7). A published node with a primary shows its
   // primary with satellites around it: the units that the branches beside the
@@ -33944,6 +34110,15 @@
         const documents = [...new Set(stage.documents.map(run => run.path))].map(document => bridged.get(document));
         const written = [];
         for (const run of stage.documents) for (const rule of run.dom.rules) {
+          // An instance binding, `%rule a = t(…)`, with its format 50 call,
+          // which the bridge keeps beside the document.
+          if (/** @type {any} */ (rule).instance) {
+            const instances = bridged.get(run.path)?.instances50 ?? [];
+            const at = JSON.stringify(rule.at);
+            const instance = instances.find((/** @type {any} */ item) => item.name === rule.name && JSON.stringify(item.at) === at);
+            if (instance) written.push({ rule: instance, document: run.path });
+            continue;
+          }
           if (!rule.alternatives?.length) continue;
           const origin = origins.get(rule.params ? `template:${rule.name}#0` : alternativeKey(run.path, rule.at, 0));
           if (origin) written.push({ rule: origin.rule, document: run.path });
@@ -34024,6 +34199,11 @@
       if (both !== undefined) throw new GencmuError("usage", `the feature ${both} is named both to turn on and to turn off`);
       const features = new Set([...this.declared, ...on].filter(name => !off.has(name)));
       let last = this.stages.length - 1;
+      // The caller chooses on the parse whether earlier stages keep their
+      // full trees in the result (errata 3.2, answer 2).
+      if (options.stageTrees !== undefined && options.stageTrees !== "compact" && options.stageTrees !== "all") {
+        throw new GencmuError("usage", `stageTrees must be "compact" or "all", not ${JSON.stringify(options.stageTrees)}`);
+      }
       if (options.until !== undefined) {
         last = this.stages.findIndex((/** @type {any} */ stage) => stage.name === options.until);
         if (last < 0) throw new GencmuError("usage", `no stage is named ${JSON.stringify(options.until)}`);
@@ -34118,6 +34298,7 @@
       const failed = stages.find(stage => stage.error);
       const result = {
         format: 18,
+        stageTrees: options.stageTrees ?? "compact",
         ok: !failed && stages.length === last + 1,
         text,
         origin,

@@ -120,6 +120,7 @@ export declare class Pipeline50 {
      */
     parse(text: string, options?: any): {
         format: number;
+        stageTrees: any;
         ok: boolean;
         text: string;
         origin: Token50[];

@@ -35,6 +35,8 @@ export declare class Bridge {
     deferred: GencmuError[];
     /** @type {Set<string>} the rules whose keys a recognizer test reads */
     keyReaders: Set<string>;
+    /** @type {any[]} the instance bindings of the document, with their format 50 calls */
+    instances50: any[];
     /** @type {Map<string, string>} the symbol of each capture of the rule in hand */
     captureSymbols: Map<string, string>;
     currentRule: any;
@@ -67,24 +69,24 @@ export declare class Bridge {
             op: any;
             value: {
                 string: any;
-                union?: undefined;
                 pattern?: undefined;
                 tag?: undefined;
-            } | {
-                string?: undefined;
-                union: any;
-                pattern?: undefined;
-                tag?: undefined;
-            } | {
-                string?: undefined;
                 union?: undefined;
+            } | {
+                string?: undefined;
                 pattern: any;
                 tag?: undefined;
+                union?: undefined;
             } | {
                 string?: undefined;
-                union?: undefined;
                 pattern?: undefined;
                 tag: any;
+                union?: undefined;
+            } | {
+                string?: undefined;
+                pattern?: undefined;
+                tag?: undefined;
+                union: any;
             };
             at: any;
             origin50: string;
@@ -94,6 +96,7 @@ export declare class Bridge {
         untranslated: Map<string, GencmuError>;
         deferred: GencmuError[];
         keyReaders: Set<string>;
+        instances50: any[];
     };
     /** @param {any} value */
     isClassifier(value: any): any;
@@ -106,24 +109,24 @@ export declare class Bridge {
     /** @param {any} value */
     data(value: any): {
         string: any;
-        union?: undefined;
         pattern?: undefined;
         tag?: undefined;
-    } | {
-        string?: undefined;
-        union: any;
-        pattern?: undefined;
-        tag?: undefined;
-    } | {
-        string?: undefined;
         union?: undefined;
+    } | {
+        string?: undefined;
         pattern: any;
         tag?: undefined;
+        union?: undefined;
     } | {
         string?: undefined;
-        union?: undefined;
         pattern?: undefined;
         tag: any;
+        union?: undefined;
+    } | {
+        string?: undefined;
+        pattern?: undefined;
+        tag?: undefined;
+        union: any;
     };
     /** @param {any} directive */
     directive(directive: any): any;
@@ -219,6 +222,13 @@ export declare class Bridge {
     stringOperand(node: any): any;
     /** @param {any} node */
     pattern(node: any): any;
+    /**
+     * A tag test of a rule atom in a tree pattern reads the keys of that rule,
+     * as a body filter does. A rule term that cannot be translated then fails
+     * at load, and is not dropped.
+     * @param {any} pattern
+     */
+    notePatternReaders(pattern: any): void;
     /**
      * The recognizer clauses of one written clause. A conjunction becomes
      * one clause for each operand. A universal predicate on a capture inside
@@ -355,28 +365,7 @@ export declare class Bridge {
         right: any;
     };
     /** @param {any} node */
-    strings(node: any): {
-        method?: undefined;
-        receiver?: undefined;
-        args?: undefined;
-        union: any;
-        const?: undefined;
-        at?: undefined;
-    } | {
-        union?: undefined;
-        method: string;
-        receiver: any;
-        args: any[];
-        const?: undefined;
-        at?: undefined;
-    } | {
-        union?: undefined;
-        method?: undefined;
-        receiver?: undefined;
-        args?: undefined;
-        const: any;
-        at: any;
-    };
+    strings(node: any): any;
     /** @param {any} node */
     keySet(node: any): any;
     /**
