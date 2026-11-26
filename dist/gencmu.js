@@ -5526,6 +5526,14 @@
   const QUERY_METHODS = new Set(["starts-input", "ends-input", "parse", "error-free", "followed-by", "preceded-by"]);
   const INPUT_STRINGS = new Set(["value", "image", "source-text", "decomposed-source-text"]);
   const TARGET_METHODS = new Set(["followed-by", "preceded-by"]);
+  /**
+   * @internal The tag of a payload value that the format 50 bridge computes in
+   * recognition: the prefix in its one argument, then the hex of the JSON of
+   * the receiver's string. The notation cannot spell the name, and the record
+   * check admits it only in a document of the bridge.
+   */
+  const NATIVE_PAYLOAD = "native50:payload";
+
   const METHODS = new Set([...SPAN_METHODS, ...QUERY_METHODS, ...INPUT_STRINGS, "tags", "classes", "split", "ngrams", "classify", "verbatim-text", "emitted"]);
 
   /**
@@ -5538,8 +5546,13 @@
    */
   function methodShapeProblem(name, receiver, args, recipe = false) {
     if (typeof name !== "string") return "unknown method name";
-    if (!METHODS.has(name)) return `unknown method ${name}`;
     const object = (/** @type {any} */ value) => value !== null && typeof value === "object" && !Array.isArray(value);
+    if (name === NATIVE_PAYLOAD) {
+      const prefix = args?.[0]?.string;
+      return object(receiver) && Array.isArray(args) && args.length === 1 && object(args[0]) && Object.keys(args[0]).length === 1 &&
+        typeof prefix === "string" && /^Payload_[0-9a-f]*_$/.test(prefix) ? null : METHOD_SIGNATURE_PROBLEM;
+    }
+    if (!METHODS.has(name)) return `unknown method ${name}`;
     if (!object(receiver) || !Array.isArray(args)) return "a malformed method";
     const bare = typeof receiver.capture === "string" && Object.keys(receiver).length === 1 || "param" in receiver || "call" in receiver;
     const span = bare || SPAN_METHODS.has(receiver.method);
@@ -5575,6 +5588,8 @@
    * @returns {string | null}
    */
   function methodProblem(name, receiver, args, type, argumentTypes, recipe = false) {
+    // The receiver of the bridge's value tag is a string.
+    if (name === NATIVE_PAYLOAD) return type === "string" || type === "any" ? null : METHOD_SIGNATURE_PROBLEM;
     if (!METHODS.has(name)) return `unknown method ${name}`;
     const span = type === "span";
     const string = type === "string" || type === "any" || span;
@@ -5629,7 +5644,7 @@
     if (QUERY_METHODS.has(name)) return "condition";
     if (name === "emitted") return "emitted";
     if (name === "split" || name === "ngrams") return "strings";
-    if (name === "tags" || name === "classes" || name === "classify") return "tags";
+    if (name === "tags" || name === "classes" || name === "classify" || name === NATIVE_PAYLOAD) return "tags";
     return "string";
   }
 
@@ -6298,6 +6313,26 @@
 
 
 
+  let nativeDepth = 0;
+
+  /**
+   * @internal Runs a step that builds a grammar of the format 50 bridge. Only
+   * inside it does the record check admit the method NATIVE_PAYLOAD, also in
+   * the documents that template expansion builds. Loading is synchronous, so
+   * no format 49 load runs inside it.
+   * @template T
+   * @param {() => T} build
+   * @returns {T}
+   */
+  function withNativeMethods(build) {
+    nativeDepth++;
+    try {
+      return build();
+    } finally {
+      nativeDepth--;
+    }
+  }
+
 
 
 
@@ -6729,6 +6764,7 @@
         else if ("emptySet" in value) { if (value.emptySet !== true) return "a malformed empty set"; }
         else if ("capture" in value) { if (typeof value.capture !== "string" || value.capture !== "" && !CAPTURE_NAME.test(value.capture)) return "a malformed capture reference"; }
         else if ("method" in value) {
+          if (value.method === NATIVE_PAYLOAD && nativeDepth === 0) return "a malformed method";
           if (["classify","ngrams"].includes(value.method) && Array.isArray(value.args) && value.args.some(hasUnresolved)) return "a parameter cannot replace a classifier name or integer argument";
           if (!Array.isArray(value.args) || !object(value.receiver) || (!task.recipe && (value.method === "verbatim-text" || value.method === "emitted")) || (!task.query && QUERY_METHODS.has(value.method) && !["parse","error-free"].includes(value.method))) return "a malformed method";
           push("method-shape", value, depth, { recipe: task.recipe });
@@ -15590,6 +15626,14 @@
           const value = evaluate(context, receiver, scope);
           if (value === HALT) return pause(found => splitBy(context, asString(found), args[0], scope));
           return splitBy(context, asString(value), args[0], scope);
+        }
+        case NATIVE_PAYLOAD: {
+          // The tag of a payload value of format 50, computed from the string.
+          const prefix = /** @type {{string: string}} */ (args[0]).string;
+          /** @param {TermValue} found */
+          const tag = found => ({ set: tagSet([prefix + [...new TextEncoder().encode(JSON.stringify(asString(found)))].map(byte => byte.toString(16).padStart(2, "0")).join("")]) });
+          const value = evaluate(context, receiver, scope);
+          return value === HALT ? pause(tag) : tag(value);
         }
         case "classify": {
           const value = evaluate(context, receiver, scope);
@@ -26771,6 +26815,7 @@
 
 
 
+
   // A condition that never holds, in a form that the recognizer reads in a
   // written document.
   const NEVER = Object.freeze({ not: { op: "=", left: { string: "" }, right: { string: "" } } });
@@ -26842,6 +26887,13 @@
       // any document of the stage gives the constant only a placeholder.
       /** @type {Map<string, GencmuError>} */
       this.constantReads = new Map();
+      // The keys with no finite domain that some write cannot give a value tag
+      // in recognition, and the first read of each such key. The loader fails
+      // on a read of a key that a write of the stage cannot tag.
+      /** @type {Set<string>} */
+      this.untaggedPayloads = new Set();
+      /** @type {Map<string, GencmuError>} */
+      this.nativeReads = new Map();
       // The constants that the definition of each constant refers to. A read
       // of a constant reads them too.
       /** @type {Map<string, Set<string>>} */
@@ -26921,6 +26973,8 @@
         opaque: this.opaque,
         constantDeps: this.constantDeps,
         constantReads: this.constantReads,
+        untaggedPayloads: this.untaggedPayloads,
+        nativeReads: this.nativeReads,
         instances50: this.instances50,
       };
     }
@@ -27114,6 +27168,20 @@
         return parts.length === 1 && parts[0].const !== undefined ? parts[0] : setOf(parts);
       }
       return null;
+    }
+
+    /**
+     * Notes a read of the run-time value tag of a payload.
+     * @param {string} key
+     * @param {any} at
+     */
+    noteNativeRead(key, at) {
+      if (this.nativeReads.has(key)) return;
+      try {
+        this.fail(`compare the payload ${key}, whose values are not known`, at);
+      } catch (error) {
+        this.nativeReads.set(key, /** @type {GencmuError} */ (error));
+      }
     }
 
     /**
@@ -27478,7 +27546,16 @@
       /** @type {any[]} */
       const parts = [{ tag: presentTag(key) }, { tag: payloadTag(key) }];
       const domain = this.hidden.domains.get(key);
-      if (!domain) return { union: parts };
+      if (!domain) {
+        // A string with no finite domain gets the tag of its value at run time.
+        try {
+          parts.push(nativePayload(key, this.string(value)));
+        } catch (error) {
+          if (!(error instanceof GencmuError)) throw error;
+          this.untaggedPayloads.add(key);
+        }
+        return { union: parts };
+      }
       for (const candidate of domain) {
         const test = this.valueTest(value, candidate, guard);
         if (test === false) continue;
@@ -28023,6 +28100,15 @@
         const other = literalPayload(left ? node.right : node.left);
         // A payload with a finite domain against a string: one disjunct for
         // each value of the domain.
+        if (other === undefined && (node.op === "=" || node.op === "≠") && !this.hidden.domains.get(side.property)) {
+          // With no finite domain, the value tag is made at run time from the
+          // string, on the write and on the read alike.
+          const string = this.string(left ? node.right : node.left);
+          this.noteNativeRead(side.property, side.at ?? node.at);
+          const tags = this.receiverTags(side.receiver);
+          const test = { op: "⊆", left: nativePayload(side.property, string), right: tags };
+          return node.op === "=" ? test : { all: [{ op: "⊆", left: { tag: payloadTag(side.property) }, right: tags }, { not: test }] };
+        }
         if (other === undefined && (node.op === "=" || node.op === "≠")) {
           const string = this.string(left ? node.right : node.left);
           const tests = domain(side).map(value => ({ all: [tagTest(side, value), { op: node.op, left: string, right: { string: String(value) } }] }));
@@ -28834,6 +28920,13 @@
       if (equals !== undefined && found !== null && /^[A-Z]/.test(found)) symbols.set(`${node.capture}=`, equals);
     }
     for (const value of Object.values(node)) if (value && typeof value === "object") collectCaptureSymbols(value, symbols);
+  }
+
+  // The run-time value tag of a payload whose values the document does not
+  // fix: the tag of payloadTag(key, value) for the string of the term.
+  /** @param {string} key @param {any} string */
+  function nativePayload(key, string) {
+    return { method: NATIVE_PAYLOAD, receiver: string, args: [{ string: `Payload_${hex(key)}_` }] };
   }
 
   // A set of strings for the recognizer, whose unions take at least two
@@ -34502,6 +34595,7 @@
 
 
 
+
   /** The bundle of notation 50 in the package. */
   const BUNDLE_50 = Object.freeze({
     format: 50,
@@ -34800,6 +34894,12 @@
         for (const document of documents) {
           for (const [name, names] of document.constantDeps) deps.set(name, new Set([...(deps.get(name) ?? []), ...names]));
         }
+        // A read of the run-time value tag of a payload needs every write of
+        // the key in the stage to give that tag.
+        const untagged = new Set(documents.flatMap(document => [...document.untaggedPayloads]));
+        for (const document of documents) {
+          for (const [key, error] of document.nativeReads) if (untagged.has(key)) throw error;
+        }
         for (const document of documents) {
           for (const [name, error] of document.constantReads) {
             const seen = new Set([name]);
@@ -34820,7 +34920,7 @@
           }
         }
         /** @param {any} runs */
-        const grammar = runs => new Grammar(stage.name, runs, this.unicode);
+        const grammar = runs => withNativeMethods(() => new Grammar(stage.name, runs, this.unicode));
         const made = new Stage50(stage.name, stage.documents, origins, constants, grammar);
         made.loweringErrors = certificateFailures;
         made.featureDeclarations = stage.documents.flatMap(run => run.dom.directives

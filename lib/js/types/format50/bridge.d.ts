@@ -45,6 +45,10 @@ export declare class Bridge {
     opaque: Set<string>;
     /** @type {Map<string, GencmuError>} */
     constantReads: Map<string, GencmuError>;
+    /** @type {Set<string>} */
+    untaggedPayloads: Set<string>;
+    /** @type {Map<string, GencmuError>} */
+    nativeReads: Map<string, GencmuError>;
     /** @type {Map<string, Set<string>>} */
     constantDeps: Map<string, Set<string>>;
     /** @type {string | null} */
@@ -93,6 +97,8 @@ export declare class Bridge {
         opaque: Set<string>;
         constantDeps: Map<string, Set<string>>;
         constantReads: Map<string, GencmuError>;
+        untaggedPayloads: Set<string>;
+        nativeReads: Map<string, GencmuError>;
         instances50: any[];
     };
     /** @param {any} value */
@@ -142,6 +148,12 @@ export declare class Bridge {
      * @returns {any}
      */
     setTerm(value: any, kind: "keys" | "strings"): any;
+    /**
+     * Notes a read of the run-time value tag of a payload.
+     * @param {string} key
+     * @param {any} at
+     */
+    noteNativeRead(key: string, at: any): void;
     /**
      * Notes a recognizer read of a constant. Every form that hands a constant
      * to the recognizer notes it: a string, a key set, a requirement, a
@@ -341,6 +353,67 @@ export declare class Bridge {
                 args: never[];
             };
         };
+        all?: undefined;
+        any?: undefined;
+    } | {
+        op: string;
+        left: {
+            method: string;
+            receiver: any;
+            args: {
+                string: string;
+            }[];
+        };
+        right: {
+            forestRoot: boolean;
+        } | {
+            method: string;
+            receiver: {
+                capture: string;
+            };
+            args: never[];
+        };
+    } | {
+        all: ({
+            op: string;
+            left: {
+                tag: string;
+            };
+            right: {
+                forestRoot: boolean;
+            } | {
+                method: string;
+                receiver: {
+                    capture: string;
+                };
+                args: never[];
+            };
+            not?: undefined;
+        } | {
+            op?: undefined;
+            left?: undefined;
+            right?: undefined;
+            not: {
+                op: string;
+                left: {
+                    method: string;
+                    receiver: any;
+                    args: {
+                        string: string;
+                    }[];
+                };
+                right: {
+                    forestRoot: boolean;
+                } | {
+                    method: string;
+                    receiver: {
+                        capture: string;
+                    };
+                    args: never[];
+                };
+            };
+        })[];
+        not?: undefined;
         any?: undefined;
     } | {
         all: ({
@@ -365,6 +438,7 @@ export declare class Bridge {
             };
         })[];
     } | {
+        all?: undefined;
         not?: undefined;
         any: {
             all: ({
@@ -390,6 +464,7 @@ export declare class Bridge {
             })[];
         }[];
     } | {
+        all?: undefined;
         not?: undefined;
         any: {
             op: string;
