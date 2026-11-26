@@ -22,9 +22,10 @@ export declare function decoration(node: any, listed?: ((node: any) => any[]) | 
 } | null;
 /**
  * Makes the faces of the units that the published tokens of a stage can
- * show: each satellite beside a primary, along the primary path of each
- * token, and each node of that path. A satellite needs an image, and a
- * failing recipe of a satellite fails the publication. A satellite branch
+ * show: each satellite beside a primary, and each primary whose path
+ * reaches satellites, as display reads them. A satellite needs an image,
+ * and a failing recipe of a satellite fails the publication. No other
+ * recipe runs, so an overridden recipe makes no verbatim claim. A satellite branch
  * with an emission list shows the units that its list selects, which
  * `listed` makes.
  * @param {any[]} tokens

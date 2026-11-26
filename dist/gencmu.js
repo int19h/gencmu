@@ -30019,10 +30019,13 @@
         copy.conditions = [];
       }
       // A message runs after the choice of a parse, where the stage
-      // evaluates it. The recognizer needs only to know that the rule
-      // reports, so it gets a fixed text.
-      if (rule.error) copy.error = { concat: [{ string: LATE_MESSAGE }] };
-      if (rule.warning) copy.warning = { concat: [{ string: LATE_MESSAGE }] };
+      // evaluates it (engine §12.1). The recognizer gets its lowered form,
+      // so that the checks of what a message can read run on it, such as
+      // ranked-choice-export. A message that has no lowered form gets a
+      // fixed text, because the recognizer needs only to know that the rule
+      // reports.
+      if (rule.error) copy.error = this.lateMessage(rule.error);
+      if (rule.warning) copy.warning = this.lateMessage(rule.warning);
       if (rule.suppressWarnings) copy.suppressWarnings = rule.suppressWarnings;
       if (rule.erased) copy.erased = true;
       copy.at = rule.at;
@@ -30497,6 +30500,28 @@
       // A filtered forest is a forest too (docs/notation.md, "Conditions").
       if (node.method === "parse" || node.method === "error-free") return this.forestTags(node);
       return this.fail("read the keys of this expression", node.at ?? at);
+    }
+
+    /**
+     * The recognizer's form of a message, or a fixed text where the message
+     * has none. A message is late, so its lowering adds no recognition
+     * obligation: no certificate, no domain, no key read.
+     * @param {any} node
+     */
+    lateMessage(node) {
+      const values = this.valueReads.length, domains = this.domainReads.length, compounds = this.compoundKeyReads.length;
+      const readers = new Set(this.keyReaders);
+      try {
+        return this.message(node);
+      } catch (error) {
+        if (!(error instanceof GencmuError)) throw error;
+        return { concat: [{ string: LATE_MESSAGE }] };
+      } finally {
+        this.valueReads.length = values;
+        this.domainReads.length = domains;
+        this.compoundKeyReads.length = compounds;
+        this.keyReaders = readers;
+      }
     }
 
     // A message is a concatenation for the recognizer, also of one part.
@@ -32725,30 +32750,48 @@
 
   /**
    * Makes the faces of the units that the published tokens of a stage can
-   * show: each satellite beside a primary, along the primary path of each
-   * token, and each node of that path. A satellite needs an image, and a
-   * failing recipe of a satellite fails the publication. A satellite branch
+   * show: each satellite beside a primary, and each primary whose path
+   * reaches satellites, as display reads them. A satellite needs an image,
+   * and a failing recipe of a satellite fails the publication. No other
+   * recipe runs, so an overridden recipe makes no verbatim claim. A satellite branch
    * with an emission list shows the units that its list selects, which
    * `listed` makes.
    * @param {any[]} tokens
    * @param {((node: any) => any[]) | null} [listed]
    */
   function publishFaces(tokens, listed = null) {
+    /** @param {any} node @returns {any} the next node of a primary path, across stages */
+    const next = node => node.kind === "projection" ? node.part :
+      (node.kind === "rule" || node.kind === "splice") ? node.primary ?? null :
+      node.kind === "token" ? node.input?.node ?? null : null;
+    // Whether the primary path from a node reaches a unit with satellites.
+    /** @param {any} start @param {boolean} self whether the node itself counts */
+    const reaches = (start, self) => {
+      for (let current = start, first = true; current; current = next(current), first = false) {
+        if ((!first || self) && current.kind !== "token" && decoration(current, listed)) return true;
+      }
+      return false;
+    };
+    // Display shows the satellites of each unit, and the primary of a unit
+    // only where its path reaches satellites. Only those units get a face,
+    // so no other recipe runs.
     /** @type {any[]} */
     const pending = tokens.map(token => token.node).filter(Boolean);
     const seen = new Set();
     while (pending.length) {
-      let current = pending.pop();
-      while (current && !seen.has(current)) {
-        seen.add(current);
-        const decorated = decoration(current, listed);
-        for (const unit of decorated ? [...decorated.before, ...decorated.after] : []) {
-          if (FACES.has(unit)) continue;
-          FACES.set(unit, faceNow(unit, true));
-          pending.push(unit);
-        }
-        if (current.kind !== "token" && !FACES.has(current)) FACES.set(current, faceNow(current, false));
-        current = current.kind === "projection" ? current.part : (current.kind === "rule" || current.kind === "splice") ? current.primary : null;
+      const node = pending.pop();
+      if (seen.has(node)) continue;
+      seen.add(node);
+      const decorated = decoration(node, listed);
+      for (const unit of decorated ? [...decorated.before, ...decorated.after] : []) {
+        if (!FACES.has(unit)) FACES.set(unit, faceNow(unit, true));
+        pending.push(unit);
+      }
+      const base = node.kind === "projection" ? node.part : node;
+      const primary = base && (base.kind === "rule" || base.kind === "splice") ? base.primary : null;
+      if (primary && primary.kind !== "token" && reaches(primary, true)) {
+        if (!FACES.has(primary)) FACES.set(primary, faceNow(primary, false));
+        pending.push(primary);
       }
     }
   }

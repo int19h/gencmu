@@ -401,6 +401,13 @@ export declare class Bridge {
      * @returns {any}
      */
     tagsOf(node: any, at?: any): any;
+    /**
+     * The recognizer's form of a message, or a fixed text where the message
+     * has none. A message is late, so its lowering adds no recognition
+     * obligation: no certificate, no domain, no key read.
+     * @param {any} node
+     */
+    lateMessage(node: any): any;
     /** @param {any} node */
     message(node: any): any;
     /** @param {any} arg */
