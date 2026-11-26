@@ -58,6 +58,13 @@ The diphthong instances use `diphthong-phonemes` for their two output strings. T
   | ("‹ZBALERMORNA HUMBERT COMBINING TCENA BU›" | "‹ZBALERMORNA UCSUR COMBINING TCENA BU›")
 ```
 
+<details><summary>Railroad diagrams of <code>consonant</code>, <code>apostrophe</code>, <code>core-char</code> and <code>comma</code></summary>
+<p><img src="../../../docs/diagrams/50/lojban/common/zbalermorna/consonant.svg" alt="Railroad diagram of the rule consonant"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/zbalermorna/apostrophe.svg" alt="Railroad diagram of the rule apostrophe"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/zbalermorna/core-char.svg" alt="Railroad diagram of the rule core-char"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/zbalermorna/comma.svg" alt="Railroad diagram of the rule comma"></p>
+</details>
+
 A vowel diacritic and its full-vowel form are the same phoneme. BAHEBU (U+ED98) after either form or a diphthong diacritic makes it stressed. A repeated stress mark is one mark. SEMIVOWEL IY (U+EDAA) and SEMIVOWEL UY (U+EDAB) read as plain vowels `i` and `u`, even without a following vowel.
 
 A diphthong diacritic is two phonemes and stands where a vowel stands. The first emission covers the character and any stress marks. The stage inserts the second emission after them, with empty source and text. In a stressed diphthong, only the first token carries `Stressed`. That token has a lowercase value and an uppercase image.
@@ -210,6 +217,34 @@ The `Vowel` tag marks the five full vowels and not `y`. So `zbalermorna-plain-fu
 %rule zbalermorna-shorthand-mark
   ("‹ZBALERMORNA HUMBERT SYMBOL FOR CNIMAHO BU›" | "‹ZBALERMORNA UCSUR SYMBOL FOR CNIMAHO BU›")
 ```
+
+<details><summary>Railroad diagrams of the 25 rules from <code>zbalermorna-plain-full-vowel</code> to <code>zbalermorna-shorthand-mark</code></summary>
+<p><img src="../../../docs/diagrams/50/lojban/common/zbalermorna/zbalermorna-plain-full-vowel.svg" alt="Railroad diagram of the rule zbalermorna-plain-full-vowel"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/zbalermorna/plain-vowel.svg" alt="Railroad diagram of the rule plain-vowel"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/zbalermorna/zbalermorna-stressed-full-vowel.svg" alt="Railroad diagram of the rule zbalermorna-stressed-full-vowel"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/zbalermorna/stressed-vowel.svg" alt="Railroad diagram of the rule stressed-vowel"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/zbalermorna/zbalermorna-stress.svg" alt="Railroad diagram of the rule zbalermorna-stress"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/zbalermorna/vowel.svg" alt="Railroad diagram of the rule vowel"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/zbalermorna/non-vowel.svg" alt="Railroad diagram of the rule non-vowel"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/zbalermorna/any-lojban-char.svg" alt="Railroad diagram of the rule any-lojban-char"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/zbalermorna/mark-char.svg" alt="Railroad diagram of the rule mark-char"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/zbalermorna/zbalermorna-stress-mark.svg" alt="Railroad diagram of the rule zbalermorna-stress-mark"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/zbalermorna/zbalermorna-diphthong.svg" alt="Railroad diagram of the rule zbalermorna-diphthong"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/zbalermorna/diphthong-phonemes.svg" alt="Railroad diagram of the rule diphthong-phonemes"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/zbalermorna/zbalermorna-ai.svg" alt="Railroad diagram of the rule zbalermorna-ai"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/zbalermorna/zbalermorna-ei.svg" alt="Railroad diagram of the rule zbalermorna-ei"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/zbalermorna/zbalermorna-oi.svg" alt="Railroad diagram of the rule zbalermorna-oi"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/zbalermorna/zbalermorna-au.svg" alt="Railroad diagram of the rule zbalermorna-au"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/zbalermorna/zbalermorna-stressed-diphthong.svg" alt="Railroad diagram of the rule zbalermorna-stressed-diphthong"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/zbalermorna/stressed-diphthong-phonemes.svg" alt="Railroad diagram of the rule stressed-diphthong-phonemes"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/zbalermorna/zbalermorna-stressed-ai.svg" alt="Railroad diagram of the rule zbalermorna-stressed-ai"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/zbalermorna/zbalermorna-stressed-ei.svg" alt="Railroad diagram of the rule zbalermorna-stressed-ei"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/zbalermorna/zbalermorna-stressed-oi.svg" alt="Railroad diagram of the rule zbalermorna-stressed-oi"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/zbalermorna/zbalermorna-stressed-au.svg" alt="Railroad diagram of the rule zbalermorna-stressed-au"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/zbalermorna/zbalermorna-shorthand.svg" alt="Railroad diagram of the rule zbalermorna-shorthand"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/zbalermorna/zbalermorna-shorthand-vowel.svg" alt="Railroad diagram of the rule zbalermorna-shorthand-vowel"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/zbalermorna/zbalermorna-shorthand-mark.svg" alt="Railroad diagram of the rule zbalermorna-shorthand-mark"></p>
+</details>
 
 ## Two encodings
 

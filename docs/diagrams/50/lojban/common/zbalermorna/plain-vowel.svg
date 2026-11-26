@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="332" height="204" viewBox="0 0 332 204" role="img" aria-label="Railroad diagram of the rule plain-vowel">
+<style>path{fill:none;stroke:#333;stroke-width:1.5}.rule rect{fill:#e8eefc;stroke:#333;stroke-width:1.5}.terminal rect{fill:#fdf6d8;stroke:#333;stroke-width:1.5}text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"DejaVu Sans Mono","Liberation Mono",monospace;font-size:14px;fill:#111;text-anchor:middle}text.label{font-size:12px;font-style:italic;fill:#555;text-anchor:start}text.title{font-weight:bold;text-anchor:start}</style>
+<rect width="100%" height="100%" fill="#fff"/>
+<text class="title" x="10" y="24" textLength="92.4" lengthAdjust="spacingAndGlyphs">plain-vowel</text>
+<path d="M10 38v16m4 -16v16M14 46h6"/>
+<path d="M20 46h20"/>
+<g class="rule"><rect x="40" y="34" width="252" height="24" rx="0"/><text x="166" y="51" textLength="235.2" lengthAdjust="spacingAndGlyphs">zbalermorna-plain-full-vowel</text></g>
+<path d="M292 46H312"/>
+<path d="M20 46a10 10 0 0 1 10 10V70a10 10 0 0 0 10 10"/>
+<path d="M40 80h20"/>
+<g class="terminal"><rect x="60" y="68" width="100" height="24" rx="12"/><text x="110" y="85" textLength="84" lengthAdjust="spacingAndGlyphs">&quot;‹U+EDA5›&quot;</text></g>
+<path d="M160 80H189"/>
+<path d="M40 80a10 10 0 0 1 10 10V104a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="60" y="102" width="109" height="24" rx="12"/><text x="114.5" y="119" textLength="92.4" lengthAdjust="spacingAndGlyphs">&quot;‹U+F28C5›&quot;</text></g>
+<path d="M169 114H169a10 10 0 0 0 10 -10V90a10 10 0 0 1 10 -10"/>
+<path d="M40 80a10 10 0 0 1 10 10V138a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="60" y="136" width="100" height="24" rx="12"/><text x="110" y="153" textLength="84" lengthAdjust="spacingAndGlyphs">&quot;‹U+EDB5›&quot;</text></g>
+<path d="M160 148H169a10 10 0 0 0 10 -10V90a10 10 0 0 1 10 -10"/>
+<path d="M40 80a10 10 0 0 1 10 10V172a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="60" y="170" width="109" height="24" rx="12"/><text x="114.5" y="187" textLength="92.4" lengthAdjust="spacingAndGlyphs">&quot;‹U+F28D5›&quot;</text></g>
+<path d="M169 182H169a10 10 0 0 0 10 -10V90a10 10 0 0 1 10 -10"/>
+<path d="M189 80H292a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M312 46h6m0 -8v16m4 -16v16"/>
+</svg>

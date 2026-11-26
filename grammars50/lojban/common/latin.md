@@ -96,7 +96,8 @@ An ignored character at a pause edge is a comma or a non-breaking format charact
 %emit
 
 %rule punctuation-pause
-  [commas] punctuation [commas] → {PAUSE, Quote-Material, Punctuation-Material, image: $.source-text}
+  [commas] punctuation [commas]
+      → {PAUSE, Quote-Material, Punctuation-Material, image: $.source-text}
 %emit
 
 %redefine-rule pause-edge
@@ -165,6 +166,37 @@ An ignored character at a pause edge is a comma or a non-breaking format charact
   ¬$c.parse(core-char | punctuation-char)
 ```
 
+<details><summary>Railroad diagrams of the 27 rules from <code>pause</code> to <code>run-char</code></summary>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/pause.svg" alt="Railroad diagram of the rule pause"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/text-edge.svg" alt="Railroad diagram of the rule text-edge"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/quiet-pause.svg" alt="Railroad diagram of the rule quiet-pause"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/pause-cores.svg" alt="Railroad diagram of the rule pause-cores"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/left-pause-edge.svg" alt="Railroad diagram of the rule left-pause-edge"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/right-pause-edge.svg" alt="Railroad diagram of the rule right-pause-edge"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/punctuation-edge.svg" alt="Railroad diagram of the rule punctuation-edge"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/final-ignored-edge.svg" alt="Railroad diagram of the rule final-ignored-edge"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/medial-ignored-edge.svg" alt="Railroad diagram of the rule medial-ignored-edge"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/pause-material.svg" alt="Railroad diagram of the rule pause-material"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/pause-core.svg" alt="Railroad diagram of the rule pause-core"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/punctuation-pause.svg" alt="Railroad diagram of the rule punctuation-pause"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/pause-edge.svg" alt="Railroad diagram of the rule pause-edge"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/edge-char.svg" alt="Railroad diagram of the rule edge-char"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/punctuation.svg" alt="Railroad diagram of the rule punctuation"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/punctuation-char.svg" alt="Railroad diagram of the rule punctuation-char"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/other-char.svg" alt="Railroad diagram of the rule other-char"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/non-punctuation-char.svg" alt="Railroad diagram of the rule non-punctuation-char"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/letter-char.svg" alt="Railroad diagram of the rule letter-char"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/mark-char.svg" alt="Railroad diagram of the rule mark-char"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/combining-mark.svg" alt="Railroad diagram of the rule combining-mark"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/digit-char.svg" alt="Railroad diagram of the rule digit-char"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/commas.svg" alt="Railroad diagram of the rule commas"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/edge-char.2.svg" alt="Railroad diagram of the rule edge-char"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/any-lojban-char.svg" alt="Railroad diagram of the rule any-lojban-char"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/format-char.svg" alt="Railroad diagram of the rule format-char"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/breaking-format-char.svg" alt="Railroad diagram of the rule breaking-format-char"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/run-char.svg" alt="Railroad diagram of the rule run-char"></p>
+</details>
+
 ## The comma
 
 The stage ignores a comma between vowels, as it does between other letters. It creates no syllable break. The vowels on either side are one vowel group, as if they stood side by side. `me,iin` is `meiin`, and the Cyrillic `ма,и` is `ma'i`, as `маи` is. This document redefines `letters-after-vowel` without the `syllable-break` of [../cll/latin.md](../cll/latin.md). So nothing reads `syllable-break` in these pipelines.
@@ -182,6 +214,12 @@ The stage ignores a comma between vowels, as it does between other letters. It c
   vowel-group-with(@V)<Syllabic> commas $v:joined-vowel-with(@V)<Syllabic> → {*$v.flags}
 ```
 
+<details><summary>Railroad diagrams of the 3 rules from <code>letters-after-vowel</code> to <code>vowel-group-joined-with</code></summary>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/letters-after-vowel.svg" alt="Railroad diagram of the rule letters-after-vowel"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/vowel-group-plain-with.svg" alt="Railroad diagram of the rule vowel-group-plain-with"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/vowel-group-joined-with.svg" alt="Railroad diagram of the rule vowel-group-joined-with"></p>
+</details>
+
 ## The apostrophe
 
 The rule reads `h` and `H` as the apostrophe. A selma'o is a class of Lojban particles. Selma'o names such as KOhA use this spelling.
@@ -191,6 +229,10 @@ The rule reads `h` and `H` as the apostrophe. A selma'o is a class of Lojban par
   ("h" | "H") → {image: value: "'"}
 %emit
 ```
+
+<details><summary>Railroad diagram of <code>apostrophe</code></summary>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/apostrophe.svg" alt="Railroad diagram of the rule apostrophe"></p>
+</details>
 
 ## Capital runs
 
@@ -261,6 +303,23 @@ The `Vowel` tag marks the five full vowels `a`, `e`, `i`, `o` and `u`, and it do
 %emit
 ```
 
+<details><summary>Railroad diagrams of the 14 rules from <code>run</code> to <code>folded-vowel</code></summary>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/run.svg" alt="Railroad diagram of the rule run"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/ordinary-run.svg" alt="Railroad diagram of the rule ordinary-run"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/capital-run.svg" alt="Railroad diagram of the rule capital-run"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/capital-shape.svg" alt="Railroad diagram of the rule capital-shape"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/capital-groups.svg" alt="Railroad diagram of the rule capital-groups"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/capital-separator.svg" alt="Railroad diagram of the rule capital-separator"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/capital-non-vowels.svg" alt="Railroad diagram of the rule capital-non-vowels"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/capital-non-vowel.svg" alt="Railroad diagram of the rule capital-non-vowel"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/folded-vowel-group.svg" alt="Railroad diagram of the rule folded-vowel-group"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/folded-vowel-group-plain.svg" alt="Railroad diagram of the rule folded-vowel-group-plain"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/folded-vowel-group-joined.svg" alt="Railroad diagram of the rule folded-vowel-group-joined"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/joined-folded-vowel.svg" alt="Railroad diagram of the rule joined-folded-vowel"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/folded-full-vowel.svg" alt="Railroad diagram of the rule folded-full-vowel"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/folded-vowel.svg" alt="Railroad diagram of the rule folded-vowel"></p>
+</details>
+
 ## Accents and breves
 
 A vowel with an acute or a grave accent is the stressed phoneme, as a capital vowel is. A breve on `i`, `u`, `I` or `U` marks a glide in some texts. The word grammar finds a glide by its position, so the stage emits the letter plain. Stage zero gives a precomposed letter as its base and its marks.
@@ -293,6 +352,14 @@ The `Vowel` tag marks the five full vowels and not `y`, so `accented-full-vowel`
 %rule glide-mark
   "‹U+0306›"
 ```
+
+<details><summary>Railroad diagrams of the 5 rules from <code>plain-vowel</code> to <code>glide-mark</code></summary>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/plain-vowel.svg" alt="Railroad diagram of the rule plain-vowel"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/accented-full-vowel.svg" alt="Railroad diagram of the rule accented-full-vowel"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/stressed-vowel.svg" alt="Railroad diagram of the rule stressed-vowel"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/stress-mark.svg" alt="Railroad diagram of the rule stress-mark"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/glide-mark.svg" alt="Railroad diagram of the rule glide-mark"></p>
+</details>
 
 ## Digits
 
@@ -365,6 +432,28 @@ A period between two digits is the decimal point in a foreign run too, so it bel
 
 %rule decimal-point = digit-phonemes(".", = "p", = "i")
 ```
+
+<details><summary>Railroad diagrams of the 19 rules from <code>items</code> to <code>decimal-point</code></summary>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/items.svg" alt="Railroad diagram of the rule items"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/non-vowel.svg" alt="Railroad diagram of the rule non-vowel"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/non-vowels.svg" alt="Railroad diagram of the rule non-vowels"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/any-lojban-char.2.svg" alt="Railroad diagram of the rule any-lojban-char"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/lojban-chars.svg" alt="Railroad diagram of the rule lojban-chars"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/chars-with-non-lojban-char.svg" alt="Railroad diagram of the rule chars-with-non-lojban-char"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/digit.svg" alt="Railroad diagram of the rule digit"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/digit-phonemes.svg" alt="Railroad diagram of the rule digit-phonemes"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/digit-0.svg" alt="Railroad diagram of the rule digit-0"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/digit-1.svg" alt="Railroad diagram of the rule digit-1"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/digit-2.svg" alt="Railroad diagram of the rule digit-2"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/digit-3.svg" alt="Railroad diagram of the rule digit-3"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/digit-4.svg" alt="Railroad diagram of the rule digit-4"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/digit-5.svg" alt="Railroad diagram of the rule digit-5"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/digit-6.svg" alt="Railroad diagram of the rule digit-6"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/digit-7.svg" alt="Railroad diagram of the rule digit-7"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/digit-8.svg" alt="Railroad diagram of the rule digit-8"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/digit-9.svg" alt="Railroad diagram of the rule digit-9"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/decimal-point.svg" alt="Railroad diagram of the rule decimal-point"></p>
+</details>
 
 ## Differences from CLL and the reference PEG
 

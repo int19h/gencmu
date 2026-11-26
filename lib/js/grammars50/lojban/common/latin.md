@@ -1,0 +1,484 @@
+# Latin conventions
+
+This document adds to [../cll/latin.md](../cll/latin.md) the conventions that Lojban texts use beyond *The Complete Lojban Language* (CLL), edition 1.1.[^cll-c3] Both documents belong to the phoneme stage, the first stage of the pipeline. The [BPFK](../bpfk/pipeline.md) pipeline reads this document after [../cll/latin.md](../cll/latin.md). The experimental and Zantufa pipelines in `grammars/lojban/` read the same conventions. BPFK is the Lojban language planning committee. The [CLL](../cll/pipeline.md) pipeline does not. [The notation document](../../../docs/notation.md) explains the notation.
+
+A token is one unit that a stage reads or emits. A token's value is the string that exact comparisons read. Its image is the string that people see.
+
+Most conventions here admit spellings that [../cll/latin.md](../cll/latin.md) rejects. Three change existing readings: a comma between vowels, a capital run, and material preserved between pauses. A capital run has multiple vowel groups with only capital vowels. A material token preserves punctuation or ignored text within a pause. The conventions are these:
+
+- Punctuation other than the period and the comma is a pause.
+- A comma between two vowels is nothing, as it is elsewhere.
+- `h` writes the apostrophe.
+- A capital run carries no stress mark except its accents.
+- An accent marks stress, and a breve marks a glide. A breve is the U+0306 mark. A glide is `i` or `u` before a vowel in one syllable.
+- A digit stands for its number word.
+
+## Punctuation
+
+A punctuation character is a pause when no letter, vowel or apostrophe rule reads it, as the next paragraph defines. Texts put quotation marks, brackets and dashes around words, so `mi "klama"` reads as `mi klama`.
+
+Stage-zero tokens store Unicode category and whitespace tags. The rule `other-char` uses `_` and excludes letters, marks, digits and whitespace. A letter is a character of the Unicode property `L`. A mark is a combining mark of category M, or the stress mark or the shorthand of [zbalermorna.md](zbalermorna.md). A digit is `0` to `9`, and whitespace is a character of the property White_Space. A punctuation character is such a character that no rule of `any-lojban-char` or `core-char` reads by itself.
+
+A quiet pause contains only whitespace characters and periods. It emits one `PAUSE` token with value `" "`. The core keeps the period tags of [../cll/latin.md](../cll/latin.md). Quote boundaries can therefore read the period classification of each script.
+
+Punctuation beside a quiet pause emits a separate token tagged `PAUSE` and `Quote-Material`. Separate ignored stretches use these tags too. `Punctuation-Material` marks a stretch with visible punctuation rather than ignored characters.
+
+A material token's value is the default join of its characters, as stage zero decomposed them. That join is the decomposed source text. Its image is the source text as written, because a person reads the characters composed. For example, `≠` decomposes to `=` and U+0338, and the image keeps `≠`.
+
+The stage publishes `Quote-Material` and `Punctuation-Material`, which these rules write. So the interface of the stage names every key that its rules write.
+
+Punctuation between letters also emits such a token, as in `klama!do`. Outside quotes, all these tokens still act as pauses.
+
+Quotes read `Quote-Material` as body text. Thus `zoi gy. !!! .gy.` keeps `!!!`. In `lojban/experimental`, `zo'oi :)` also quotes `:)`.
+
+A format character, of Unicode category Cf, is nothing, as a comma is. It is invisible, so a soft hyphen or a joiner inside a word does not split it. There are two exceptions, which are pauses. The zero-width space U+200B stands between words. The number signs of Arabic, Syriac and Kaithi are visible, as other punctuation is. Their code points are those of the Unicode property Prepended_Concatenation_Mark.
+
+The rule `breaking-format-char` lists these code points instead of naming the property. Thus the pipelines need only the core properties, and they also work with a custom Unicode table.
+
+The `format-char` rule keeps non-breaking format characters separate from the written comma in the tree. The foreign-run reader tests `commas` at each edge, including a single format character.
+
+An ignored character at a pause edge is a comma or a non-breaking format character. Beside a word, an ignored-only edge stays uncovered. A quoted word can therefore keep that edge through its verbatim image. Between quiet cores, or after a quiet core at the end of the text, a material token keeps an ignored-only stretch.
+
+```jbogenbau
+%redefine-const $OUTPUTS {
+  *$OUTPUTS,
+  Quote-Material,
+  Punctuation-Material
+}
+
+%redefine-rule pause
+  quiet-pause | punctuation-pause
+
+%redefine-rule text-edge
+  pause | commas
+
+%redefine-rule quiet-pause
+  [left-pause-edge] pause-cores [right-pause-edge]
+
+%rule pause-cores
+  | pause-core
+  | pause-cores pause-material pause-core
+
+%rule left-pause-edge
+  punctuation-edge | commas
+
+%rule right-pause-edge
+  punctuation-edge | final-ignored-edge | medial-ignored-edge
+
+%rule punctuation-edge
+  $e:pause-edge → {PAUSE, Quote-Material, Punctuation-Material, image: $.source-text}
+%conditions
+  ¬$e.parse(commas)
+%emit
+
+%rule final-ignored-edge
+  commas → {PAUSE, Quote-Material, image: $.source-text}
+%conditions
+  $.ends-input
+%emit
+
+%rule medial-ignored-edge
+  commas
+%conditions
+  ¬$.ends-input
+
+%rule pause-material
+  pause-edge
+      → {PAUSE, Quote-Material, ¬$.parse(commas)? Punctuation-Material, image: $.source-text}
+%emit
+
+%redefine-rule pause-core
+  {core-char}
+      → {PAUSE,
+         $.first-token.parse(period-char)? Period-Initial,
+         $.parse(period-core)? Period-Only,
+         image: value: " "}
+%emit
+
+%rule punctuation-pause
+  [commas] punctuation [commas]
+      → {PAUSE, Quote-Material, Punctuation-Material, image: $.source-text}
+%emit
+
+%redefine-rule pause-edge
+  edge-char | pause-edge edge-char
+
+%rule edge-char
+  comma | punctuation-char
+
+%rule punctuation
+  punctuation-char | punctuation punctuation-char | punctuation commas punctuation-char
+
+%rule punctuation-char
+  $c:other-char [{combining-mark}]
+%conditions
+  ¬$c.parse(any-lojban-char | core-char),
+  ¬$.following-tokens.parse(combining-mark …)
+
+%rule other-char
+  $c:_
+%conditions
+  ¬$c.parse(non-punctuation-char)
+
+%rule non-punctuation-char
+  letter-char | mark-char | digit-char | space-char
+
+%rule letter-char
+  _General_Category_Letter
+
+%rule mark-char
+  combining-mark
+
+%rule combining-mark
+  _General_Category_Mark
+
+%rule digit-char
+  "0".."9"
+
+%extend-rule commas
+  | format-char
+  | commas format-char
+
+%extend-rule edge-char
+  format-char
+
+%extend-rule any-lojban-char
+  format-char
+
+%rule format-char
+  $c:_General_Category_Format
+%conditions
+  ¬$c.parse(breaking-format-char)
+
+-- A format character that breaks a run is one of these code points.
+
+%rule breaking-format-char
+  | "‹U+200B›"
+  | "‹U+0600›".."‹U+0605›"
+  | "‹U+06DD›" | "‹U+070F›"
+  | "‹U+0890›".."‹U+0891›"
+  | "‹U+08E2›"
+  | "‹U+110BD›" | "‹U+110CD›"
+
+%redefine-rule run-char
+  $c:_
+%conditions
+  ¬$c.parse(core-char | punctuation-char)
+```
+
+<details><summary>Railroad diagrams of the 27 rules from <code>pause</code> to <code>run-char</code></summary>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/pause.svg" alt="Railroad diagram of the rule pause"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/text-edge.svg" alt="Railroad diagram of the rule text-edge"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/quiet-pause.svg" alt="Railroad diagram of the rule quiet-pause"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/pause-cores.svg" alt="Railroad diagram of the rule pause-cores"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/left-pause-edge.svg" alt="Railroad diagram of the rule left-pause-edge"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/right-pause-edge.svg" alt="Railroad diagram of the rule right-pause-edge"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/punctuation-edge.svg" alt="Railroad diagram of the rule punctuation-edge"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/final-ignored-edge.svg" alt="Railroad diagram of the rule final-ignored-edge"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/medial-ignored-edge.svg" alt="Railroad diagram of the rule medial-ignored-edge"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/pause-material.svg" alt="Railroad diagram of the rule pause-material"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/pause-core.svg" alt="Railroad diagram of the rule pause-core"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/punctuation-pause.svg" alt="Railroad diagram of the rule punctuation-pause"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/pause-edge.svg" alt="Railroad diagram of the rule pause-edge"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/edge-char.svg" alt="Railroad diagram of the rule edge-char"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/punctuation.svg" alt="Railroad diagram of the rule punctuation"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/punctuation-char.svg" alt="Railroad diagram of the rule punctuation-char"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/other-char.svg" alt="Railroad diagram of the rule other-char"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/non-punctuation-char.svg" alt="Railroad diagram of the rule non-punctuation-char"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/letter-char.svg" alt="Railroad diagram of the rule letter-char"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/mark-char.svg" alt="Railroad diagram of the rule mark-char"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/combining-mark.svg" alt="Railroad diagram of the rule combining-mark"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/digit-char.svg" alt="Railroad diagram of the rule digit-char"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/commas.svg" alt="Railroad diagram of the rule commas"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/edge-char.2.svg" alt="Railroad diagram of the rule edge-char"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/any-lojban-char.svg" alt="Railroad diagram of the rule any-lojban-char"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/format-char.svg" alt="Railroad diagram of the rule format-char"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/breaking-format-char.svg" alt="Railroad diagram of the rule breaking-format-char"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/run-char.svg" alt="Railroad diagram of the rule run-char"></p>
+</details>
+
+## The comma
+
+The stage ignores a comma between vowels, as it does between other letters. It creates no syllable break. The vowels on either side are one vowel group, as if they stood side by side. `me,iin` is `meiin`, and the Cyrillic `ма,и` is `ma'i`, as `маи` is. This document redefines `letters-after-vowel` without the `syllable-break` of [../cll/latin.md](../cll/latin.md). So nothing reads `syllable-break` in these pipelines.
+
+```jbogenbau
+%redefine-rule letters-after-vowel
+  | vowel-group
+  | letters-after-consonant [commas] vowel-group
+
+%extend-rule vowel-group-plain-with(@V) → {*$v.flags}
+  | vowel-group-with(@V)<¬Syllabic> commas $v:@V
+  | vowel-group-with(@V)<Syllabic> commas $v:@V<¬Syllabic>
+
+%extend-rule vowel-group-joined-with(@V)
+  vowel-group-with(@V)<Syllabic> commas $v:joined-vowel-with(@V)<Syllabic> → {*$v.flags}
+```
+
+<details><summary>Railroad diagrams of the 3 rules from <code>letters-after-vowel</code> to <code>vowel-group-joined-with</code></summary>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/letters-after-vowel.svg" alt="Railroad diagram of the rule letters-after-vowel"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/vowel-group-plain-with.svg" alt="Railroad diagram of the rule vowel-group-plain-with"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/vowel-group-joined-with.svg" alt="Railroad diagram of the rule vowel-group-joined-with"></p>
+</details>
+
+## The apostrophe
+
+The rule reads `h` and `H` as the apostrophe. A selma'o is a class of Lojban particles. Selma'o names such as KOhA use this spelling.
+
+```jbogenbau
+%extend-rule apostrophe
+  ("h" | "H") → {image: value: "'"}
+%emit
+```
+
+<details><summary>Railroad diagram of <code>apostrophe</code></summary>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/apostrophe.svg" alt="Railroad diagram of the rule apostrophe"></p>
+</details>
+
+## Capital runs
+
+A run in which every vowel is a capital carries no stress mark, and the stage reads its vowels as plain vowels. A title or a shout is often written all in capitals, and its capitals do not mark stress. The run must have at least two vowel groups. So a name with one stressed syllable in capitals keeps its stress mark: `.DJORdj.` keeps its stress on `o`. The cost is that the stage reads a word of one vowel group, written in capitals, as stressed: in the text `MI KLAMA`, `MI` is `mI`.
+
+An accent on a capital still marks stress there, and the other capitals fold. So `KLÁMA` is `klAma`. An accent is written on purpose, while a title in capitals marks no stress. A capital glide, `Ĭ` or `Ŭ`, folds to its plain vowel, as the capital Cyrillic glides do.
+
+`capital-shape` is that shape: its non-vowels and its capital vowels, written out so that two groups are required. Non-vowels stand between every two groups, so the rules never split adjacent vowels into separate groups. `capital-non-vowels` reads a decimal point between two digits, as `non-vowels` does in an ordinary run (see "Digits"). So `MI2.3KLAMA` is a capital run. `capital-non-vowels` does not reuse `non-vowels`, because other scripts extend `non-vowel` with forms that hold a vowel. Forms such as the zbalermorna shorthand keep a run from folding.
+
+`capital-run` reads that shape with every vowel folded. An ordinary run is any other run of letters, which the condition states by exclusion. In an ordinary run, a capital vowel marks stress. Every capital run matches `letters`, so the `letters` exclusion in `non-lojban-char-run` also excludes capital runs.
+
+The `Vowel` tag marks the five full vowels `a`, `e`, `i`, `o` and `u`, and it does not mark `y`. So `folded-full-vowel` holds the full vowels and carries `Vowel` on its header, and `folded-vowel` adds the two `y` forms. The first alternative of `folded-vowel` marks the full vowel as its primary, so the node keeps the vowel's strings and tags.
+
+```jbogenbau
+%extend-rule run
+  capital-run
+
+%redefine-rule ordinary-run
+  $r:letters
+%conditions
+  ¬$r.parse(capital-shape)
+
+%rule capital-run
+  capital-shape
+
+%rule capital-shape
+  [capital-non-vowels [commas]] capital-groups [[commas] capital-non-vowels]
+
+%rule capital-groups
+  | folded-vowel-group capital-separator folded-vowel-group
+  | capital-groups capital-separator folded-vowel-group
+
+%rule capital-separator
+  [commas] capital-non-vowels [commas]
+
+%rule capital-non-vowels
+  | capital-non-vowel
+  | capital-non-vowels capital-non-vowel
+  | capital-non-vowels commas capital-non-vowel
+  | $c:capital-non-vowels decimal-point digit
+%conditions
+  $c.last-token.parse(digit)
+
+%rule capital-non-vowel
+  consonant | digit | apostrophe
+
+%rule folded-vowel-group = vowel-group-with(folded-vowel)
+%rule folded-vowel-group-plain = vowel-group-plain-with(folded-vowel)
+%rule folded-vowel-group-joined = vowel-group-joined-with(folded-vowel)
+%rule joined-folded-vowel = joined-vowel-with(folded-vowel)
+
+%rule folded-full-vowel → {Vowel}
+  | "A" → {image: value: "a"}
+  | "E" → {image: value: "e"}
+  | "I" [glide-mark] → {image: value: "i"}
+  | "O" → {image: value: "o"}
+  | "U" [glide-mark] → {image: value: "u"}
+  | "A" stress-mark → {Stressed, value: "a", image: "A"}
+  | "E" stress-mark → {Stressed, value: "e", image: "E"}
+  | "I" stress-mark → {Stressed, value: "i", image: "I"}
+  | "O" stress-mark → {Stressed, value: "o", image: "O"}
+  | "U" stress-mark → {Stressed, value: "u", image: "U"}
+
+%rule folded-vowel
+  | ^folded-full-vowel
+  | "Y" → {image: value: "y"}
+  | "Y" stress-mark → {Stressed, value: "y", image: "Y"}
+%emit
+```
+
+<details><summary>Railroad diagrams of the 14 rules from <code>run</code> to <code>folded-vowel</code></summary>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/run.svg" alt="Railroad diagram of the rule run"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/ordinary-run.svg" alt="Railroad diagram of the rule ordinary-run"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/capital-run.svg" alt="Railroad diagram of the rule capital-run"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/capital-shape.svg" alt="Railroad diagram of the rule capital-shape"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/capital-groups.svg" alt="Railroad diagram of the rule capital-groups"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/capital-separator.svg" alt="Railroad diagram of the rule capital-separator"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/capital-non-vowels.svg" alt="Railroad diagram of the rule capital-non-vowels"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/capital-non-vowel.svg" alt="Railroad diagram of the rule capital-non-vowel"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/folded-vowel-group.svg" alt="Railroad diagram of the rule folded-vowel-group"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/folded-vowel-group-plain.svg" alt="Railroad diagram of the rule folded-vowel-group-plain"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/folded-vowel-group-joined.svg" alt="Railroad diagram of the rule folded-vowel-group-joined"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/joined-folded-vowel.svg" alt="Railroad diagram of the rule joined-folded-vowel"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/folded-full-vowel.svg" alt="Railroad diagram of the rule folded-full-vowel"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/folded-vowel.svg" alt="Railroad diagram of the rule folded-vowel"></p>
+</details>
+
+## Accents and breves
+
+A vowel with an acute or a grave accent is the stressed phoneme, as a capital vowel is. A breve on `i`, `u`, `I` or `U` marks a glide in some texts. The word grammar finds a glide by its position, so the stage emits the letter plain. Stage zero gives a precomposed letter as its base and its marks.
+
+A combining mark that no letter rule takes makes its run foreign, whatever its category. So in `lojban/bpfk` and `lojban/zantufa`, `mï` and `mi` followed by U+093E are foreign. The experimental layer reads both marks ([../experimental/latin.md](../experimental/latin.md)).
+
+The `Vowel` tag marks the five full vowels and not `y`, so `accented-full-vowel` holds the stressed full vowels and carries `Vowel` on its header. The stressed `y` form stays in `stressed-vowel`.
+
+```jbogenbau
+%extend-rule plain-vowel → {Vowel}
+  | ("i" | "I") glide-mark → {image: value: "i"}
+  | ("u" | "U") glide-mark → {image: value: "u"}
+%emit
+
+%rule accented-full-vowel → {Vowel}
+  | ("a" | "A") stress-mark → {value: "a", image: "A"}
+  | ("e" | "E") stress-mark → {value: "e", image: "E"}
+  | ("i" | "I") stress-mark → {value: "i", image: "I"}
+  | ("o" | "O") stress-mark → {value: "o", image: "O"}
+  | ("u" | "U") stress-mark → {value: "u", image: "U"}
+
+%extend-rule stressed-vowel → {Stressed}
+  | ^accented-full-vowel
+  | ("y" | "Y") stress-mark → {value: "y", image: "Y"}
+%emit
+
+%rule stress-mark
+  "‹U+0301›" | "‹U+0300›"
+
+%rule glide-mark
+  "‹U+0306›"
+```
+
+<details><summary>Railroad diagrams of the 5 rules from <code>plain-vowel</code> to <code>glide-mark</code></summary>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/plain-vowel.svg" alt="Railroad diagram of the rule plain-vowel"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/accented-full-vowel.svg" alt="Railroad diagram of the rule accented-full-vowel"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/stressed-vowel.svg" alt="Railroad diagram of the rule stressed-vowel"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/stress-mark.svg" alt="Railroad diagram of the rule stress-mark"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/glide-mark.svg" alt="Railroad diagram of the rule glide-mark"></p>
+</details>
+
+## Digits
+
+Each digit emits the letters of its number word, so `2` is `re`. The first token is a projection over the character. The stage inserts the second token at the end of that span, with empty source and text. It names the digit rule in `insertedBy`. Their values and images spell the number word.
+
+The `digit-phonemes` template takes a character and two output strings, which the calls pass as marked expressions, as `= "r"`. The named instances keep each digit rule and the decimal-point rule as the `insertedBy` rule.
+
+A single period between two digits is the decimal point, `pi`. The decimal point needs a digit before it, so `la .djan.2mei` has a pause after `djan`.
+
+The `items` condition tests the pause span with `decimal-point`. Commas prevent that match, so `2,.3`, `2.,3` and `2,.,3` each contain a pause between the digit words.
+
+A period between two digits is the decimal point in a foreign run too, so it belongs to the run. So `zoi gy. 3.0w .gy.` quotes the run `3.0w`. A period with something else beside it is still a pause, so `3.w` holds a pause.
+
+```jbogenbau
+%redefine-rule items
+  | run
+  | $i:items $p:pause $r:run
+%conditions
+  ¬$i.last-token.parse(digit) ∨ ¬$p.parse(decimal-point) ∨ ¬$r.first-token.parse(digit)
+
+%extend-rule non-vowel
+  digit
+
+%extend-rule non-vowels
+  $n:non-vowels decimal-point digit
+%conditions
+  $n.last-token.parse(digit)
+
+%extend-rule any-lojban-char
+  digit
+
+%extend-rule lojban-chars
+  $c:lojban-chars "." digit-char
+%conditions
+  $c.last-token.parse(digit-char)
+
+%extend-rule chars-with-non-lojban-char
+  $c:chars-with-non-lojban-char "." digit-char
+%conditions
+  $c.last-token.parse(digit-char)
+
+%rule digit
+  digit-0 | digit-1 | digit-2 | digit-3 | digit-4 | digit-5 | digit-6 | digit-7 | digit-8 | digit-9
+
+%rule digit-phonemes(@C, @A, @B)
+  @C
+%emit
+  ${Consonant, image: value: @A},
+  ε{Vowel, image: value: @B}
+
+%rule digit-0 = digit-phonemes("0", = "n", = "o")
+
+%rule digit-1 = digit-phonemes("1", = "p", = "a")
+
+%rule digit-2 = digit-phonemes("2", = "r", = "e")
+
+%rule digit-3 = digit-phonemes("3", = "c", = "i")
+
+%rule digit-4 = digit-phonemes("4", = "v", = "o")
+
+%rule digit-5 = digit-phonemes("5", = "m", = "u")
+
+%rule digit-6 = digit-phonemes("6", = "x", = "a")
+
+%rule digit-7 = digit-phonemes("7", = "z", = "e")
+
+%rule digit-8 = digit-phonemes("8", = "b", = "i")
+
+%rule digit-9 = digit-phonemes("9", = "s", = "o")
+
+%rule decimal-point = digit-phonemes(".", = "p", = "i")
+```
+
+<details><summary>Railroad diagrams of the 19 rules from <code>items</code> to <code>decimal-point</code></summary>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/items.svg" alt="Railroad diagram of the rule items"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/non-vowel.svg" alt="Railroad diagram of the rule non-vowel"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/non-vowels.svg" alt="Railroad diagram of the rule non-vowels"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/any-lojban-char.2.svg" alt="Railroad diagram of the rule any-lojban-char"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/lojban-chars.svg" alt="Railroad diagram of the rule lojban-chars"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/chars-with-non-lojban-char.svg" alt="Railroad diagram of the rule chars-with-non-lojban-char"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/digit.svg" alt="Railroad diagram of the rule digit"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/digit-phonemes.svg" alt="Railroad diagram of the rule digit-phonemes"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/digit-0.svg" alt="Railroad diagram of the rule digit-0"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/digit-1.svg" alt="Railroad diagram of the rule digit-1"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/digit-2.svg" alt="Railroad diagram of the rule digit-2"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/digit-3.svg" alt="Railroad diagram of the rule digit-3"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/digit-4.svg" alt="Railroad diagram of the rule digit-4"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/digit-5.svg" alt="Railroad diagram of the rule digit-5"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/digit-6.svg" alt="Railroad diagram of the rule digit-6"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/digit-7.svg" alt="Railroad diagram of the rule digit-7"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/digit-8.svg" alt="Railroad diagram of the rule digit-8"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/digit-9.svg" alt="Railroad diagram of the rule digit-9"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/latin/decimal-point.svg" alt="Railroad diagram of the rule decimal-point"></p>
+</details>
+
+## Differences from CLL and the reference PEG
+
+The reference PEG is the morphology in [camxes.peg](https://github.com/lojban/ilmentufa/blob/778ea138f7d150121ca722db7536ce3b123943ac/camxes.peg). These conventions extend CLL's Latin orthography. Most admit spellings that CLL does not describe. Commas between vowels, capital runs and material preserved between pauses change readings that [../cll/latin.md](../cll/latin.md) also permits.
+
+The PEG's pauses are the space, tab, line feed and carriage return, and the characters `.`, `?` and `!` (its rule `space_char`). This document reads every Unicode `White_Space` character and other punctuation as a pause too. So it reads a no-break space between two words as a pause, which the PEG rejects. It also accepts `mi "klama"`, which the PEG rejects. Both read `jy?,sai` as `jy` and `sai`.
+
+camxes-std, the standard grammar of the camxes parser, also reads `zoi gy. !!! .gy.` as an empty quote because `!` is space. This stage preserves the punctuation as material, so the words stage can keep it inside a quote.
+
+The PEG ignores commas through `comma*` in each letter rule. This document follows that treatment even between vowels. Strict CLL instead uses a comma there as a syllable break.
+
+CLL does not use `h` for the apostrophe. The PEG accepts lowercase `h` through `h <- comma* ['h] &nucleus`. This document also reads capital `H` as an apostrophe, so `koHa` is `ko'a`, which the PEG rejects.
+
+CLL does not define capital folding, accented vowels or breve glides. The PEG lacks these conventions too, and marks stress only with capital `A`, `E`, `I`, `O` and `U`. This document accepts those conventions, so it reads `KLAMA` as `klama`, while camxes-std rejects it. Capital folding supports titles and shouts, while requiring two vowel groups preserves stress in names with one capital syllable.
+
+PA is the number selma'o. The PEG reads digits directly as PA words and also permits them inside names. This stage emits their letters instead. CLL does not write digits. A period between digits emits `pi` rather than a pause.
+
+## Differences from the format 49 grammar
+
+The format 49 copy of this document is `grammars/lojban/common/latin.md`. Both copies hand on the same tokens, with the same strings and tags.
+
+The material rules write their tags on their nodes, and each node is its token. The format 49 copy writes them on the emitted token alone. No rule of the stage reads these tags on a node.
+
+The value of a material token is the default join of its characters. The format 49 copy writes the decomposed source text, which is the same string.
+
+The stage interface names `Quote-Material` and `Punctuation-Material`. The format 49 copy has no interface, and its tokens carry these tags anyway.
+
+[^cll-c3]: [CLL 1.1, chapter 3](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/chapter-phonology.html).

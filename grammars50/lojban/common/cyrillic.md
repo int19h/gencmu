@@ -45,6 +45,12 @@ The rules map Cyrillic letters to their Lojban phonemes. The consonant mappings 
   "ӏ" | "Ӏ"
 ```
 
+<details><summary>Railroad diagrams of the 3 rules from <code>cyrillic-consonant</code> to <code>cyrillic-period</code></summary>
+<p><img src="../../../docs/diagrams/50/lojban/common/cyrillic/cyrillic-consonant.svg" alt="Railroad diagram of the rule cyrillic-consonant"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/cyrillic/cyrillic-apostrophe.svg" alt="Railroad diagram of the rule cyrillic-apostrophe"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/cyrillic/cyrillic-period.svg" alt="Railroad diagram of the rule cyrillic-period"></p>
+</details>
+
 Two adjacent full Cyrillic vowel letters form two syllables, so `аи` is `a'i` and `аъ` is `a'y`. The orthography writes a diphthong with the short forms `й` and `ў`, so `ай` is `ai` and `йъ` is `iy`.
 
 So each full vowel letter, `ъ` and the other `y` letters included, carries the tag `Syllabic`. The vowel-group rules of [../cll/latin.md](../cll/latin.md) read that tag. The stage inserts an apostrophe between adjacent syllabic vowels. `й`, `ј` and `ў`, the glides, carry no such tag, and they join the vowel beside them into a diphthong.
@@ -117,6 +123,17 @@ Each letter rule writes its two strings in its term, so a token has the phoneme 
 %emit
 ```
 
+<details><summary>Railroad diagrams of the 8 rules from <code>cyrillic-plain-full-vowel</code> to <code>cyrillic-folded-vowel</code></summary>
+<p><img src="../../../docs/diagrams/50/lojban/common/cyrillic/cyrillic-plain-full-vowel.svg" alt="Railroad diagram of the rule cyrillic-plain-full-vowel"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/cyrillic/cyrillic-plain-glide.svg" alt="Railroad diagram of the rule cyrillic-plain-glide"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/cyrillic/cyrillic-plain-vowel.svg" alt="Railroad diagram of the rule cyrillic-plain-vowel"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/cyrillic/cyrillic-stressed-full-vowel.svg" alt="Railroad diagram of the rule cyrillic-stressed-full-vowel"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/cyrillic/cyrillic-stressed-vowel.svg" alt="Railroad diagram of the rule cyrillic-stressed-vowel"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/cyrillic/cyrillic-folded-full-vowel.svg" alt="Railroad diagram of the rule cyrillic-folded-full-vowel"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/cyrillic/cyrillic-folded-glide.svg" alt="Railroad diagram of the rule cyrillic-folded-glide"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/cyrillic/cyrillic-folded-vowel.svg" alt="Railroad diagram of the rule cyrillic-folded-vowel"></p>
+</details>
+
 The feature `cll-cyrillic` selects which Cyrillic rules apply. A feature is a named switch that the grammars test. The letters of this document apply while `cll-cyrillic` is off.
 
 ```jbogenbau
@@ -138,6 +155,15 @@ The feature `cll-cyrillic` selects which Cyrillic rules apply. A feature is a na
 %extend-rule folded-vowel
   ¬cll-cyrillic? cyrillic-folded-vowel
 ```
+
+<details><summary>Railroad diagrams of the 6 rules from <code>consonant</code> to <code>folded-vowel</code></summary>
+<p><img src="../../../docs/diagrams/50/lojban/common/cyrillic/consonant.svg" alt="Railroad diagram of the rule consonant"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/cyrillic/apostrophe.svg" alt="Railroad diagram of the rule apostrophe"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/cyrillic/core-char.svg" alt="Railroad diagram of the rule core-char"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/cyrillic/plain-vowel.svg" alt="Railroad diagram of the rule plain-vowel"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/cyrillic/stressed-vowel.svg" alt="Railroad diagram of the rule stressed-vowel"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/cyrillic/folded-vowel.svg" alt="Railroad diagram of the rule folded-vowel"></p>
+</details>
 
 ## Differences from CLL
 
