@@ -129,7 +129,7 @@ Spacing and skipped regions reject surviving punctuation before the word `zei`, 
 
 `$MATERIAL` names `Quote-Material` and `Punctuation-Material`. It is the material that can survive in a gap, as quoted material or as visible punctuation. `$GAP-MARKS` adds `Gap-Pause` to it. A gap rule copies only these keys from its parts.
 
-A quiet pause carries only a spacing boundary, and its value is one space. A material pause preserves punctuation or ignored text, and its value is the decomposed text of the mark. `$PAUSE` names the one space. Each gap rule writes `$PAUSE` itself, so a material pause in a gap adds one space, whatever its text.
+A quiet pause carries only a spacing boundary, and its value is one space. A material pause preserves punctuation or ignored text, and its value is the decomposed text of the mark. `$PAUSE` names the one space. A gap that supplies a separator writes `$PAUSE` itself. So a material pause in such a gap adds one space, whatever its text. A wrapper, such as `word-gap` or `zei-right-gap`, keeps the strings of its child gap. A quiet gap and `suppressed-gap` add an empty string.
 
 An optional part, such as the hesitations of `spacing`, is a list of zero or one node. A gap rule joins the keys of each such list with `.union`.
 
@@ -461,7 +461,7 @@ Ordinary compounds cannot become delimiters because the marker reads the delimit
 
 `delimiter-body-gap` reads the boundary after the opening delimiter. A marked opening delimiter can place its closing mark across a period-only pause. A period-only pause carries `Period-Only` from the phoneme grammar. It contains no whitespace or ignored characters. The first whitespace ends that opening edge. Separate material stretches remain in the raw body.
 
-`close-gap` reads the pause between the body and the closing delimiter. It writes `$PAUSE`, as each gap rule does. That pause can be a mark with no space around it, as the `"` in `zoi gy foo"gy`. The quote's value then has one space there, as in `zoi gy foo gy`.
+`close-gap` reads the pause between the body and the closing delimiter. It writes `$PAUSE`, as each gap that supplies a separator does. That pause can be a mark with no space around it, as the `"` in `zoi gy foo"gy`. The quote's value then has one space there, as in `zoi gy foo gy`.
 
 The body leaves its final quiet pause to the closing gap. The closing edge keeps an attached mark before a pause or the text end. These boundaries give each mark and pause one owner.
 

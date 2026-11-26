@@ -137,7 +137,7 @@ Ordinary word forms divide each run in one way only. Zantufa's `ra'oi` quote is 
 <p><img src="../../../docs/diagrams/50/lojban/common/forms/nonpause-phoneme.svg" alt="Railroad diagram of the rule nonpause-phoneme"></p>
 </details>
 
-The stage covers every input token. It preserves pause boundaries, values, images and keys. A pause token is its `PAUSE` phoneme, so it keeps that phoneme's whole bag. No rule of a later stage matches a pause by its value. Each rule reads `PAUSE` and its filters, and each gap rule writes its own space.
+The stage covers every input token. It preserves pause boundaries, values, images and keys. A pause token is its `PAUSE` phoneme, so it keeps that phoneme's whole bag. No rule of a later stage matches a pause by its value. Each rule reads `PAUSE` and its filters. The words stage sets the strings of its gaps itself, as its [spacing rules](stream.md#spacing-and-hesitation) explain.
 
 The stage passes foreign runs through and combines phonemes into words or foreign runs. A phoneme-stage `FOREIGN` token keeps its value, image, text and keys. The `foreign-token` rule adds `Run-Initial` and `Run-Final`.
 
