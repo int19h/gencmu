@@ -1124,7 +1124,7 @@ The quote is one unit that starts with `c`, so a run of words can hold it, as in
 
 A unit that starts with a vowel needs a gap before it. The quote ends at the first complete `cei` particle, which `complete-cei` reads with a word boundary after it, as the PEG's `CEI` does. So a unit can be `cei` where no word boundary follows it, as in `a ce bu ceinu cei`. The quotes chapter says that `ce` and `cei` "allow, respectively, starting and ending a spelling quote", and it lets no `cei` be left out. The PEG's `SpellingQuote` requires its `CEI` too. So a `ce` that a first unit follows always starts a quote, as a `co` before an opener does. If no `cei` closes it, `unclosed-spelling-quote` reads the quote to the end of the text, with an error. A `ra` inside it is a unit and erases nothing, as inside a closed quote. So `a ce bu ra a mo` is rejected, and `a e ber ban ce bu ra cei` quotes `bu ra`.
 
-Only a correct marker opens or closes a quote. `strict-ce`, `strict-cei` and `strict-co` read `c` and their vowels with the strict vowel reader. So a faulty `che`, `chei`, `ce-e`, `cho` or `co-o` is no marker. The book allows `h` only between vowels, so `chei` is no word. A faulty marker stays an ordinary word with its error, which `ra` can erase. So `a che bu ra a mo a cei ra a ke` keeps `a mo`, as in the PEG, and `a cho [ra a mo] a ke` is a text. If no first unit follows a `ce`, the quote is empty, as in `a ce` or `a ce cei`. The quotes chapter gives a quote at least one unit, so `empty-spelling-quote` reads such a quote with the error `spelling-empty`. After `ci`, a `ce` is a quoted word, so it reports nothing.
+Only a correct marker opens or closes a quote. `strict-ce`, `strict-cei` and `strict-co` read `c` and their vowels with the strict vowel reader. `strict-ce` and `strict-co` read a whole family, as `ce-particle` and `co-particle` do, so `cea` and `coho` are markers too. `strict-cei` reads only `cei`, as `cei-particle` does. So a faulty `che`, `chei`, `ce-e`, `cho` or `co-o` is no marker. The book allows `h` only between vowels, so `chei` is no word. A faulty marker stays an ordinary word with its error, which `ra` can erase. So `a che bu ra a mo a cei ra a ke` keeps `a mo`, as in the PEG, and `a cho [ra a mo] a ke` is a text. If no first unit follows a `ce`, the quote is empty, as in `a ce` or `a ce cei`. The quotes chapter gives a quote at least one unit, so `empty-spelling-quote` reads such a quote with the error `spelling-empty`. After `ci`, a `ce` is a quoted word, so it reports nothing.
 
 The morphology chapter allows a hyphen at a syllable boundary. A consonant unit starts a syllable, so a hyphen right before it is silent, as in `a ce bu-nu cei`. Inside a unit, the hyphen rules of the words apply, so `a ce b-u cei` carries `hyphen-misplaced`. A hyphen beside a gap, after `ce` or before `cei` stands at the edge of a word, so it carries the warning too.
 
@@ -1194,14 +1194,20 @@ The morphology chapter allows a hyphen at a syllable boundary. A consonant unit 
 %rule complete-cei
   strict-cei particle-end [Hyphen] word-boundary
 
+%rule strict-family(@Vowel, @Except)
+  ns-consonant="c" [hyphen-misplaced] $v:vhowels
+%conditions
+  $v.parse(vowel=@Vowel …),
+  $v'value ≠ @Except
+
 %rule strict-marker(@Vowels)
   ns-consonant="c" [hyphen-misplaced] $v:vhowels
 %conditions
   $v'value = @Vowels
 
-%rule strict-ce = strict-marker(= "e")
+%rule strict-ce = strict-family(= "e", = "ei")
 %rule strict-cei = strict-marker(= "ei")
-%rule strict-co = strict-marker(= "o")
+%rule strict-co = strict-family(= "o", = "oi")
 
 %rule unclosed-spelling-quote
   $s:strict-ce {_} → {Word, Particle, CE, Quote, image: value: $.source-text}
@@ -1214,7 +1220,7 @@ The morphology chapter allows a hyphen at a syllable boundary. A consonant unit 
 %emit
 ```
 
-<details><summary>Railroad diagrams of the 19 rules from <code>spelling-quote</code> to <code>unclosed-spelling-quote</code></summary>
+<details><summary>Railroad diagrams of the 20 rules from <code>spelling-quote</code> to <code>unclosed-spelling-quote</code></summary>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/spelling-quote.svg" alt="Railroad diagram of the rule spelling-quote"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/empty-spelling-quote.svg" alt="Railroad diagram of the rule empty-spelling-quote"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/spelling-empty.svg" alt="Railroad diagram of the rule spelling-empty"></p>
@@ -1229,6 +1235,7 @@ The morphology chapter allows a hyphen at a syllable boundary. A consonant unit 
 <p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/vowel-unit.svg" alt="Railroad diagram of the rule vowel-unit"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/unit-letters.svg" alt="Railroad diagram of the rule unit-letters"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/complete-cei.svg" alt="Railroad diagram of the rule complete-cei"></p>
+<p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/strict-family.svg" alt="Railroad diagram of the rule strict-family"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/strict-marker.svg" alt="Railroad diagram of the rule strict-marker"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/strict-ce.svg" alt="Railroad diagram of the rule strict-ce"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/strict-cei.svg" alt="Railroad diagram of the rule strict-cei"></p>
