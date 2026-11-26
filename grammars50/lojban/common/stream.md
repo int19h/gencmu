@@ -689,7 +689,7 @@ The quote hands on one token, which covers its markers and its words. They hand 
 
 `raw-tokens` and `single-run-payload` keep word and FOREIGN values. `payload-token` marks a material pause as its primary. So a raw body keeps the value and the image of each mark, as `zo-punctuation` does for a quoted mark. Delimited quotes take their images from their whole source intervals.
 
-`run-token` reads each token that is no pause: a word, a hesitation or a FOREIGN run, each with the value of its token. Its filter names only the kind that it leaves out, so a layer that adds a kind of token need not extend it. A closing run reads only these tokens, a cmavo through `cmavo-token`. So its value is the join of their values.
+`run-token` reads each token that is no pause, such as a word, a hesitation or a FOREIGN run, with the value of its token. Its filter names only `PAUSE`, so it covers any nonpause kind that a layer adds, and no layer adds a nonpause kind to `payload-token`. A closing run reads only nonpause tokens, a cmavo through `cmavo-token`. So its value is the join of their values.
 
 Only `single-run-payload` gives its body its own image. Its `.verbatim-text` preserves raw spelling and adjacent uncovered characters. The single-run quote reads that image through `'image`. A query and an erased body after FAhO never evaluate it.
 
@@ -1016,7 +1016,7 @@ The Zantufa lexicon in `grammars/lojban/zantufa/lexicon.md` gives `zei` class SI
 
 ## Differences from the format 49 grammar
 
-The format 49 copy of this document is `grammars/lojban/common/stream.md`. This document accepts the same texts and hands on the same tokens, with the same values and images. The public keys are the same, except on a y letteral.
+The format 49 copy of this document is `grammars/lojban/common/stream.md`. On text that the pipeline tokenizes, this document accepts the same texts and hands on the same tokens, with the same values and images. The public keys are the same, except on a y letteral.
 
 `zo-punctuation` and `payload-token` take the value and the image of a material pause from its token. The format 49 copy reads them from the source text, because its forms stage gives the token one space. The strings are the same. `close-gap` writes one space for the pause before the closing delimiter of a `zoi` quote. The format 49 copy reads the forms value of that pause, which is one space.
 
@@ -1026,7 +1026,9 @@ The closing test of a y letteral delimiter compares `letter` on the two delimite
 
 `zei-spelling` tests the value in its body, as `Cmavo="zei"`. The format 49 copy states the same test as a condition.
 
-The delimiter tests of `zoi-quote` and `raw-y-close` read the values of nodes. The format 49 copy joins the values of their input tokens. The two are the same strings, because no rule below a delimiter or a run writes a string. The test for a delimiter inside the body finds each run of the body with `body-with-run`. The format 49 copy splits the joined input at each pause. Both divide the body at every pause, punctuation included.
+The delimiter tests of `zoi-quote` and `raw-y-close` read the values of nodes. The format 49 copy joins the values of their input tokens. The two are the same strings, because no rule below a delimiter or a run writes a string. The test for a delimiter inside the body finds each run of the body with `body-with-run`. The format 49 copy splits the joined input at each pause. Both divide the body at every pause, punctuation included. These equalities hold on text that the pipeline tokenizes, where no token that is no pause has a space in its value. A caller can supply such a token in two ways. It can give a `FOREIGN` token a value with a space directly. It can also give a token that the forms stage turns into a `FOREIGN` run, whose value is its source text with a space. This document reads such a token as one run, and the format 49 copy splits it at the space. So `zoi gy # gy`, with `#` given the value `gy bar`, is one quote here and a rejection in the format 49 copy.
+
+When a rejected parse still predicts a raw payload, `expected` names `_<¬PAUSE>` of `run-token` in place of `Word`, `Hesitation` and `FOREIGN` of `payload-token`. That happens in an unclosed raw quote. It also happens after a closed quote, as in `zoi gy gy Ω`, where a candidate that goes on reading the body reaches the place of the error. Each `zoi` rule also names only its own closer, so `expected` omits the other closer's start. The pause before a `zoi` closer belongs to `close-gap`, so `expected` names that rule for it. The format 49 copy names the `zoi` rule there.
 
 [^cll-s19-16]: [CLL 1.1, section 19.16](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-cmavo-interactions.html).
 
