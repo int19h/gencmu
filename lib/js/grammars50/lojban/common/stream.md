@@ -224,10 +224,10 @@ The y letteral `y-bu-word` takes the private key `letter` of its y base, which `
   {LOhU, LEhU, FAhO, BU, ZEI, SI, SA, SU}
 
 %rule read-word
-  | cmavo-token
-  | brivla-token
-  | cmevla-token
-  | y-bu-word
+  plain-word | y-bu-word
+
+%rule plain-word
+  cmavo-token | brivla-token | cmevla-token
 
 %rule brivla-token
   BRIVLA
@@ -260,8 +260,9 @@ The y letteral `y-bu-word` takes the private key `letter` of its y base, which `
   Cmavo
 ```
 
-<details><summary>Railroad diagrams of the 7 rules from <code>read-word</code> to <code>cmavo-token</code></summary>
+<details><summary>Railroad diagrams of the 8 rules from <code>read-word</code> to <code>cmavo-token</code></summary>
 <p><img src="../../../docs/diagrams/50/lojban/common/stream/read-word.svg" alt="Railroad diagram of the rule read-word"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/stream/plain-word.svg" alt="Railroad diagram of the rule plain-word"></p>
 <p><img src="../../../docs/diagrams/50/lojban/common/stream/brivla-token.svg" alt="Railroad diagram of the rule brivla-token"></p>
 <p><img src="../../../docs/diagrams/50/lojban/common/stream/cmevla-token.svg" alt="Railroad diagram of the rule cmevla-token"></p>
 <p><img src="../../../docs/diagrams/50/lojban/common/stream/y-bu-word.svg" alt="Railroad diagram of the rule y-bu-word"></p>
@@ -454,7 +455,7 @@ Both spacing routes use `delimiter-hesitation`, which refuses the opening y lett
 
 The quotes close at the first matching whole run of nonpause tokens by exact value. Every pause, including punctuation, bounds such a delimiter run. ZOI compares foreign runs by their exact values too. Each test reads the value of a node. A run's value joins its words, and no rule below a run writes a string of its own.
 
-The rule `zoi-y-quote` reads letteral delimiters formed from hesitation. The `lojban/zantufa` and `lojban/experimental` pipelines also form such a delimiter from `ie'o`. `grammars/lojban/zantufa/morphology.md` and `grammars/lojban/experimental/lexicon.md` describe it. The rule `zoi-quote` reads other delimiters. Each rule includes empty and nonempty bodies.
+The rule `zoi-y-quote` reads letteral delimiters formed from hesitation. The `lojban/zantufa` and `lojban/experimental` pipelines also form such a delimiter from `ie'o`. `grammars/lojban/zantufa/morphology.md` and `grammars/lojban/experimental/lexicon.md` describe it. The rule `zoi-quote` reads other delimiters, a cmavo, brivla or name through `word-delimiter`. Its close is a `raw-run` of words. A raw y close has a space in its value, as `y bu`, so it never equals such a word. Each rule includes empty and nonempty bodies. A layer that adds a kind of delimiter extends `delimiter`, and `word-delimiter` too if the kind is a plain word.
 
 Ordinary compounds cannot become delimiters because the marker reads the delimiter before a later compounder acts. An empty body contributes empty strings to the quote token. Punctuation tokens form a nonempty body and retain their source text. A pause separates the body from the closing run. Attached marks around either delimiter add no value. A mark before another word stays in spacing.
 
@@ -481,12 +482,11 @@ The body leaves its final quiet pause to the closing gap. The closing edge keeps
 %emit
 
 %rule zoi-quote → {*$m.flags, image: $.source-text}
-  | $m:zoi-marker $g:delimiter-gap $open:delimiter $b:delimiter-body-gap $content:zoi-body PAUSE
-    [quote-attachment] $close:raw-close [word-end-attachment]
-  | $m:zoi-marker $g:delimiter-gap $open:delimiter $b:delimiter-body-gap $content:empty-zoi-body
-    [quote-attachment] $close:raw-close [word-end-attachment]
+  | $m:zoi-marker $g:delimiter-gap $open:word-delimiter $b:delimiter-body-gap $content:zoi-body
+    PAUSE [quote-attachment] $close:raw-run [word-end-attachment]
+  | $m:zoi-marker $g:delimiter-gap $open:word-delimiter $b:delimiter-body-gap
+    $content:empty-zoi-body [quote-attachment] $close:raw-run [word-end-attachment]
 %conditions
-  ¬$open'Y-Letter,
   ¬$.following-tokens.parse(word-end-attachment …),
   ¬$b'Delimiter-Edge ∨ $g'Delimiter-Mark,
   ¬$g'Delimiter-Mark ∨ ¬$b'Period-Only ∨ ¬$b.following-tokens.parse(quote-attachment …),
@@ -500,6 +500,9 @@ The body leaves its final quiet pause to the closing gap. The closing edge keeps
 
 %rule delimiter
   read-word<¬Y>
+
+%rule word-delimiter
+  plain-word<¬Y>
 
 %rule delimiter-gap
   | delimiter-spacing
@@ -551,11 +554,12 @@ The body leaves its final quiet pause to the closing gap. The closing edge keeps
   ^PAUSE<¬Quote-Material> → {image: value: ""}
 ```
 
-<details><summary>Railroad diagrams of the 15 rules from <code>zoi-y-quote</code> to <code>quiet-pause</code></summary>
+<details><summary>Railroad diagrams of the 16 rules from <code>zoi-y-quote</code> to <code>quiet-pause</code></summary>
 <p><img src="../../../docs/diagrams/50/lojban/common/stream/zoi-y-quote.svg" alt="Railroad diagram of the rule zoi-y-quote"></p>
 <p><img src="../../../docs/diagrams/50/lojban/common/stream/zoi-quote.svg" alt="Railroad diagram of the rule zoi-quote"></p>
 <p><img src="../../../docs/diagrams/50/lojban/common/stream/zoi-marker.svg" alt="Railroad diagram of the rule zoi-marker"></p>
 <p><img src="../../../docs/diagrams/50/lojban/common/stream/delimiter.svg" alt="Railroad diagram of the rule delimiter"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/stream/word-delimiter.svg" alt="Railroad diagram of the rule word-delimiter"></p>
 <p><img src="../../../docs/diagrams/50/lojban/common/stream/delimiter-gap.svg" alt="Railroad diagram of the rule delimiter-gap"></p>
 <p><img src="../../../docs/diagrams/50/lojban/common/stream/delimiter-body-gap.svg" alt="Railroad diagram of the rule delimiter-body-gap"></p>
 <p><img src="../../../docs/diagrams/50/lojban/common/stream/period-pause.svg" alt="Railroad diagram of the rule period-pause"></p>
