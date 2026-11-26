@@ -4,7 +4,7 @@ import { isDeepStrictEqual } from "node:util";
 import { expressionChildren } from "../lib/js/src/clause-walk.js";
 import { capturesMentioned, capturesUsed, DOM_TRUE, simplify, termType } from "../lib/js/src/dom.js";
 import { SPAN_METHODS } from "../lib/js/src/methods.js";
-import { captureKinds } from "../lib/js/src/format50/stage.js";
+import { rankedOnlyNames } from "../lib/js/src/format50/validate.js";
 import { layeredPatternText } from "../lib/js/src/pattern-shapes.js";
 import { stringName } from "../lib/js/src/tags.js";
 
@@ -80,6 +80,26 @@ export class MigrationRequired extends Error {
     super(message);
     this.at = at;
   }
+}
+
+/**
+ * The captures inside a plain or elidable optional of a body, except those
+ * that stand only inside its ranked groups.
+ * @param {any} body
+ * @returns {Set<string>}
+ */
+function optionalCaptures(body) {
+  const names = new Set();
+  const visit = (node, inOptional, privateOnly) => {
+    if (!node || typeof node !== "object") return;
+    if (node.repeat) return;
+    if (node.capture !== undefined && node.expr && inOptional && !privateOnly.has(node.capture)) names.add(node.capture);
+    const optional = node.optional !== undefined && !node.repeat;
+    const inner = optional ? rankedOnlyNames(node.optional) : privateOnly;
+    for (const child of expressionChildren(node)) visit(child, inOptional || optional, optional && !inOptional ? inner : privateOnly);
+  };
+  visit(body, false, new Set());
+  return names;
 }
 
 export function translateDom49(dom, unicode, uniqueConstants, omittedValues = new Set(), isUndefined = () => false, valueWriters = new Map()) {
@@ -220,12 +240,17 @@ class Printer {
       findRepeated(alt.expr, local);
       alternativesWithItem.push(local);
     }
-    // A capture in an optional, or on only some routes of an alternative, is
-    // a list of zero or one in format 50 (engine §3.5). It reads like a
-    // repeated capture whose item can be absent.
+    // A capture in an optional is a list of zero or one in format 50
+    // (engine §3.5, notation "Captures"), where a condition or a statement
+    // term reads it. It reads like a repeated capture whose item can be
+    // absent. An alternative term reads it in each expansion, as a node. A
+    // capture that stands only inside ranked groups of the optional is a
+    // node on each route (engine §3.2).
+    this.optional = new Set();
     for (const [index, alt] of (item.alternatives ?? []).entries()) {
-      for (const [name, kind] of captureKinds(alt.expr)) {
-        if (kind !== "list" || this.repeated.has(name)) continue;
+      for (const name of optionalCaptures(alt.expr)) {
+        if (this.repeated.has(name)) continue;
+        this.optional.add(name);
         this.repeated.add(name);
         scalar.delete(name);
         alternativesWithItem[index].add(name);
@@ -240,7 +265,9 @@ class Printer {
       (item.params ? `(${item.params.map(param => "@" + param).join(", ")})` :
         item.args ? `(${item.args.map(arg => this.argument(arg)).join(", ")})` : "");
     if (item.instance) return `${head} = ${this.call(item.instance)}`;
+    this.statementTerm = true;
     const headerTerm = this.ownerTerm(item);
+    this.statementTerm = false;
     const attachment = item.emit?.items.length === 1 && item.emit.items[0];
     const primary = attachment && (attachment.before?.length || attachment.after?.length) ?
       this.attachmentPrimary(attachment, item) : undefined;
@@ -324,6 +351,15 @@ class Printer {
   }
 
   condition(node) {
+    this.inCondition = true;
+    try {
+      return this.conditionTerm(node);
+    } finally {
+      this.inCondition = false;
+    }
+  }
+
+  conditionTerm(node) {
     const names = new Set();
     const pending = [node];
     let local = "item";
@@ -334,12 +370,17 @@ class Printer {
       const name = part.capture ?? part.captured;
       if (name !== undefined) {
         used.add(name);
-        if (this.repeated.has(name)) names.add(name);
+        // A presence test of an optional capture reads the list as it is.
+        if (this.repeated.has(name) && !(this.optional?.has(name) && part.capture === undefined)) names.add(name);
       }
       for (const child of Object.values(part)) pending.push(child);
     }
     if (!names.size) return this.term(node, "truth");
+    // Where no item frame fits a read of optional captures, the condition
+    // keeps its written form, as before the optional captures were lists.
+    const onlyOptional = [...names].every(name => this.optional?.has(name));
     if (names.size !== 1 || used.has("") || !this.sharedItems.includes(names.values().next().value)) {
+      if (onlyOptional) return this.plainCondition(node);
       this.hand("Preserve the item frame and its co-bound operands.");
     }
     const [name] = names;
@@ -354,7 +395,10 @@ class Printer {
       }
     }
     if (canSkip) {
-      if (!skipsAbsentItem(node, name)) this.hand("An item route can omit this capture. A predicate over the list would skip that route.");
+      if (!skipsAbsentItem(node, name)) {
+        if (onlyOptional) return this.plainCondition(node);
+        this.hand("An item route can omit this capture. A predicate over the list would skip that route.");
+      }
       this.changes.push("An item without the capture satisfies the old condition or receives no copy of it.");
     }
     const outerTerms = outer.map(part => this.term(part, "truth"));
@@ -601,13 +645,14 @@ class Printer {
       const target = this.stringList(right);
       return `(${this.term(left, "string")} ${op} ${target})`;
     }
-    // Format 49 compares a string or a span with a set of strings as the set
-    // of that one string. So inclusion of strings, and the empty set against
-    // a string, compare lists.
+    // Format 49 compares a string with a set of strings as the set of that
+    // one string.
+    // Inclusion of two strings, and the empty set against a string, compare
+    // lists. A span or an open operand keeps the comparison as written.
     const types = [this.type(left), this.type(right)];
-    const scalar = types.some(type => type === "string" || type === "span");
+    const stringy = (/** @type {string} */ type) => type === "string" || type === "strings";
     if (["=", "≠", "⊆", "⊈"].includes(op) && (types.includes("strings") ||
-        ["⊆", "⊈"].includes(op) && scalar && !types.includes("tags") || (left.emptySet || right.emptySet) && scalar)) {
+        ["⊆", "⊈"].includes(op) && types.every(stringy) || (left.emptySet || right.emptySet) && types.includes("string"))) {
       const a = this.stringList(left);
       const b = this.stringList(right);
       if (op === "⊆" || op === "⊈") {
@@ -631,7 +676,7 @@ class Printer {
     if (method === "value" || method === "image") {
       const observed = receiver.method === "emitted" ? receiver.receiver : receiver;
       const capture = observed.capture ?? observed.captured;
-      if (this.repeated.has(capture) && capture !== this.item?.name) this.hand(`Resolve the ordered string read on repeated capture $${capture}.`);
+      if (this.repeated.has(capture) && capture !== this.item?.name && !this.nodeRead(capture)) this.hand(`Resolve the ordered string read on repeated capture $${capture}.`);
       if (receiver.method === "emitted") {
         this.changes.push(`Read the working ${method} property in place of the old emitted recipe.`);
         return `${this.term(receiver.receiver)}'${method}`;
@@ -643,7 +688,8 @@ class Printer {
     if (method === "tags") {
       // The keys of a list of nodes are the union of the keys of each.
       const capture = receiver.capture ?? receiver.captured;
-      if (capture !== undefined && this.repeated.has(capture) && capture !== this.item?.name) return `${this.term(receiver)}!.flags.union`;
+      if (capture !== undefined && this.repeated.has(capture) && capture !== this.item?.name &&
+          (!this.optional?.has(capture) || this.statementTerm)) return `${this.term(receiver)}!.flags.union`;
       return `${this.term(receiver)}.flags`;
     }
     if (method === "emitted") this.hand("Select the computed value or image of the occurrence.");
@@ -655,9 +701,21 @@ class Printer {
     return `${this.term(receiver)}.${method}${operands.length ? `(${operands.join(separator)})` : ""}`;
   }
 
+  // A condition in its written form, with its optional captures as nodes.
+  plainCondition(node) {
+    this.inCondition = false;
+    return this.term(node, "truth");
+  }
+
+  // An optional capture is a node in an alternative term, which reads it in
+  // each expansion. A condition and a statement term read it as a list.
+  nodeRead(capture) {
+    return this.optional?.has(capture) && !this.statementTerm && !this.inCondition;
+  }
+
   stringRead(base, receiver, channel) {
     const capture = receiver.capture ?? receiver.captured;
-    if (this.repeated.has(capture) && capture !== this.item?.name) {
+    if (this.repeated.has(capture) && capture !== this.item?.name && !this.nodeRead(capture)) {
       this.hand(`Resolve the ordered string read on repeated capture $${capture}.`);
     }
     const span = SPAN_METHODS.has(receiver.method) || this.spanReceiver && capture === "" ? base : `${base}.span`;

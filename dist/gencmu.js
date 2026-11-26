@@ -29379,15 +29379,20 @@
     const inside = new Set();
     /** @type {Set<string>} */
     const outside = new Set();
-    /** @param {any} node @param {boolean} ranked */
-    const visit = (node, ranked) => {
-      if (!node || typeof node !== "object") return;
-      if (Array.isArray(node)) return node.forEach(item => visit(item, ranked));
+    // An explicit stack, since a body can nest deeper than the call stack.
+    /** @type {[any, boolean][]} */
+    const pending = [[body, false]];
+    while (pending.length) {
+      const [node, ranked] = /** @type {[any, boolean]} */ (pending.pop());
+      if (!node || typeof node !== "object") continue;
+      if (Array.isArray(node)) {
+        for (const item of node) pending.push([item, ranked]);
+        continue;
+      }
       if (node.capture !== undefined && node.expr) (ranked ? inside : outside).add(node.capture);
       const nested = ranked || Array.isArray(node.ranked);
-      for (const [key, value] of Object.entries(node)) if (key !== "at" && value && typeof value === "object") visit(value, nested);
-    };
-    visit(body, false);
+      for (const [key, value] of Object.entries(node)) if (key !== "at" && value && typeof value === "object") pending.push([value, nested]);
+    }
     return new Set([...inside].filter(name => !outside.has(name)));
   }
 
@@ -33679,6 +33684,14 @@
           node.receiver.capture !== "" && !ctx.names?.has(node.receiver.capture) && ctx.captures?.get(node.receiver.capture) === "list") {
         throw located(`$${node.receiver.capture} is a list of nodes, which has no method .${node.method}`, document, node.at);
       }
+      // A comparison that reads a constant has its operand types only in the
+      // stage. Where both are known, the rules of the closed check apply.
+      if (COMPARED.has(node.op) && [node.left, node.right].some(side => side?.const !== undefined)) {
+        const left = this.typeOf(node.left, ctx);
+        const right = this.typeOf(node.right, ctx);
+        const fault = ![...left, ...right].includes("unknown") && comparisonFault(node.op, left, right);
+        if (fault) throw located(fault, document, node.at);
+      }
       if (node.concat) {
         for (const operand of node.concat) {
           const types = this.typeOf(operand, ctx);
@@ -34402,6 +34415,30 @@
   }
 
   // The methods that read the bag of a node, not its place.
+  const COMPARED = new Set(["=", "≠", "∈", "∉", "⊆", "⊈"]);
+
+  /**
+   * The fault of a comparison whose operand types are known, with the
+   * messages of the closed check (validate.js), or undefined.
+   * @param {string} op
+   * @param {Set<string>} left
+   * @param {Set<string>} right
+   */
+  function comparisonFault(op, left, right) {
+    /** @param {Set<string>} types */
+    const scalar = types => new Set([...types].map(type => type === "span" ? "string" : type));
+    if (op === "=" || op === "≠") {
+      const [a, b] = [scalar(left), scalar(right)];
+      if (![...a].some(type => b.has(type))) return `${op} requires comparable operands of one type`;
+    }
+    if (op === "∈" || op === "∉") {
+      if (!right.has("list")) return `${op} requires a list on its right`;
+      if (![...scalar(left)].some(type => type === "string" || type === "number")) return `${op} requires compatible operands`;
+    }
+    if ((op === "⊆" || op === "⊈") && (!left.has("bag") || !right.has("bag"))) return `${op} requires key sets`;
+    return undefined;
+  }
+
   const BAG_READS = new Set(["keys", "flags", "classes", "select", "has", "has-value"]);
 
   // A term builds the bag of `$`, so it cannot read that bag (part 1 §5). Its
