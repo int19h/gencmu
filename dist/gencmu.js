@@ -26374,6 +26374,8 @@
       this.keyReaders = new Set();
       /** @type {any[]} the instance bindings of the document, with their format 50 calls */
       this.instances50 = [];
+      /** @type {Set<string>} the constants that the recognizer gets a placeholder for */
+      this.opaque = new Set();
       /** @type {Map<string, string>} the symbol of each capture of the rule in hand */
       this.captureSymbols = new Map();
     }
@@ -26413,7 +26415,9 @@
       // one kind, so that the recognizer sees no change of type.
       const kinds = new Map();
       for (const constant of this.dom.constants) {
-        const placeholder = JSON.stringify(Object.keys(this.data(constant.value))[0]);
+        const data = this.data(constant.value);
+        if (data === OPAQUE) this.opaque.add(constant.name);
+        const placeholder = JSON.stringify(Object.keys(data)[0]);
         kinds.set(constant.name, kinds.has(constant.name) && kinds.get(constant.name) !== placeholder ? "mixed" : placeholder);
       }
       for (const constant of this.dom.constants) {
@@ -26422,7 +26426,9 @@
         if (!STAGE_CONSTANTS.has(constant.name) && constant.value.bag && this.isClassifier(constant.value)) {
           this.classifiers.push(this.classifier(constant));
         }
-        const value = kinds.get(constant.name) === "mixed" ? { string: "" } : this.data(constant.value);
+        if (kinds.get(constant.name) === "mixed") this.opaque.add(constant.name);
+        const data = kinds.get(constant.name) === "mixed" ? OPAQUE : this.data(constant.value);
+        const value = data === OPAQUE ? { string: "" } : data;
         constants.push({ name: constant.name, op: constant.op, value, at: constant.at, origin50 });
       }
       return {
@@ -26493,9 +26499,20 @@
       // A key set of visible keys holds its tags.
       const keys = keySetKeys(value, this.dom.constants);
       if (keys?.length) return keys.length === 1 ? { tag: keys[0] } : { union: keys.map((/** @type {any} */ key) => ({ tag: key })) };
-      // The recognizer reads only strings and lists of strings from a
-      // constant. Any other constant gets a string that nothing reads.
-      return { string: "" };
+      // The recognizer reads only strings, lists of strings, patterns and key
+      // sets from a constant. Any other constant gets a placeholder, and a
+      // recognizer read of it fails at load.
+      return OPAQUE;
+    }
+
+    /**
+     * A recognizer read of a constant, which fails where the constant has a
+     * placeholder only (cause B of the Eberban review).
+     * @param {any} node
+     */
+    constantRead(node) {
+      if (this.opaque.has(node.const)) return this.fail(`read the constant $${node.const}, whose value it cannot hold`, node.at);
+      return { const: node.const, ...(node.at ? { at: node.at } : {}) };
     }
 
     /** @param {any} directive */
@@ -27053,7 +27070,7 @@
     /** @param {any} node */
     stringOperand(node) {
       if (node.string !== undefined) return { string: node.string };
-      if (node.const !== undefined) return { const: node.const, ...(node.at ? { at: node.at } : {}) };
+      if (node.const !== undefined) return this.constantRead(node);
       if (node.param !== undefined) return { ...node };
       return this.fail("read this string operand", node.at);
     }
@@ -27402,7 +27419,7 @@
         return { union: node.list.map((/** @type {any} */ item) => this.string(item.value)) };
       }
       if (node.method === "split") return { method: "split", receiver: this.string(node.receiver), args: [this.string(node.args[0])] };
-      if (node.const !== undefined) return { const: node.const, at: node.at };
+      if (node.const !== undefined) return this.constantRead(node);
       if (node.param !== undefined) return { ...node };
       return this.fail("read this list", node.at);
     }
@@ -27422,7 +27439,7 @@
       const inlined = this.inline(node);
       if (inlined) return this.string(inlined);
       if (node.string !== undefined) return { string: node.string };
-      if (node.const !== undefined) return { const: node.const, at: node.at };
+      if (node.const !== undefined) return this.constantRead(node);
       // A template parameter stands for its actual, which the recognizer
       // substitutes in each instance (part 3 §10).
       if (node.param !== undefined) return { ...node };
@@ -28083,6 +28100,9 @@
     if (node.choice) return node.choice.every(isSingleSymbol);
     return SYMBOL_KEYS.some(key => Object.hasOwn(node, key)) && !node.optional && !node.repeat;
   }
+
+  /** The placeholder of a constant whose value the recognizer cannot hold. */
+  const OPAQUE = Object.freeze({ string: "" });
 
   /** The pattern set that matches nothing. */
   const EMPTY_PATTERN = Object.freeze({ empty: true });

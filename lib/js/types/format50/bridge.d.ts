@@ -37,6 +37,8 @@ export declare class Bridge {
     keyReaders: Set<string>;
     /** @type {any[]} the instance bindings of the document, with their format 50 calls */
     instances50: any[];
+    /** @type {Set<string>} the constants that the recognizer gets a placeholder for */
+    opaque: Set<string>;
     /** @type {Map<string, string>} the symbol of each capture of the rule in hand */
     captureSymbols: Map<string, string>;
     currentRule: any;
@@ -68,7 +70,9 @@ export declare class Bridge {
         constants: {
             name: any;
             op: any;
-            value: {
+            value: Readonly<{
+                string: "";
+            }> | {
                 string: any;
                 pattern?: undefined;
                 tag?: undefined;
@@ -108,7 +112,9 @@ export declare class Bridge {
         at: any;
     };
     /** @param {any} value */
-    data(value: any): {
+    data(value: any): Readonly<{
+        string: "";
+    }> | {
         string: any;
         pattern?: undefined;
         tag?: undefined;
@@ -128,6 +134,15 @@ export declare class Bridge {
         pattern?: undefined;
         tag?: undefined;
         union: any;
+    };
+    /**
+     * A recognizer read of a constant, which fails where the constant has a
+     * placeholder only (cause B of the Eberban review).
+     * @param {any} node
+     */
+    constantRead(node: any): {
+        const: any;
+        at?: any;
     };
     /** @param {any} directive */
     directive(directive: any): any;
