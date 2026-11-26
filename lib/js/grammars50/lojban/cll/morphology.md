@@ -4,7 +4,7 @@ This document supplies the word family for the forms stage in the [CLL](pipeline
 
 A token is one unit that a stage reads or emits. A token's value is the string that exact comparisons read. Its image is the string that people see.
 
-This document defines the three shapes that the forms stage reads, `cmavo-shape`, `brivla-shape` and `cmevla-shape`. It tags each such word with what the pause rules of CLL[^cll-s4-9] need to know about the word. A tag is a capitalized key of a token's bag, which terminals and filters test. The BPFK word family is `grammars/lojban/bpfk/morphology.md`. [The notation document](../../../docs/notation.md) explains the notation.
+This document defines the three shapes that the forms stage reads, `cmavo-shape`, `brivla-shape` and `cmevla-shape`. It tags each such word with what the pause rules of CLL[^cll-s4-9] need to know about the word. A tag is a capitalized key of a token's bag, which terminals and filters test. The BPFK word family is [bpfk/morphology.md](../bpfk/morphology.md). [The notation document](../../../docs/notation.md) explains the notation.
 
 The prose uses these Lojban terms for words:
 

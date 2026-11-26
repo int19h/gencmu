@@ -15,7 +15,7 @@ Most conventions here admit spellings that [../cll/latin.md](../cll/latin.md) re
 
 ## Punctuation
 
-A punctuation character is a pause when no letter, vowel or apostrophe rule reads it, as the next paragraph defines. Texts put quotation marks, brackets and dashes around words, so `mi "klama"` reads as `mi klama`.
+When no letter, vowel or apostrophe rule reads a punctuation character, it is a pause, as the next paragraph defines. Texts put quotation marks, brackets and dashes around words, so `mi "klama"` reads as `mi klama`.
 
 Stage-zero tokens store Unicode category and whitespace tags. The rule `other-char` uses `_` and excludes letters, marks, digits and whitespace. A letter is a character of the Unicode property `L`. A mark is a combining mark of category M, or the stress mark or the shorthand of [zbalermorna.md](zbalermorna.md). A digit is `0` to `9`, and whitespace is a character of the property White_Space. A punctuation character is such a character that no rule of `any-lojban-char` or `core-char` reads by itself.
 
@@ -244,7 +244,7 @@ An accent on a capital still marks stress there, and the other capitals fold. So
 
 `capital-run` reads that shape with every vowel folded. An ordinary run is any other run of letters, which the condition states by exclusion. In an ordinary run, a capital vowel marks stress. Every capital run matches `letters`, so the `letters` exclusion in `non-lojban-char-run` also excludes capital runs.
 
-The `Vowel` tag marks the five full vowels `a`, `e`, `i`, `o` and `u`, and it does not mark `y`. So `folded-full-vowel` holds the full vowels and carries `Vowel` on its header, and `folded-vowel` adds the two `y` forms. The first alternative of `folded-vowel` marks the full vowel as its primary, so the node keeps the vowel's strings and tags.
+The `Vowel` tag marks the five full vowels `a`, `e`, `i`, `o` and `u`, and it does not mark `y`. So `folded-full-vowel` holds the full vowels and carries `Vowel` on its header, and `folded-vowel` adds the two `y` forms. The first alternative of `folded-vowel` is the full vowel alone, so the node takes the vowel's bag, with its strings and tags.
 
 ```jbogenbau
 %extend-rule run
@@ -297,7 +297,7 @@ The `Vowel` tag marks the five full vowels `a`, `e`, `i`, `o` and `u`, and it do
   | "U" stress-mark → {Stressed, value: "u", image: "U"}
 
 %rule folded-vowel
-  | ^folded-full-vowel
+  | folded-full-vowel
   | "Y" → {image: value: "y"}
   | "Y" stress-mark → {Stressed, value: "y", image: "Y"}
 %emit

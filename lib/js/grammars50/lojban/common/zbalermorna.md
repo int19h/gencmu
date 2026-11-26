@@ -71,7 +71,7 @@ A diphthong diacritic is two phonemes and stands where a vowel stands. The first
 
 CNIMAHO BU (U+ED8B) followed by a plain or stressed vowel is that vowel and an apostrophe. The vowel's token covers the shorthand too, as a stressed vowel's token covers its stress mark. The rule emits the apostrophe as a token with an empty span.
 
-The shorthand stands where a non-vowel stands, because the apostrophe closes the vowel group. The shorthand's vowel is always a single vowel. `zbalermorna-shorthand` marks the vowel as its primary, so the node has the vowel's strings and tags. Its token covers the mark and the vowel, with the vowel's strings. So the written shorthand mark adds nothing to either string, and the token still owns its source. A diphthong diacritic cannot directly follow the mark.
+The shorthand stands where a non-vowel stands, because the apostrophe closes the vowel group. The shorthand's vowel is always a single vowel. `zbalermorna-shorthand` marks the vowel as its primary, so the node has the vowel's strings and tags. Its item copies the vowel's flags again, because a projection takes only the two strings of its part. So the rule needs each `plain-vowel` and `stressed-vowel` node to carry the strings of its own token, which every vowel rule of these documents does. Its token covers the mark and the vowel, with the vowel's strings. So the written shorthand mark adds nothing to either string, and the token still owns its source. A diphthong diacritic cannot directly follow the mark.
 
 A stress mark or a shorthand is a mark of the script, like an accent. So this document adds both to `mark-char` of [latin.md](latin.md), and no punctuation rule reads them as a pause. Neither is a Lojban character by itself. So `non-lojban-char` takes a stray mark, one that no letter takes, and the mark makes its run foreign.
 
@@ -248,9 +248,9 @@ The `Vowel` tag marks the five full vowels and not `y`. So `zbalermorna-plain-fu
 
 ## Two encodings
 
-`tools/unicode-table.py` supplies `grammars/lojban/common/zbalermorna-names.txt` from the mapping below. The file uses `unicode-names 15.1.0` and contains 100 added names. A name supplies an exact scalar, rather than declaring a grammar terminal.
+`tools/unicode-table.py` writes the names file of the format 49 source root from the mapping below. [zbalermorna-names.txt](zbalermorna-names.txt) beside this document is the same file. The file uses `unicode-names 15.1.0` and contains 100 added names. A name supplies an exact scalar, rather than declaring a grammar terminal.
 
-The zbalermorna phoneme grammar reads both encodings. The older interval is U+ED80–U+EDB9, and the UCSUR allocation is U+F28A0–U+F28DF. Each row marked Explicit rule contributes both scalars to exactly the same grammar alternatives. Neither loading nor parsing warns merely because text uses the older encoding. `grammars/lojban/common/zbalermorna.md` declares `%names "zbalermorna-names.txt"` before its rules. Bundled pipelines select this resource through that declaration.
+The zbalermorna phoneme grammar reads both encodings. The older interval is U+ED80–U+EDB9, and the UCSUR allocation is U+F28A0–U+F28DF. Each row marked Explicit rule contributes both scalars to exactly the same grammar alternatives. Neither loading nor parsing warns merely because text uses the older encoding. This document declares `%names "zbalermorna-names.txt"` before its rules. Bundled pipelines select this resource through that declaration.
 
 The older source is Jack Humbert's [Unicode Space proposal at commit 920b28d](https://github.com/JackHumbert/zbalermorna/blob/920b28d798ae1c06885c674bbf02b08ffed12b2f/doc/unicode.md). Its [manri font source at the same commit](https://github.com/JackHumbert/zbalermorna/blob/920b28d798ae1c06885c674bbf02b08ffed12b2f/src/unicode-manri.sfd) resolves three inconsistent numeric tone rows. The font assigns RE TONGA to U+ED8D, CI TONGA to U+ED8E, and VO TONGA to U+ED8F. The proposal's glyph grid agrees with those assignments.
 
@@ -339,7 +339,7 @@ After CNIMAHO BU (U+ED8B), jbotci accepts the diphthong diacritics AIBU, EIBU, O
 
 In `lojban/bpfk` and `lojban/zantufa`, RE TONGA (U+ED8D) and FULL AIBU (U+EDB6) read as pauses. The unnamed slots U+EDAC and U+ED9C also read as pauses. The experimental pipeline reads all four scalars as foreign material. jbotci rejects them as invalid characters.
 
-A stress mark after a glide radical makes the run foreign here. jbotci ignores that mark when no earlier full vowel takes its stress.
+A stress mark after a glide radical makes the run foreign here. When no earlier full vowel takes its stress, jbotci ignores that mark.
 
 jbotci rejects the UCSUR encoding as invalid characters. This document reads it.
 

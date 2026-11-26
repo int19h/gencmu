@@ -4,7 +4,7 @@ This document supplies the word family for the forms stage in the [BPFK](pipelin
 
 A token is one unit that a stage reads or emits. A token's value is the string that exact comparisons read. Its image is the string that people see.
 
-The loader stitches this document in after [../common/forms.md](../common/forms.md). The experimental pipeline stitches `grammars/lojban/experimental/morphology.md` after it, and the Zantufa pipeline stitches `grammars/lojban/zantufa/morphology.md`. [The notation document](../../../docs/notation.md) explains jbogenbau, the notation of these grammars.
+The loader stitches this document in after [../common/forms.md](../common/forms.md). The experimental pipeline stitches [experimental/morphology.md](../experimental/morphology.md) after it, and the Zantufa pipeline stitches `grammars/lojban/zantufa/morphology.md`. [The notation document](../../../docs/notation.md) explains jbogenbau, the notation of these grammars.
 
 This document gives the working word-form grammar of the BPFK, the Lojban language planning committee. It derives from the morphology part of `camxes.peg`, a parsing expression grammar (PEG). The executable baseline is ilmentufa commit [`778ea138f7d150121ca722db7536ce3b123943ac`](https://github.com/lojban/ilmentufa/blob/778ea138f7d150121ca722db7536ce3b123943ac/camxes.peg). [CLL 1.3.4](https://github.com/int19h/cll/blob/v1.3.4/chapters/a02.xml) (*The Complete Lojban Language*) prints that grammar in appendix A2.
 
@@ -56,7 +56,7 @@ The words stage drops hesitation in `lojban/bpfk` and `lojban/experimental`. Zan
 
 One template states the shape of each word. A word shape carries `Continued`, so another word can follow it directly. If no nucleus begins the word, it carries `Onset`. Only a word with `Onset` can follow another word without a pause.
 
-The word is the primary of its shape, so the shape keeps the word's strings. The value of a particle is the join of its letters' values, which `bu-form` of [../common/forms.md](../common/forms.md) tests. `cmevla-shape` and `brivla-shape` are rules of their own, which the experimental layer redefines.
+The word is the primary of its shape, so the shape has the whole bag of its word, and a reader of the result can follow the shape to its word. The value of a particle is the join of its letters' values, which `bu-form` of [../common/forms.md](../common/forms.md) tests. The three shapes are named instances of `word-shape`, so a layer can redefine one of them alone.
 
 Hesitation is a run of `y` letters, outside `cmavo`. Its name test excludes a name that begins at the same start. `cmavo` excludes a pure `y` run, so a particle is never hesitation.
 
@@ -66,15 +66,13 @@ Hesitation is a run of `y` letters, outside `cmavo`. Its name test excludes a na
   ^$w:@W → {Continued, ¬$w.onward.parse(nucleus …)? Onset}
 
 -- A name carries its join property and its onset mark.
-%rule cmevla-shape
-  ^word-shape(cmevla)
+%rule cmevla-shape = word-shape(cmevla)
 
 -- A particle carries its join property and its onset mark.
 %rule cmavo-shape = word-shape(cmavo)
 
 -- A predicate word carries its join property and its onset mark.
-%rule brivla-shape
-  ^word-shape(brivla-word)
+%rule brivla-shape = word-shape(brivla-word)
 
 -- A run of y letters that does not begin a name. It cannot end before another y. It ends at a word boundary.
 %rule whole-y-run
@@ -712,9 +710,12 @@ The shared [`bu-form-ahead`](../common/forms.md#words-in-a-run) lookahead can cr
 
 -- The letter n and an affricate after it, read as raw consonant tokens against $AFFRICATES. Only a lookahead.
 %rule n-affricate
-  "n" $a:_<Consonant> $b:_<Consonant>
+  "n" raw-affricate
+
+%rule raw-affricate
+  _<Consonant> _<Consonant>
 %conditions
-  $a'value ++ $b'value ∈ $AFFRICATES
+  $'value ∈ $AFFRICATES
 
 -- A consonant token cannot stand before a banned sound, an impermissible pair, or n with an affricate.
 %rule consonant
@@ -739,20 +740,21 @@ The shared [`bu-form-ahead`](../common/forms.md#words-in-a-run) lookahead can cr
   $'value ∈ $SYLLABIC-CONSONANTS
 ```
 
-<details><summary>Railroad diagrams of the 8 rules from <code>cluster</code> to <code>syllabic</code></summary>
+<details><summary>Railroad diagrams of the 9 rules from <code>cluster</code> to <code>syllabic</code></summary>
 <p><img src="../../../docs/diagrams/50/lojban/bpfk/morphology/cluster.svg" alt="Railroad diagram of the rule cluster"></p>
 <p><img src="../../../docs/diagrams/50/lojban/bpfk/morphology/initial-pair.svg" alt="Railroad diagram of the rule initial-pair"></p>
 <p><img src="../../../docs/diagrams/50/lojban/bpfk/morphology/initial.svg" alt="Railroad diagram of the rule initial"></p>
 <p><img src="../../../docs/diagrams/50/lojban/bpfk/morphology/initial-consonants.svg" alt="Railroad diagram of the rule initial-consonants"></p>
 <p><img src="../../../docs/diagrams/50/lojban/bpfk/morphology/n-affricate.svg" alt="Railroad diagram of the rule n-affricate"></p>
+<p><img src="../../../docs/diagrams/50/lojban/bpfk/morphology/raw-affricate.svg" alt="Railroad diagram of the rule raw-affricate"></p>
 <p><img src="../../../docs/diagrams/50/lojban/bpfk/morphology/consonant.svg" alt="Railroad diagram of the rule consonant"></p>
 <p><img src="../../../docs/diagrams/50/lojban/bpfk/morphology/impermissible-pair.svg" alt="Railroad diagram of the rule impermissible-pair"></p>
 <p><img src="../../../docs/diagrams/50/lojban/bpfk/morphology/syllabic.svg" alt="Railroad diagram of the rule syllabic"></p>
 </details>
 
-`n-affricate` and `impermissible-pair` read raw consonant tokens, because `consonant` itself tests both of them. Each joins the values of its own two letters.
+`raw-affricate` and `impermissible-pair` read raw consonant tokens, because `consonant` itself tests both of them. Each reads the value of its node, the join of its two letters. `n-affricate` is `n` before a `raw-affricate`.
 
-The `banned-after-consonant` hook reads a following syllable-initial apostrophe or glide. `$PERMISSIBLE` states the pair law of CLL.[^cll-s3-6] Like the PEG's rule `n`, `n-affricate` bans `ndj`, `ndz`, `ntc` and `nts`, including inside names. CLL 1.1 section 3.7 exempts names from this triple ban.[^cll-s3-7] This hook states the apostrophe rule and the committee's glide ban. No rule names one consonant letter, because the `Consonant` tag and a value test state each letter that a rule needs.
+The `banned-after-consonant` hook reads a following syllable-initial apostrophe or glide. `$PERMISSIBLE` states the pair law of CLL.[^cll-s3-6] Like the PEG's rule `n`, `n-affricate` bans `ndj`, `ndz`, `ntc` and `nts`, including inside names. CLL 1.1 section 3.7 exempts names from this triple ban.[^cll-s3-7] This hook states the apostrophe rule and the committee's glide ban. A rule names a consonant letter by a string terminal, as `"n"` in `n-affricate`, or reads it through the `Consonant` tag and a value test.
 
 ```jbogenbau
 -- Consonant letters cannot precede a syllable-initial apostrophe or glide.
@@ -822,9 +824,9 @@ Like the PEG's rule `n`, this grammar bans `ndj`, `ndz`, `ntc` and `nts` inside 
 
 The format 49 copy of this document is `grammars/lojban/bpfk/morphology.md`. Both copies read the same words, with the same tags and strings.
 
-Each word shape has its word as its primary. So a reader of the result can follow a particle, a name or a brivla to its word form. The format 49 copy copies the word's tags.
+Each word shape has its word as its primary. So it has the whole bag of its word, and a reader of the result can follow a particle, a name or a brivla to its word form. The format 49 `word-shape` writes only `Continued` and `Onset`, and its `cmevla-shape` and `brivla-shape` copy the tags of the shape.
 
-Each test reads the value of a node or a token. The format 49 copy joins the values of the input tokens in two places: the affricate test after `n` and the test of the letter after a diphthong. The pair tests read the same letters, so they give the same answers.
+Each test reads the value of a node or a token. The format 49 copy joins the values of the input tokens in six rules. Five of them now read the value of a node: `initial-pair`, `initial-consonants`, `impermissible-pair`, `syllabic`, and `n-affricate` through `raw-affricate`. The pure-`y` test of `cmavo` is now a query. `diphthong-letters` reads one token in both copies, and here a string terminal in a query states the letter. Each of these tests gives the same answers as before.
 
 [^cll-s4-7]: [CLL 1.1, section 4.7](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-fuhivla.html).
 

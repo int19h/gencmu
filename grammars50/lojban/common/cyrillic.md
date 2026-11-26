@@ -57,7 +57,7 @@ So each full vowel letter, `ъ` and the other `y` letters included, carries the 
 
 Two `ъ` letters give `y'y`, so prolonged hesitation `yy` has no Cyrillic spelling.
 
-A capital full vowel letter, or a combining accent after one, marks stress, as in Latin. A glide never marks stress, as the Latin `ĭ` of [latin.md](latin.md) does not. The full vowel carries the syllable's stress. So a capital glide is plain. In `lojban/bpfk` and `lojban/zantufa`, an accent after a glide makes its run foreign. The experimental override, `grammars/lojban/experimental/cyrillic.md`, ignores an accent on a glide.
+A capital full vowel letter, or a combining accent after one, marks stress, as in Latin. A glide never marks stress, as the Latin `ĭ` of [latin.md](latin.md) does not. The full vowel carries the syllable's stress. So a capital glide is plain. In `lojban/bpfk` and `lojban/zantufa`, an accent after a glide makes its run foreign. The experimental override, [experimental/cyrillic.md](../experimental/cyrillic.md), ignores an accent on a glide.
 
 Inside an all-capital run, the stage folds a capital vowel or glide, that is, it reads the letter as plain. An accented capital keeps its stress there.
 
@@ -171,7 +171,7 @@ The feature `cll-cyrillic` selects which Cyrillic rules apply. A feature is a na
 
 CLL writes diphthongs as vowel pairs, like Latin.[^cll-s3-12] This document instead gives full vowels separate syllables and uses short letters for glides. The same letters therefore need distinct readings in [../cll/cyrillic.md](../cll/cyrillic.md). The feature `cll-cyrillic` selects between them.
 
-CLL requires only the vowel letter of a stressed syllable to be marked.[^cll-s3-1] This document assigns stress to the full vowel. It accepts capital full vowels and combining accents, but folds capitals inside an all-capital run. Capital glides remain plain. In `lojban/bpfk` and `lojban/zantufa`, accented glides make the run foreign. The experimental override, `grammars/lojban/experimental/cyrillic.md`, ignores their accents.
+CLL requires only the vowel letter of a stressed syllable to be marked.[^cll-s3-1] This document assigns stress to the full vowel. It accepts capital full vowels and combining accents, but folds capitals inside an all-capital run. Capital glides remain plain. In `lojban/bpfk` and `lojban/zantufa`, accented glides make the run foreign. The experimental override, [experimental/cyrillic.md](../experimental/cyrillic.md), ignores their accents.
 
 ## Differences from the format 49 grammar
 

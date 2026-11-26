@@ -126,3 +126,34 @@ export function includeLinks(markdown) {
       && linkTargets(text, item.position.start.line).includes(path);
   };
 }
+
+/**
+ * A format 50 document names no format 49 file that has a format 50 copy.
+ * A path `grammars/X` in its prose sends the reader to the old notation, where
+ * `grammars50/X` now exists, so the document links that copy instead. A
+ * section whose heading starts with "Differences from the format 49" names
+ * the format 49 copies on purpose, and grammar blocks name no paths, so the
+ * check skips both. A path to a directory, such as `grammars/lojban/`, names
+ * the layers that have no format 50 copy yet.
+ * @param {string} markdown
+ * @param {string} file
+ * @param {(path: string) => boolean} exists whether a repository file exists
+ * @returns {string[]}
+ */
+export function formatPathProblems(markdown, file, exists) {
+  const problems = [];
+  let fence = false, skip = false;
+  markdown.split("\n").forEach((line, index) => {
+    if (/^\s*```/.test(line)) { fence = !fence; return; }
+    if (fence) return;
+    const heading = /^#{1,6}\s+(.*)$/.exec(line);
+    if (heading) skip = heading[1].startsWith("Differences from the format 49");
+    if (skip) return;
+    for (const match of line.matchAll(/(?<![\w/.-])grammars\/([\w-]+(?:\/[\w.-]+)*\.[a-z]+)/g)) {
+      if (exists(`grammars50/${match[1]}`)) {
+        problems.push(`${file}:${index + 1}: grammars/${match[1]} has a format 50 copy; link grammars50/${match[1]} instead`);
+      }
+    }
+  });
+  return problems;
+}

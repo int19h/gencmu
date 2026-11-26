@@ -129,7 +129,7 @@ Spacing and skipped regions reject surviving punctuation before the word `zei`, 
 
 `$MATERIAL` names `Quote-Material` and `Punctuation-Material`. It is the material that can survive in a gap, as quoted material or as visible punctuation. `$GAP-MARKS` adds `Gap-Pause` to it. A gap rule copies only these keys from its parts.
 
-A quiet pause carries only a spacing boundary. A material pause preserves punctuation or ignored text. The forms stage gives both kinds the value `" "`, and `$PAUSE` names that string. Their source text retains raw material. Gap rules give one space for surviving pauses.
+A quiet pause carries only a spacing boundary, and its value is one space. A material pause preserves punctuation or ignored text, and its value is the decomposed text of the mark. `$PAUSE` names the one space. Each gap rule writes `$PAUSE` itself, so a material pause in a gap adds one space, whatever its text.
 
 An optional part, such as the hesitations of `spacing`, is a list of zero or one node. A gap rule joins the keys of each such list with `.union`.
 
@@ -196,13 +196,13 @@ The forms stage supplies source words, their lexical classes, and their run boun
 
 The shared reader reads a cmavo, brivla, cmevla, or the y letteral. A cmavo is a particle. A brivla is a predicate word. A cmevla is a name word.
 
-Every cmavo read in this shared reader uses `cmavo-token`. The replacement-quote closer of `grammars/lojban/common/lohai.md` reads `LEhAI` directly to preserve its specific expectation.
+Every cmavo read in this shared reader uses `cmavo-token`. The replacement-quote closer of [lohai.md](lohai.md) reads `LEhAI` directly to preserve its specific expectation.
 
 Only the `zei-spelling` test reads `Cmavo` directly, and it matches one spelling. CLL is *The Complete Lojban Language*. The CLL word family adds optional word-form warnings in `cmavo-token`. `brivla-token` and `cmevla-token` likewise let a pipeline warn on a predicate word or name. A warning travels on the unit that holds the word. An eraser that removes the word or its unit drops the warning.
 
 A failed words stage publishes no warnings from that stage. A successful stage keeps warnings from its chosen derivation. Raw quote bodies and the suffix after active `fa'o` supply no word reads.
 
-The lexicon gives each cmavo its classes. Operators use these classes rather than spelling, except the punctuation restriction on `zei`. The experimental word layer in `grammars/lojban/experimental/stream.md` extends that restriction to `ze'ei`. The experimental syntax can treat names as predicates without changing their lexical class.
+The lexicon gives each cmavo its classes. Operators use these classes rather than spelling, except the punctuation restriction on `zei`. The experimental word layer in [experimental/stream.md](../experimental/stream.md) extends that restriction to `ze'ei`. The experimental syntax can treat names as predicates without changing their lexical class.
 
 The feature `sa-su` enables the two long-range erasers. If any input token has class SA or SU, the stage enables it. If the condition holds and the caller disables `sa-su`, the parse gives a `feature-conflict` result ([engine §13](../../../docs/engine.md#13-the-pipeline)).
 
@@ -324,7 +324,7 @@ Quotes and the right operand of ZEI share this rule. It executes no erasure. Quo
 
 ZO quotes one word from the shared reader or one standalone material stretch. Inside that quote, an eraser, compounder, or quote marker executes no operation. The reader still forms the y letteral.
 
-`word-quote-gap` reads a clean `word-gap` and any punctuation attached to the target word. Standalone punctuation or ignored material cannot disappear into that gap. `word-quote-target` keeps attached closing punctuation in the quote image. A material target must fill its stretch between whitespace or periods. `zo-punctuation` also reads ignored material, including a comma or a format character. Its value is the decomposed source text of the mark, not the value of its pause token. The forms stage gives that token one space, which marks a word boundary, and a quoted mark must keep its own text.
+`word-quote-gap` reads a clean `word-gap` and any punctuation attached to the target word. Standalone punctuation or ignored material cannot disappear into that gap. `word-quote-target` keeps attached closing punctuation in the quote image. A material target must fill its stretch between whitespace or periods. `zo-punctuation` also reads ignored material, including a comma or a format character. It marks its pause token as its primary, so its value and image are those of the mark.
 
 An attached opening mark supplies one gap space, even without whitespace. `marker-attachment` also keeps a mark attached to the marker before whitespace. A period after that mark leaves it available as a standalone material target. `Period-Initial` identifies that boundary through the phoneme classification.
 
@@ -362,7 +362,7 @@ An attached opening mark supplies one gap space, even without whitespace. `marke
   ^PAUSE<Quote-Material> → {image: value: ""}
 
 %rule zo-punctuation
-  ^PAUSE<Quote-Material> → {value: $.decomposed-source-text, image: $.source-text}
+  ^PAUSE<Quote-Material>
 %conditions
   $.ends-input ∨ $.following-tokens.parse(quiet-pause …)
 
@@ -455,11 +455,13 @@ Both spacing routes use `delimiter-hesitation`, which refuses the opening y lett
 
 The quotes close at the first matching whole run of nonpause tokens by exact value. Every pause, including punctuation, bounds such a delimiter run. ZOI compares foreign runs by their exact values too. Each test of `zoi-quote` reads the value of a node. A run's value joins the values of its tokens, and no rule below a run writes a string of its own.
 
-The rule `zoi-y-quote` reads letteral delimiters formed from hesitation. The `lojban/zantufa` and `lojban/experimental` pipelines also form such a delimiter from `ie'o`. `grammars/lojban/zantufa/morphology.md` and `grammars/lojban/experimental/lexicon.md` describe it. Its opening delimiter is a `y-bu-word`, and its close is a `raw-y-close`. The rule `zoi-quote` reads every other delimiter, a cmavo, brivla or name, through `delimiter`. Its close is one `raw-run`. Each rule includes empty and nonempty bodies. A layer that adds a kind of word delimiter extends `delimiter`.
+The rule `zoi-y-quote` reads letteral delimiters formed from hesitation. The `lojban/zantufa` and `lojban/experimental` pipelines also form such a delimiter from `ie'o`. `grammars/lojban/zantufa/morphology.md` and [experimental/lexicon.md](../experimental/lexicon.md) describe it. Its opening delimiter is a `y-bu-word`, and its close is a `raw-y-close`. The rule `zoi-quote` reads every other delimiter, a cmavo, brivla or name, through `delimiter`. Its close is one `raw-run`. Each rule includes empty and nonempty bodies. A layer that adds a kind of word delimiter extends `delimiter`.
 
 Ordinary compounds cannot become delimiters because the marker reads the delimiter before a later compounder acts. An empty body contributes empty strings to the quote token. Punctuation tokens form a nonempty body and retain their source text. A pause separates the body from the closing run. Attached marks around either delimiter add no value. A mark before another word stays in spacing.
 
 `delimiter-body-gap` reads the boundary after the opening delimiter. A marked opening delimiter can place its closing mark across a period-only pause. A period-only pause carries `Period-Only` from the phoneme grammar. It contains no whitespace or ignored characters. The first whitespace ends that opening edge. Separate material stretches remain in the raw body.
+
+`close-gap` reads the pause between the body and the closing delimiter. It writes `$PAUSE`, as each gap rule does. That pause can be a mark with no space around it, as the `"` in `zoi gy foo"gy`, and the quote's value then has one space there, as in `zoi gy foo gy`.
 
 The body leaves its final quiet pause to the closing gap. The closing edge keeps an attached mark before a pause or the text end. These boundaries give each mark and pause one owner.
 
@@ -467,7 +469,7 @@ The body leaves its final quiet pause to the closing gap. The closing edge keeps
 
 ```jbogenbau
 %rule zoi-y-quote → {*$m.flags, image: $.source-text}
-  | $m:zoi-marker $g:delimiter-gap $open:y-bu-word $b:delimiter-body-gap $content:zoi-body PAUSE
+  | $m:zoi-marker $g:delimiter-gap $open:y-bu-word $b:delimiter-body-gap $content:zoi-body close-gap
     [quote-attachment] $close:raw-y-close [word-end-attachment]
   | $m:zoi-marker $g:delimiter-gap $open:y-bu-word $b:delimiter-body-gap $content:empty-zoi-body
     [quote-attachment] $close:raw-y-close [word-end-attachment]
@@ -482,7 +484,7 @@ The body leaves its final quiet pause to the closing gap. The closing edge keeps
 
 %rule zoi-quote → {*$m.flags, image: $.source-text}
   | $m:zoi-marker $g:delimiter-gap $open:delimiter $b:delimiter-body-gap $content:zoi-body
-    PAUSE [quote-attachment] $close:raw-run [word-end-attachment]
+    close-gap [quote-attachment] $close:raw-run [word-end-attachment]
   | $m:zoi-marker $g:delimiter-gap $open:delimiter $b:delimiter-body-gap
     $content:empty-zoi-body [quote-attachment] $close:raw-run [word-end-attachment]
 %conditions
@@ -509,6 +511,9 @@ The body leaves its final quiet pause to the closing gap. The closing edge keeps
   | word-end-attachment PAUSE<¬Quote-Material>
   | ^interword-mark
   | period-pause (word-end-attachment PAUSE<¬Quote-Material> | interword-mark) → {Delimiter-Edge}
+
+%rule close-gap
+  PAUSE → {image: value: $PAUSE}
 
 %rule period-pause
   PAUSE<¬Quote-Material Period-Only>
@@ -550,13 +555,14 @@ The body leaves its final quiet pause to the closing gap. The closing edge keeps
   ^PAUSE<¬Quote-Material> → {image: value: ""}
 ```
 
-<details><summary>Railroad diagrams of the 15 rules from <code>zoi-y-quote</code> to <code>quiet-pause</code></summary>
+<details><summary>Railroad diagrams of the 16 rules from <code>zoi-y-quote</code> to <code>quiet-pause</code></summary>
 <p><img src="../../../docs/diagrams/50/lojban/common/stream/zoi-y-quote.svg" alt="Railroad diagram of the rule zoi-y-quote"></p>
 <p><img src="../../../docs/diagrams/50/lojban/common/stream/zoi-quote.svg" alt="Railroad diagram of the rule zoi-quote"></p>
 <p><img src="../../../docs/diagrams/50/lojban/common/stream/zoi-marker.svg" alt="Railroad diagram of the rule zoi-marker"></p>
 <p><img src="../../../docs/diagrams/50/lojban/common/stream/delimiter.svg" alt="Railroad diagram of the rule delimiter"></p>
 <p><img src="../../../docs/diagrams/50/lojban/common/stream/delimiter-gap.svg" alt="Railroad diagram of the rule delimiter-gap"></p>
 <p><img src="../../../docs/diagrams/50/lojban/common/stream/delimiter-body-gap.svg" alt="Railroad diagram of the rule delimiter-body-gap"></p>
+<p><img src="../../../docs/diagrams/50/lojban/common/stream/close-gap.svg" alt="Railroad diagram of the rule close-gap"></p>
 <p><img src="../../../docs/diagrams/50/lojban/common/stream/period-pause.svg" alt="Railroad diagram of the rule period-pause"></p>
 <p><img src="../../../docs/diagrams/50/lojban/common/stream/interword-mark.svg" alt="Railroad diagram of the rule interword-mark"></p>
 <p><img src="../../../docs/diagrams/50/lojban/common/stream/delimiter-spacing.svg" alt="Railroad diagram of the rule delimiter-spacing"></p>
@@ -681,7 +687,7 @@ The quote hands on one token, which covers its markers and its words. They hand 
 
 ### Raw payloads
 
-`raw-tokens` and `single-run-payload` keep word and FOREIGN values. Their material tokens take their value and image from source text. The forms stage gives a material pause the value of one space, because that value marks a boundary between words. A raw body keeps the mark itself, so `payload-token` reads its source text, as `zo-punctuation` does for a quoted mark. Delimited quotes take their images from their whole source intervals.
+`raw-tokens` and `single-run-payload` keep word and FOREIGN values. `payload-token` marks a material pause as its primary, so a raw body keeps the value and the image of each mark, as `zo-punctuation` does for a quoted mark. Delimited quotes take their images from their whole source intervals.
 
 `run-token` reads each token that is no pause: a word, a hesitation or a FOREIGN run, each with the value of its token. Its filter names only the kind that it leaves out, so a layer that adds a kind of token need not extend it. A closing run reads only these tokens, a cmavo through `cmavo-token`. So its value is the join of their values.
 
@@ -702,7 +708,7 @@ Only `single-run-payload` gives its body its own image. Its `.verbatim-text` pre
 
 %rule payload-token
   | run-token
-  | ^PAUSE<Quote-Material> → {value: $.decomposed-source-text, image: $.source-text}
+  | ^PAUSE<Quote-Material>
 
 %rule run-token
   _<¬PAUSE>
@@ -818,7 +824,7 @@ SA at normal end has no key and erases back to the start of the text. SA before 
 
 A reach is the stretch from a candidate unit to SA. Its keys are the classes of its first unit that no later live unit shares. Thus a surviving class identifies the nearest candidate for that key. Each nested SA intersects the possible target classes from its reaches. The rule `sa-wipe-core` handles too few matching units. No reach searches inside a quote or compound.
 
-In `lojban/cll`, `lojban/bpfk`, and `lojban/experimental`, SU uses these four shared stopping classes: NIhO, LU, TUhE, and TO. Experimental adds LUhEI through its word layer in `grammars/lojban/experimental/stream.md`. The last surviving boundary word remains. Later LIhU, TOI, and TUhU do not cancel an earlier boundary. In Zantufa, SU erases everything before it.
+In `lojban/cll`, `lojban/bpfk`, and `lojban/experimental`, SU uses these four shared stopping classes: NIhO, LU, TUhE, and TO. Experimental adds LUhEI through its word layer in [experimental/stream.md](../experimental/stream.md). The last surviving boundary word remains. Later LIhU, TOI, and TUhU do not cancel an earlier boundary. In Zantufa, SU erases everything before it.
 
 The feature `su-boundary` makes SU keep its stopping boundary. A boundary inside an opaque unit cannot stop SU. With no boundary, SU erases the whole prefix. When a boundary survives SU, the grammar groups both into one unit. Thus `unit` includes `su-survivor`.
 
@@ -950,7 +956,7 @@ The pipelines use eight departures from CLL.[^cll-c19] Items 2, 4, and 8 differ 
 6. ZOI compares whole raw runs by exact stored values, including FOREIGN values from decomposed source text. The CLL examples[^cll-e19-50][^cll-e19-51] instead forbid the delimiter's spelling or sound inside a longer run.
 7. Every finished quote emits one token, with indicators after it and BAhE before it marking the whole quote. The Magic Words proposal names whole quotes as attitudinal targets. In camxes-std, the quote clauses take `pre_clause` before the quote and `post_clause` after it. This policy also applies to the newer quote kinds. CLL[^cll-s19-16] says that UI marks the previous word and BAhE the following word. In `zo coi ui` and `ba'e zo coi`, those words are `coi` and `zo`.
 
-8. Except in Zantufa, SU erases back to the last surviving boundary word, and that word survives. The shared boundary classes are NIhO, LU, TUhE, and TO. Magic Words and camxes-std name these four boundaries. Experimental also stops at LUhEI through its word layer in `grammars/lojban/experimental/stream.md`. Later closing words do not cancel it. The boundary survives as in camxes-std, whose [`su_word`](https://github.com/lojban/ilmentufa/blob/778ea138f7d150121ca722db7536ce3b123943ac/camxes.peg#L402) excludes `NIhO_clause`, `LU_clause`, `TUhE_clause`, and `TO_clause`.
+8. Except in Zantufa, SU erases back to the last surviving boundary word, and that word survives. The shared boundary classes are NIhO, LU, TUhE, and TO. Magic Words and camxes-std name these four boundaries. Experimental also stops at LUhEI through its word layer in [experimental/stream.md](../experimental/stream.md). Later closing words do not cancel it. The boundary survives as in camxes-std, whose [`su_word`](https://github.com/lojban/ilmentufa/blob/778ea138f7d150121ca722db7536ce3b123943ac/camxes.peg#L402) excludes `NIhO_clause`, `LU_clause`, `TUhE_clause`, and `TO_clause`.
 
    CLL[^cll-s19-13] says that SU "erases the entire text". A stop at an open LU or TO agrees with CLL's `LU text` and `TO text`[^cll-c21]. CLL[^cll-s19-15] names these subordinate texts. A closed LU or TO is one that a later LIhU or TOI closed. A stop at a closed LU or TO follows Magic Words and camxes-std alone.
 
@@ -1000,7 +1006,7 @@ Period tags keep these boundaries independent of script spelling. Zbalermorna an
 
 Unlike camxes-exp, this stage accepts formatting marks attached to a quote marker or delimiter. Their source images keep the marks, which add no value. Whitespace ends an opening formatting edge, so standalone material cannot disappear. Raw body material retains its spelling.
 
-Unlike camxes-exp, a decimal point between digits stays inside a raw run, as `grammars/lojban/common/latin.md` specifies. Thus `zo'oi 3.14 broda` quotes `3.14`, while camxes-exp quotes `3`. This keeps numeric spellings intact.
+Unlike camxes-exp, a decimal point between digits stays inside a raw run, as [latin.md](latin.md) specifies. Thus `zo'oi 3.14 broda` quotes `3.14`, while camxes-exp quotes `3`. This keeps numeric spellings intact.
 
 Unlike camxes-exp, a raw one-word quote takes a standalone comma instead of skipping it. Thus `zo'oi , broda` and `la'oi , klama` quote the comma here. camxes-exp quotes the following word. This follows the decision that ignored characters can form the quote body.
 
@@ -1011,6 +1017,8 @@ The Zantufa lexicon in `grammars/lojban/zantufa/lexicon.md` gives `zei` class SI
 ## Differences from the format 49 grammar
 
 The format 49 copy of this document is `grammars/lojban/common/stream.md`. This document accepts the same texts and hands on the same tokens, with the same values and images. The public keys are the same, except on a y letteral.
+
+`zo-punctuation` and `payload-token` take the value and the image of a material pause from its token. The format 49 copy reads them from the source text, because its forms stage gives the token one space. The strings are the same. `close-gap` writes one space for the pause before the closing delimiter of a `zoi` quote, where the format 49 copy reads the forms value of the pause, which was one space.
 
 The tokens carry the public keys that `$OUTPUTS` names: the keys of the forms stage and the five tags that this stage writes. The format 49 tokens of a y letteral also carry `Y-Key` for `y` or `Ieho` for `ie'o`. Here these two tags are gone, because no stage reads them. A y letteral keeps its letter in the private key `letter`.
 
