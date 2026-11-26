@@ -31633,6 +31633,10 @@
           report.error = runtimeGrammarError(error.withLocation({ stage: undefined }), this.name);
           return report;
         }
+      } else {
+        // With no final token, the surviving reports stay on the stage
+        // (engine §11.4, rule 4).
+        this.assignDiagnostics(report, root, data);
       }
       this.elisionOnly(report, derivation, root, context, lowered, options);
       return report;
@@ -31844,7 +31848,7 @@
      * @param {any} data
      */
     assignDiagnostics(report, root, data) {
-      const tokens = report.output;
+      const tokens = report.output ?? [];
       /** @type {Record<string, any[]>} */
       const unowned = { errors: [], warnings: [] };
       // The supports are built only when a report needs an owner.
