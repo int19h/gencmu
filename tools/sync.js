@@ -208,6 +208,7 @@ function checkSources(documents, documents50, loader) {
     // Every local link of a grammar document names an existing file, and a
     // heading fragment names an existing heading (tools/links.js).
     const exists = (relative) => fs.existsSync(path.join(root, relative));
+    const isFile = (relative) => fs.statSync(path.join(root, relative), { throwIfNoEntry: false })?.isFile() ?? false;
     const grammars50Files = markdownFiles(root).filter((file) => file.startsWith("grammars50/"));
     const missingAnchors = grammarFiles().filter(file => file.endsWith(".md")).flatMap((file) =>
       localAnchorProblems(fs.readFileSync(path.join(grammars, file), "utf8"), `grammars/${file}`, readAnchors, exists));
@@ -222,7 +223,7 @@ function checkSources(documents, documents50, loader) {
     // A format 50 document links the format 50 copy of each grammar file
     // that has one (tools/links.js).
     const oldPaths = grammars50Files.flatMap((file) =>
-      formatPathProblems(fs.readFileSync(path.join(root, file), "utf8"), file, exists));
+      formatPathProblems(fs.readFileSync(path.join(root, file), "utf8"), file, isFile));
     if (oldPaths.length) {
       console.error(oldPaths.join("\n"));
       process.exit(1);
