@@ -25,5 +25,6 @@ export type Constraint50 = {
     max?: Record<string, number>;
     kinds?: Record<string, string[]>;
     notKinds?: Record<string, string[]>;
+    check?: (node: any, kindOf: (child: any, slot: string) => string | undefined) => string | undefined;
 };
 export {};

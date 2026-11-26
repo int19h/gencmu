@@ -17,7 +17,8 @@ export declare const BUNDLE_50: Readonly<{
 export declare function readBootstrap50(text: string, unicode: any): Map<string, any>;
 /**
  * Validates a DOM that did not come from the reader: a cache entry or a
- * supplied DOM. Every template argument record carries its position.
+ * supplied DOM. The record table checks the members, positions and operand
+ * forms of each record, as the reader writes them.
  * @param {any} dom
  * @param {any} path
  * @param {any} unicode

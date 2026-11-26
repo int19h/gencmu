@@ -30003,6 +30003,174 @@
     return describeRecord50(node, slot)?.names ?? [];
   }
 
+  // The constraints of each form beyond its member names ("A grammar DOM"):
+  // the members that it needs, the values of its scalar members, the bounds
+  // of its arrays, and the forms that some operands take.
+  /** @internal @typedef {{required?: string[], values?: Record<string, any[]>, types?: Record<string, string>,
+   *   min?: Record<string, number>, max?: Record<string, number>, kinds?: Record<string, string[]>,
+   *   notKinds?: Record<string, string[]>, check?: (node: any, kindOf: (child: any, slot: string) => string | undefined) => string | undefined}} Constraint50 */
+  const COMPARATORS50 = ["=", "≠", "<", "≤", ">", "≥", "∈", "∉", "⊆", "⊈", "≅", "≇", "+"];
+  // The symbol slots of a body: a base symbol, a symbol, and a symbol or its
+  // capture.
+  const SYMBOL_BASE50 = ["reference", "call", "splice", "literal", "wildcard", "range", "parameter"];
+  const SYMBOL50 = [...SYMBOL_BASE50, "bodyTags", "bodyTest"];
+  // The atoms that a test in a pattern takes.
+  const TEST_ATOM50 = ["patternTerminal", "patternLiteral", "patternRange", "patternWildcard", "patternConstant",
+    "patternName", "patternCall", "patternParameter"];
+  const TARGET50 = ["ruleTarget", "terminalTarget", "call", "parameter"];
+  // The argument grammar of a method, chosen by its name (engine, "Expression
+  // grammar"). Any other method takes ordinary expressions.
+  /** @type {Record<string, string[]>} */
+  const METHOD_ARGUMENTS50 = {
+    parse: ["query"],
+    "followed-by": TARGET50,
+    "preceded-by": TARGET50,
+    "without-elision-except": ["ruleTarget", "call", "parameter"],
+    has: ["keyArgument"],
+    "has-value": ["keyArgument"],
+    ngrams: ["integer"],
+    "at-most": ["integer"],
+  };
+  const AT50 = { required: ["at"] };
+  const ENTRY50 = { required: ["kind", "gates", "at"] };
+  const RULE50 = { required: ["name", "op", "alternatives", "conditions", "at"], values: { op: ["define", "extend", "redefine"] },
+    min: { alternatives: 1 }, kinds: { term: ["bag"] } };
+  /** @param {any} node @param {(child: any, slot: string) => string | undefined} kindOf */
+  function methodArgumentFault50(node, kindOf) {
+    if (!Array.isArray(node.args)) return undefined;
+    for (const arg of node.args) {
+      const kind = kindOf(arg, "methodArgument");
+      const allowed = METHOD_ARGUMENTS50[node.method];
+      if (allowed ? !allowed.includes(/** @type {string} */ (kind)) : !ORDINARY50.has(/** @type {string} */ (kind))) {
+        return `.${node.method} cannot take a ${kind} argument`;
+      }
+    }
+    return undefined;
+  }
+  const METHOD50 = { required: ["args", "at"], check: methodArgumentFault50 };
+  /** @type {Record<string, Constraint50>} */
+  const constraints50 = {
+    document: { required: ["format", "rules", "directives", "constants"], values: { format: [50] } },
+    rule: RULE50,
+    template: { ...RULE50, min: { alternatives: 1, params: 1 } },
+    edit: { ...RULE50, min: { alternatives: 1, args: 1 } },
+    binding: { required: ["name", "op", "instance", "conditions", "at"], max: { conditions: 0 } },
+    constant: { required: ["name", "op", "value", "at"], values: { op: ["define", "redefine"] } },
+    alternative: { required: ["gates", "expr"], kinds: { term: ["bag"] } },
+    insert: { required: ["gates", "insert", "term", "at"], kinds: { term: ["bag"] } },
+    braced: { required: ["gates", "capture", "term", "at"], kinds: { term: ["bag"] } },
+    forward: { required: ["gates", "capture", "at"] },
+    gate: { required: ["feature", "kind", "negated"], types: { negated: "boolean" } },
+    bare: ENTRY50, copy: ENTRY50, delete: ENTRY50, splat: ENTRY50, item: ENTRY50,
+    write: { ...ENTRY50, min: { keys: 1 } },
+    // Body records.
+    sequence: { min: { seq: 2 } }, choice: { min: { choice: 2 } }, ranked: { min: { ranked: 2 } },
+    subset: { min: { and: 2 } },
+    range: { min: { range: 2 }, max: { range: 2 } },
+    chain: { values: { chain: ["left", "right"] } },
+    captureSymbol: { kinds: { expr: SYMBOL50 } },
+    primary: { kinds: { primary: [...SYMBOL50, "captureSymbol"] } },
+    bodyTags: { required: ["at"], kinds: { expr: SYMBOL_BASE50 } },
+    bodyTest: { required: ["at"], values: { test: ["=", "≠"] }, kinds: { expr: [...SYMBOL_BASE50, "bodyTags"] } },
+    call: { required: ["at"], min: { args: 1 } },
+    parameter: AT50,
+    // Template arguments each end with a position.
+    literalArgument: AT50, wildcardArgument: AT50, spliceArgument: AT50, expressionArgument: AT50,
+    ruleArgument: AT50, tagArgument: AT50, bodyArgument: AT50, requirementsArgument: AT50,
+    rangeArgument: { required: ["at"], min: { range: 2 }, max: { range: 2 } },
+    targetsArgument: { required: ["at"], min: { targets: 2 } },
+    requirement: { required: ["negated", "value"], types: { negated: "boolean" } },
+    // Expression records.
+    string: { types: { string: "string" } },
+    integer: { types: { integer: "string" } },
+    conditional: AT50, implication: AT50, lambda: AT50, negation: AT50, flatten: AT50, property: AT50,
+    map: AT50, constantReference: AT50, application: AT50,
+    disjunction: { required: ["at"], min: { any: 2 } }, conjunction: { required: ["at"], min: { all: 2 } },
+    // The reader flattens unions and concatenations, and keeps the binary
+    // nesting of an intersection.
+    union: { required: ["at"], min: { union: 2 }, notKinds: { union: ["union"] } },
+    concat: { required: ["at"], min: { concat: 2 }, notKinds: { concat: ["concat"] } },
+    intersection: { required: ["at"], min: { intersection: 2 }, max: { intersection: 2 } },
+    difference: { required: ["at"], min: { difference: 2 }, max: { difference: 2 } },
+    comparison: {
+      required: ["at"], values: { op: COMPARATORS50 },
+      check: (node, kindOf) => (node.op === "≅" || node.op === "≇") && !["capture", "implicitItem"].includes(/** @type {string} */ (kindOf(node.left, "expression")))
+        ? `a structural comparison needs a capture or the item on its left` : undefined,
+    },
+    method: METHOD50, shortMethod: METHOD50,
+    // Pattern records.
+    patternName: AT50, patternCall: AT50, patternCallWithChildren: AT50, patternParameter: AT50,
+    patternParameterWithChildren: AT50, patternTerminal: AT50, patternRange: AT50, patternWildcard: AT50, patternConstant: AT50,
+    patternLiteral: { required: ["at"], kinds: { literal: ["string"] } },
+    patternTags: { required: ["at"], kinds: { expr: TEST_ATOM50 } },
+    patternTest: { required: ["at"], values: { test: ["=", "≠"] }, kinds: { expr: [...TEST_ATOM50, "patternTags"] } },
+    patternPath: { values: { path: ["descendant", "first", "last"] } },
+    // The reader flattens unions and intersections of patterns.
+    patternUnion: { required: ["at"], min: { union: 2 }, notKinds: { union: ["patternUnion"] } },
+    patternIntersection: { required: ["at"], min: { intersection: 2 }, notKinds: { intersection: ["patternIntersection"] } },
+    patternDifference: { required: ["at"], min: { difference: 2 }, max: { difference: 2 } },
+    childChoice: {
+      min: { choice: 2 },
+      check: node => Array.isArray(node.choice) && node.choice.some((/** @type {any} */ arm) => Array.isArray(arm) && !arm.length)
+        ? "each alternative of a child choice needs at least 1 item" : undefined,
+    },
+    childRepeat: { min: { repeat: 1 } }, childOptional: { min: { optional: 1 } },
+    childRepeatSeparated: { min: { repeat: 1, separator: 1 } },
+  };
+  // The forms of an ordinary expression, which a method that takes no special
+  // argument accepts.
+  const ORDINARY50 = new Set(Object.entries(recordTable50).filter(([, form]) => form.slots.includes("expression")).map(([kind]) => kind));
+
+  /** @param {string} word the word with its article */
+  const an50 = word => (/^(?:[aeio]|u(?!ni))/.test(word) ? "an " : "a ") + word;
+
+  /**
+   * The fault of a record against the constraints of its form, or undefined.
+   * @param {any} node
+   * @param {Record50} record
+   */
+  function constraintFault50(node, record) {
+    const constraint = constraints50[record.kind];
+    // A position is a line and a column, each a positive integer.
+    if (Object.hasOwn(node, "at") && !(Array.isArray(node.at) && node.at.length === 2 && node.at.every((/** @type {any} */ part) => Number.isInteger(part) && part > 0))) {
+      return `${an50(record.kind)} record has an invalid position`;
+    }
+    if (!constraint) return undefined;
+    for (const key of constraint.required ?? []) if (!Object.hasOwn(node, key)) return `${an50(record.kind)} record needs "${key}"`;
+    for (const [key, values] of Object.entries(constraint.values ?? {})) {
+      if (Object.hasOwn(node, key) && !values.includes(node[key])) return `"${key}" of ${an50(record.kind)} record cannot be ${JSON.stringify(node[key])}`;
+    }
+    for (const [key, type] of Object.entries(constraint.types ?? {})) {
+      if (Object.hasOwn(node, key) && typeof node[key] !== type) return `"${key}" of ${an50(record.kind)} record needs ${an50(type)}`;
+    }
+    for (const [key, least] of Object.entries(constraint.min ?? {})) {
+      if (Array.isArray(node[key]) && node[key].length < least) return `"${key}" of ${an50(record.kind)} record needs at least ${least} ${least === 1 ? "item" : "items"}`;
+    }
+    for (const [key, most] of Object.entries(constraint.max ?? {})) {
+      if (Array.isArray(node[key]) && node[key].length > most) return `"${key}" of ${an50(record.kind)} record takes at most ${most} ${most === 1 ? "item" : "items"}`;
+    }
+    const kindOf = (/** @type {any} */ child, /** @type {string} */ slot) =>
+      child && typeof child === "object" && !Array.isArray(child) ? describeRecord50(child, slot)?.kind : undefined;
+    // The kinds of an operand, or of each item of an array operand.
+    const operandKinds = (/** @type {string} */ key) => {
+      const slot = record.operands.find(([name]) => name === key)?.[1] ?? "operand";
+      return Array.isArray(node[key]) ? node[key].map((/** @type {any} */ child) => kindOf(child, slot.replace(/\[\]$/, ""))) : [kindOf(node[key], slot)];
+    };
+    for (const [key, kinds] of Object.entries(constraint.kinds ?? {})) {
+      if (!Object.hasOwn(node, key)) continue;
+      const kind = operandKinds(key).find(kind => !kinds.includes(/** @type {string} */ (kind)));
+      if (kind !== undefined || operandKinds(key).includes(undefined)) {
+        return `"${key}" of ${an50(record.kind)} record cannot be ${kind === undefined ? "this form" : an50(kind) + " record"}`;
+      }
+    }
+    for (const [key, kinds] of Object.entries(constraint.notKinds ?? {})) {
+      if (!Object.hasOwn(node, key)) continue;
+      const kind = operandKinds(key).find(kind => kinds.includes(/** @type {string} */ (kind)));
+      if (kind !== undefined) return `"${key}" of ${an50(record.kind)} record cannot be ${an50(kind)} record`;
+    }
+    return constraint.check?.(node, kindOf);
+  }
+
   /** @internal @param {any} node @param {string} slot */
   function memberFault50(node, slot) {
     if (slot.endsWith("[]")) return Array.isArray(node) ? undefined : `a ${slot.slice(0, -2)} list needs an array`;
@@ -30029,6 +30197,7 @@
         return `invalid operand "${key}" on a ${record.kind} record`;
       }
     }
+    return constraintFault50(node, record);
   }
 
   /** @internal */
@@ -34067,34 +34236,14 @@
 
   /**
    * Validates a DOM that did not come from the reader: a cache entry or a
-   * supplied DOM. Every template argument record carries its position.
+   * supplied DOM. The record table checks the members, positions and operand
+   * forms of each record, as the reader writes them.
    * @param {any} dom
    * @param {any} path
    * @param {any} unicode
    */
   function validateStoredDom(dom, path, unicode) {
     validateDocument50(dom, { document: path, unicode });
-    /** @param {any} node */
-    const visit = node => {
-      if (!node || typeof node !== "object") return;
-      if (Array.isArray(node)) return node.forEach(visit);
-      if (node.call !== undefined && Array.isArray(node.args) || Array.isArray(node.args) && node.op !== undefined && node.alternatives) {
-        for (const arg of node.args) {
-          if (!arg || typeof arg !== "object" || !Array.isArray(arg.at)) {
-            throw new GencmuError("grammar", `the DOM of ${path} has a template argument record without its position`, { document: path });
-          }
-        }
-      }
-      for (const value of Object.values(node)) if (value && typeof value === "object") visit(value);
-    };
-    // A directive holds template calls only in its conditions and steps. Its
-    // other members, such as the annotation of a stage, are not operands.
-    visit(dom.rules);
-    visit(dom.constants);
-    for (const directive of dom.directives ?? []) {
-      visit(directive.conditions);
-      visit(directive.steps);
-    }
   }
 
   class Loader50 {
