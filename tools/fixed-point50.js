@@ -9,6 +9,8 @@ import path from "node:path";
 import { createHash } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { Loader50, BUNDLE_50, bootstrapText } from "../lib/js/src/format50/loader.js";
+import { resolvePath } from "../lib/js/src/markdown.js";
+import { compareCodePoints } from "../lib/js/src/tags.js";
 
 const root = fileURLToPath(new URL("../lib/js/", import.meta.url));
 const args = process.argv.slice(2);
@@ -33,6 +35,22 @@ const read = file => {
 const loader = new Loader50(read);
 const entries = new Map();
 for (const document of loader.bootstrap.keys()) entries.set(document, loader.readDocument(read(document), document));
-const text = bootstrapText(entries, read);
+// The seed names the names files of every bundled pipeline, as
+// tools/notation50-resources.js writes it for tools/sync.js: each %names
+// target that is a source of the bundle or a readable data file.
+const sources = new Set(fs.readdirSync(path.join(root, BUNDLE_50.sourceRoot), { recursive: true, withFileTypes: true })
+  .filter(item => item.isFile() && !item.name.startsWith("."))
+  .map(item => path.relative(root, path.join(item.parentPath, item.name)).split(path.sep).join("/")));
+for (const file of [...sources].filter(file => file.endsWith("/pipeline.md")).sort(compareCodePoints)) loader.pipeline(file);
+const names = new Set(["data/unicode/unicode-names.txt"]);
+for (const [key, dom] of loader.documents) {
+  if (!dom) continue;
+  const [file] = JSON.parse(key);
+  for (const item of dom.directives.filter(directive => directive.name === "names")) {
+    const target = resolvePath(file, item.args[0]);
+    if (sources.has(target) || target.startsWith("data/") && read(target) !== undefined) names.add(target);
+  }
+}
+const text = bootstrapText(entries, read, [...names]);
 fs.writeFileSync(out, text);
 console.log(`${createHash("sha256").update(text).digest("hex")}  ${out}`);
