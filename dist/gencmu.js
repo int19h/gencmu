@@ -32891,6 +32891,7 @@
 
 
 
+
   const EXPRESSION_WRAPPERS = new Set([
     "expr", "disj", "conj", "comparison", "union", "inter", "sum", "post", "atom", "grouped-expr",
   ]);
@@ -32939,9 +32940,18 @@
     return node;
   }
 
+  /** @typedef {import("../trampoline.js").Step} Step */
+
+  // An explicit stack, since a tree can nest deeper than the call stack.
   /** @param {any} node */
   function containsCapture(node) {
-    return ["capture", "captured-terminator"].includes(node.rule) || rules(node).some(containsCapture);
+    const pending = [node];
+    while (pending.length) {
+      const next = pending.pop();
+      if (["capture", "captured-terminator"].includes(next.rule)) return true;
+      for (const child of rules(next)) pending.push(child);
+    }
+    return false;
   }
 
   // Conversion yields one record at a time in written order, with the
@@ -33040,12 +33050,13 @@
     // it stops, so that the shape walk reports it in the order of engine §9.3.
     // The operands in `before` precede the fault in that order.
     /**
-     * @param {() => any} convert
+     * @param {Step} step
      * @param {[any, string][]} [before]
+     * @returns {Step}
      */
-    deferred(convert, before) {
+    *deferred(step, before) {
       try {
-        return convert();
+        return yield step;
       } catch (error) {
         if (!(error instanceof GencmuError)) throw error;
         this.faults.push(error);
@@ -33073,6 +33084,18 @@
       return { [FAULT]: error, [BEFORE]: before.filter(([node]) => node !== undefined) };
     }
 
+    // Converts each item in order.
+    /**
+     * @param {any[]} items
+     * @param {(item: any, index: number) => Step} convert
+     * @returns {Step}
+     */
+    *each(items, convert) {
+      const results = [];
+      for (const [index, item] of items.entries()) results.push(yield convert(item, index));
+      return results;
+    }
+
     /**
      * @param {any} tree
      * @param {any} [storeDom]
@@ -33081,6 +33104,8 @@
       return inspectConverted50(this.declarations(tree), { document: this.document, unicode: this.unicode }, storeDom);
     }
 
+    // Each declaration converts on the trampoline, so the nesting of a
+    // document cannot exhaust the call stack.
     /** @param {any} tree */
     *declarations(tree) {
       let preamble = true;
@@ -33094,23 +33119,23 @@
         switch (node.rule) {
           case "rule":
             category = "rules";
-            record = this.rule(node);
+            record = run(this.rule(node));
             break;
           case "constant-definition":
             {
               const name = this.value(part(node, "constant-name")).slice(1);
               if (name === "INPUTS") this.fail(node, "$INPUTS is supplied by the engine");
               category = "constants";
-              record = { name, op: operation(this.value(node)), value: this.expression(part(node, "expr")), at: this.at(node) };
+              record = { name, op: operation(this.value(node)), value: run(this.expression(part(node, "expr"))), at: this.at(node) };
             }
             break;
           case "directive":
             category = "directives";
-            record = misplaced ? this.misplacedNames(node) : this.directive(node);
+            record = run(misplaced ? this.misplacedNames(node) : this.directive(node));
             break;
           case "ranking-directive":
             category = "directives";
-            record = this.ranking(node);
+            record = run(this.ranking(node));
             break;
           default:
             this.fail(node, "expected a declaration");
@@ -33122,15 +33147,21 @@
     // A misplaced %names fails at its placement before its operands (engine
     // §9.3). Where its operands convert, the record goes to the shape check,
     // which reports the placement with the prefix that holds the record.
-    /** @param {any} node */
-    misplacedNames(node) {
-      const record = this.deferred(() => this.directive(node));
+    /**
+     * @param {any} node
+     * @returns {Step}
+     */
+    *misplacedNames(node) {
+      const record = yield this.deferred(this.directive(node));
       if (faulty(record)) this.fail(node, "%names must precede all other declarations");
       return record;
     }
 
-    /** @param {any} node */
-    directive(node) {
+    /**
+     * @param {any} node
+     * @returns {Step}
+     */
+    *directive(node) {
       const name = this.value(node).slice(1);
       const operands = parts(node, "directive-argument").map((/** @type {any} */ argument) => rules(argument)[0]);
       const clauses = part(node, "conditions-clause");
@@ -33154,26 +33185,37 @@
             !RULE_NAME.test(this.value(operands[0]))) this.fail(node, `%${name} takes one stage name`);
         args = [this.value(operands[0])];
       }
-      return { name, args, at: this.at(node), ...(clauses && { conditions: this.conditions(clauses) }) };
+      const at = this.at(node);
+      return { name, args, at, ...(clauses && { conditions: yield this.conditions(clauses) }) };
     }
 
-    /** @param {any} node */
-    ranking(node) {
-      const steps = parts(node, "ranking-step").map((/** @type {any} */ stepNode) => {
+    /**
+     * @param {any} node
+     * @returns {Step}
+     */
+    *ranking(node) {
+      const steps = [];
+      for (const stepNode of parts(node, "ranking-step")) {
         const step = this.value(stepNode);
         const patternNode = rules(stepNode)[0];
         if (Boolean(patternNode) !== KEY_STEPS.has(step)) this.fail(node, "invalid resolution step operand");
-        if (!patternNode) return { step };
-        const pattern = patternNode.rule === "constant-reference" ?
+        if (!patternNode) {
+          steps.push({ step });
+          continue;
+        }
+        const pattern = yield patternNode.rule === "constant-reference" ?
           this.expression(patternNode) : this.pattern(patternNode);
-        return { step, pattern };
-      });
+        steps.push({ step, pattern });
+      }
       if (!validSteps(steps)) this.fail(node, "invalid resolution policy");
       return { name: "ambiguity-resolution", steps, at: this.at(node) };
     }
 
-    /** @param {any} node */
-    rule(node) {
+    /**
+     * @param {any} node
+     * @returns {Step}
+     */
+    *rule(node) {
       const op = operation(this.value(node));
       const plain = part(node, "rule-name");
       const call = part(node, "call");
@@ -33186,12 +33228,12 @@
       if (leaves(node).some((/** @type {any} */ token) => this.value(token) === "=")) {
         if (!plain) this.fail(head, "an instance binding needs a plain rule name");
         if (op === "extend") this.fail(node, "an instance binding cannot extend a rule");
-        return { name, op, instance: this.call(call), conditions: [], at };
+        return { name, op, instance: yield this.call(call), conditions: [], at };
       }
       /** @type {{params?: any[], args?: any[]}} */
       let category = {};
       if (!plain) {
-        const { args } = this.call(head);
+        const { args } = yield this.call(head);
         if (args.every((/** @type {any} */ arg) => Object.hasOwn(arg, "param"))) {
           /** @type {any[]} */
           const params = [];
@@ -33208,17 +33250,17 @@
         }
       }
       const termNode = part(node, "statement-term");
-      const term = termNode && this.expression(part(termNode, "bag"));
+      const term = termNode && (yield this.expression(part(termNode, "bag")));
       const body = rules(part(node, "body") ?? part(node, "headed-body"))[0];
       const owner = { at };
-      const alternatives = body.rule === "ranked-body" ?
-        [this.alternative(body, "ranked-choice", owner)] : rules(body).map((/** @type {any} */ alt) => this.alternative(alt, "some-of", owner));
-      const conditions = this.conditions(part(node, "conditions-clause"));
+      const alternatives = body.rule === "ranked-body" ? [yield this.alternative(body, "ranked-choice", owner)] :
+        yield this.each(rules(body), (/** @type {any} */ alt) => this.alternative(alt, "some-of", owner));
+      const conditions = yield this.conditions(part(node, "conditions-clause"));
       const diagnostic = part(node, "diagnostic-clause");
       const diagnosticNode = diagnostic && rules(diagnostic)[0];
       if (diagnostic && category.params) this.domFault({ at }, "a template cannot declare an error or warning");
       const key = diagnosticNode?.rule.split("-")[0];
-      const message = diagnosticNode && this.expression(part(diagnosticNode, "expr"));
+      const message = diagnosticNode && (yield this.expression(part(diagnosticNode, "expr")));
       const suppression = part(node, "suppress-warnings-clause");
       const suppressWarnings = suppression && (parts(suppression, "suppression-code").length ?
         parts(suppression, "suppression-code").map((/** @type {any} */ code) => {
@@ -33229,27 +33271,32 @@
       const output = part(node, "output-clause");
       const outputNode = output && rules(output)[0];
       const erased = outputNode?.rule === "erased-clause";
-      const emit = outputNode && !erased && { items: parts(outputNode, "output").map((/** @type {any} */ item) => this.entry(item)) };
+      const emit = outputNode && !erased &&
+        { items: yield this.each(parts(outputNode, "output"), (/** @type {any} */ item) => this.entry(item)) };
       return { name, ...category, op, ...(term && { term }), alternatives, ...(emit && { emit }), conditions,
         ...(key && { [key]: message }), ...(suppressWarnings && { suppressWarnings }), ...(erased && { erased }), at };
     }
 
-    /** @param {any} node */
-    conditions(node) {
-      return node ? parts(node, "expr").map((/** @type {any} */ item) => this.expression(item)) : [];
+    /**
+     * @param {any} node
+     * @returns {Step}
+     */
+    *conditions(node) {
+      return node ? yield this.each(parts(node, "expr"), (/** @type {any} */ item) => this.expression(item)) : [];
     }
 
     /**
      * @param {any} node
      * @param {any} kind
      * @param {any} owner
+     * @returns {Step}
      */
-    alternative(node, kind, owner) {
+    *alternative(node, kind, owner) {
       const gates = parts(node, "feature-gate").map((/** @type {any} */ gate) => this.gate(gate));
       const source = part(node, kind);
-      const expr = this.ownedBody(source, owner, true);
+      const expr = yield this.ownedBody(source, owner, true);
       const term = part(node, "alternative-term");
-      return { gates, expr, ...(term && { term: this.expression(part(term, "bag")) }) };
+      return { gates, expr, ...(term && { term: yield this.expression(part(term, "bag")) }) };
     }
 
     /** @param {any} node */
@@ -33277,14 +33324,14 @@
     /**
      * @param {any} node
      * @param {any} owner
-     * @returns {any}
+     * @returns {Step}
      */
-    ownedBody(node, owner, whole = false) {
+    *ownedBody(node, owner, whole = false) {
       /** @type {any} */
       const previous = this.bodyOwner;
       this.bodyOwner = owner;
       try {
-        return this.body(node, whole);
+        return yield this.body(node, whole);
       } finally {
         this.bodyOwner = previous;
       }
@@ -33292,17 +33339,17 @@
 
     /**
      * @param {any} node
-     * @returns {any}
+     * @returns {Step}
      */
     body(node, whole = false, elidable = false) {
-      return this.deferred(() => this.bodyRecord(node, whole, elidable));
+      return this.deferred(this.bodyRecord(node, whole, elidable));
     }
 
     /**
      * @param {any} node
-     * @returns {any}
+     * @returns {Step}
      */
-    bodyRecord(node, whole = false, elidable = false) {
+    *bodyRecord(node, whole = false, elidable = false) {
       let children = rules(node);
       let optionals = 0;
       let grouped = false;
@@ -33315,7 +33362,7 @@
       }
       if (optionals) {
         /** @type {any} */
-        let result = this.body(node);
+        let result = yield this.body(node);
         for (let i = 0; i < optionals; i++) result = { optional: result };
         return result;
       }
@@ -33324,24 +33371,26 @@
         this.body(child, top, isElidable);
       switch (node.rule) {
         case "choice":
-          return { choice: children.map((/** @type {any} */ child) => expr(child, false, elidable)) };
+          return { choice: yield this.each(children, (/** @type {any} */ child) => expr(child, false, elidable)) };
         case "ranked-choice":
-          return { ranked: children.map((/** @type {any} */ child) => expr(child, false, false)) };
+          return { ranked: yield this.each(children, (/** @type {any} */ child) => expr(child, false, false)) };
         case "some-of":
           validateSubsetSize50(children.length, this.bodyOwner, this.domFault);
-          return { and: children.map((/** @type {any} */ child) => expr(child, false, elidable)) };
+          return { and: yield this.each(children, (/** @type {any} */ child) => expr(child, false, elidable)) };
         case "sequence":
-          return { seq: children.map((/** @type {any} */ child, /** @type {any} */ index) => expr(child, false, elidable && index === 0)) };
+          return { seq: yield this.each(children, (/** @type {any} */ child, /** @type {number} */ index) =>
+            expr(child, false, elidable && index === 0)) };
         case "optional":
-          return this.optional(node, first);
+          return yield this.optional(node, first);
         case "repetition": {
           const marks = leaves(node).filter((/** @type {any} */ leaf) => this.value(leaf) === "...");
           if (marks.length > 1) this.fail(marks[1], "a chain can have only one marker");
           if (marks.length && grouped) this.fail(node, "a chain must occupy a whole alternative");
           const separatorMark = children[1] && leaves(children[1]).find((/** @type {any} */ leaf) => this.value(leaf) === "...");
           if (separatorMark) this.fail(separatorMark, "a chain marker cannot label a separator");
-          return { repeat: expr(first, false, false),
-            ...(children[1] && { separator: expr(children[1], false, false) }),
+          const repeat = yield expr(first, false, false);
+          const separator = children[1] && (yield expr(children[1], false, false));
+          return { repeat, ...(children[1] && { separator }),
             ...(marks.length && { chain: marks[0].span[0] < first.span[0] ? "left" : "right" }) };
         }
         case "capture":
@@ -33351,21 +33400,21 @@
           // a fault of the target kind waits at the target.
           const wrong = () => this.waitingFault(first, "a capture wraps one symbol");
           if (GROUPS.has(baseFactor(children[1]).rule)) return { capture, expr: wrong() };
-          const target = expr(children[1], false, elidable);
+          const target = yield expr(children[1], false, elidable);
           return { capture, expr: faulty(target) || isBodySymbol50(target) ? target : wrong() };
         }
         case "marked-factor": {
           const atom = baseFactor(first.rule === "capture" ? rules(first)[1] : first);
           if (GROUPS.has(atom.rule)) this.fail(node, "a primary marks one ungrouped symbol or capture that is not a splice");
-          const target = expr(first, false, elidable);
+          const target = yield expr(first, false, elidable);
           return { primary: target };
         }
         case "tested-factor": {
           if (GROUPS.has(baseFactor(first).rule)) this.fail(children[1], "a test applies to one symbol");
           const tests = this.testOrder(children.slice(1), elidable);
-          const base = expr();
+          const base = yield expr();
           if (!faulty(base) && !isBodySymbol50(base)) this.fail(children[1], "a test applies to one symbol");
-          return this.tests(base, tests);
+          return yield this.tests(base, tests);
         }
         case "ref":
         case "rule-reference":
@@ -33373,19 +33422,19 @@
         case "tag":
           return { ref: this.name(node) };
         case "range":
-          return { range: children.map((/** @type {any} */ child) => this.stringOperand(rules(child)[0])) };
+          return { range: yield this.each(children, (/** @type {any} */ child) => this.stringOperand(rules(child)[0])) };
         case "string-terminal":
-          return { literal: this.stringOperand(first) };
+          return { literal: yield this.stringOperand(first) };
         case "wildcard":
           return { wildcard: true };
         case "empty":
           return { empty: true };
         case "splice":
-          return { splice: expr() };
+          return { splice: yield expr() };
         case "parameter":
           return this.parameter(node);
         case "call":
-          return this.call(node);
+          return yield this.call(node);
         default:
           this.fail(node, `unexpected body part ${node.rule}`);
       }
@@ -33394,12 +33443,12 @@
     /**
      * @param {any} node
      * @param {any} route
-     * @returns {any}
+     * @returns {Step}
      */
-    optional(node, route) {
+    *optional(node, route) {
       const captured = route.rule === "captured-terminator";
       const elidable = captured || leaves(node).some((/** @type {any} */ leaf) => this.value(leaf) === "+");
-      if (!elidable) return { optional: this.body(route) };
+      if (!elidable) return { optional: yield this.body(route) };
       const parts = rules(route);
       const sequence = captured ? parts.slice(1) : rules(rules(parts[0])[0]);
       const head = sequence[0] && baseFactor(sequence[0]);
@@ -33412,7 +33461,7 @@
       if (!head || !["tag", "parameter"].includes(head.rule) || head.rule === "tag" && !/^[A-Z]/.test(this.value(head)) ||
           sequence.slice(1).some(containsCapture)) this.domFault(this.bodyOwner, elidableForm50);
       /** @type {any} */
-      const optional = this.body(route, false, true);
+      const optional = yield this.body(route, false, true);
       const symbol = captured ? optional.expr : optional.seq?.[0] ?? optional;
       const value = this.defaults?.get(symbol);
       return { optional, elidable: true, ...(value && { default: value }) };
@@ -33435,16 +33484,17 @@
     /**
      * @param {any} base
      * @param {any} tests
+     * @returns {Step}
      */
-    tests(base, tests) {
+    *tests(base, tests) {
       let result = base;
       for (const test of tests) {
         const at = this.at(test);
         if (test.rule === "tag-test") {
-          const requirements = this.requirements(test);
+          const requirements = yield this.requirements(test);
           result = { test: "tags", requirements, expr: result, at };
         } else {
-          const value = this.stringOperand(rules(test)[0], true);
+          const value = yield this.stringOperand(rules(test)[0], true);
           if (test.rule === "value-test") result = { test: this.value(test), value, expr: result, at };
           else {
             this.defaults ??= new WeakMap();
@@ -33455,37 +33505,46 @@
       return result;
     }
 
-    /** @param {any} node */
+    /**
+     * @param {any} node
+     * @returns {Step}
+     */
     requirements(node) {
-      return parts(node, "tag-requirement").map((/** @type {any} */ requirement) => this.deferred(() => {
-        const operand = rules(rules(requirement)[0])[0];
-        const negated = this.value(requirement) === "¬";
-        if (operand.rule === "tag") return { negated, value: { tag: this.name(operand) } };
-        const value = this.stringOperand(operand, true, "a key requirement needs a tag, key-set constant or parameter");
-        if (value.string !== undefined) this.fail(operand, "a key requirement needs a tag, key-set constant or parameter");
-        return { negated, value };
-      }));
+      return this.each(parts(node, "tag-requirement"), (/** @type {any} */ requirement) => this.deferred(this.requirement(requirement)));
+    }
+
+    /**
+     * @param {any} requirement
+     * @returns {Step}
+     */
+    *requirement(requirement) {
+      const operand = rules(rules(requirement)[0])[0];
+      const negated = this.value(requirement) === "¬";
+      if (operand.rule === "tag") return { negated, value: { tag: this.name(operand) } };
+      const value = yield this.stringOperand(operand, true, "a key requirement needs a tag, key-set constant or parameter");
+      if (value.string !== undefined) this.fail(operand, "a key requirement needs a tag, key-set constant or parameter");
+      return { negated, value };
     }
 
     /**
      * @param {any} node
-     * @returns {any}
+     * @returns {Step}
      */
     stringOperand(node, test = false, message = "a string operand needs a literal, constant or parameter") {
-      return this.deferred(() => this.stringRecord(node, test, message));
+      return this.deferred(this.stringRecord(node, test, message));
     }
 
     /**
      * @param {any} node
      * @param {boolean} test
      * @param {string} message
-     * @returns {any}
+     * @returns {Step}
      */
-    stringRecord(node, test, message) {
+    *stringRecord(node, test, message) {
       if (test && node.rule === "test-operand") node = rules(node)[0];
       if (test && node.rule === "post" && rules(node).length === 1) node = rules(rules(node)[0])[0] ?? node;
       if (!["string", "constant-reference", "parameter"].includes(node.rule)) this.fail(node, message);
-      return this.expression(node);
+      return yield this.expression(node);
     }
 
     /** @param {any} node */
@@ -33493,42 +33552,51 @@
       return { param: this.value(node).slice(1), at: this.at(node) };
     }
 
-    /** @param {any} node */
-    call(node) {
-      return { call: this.value(node), args: parts(node, "call-argument").map((/** @type {any} */ arg) => this.argument(arg)), at: this.at(node) };
+    /**
+     * @param {any} node
+     * @returns {Step}
+     */
+    *call(node) {
+      const call = this.value(node);
+      const args = yield this.each(parts(node, "call-argument"), (/** @type {any} */ arg) => this.argument(arg));
+      return { call, args, at: this.at(node) };
     }
 
     /**
      * @param {any} node
-     * @returns {any}
+     * @returns {Step}
      */
     target(node) {
-      return this.deferred(() => this.targetRecord(node));
+      return this.deferred(this.targetRecord(node));
     }
 
     /**
      * @param {any} node
-     * @returns {any}
+     * @returns {Step}
      */
-    targetRecord(node) {
+    *targetRecord(node) {
       const first = rules(node)[0];
-      if (node.rule === "neighbor-target" || node.rule === "target-option") return this.target(first);
-      if (node.rule === "call") return this.call(node);
+      if (node.rule === "neighbor-target" || node.rule === "target-option") return yield this.target(first);
+      if (node.rule === "call") return yield this.call(node);
       if (node.rule === "parameter") return this.parameter(node);
       if (node.rule === "tag") return { terminal: this.name(node) };
       return { rule: this.value(node) };
     }
 
-    /** @param {any} node */
-    argument(node) {
+    /**
+     * @param {any} node
+     * @returns {Step}
+     */
+    *argument(node) {
       const first = rules(node)[0];
       const at = this.at(first);
       let result;
-      if (first.rule === "expr") result = { expression: this.expression(first), at };
-      else if (first.rule === "requirement-argument") result = { requirements: this.requirements(first), at };
-      else if (first.rule === "target-argument") result = { targets: rules(first).map((/** @type {any} */ target) => this.target(target)), at };
-      else {
-        const body = this.ownedBody(first, { at });
+      if (first.rule === "expr") result = { expression: yield this.expression(first), at };
+      else if (first.rule === "requirement-argument") result = { requirements: yield this.requirements(first), at };
+      else if (first.rule === "target-argument") {
+        result = { targets: yield this.each(rules(first), (/** @type {any} */ target) => this.target(target)), at };
+      } else {
+        const body = yield this.ownedBody(first, { at });
         if (recordKind50(body, "body") === "reference") {
           const key = /^[A-Z_]/.test(body.ref) ? "tag" : "rule";
           result = { [key]: body.ref, at };
@@ -33540,17 +33608,17 @@
 
     /**
      * @param {any} node
-     * @returns {any}
+     * @returns {Step}
      */
     expression(node) {
-      return this.deferred(() => this.expressionRecord(node));
+      return this.deferred(this.expressionRecord(node));
     }
 
     /**
      * @param {any} node
-     * @returns {any}
+     * @returns {Step}
      */
-    expressionRecord(node) {
+    *expressionRecord(node) {
       let children = rules(node);
       // A long run of parentheses or precedence wrappers adds no DOM depth.
       while (children.length === 1 && (EXPRESSION_WRAPPERS.has(node.rule) ||
@@ -33564,14 +33632,14 @@
       const expr = child => this.expression(child);
       switch (node.rule) {
         case "expr":
-          return children.length === 1 ? expr(first) :
-            { if: expr(first), then: expr(children[1]), at: this.at(operators[0]) };
+          if (children.length === 1) return yield expr(first);
+          return { if: yield expr(first), then: yield expr(children[1]), at: this.at(operators[0]) };
         case "function":
-          return { lambda: this.binder(operators[0]), body: expr(first), at: this.at(operators[0]) };
+          return { lambda: this.binder(operators[0]), body: yield expr(first), at: this.at(operators[0]) };
         case "disj":
         case "conj": {
           const key = node.rule === "disj" ? "any" : "all";
-          const values = children.map(expr);
+          const values = yield this.each(children, expr);
           return values.length === 1 ? values[0] : { [key]: values,
             at: this.at(operators.find((/** @type {any} */ operator) => operator.span[0] >= first.span[1])) };
         }
@@ -33582,39 +33650,40 @@
             if (operator) positions.push(this.at(operator));
             node = rules(node)[0];
           }
-          return positions.reduceRight((not, at) => ({ not, at }), expr(node));
+          const operand = yield expr(node);
+          return positions.reduceRight((not, at) => ({ not, at }), operand);
         }
         case "comparison": {
-          if (children.length === 1) return expr(first);
+          if (children.length === 1) return yield expr(first);
           const op = this.value(children[1]);
-          const left = expr(first);
-          const right = expr(children[2]);
+          const left = yield expr(first);
+          const right = yield expr(children[2]);
           return { op, left, right, at: this.at(children[1]) };
         }
         case "union":
         case "inter":
         case "sum":
-          return this.binary(node, (/** @type {any} */ child) => expr(child), false);
+          return yield this.binary(node, expr, false);
         case "post": {
-          let value = expr(first);
+          let value = yield expr(first);
           // A selector that fails waits after its receiver.
           for (const selector of children.slice(1)) {
             const receiver = value;
-            value = this.deferred(() => this.selector(selector, receiver), [[receiver, "expression"]]);
+            value = yield this.deferred(this.selector(selector, receiver), [[receiver, "expression"]]);
           }
           return value;
         }
         case "atom":
-          if (first) return expr(first);
+          if (first) return yield expr(first);
           if (this.value(node) === "∅") return { emptySet: true };
           return { capture: this.value(node) === "$" ? "" : this.binder(node) };
         case "grouped-expr":
-          return children.length === 1 ? expr(first) :
-            { if: expr(first), then: expr(children[1]), else: expr(children[2]), at: this.at(operators[1]) };
+          if (children.length === 1) return yield expr(first);
+          return { if: yield expr(first), then: yield expr(children[1]), else: yield expr(children[2]), at: this.at(operators[1]) };
         case "item-reference":
           return first ? { property: this.name(first), receiver: { item: true }, at: this.at(node) } : { item: true };
         case "method":
-          return this.method(node, { item: true });
+          return yield this.method(node, { item: true });
         case "string":
           return { string: this.strings.decode(this.token(node)) };
         case "integer":
@@ -33622,17 +33691,15 @@
         case "constant-reference":
           return { const: this.value(node).slice(1), at: this.at(node) };
         case "application":
-          return { apply: this.value(node).slice(1), arg: expr(first), at: this.at(node) };
+          return { apply: this.value(node).slice(1), arg: yield expr(first), at: this.at(node) };
         case "parameter":
           return this.parameter(node);
         case "pattern-literal":
-          return { pattern: this.pattern(node) };
-        case "bag": {
-          const entries = children.map((/** @type {any} */ child) => this.entry(child));
-          return { bag: entries };
-        }
+          return { pattern: yield this.pattern(node) };
+        case "bag":
+          return { bag: yield this.each(children, (/** @type {any} */ child) => this.entry(child)) };
         case "list":
-          return { list: children.map((/** @type {any} */ child) => this.entry(child)) };
+          return { list: yield this.each(children, (/** @type {any} */ child) => this.entry(child)) };
         default:
           this.fail(node, `unexpected expression part ${node.rule}`);
       }
@@ -33641,19 +33708,19 @@
     /**
      * @param {any} selector
      * @param {any} value
-     * @returns {any}
+     * @returns {Step}
      */
-    selector(selector, value) {
+    *selector(selector, value) {
       const at = this.at(selector);
       switch (selector.rule) {
         case "prop":
           return { property: this.name(part(selector, "key")), receiver: value, at };
         case "method":
-          return this.method(selector, value);
+          return yield this.method(selector, value);
         case "map": {
           const [map] = rules(selector);
-          const by = this.deferred(() => map.rule === "method" ? this.method(map) : map.rule === "prop" ?
-            { property: this.name(part(map, "key")), at: this.at(map) } : this.predicate(map));
+          const by = yield this.deferred(map.rule === "method" ? this.method(map) : map.rule === "prop" ?
+            this.mapProperty(map) : this.predicate(map));
           return { map: value, by, at };
         }
         case "flatten":
@@ -33663,18 +33730,27 @@
     }
 
     /**
-     * @param {any} node
-     * @param {any} convert
-     * @param {any} pattern
+     * @param {any} map
+     * @returns {Step}
      */
-    binary(node, convert, pattern) {
+    *mapProperty(map) {
+      return { property: this.name(part(map, "key")), at: this.at(map) };
+    }
+
+    /**
+     * @param {any} node
+     * @param {(child: any) => Step} convert
+     * @param {any} pattern
+     * @returns {Step}
+     */
+    *binary(node, convert, pattern) {
       const children = rules(node);
       const operators = leaves(node);
-      let left = convert(children[0]);
+      let left = yield convert(children[0]);
       /** @type {Record<string, string>} */
       const names = { "∪": "union", "∖": "difference", "∩": "intersection", "++": "concat" };
       for (const [index, operator] of operators.entries()) {
-        const right = convert(children[index + 1]);
+        const right = yield convert(children[index + 1]);
         const symbol = this.value(operator);
         const kind = names[symbol];
         const at = this.at(operator);
@@ -33689,9 +33765,9 @@
     /**
      * @param {any} node
      * @param {any} [receiver]
-     * @returns {any}
+     * @returns {Step}
      */
-    method(node, receiver) {
+    *method(node, receiver) {
       const [selector] = rules(part(node, "selector"));
       const method = this.value(selector);
       const signature = methods50.get(method);
@@ -33702,7 +33778,7 @@
       const args = [];
       switch (selector.rule) {
         case "named-selector":
-          for (const arg of parts(selector, "expr")) args.push(this.expression(arg));
+          for (const arg of parts(selector, "expr")) args.push(yield this.expression(arg));
           break;
         case "key-selector":
           args.push({ key: this.name(part(selector, "key")) });
@@ -33710,26 +33786,26 @@
         case "width-selector": {
           const at = part(selector, "integer");
           /** @type {any} */
-          const integer = this.expression(at).integer;
+          const integer = (yield this.expression(at)).integer;
           args.push({ integer });
           break;
         }
         case "predicate-selector": {
           const predicate = part(selector, "predicate");
-          if (predicate) args.push(this.predicate(predicate));
+          if (predicate) args.push(yield this.predicate(predicate));
           break;
         }
         case "neighbor-selector":
-          for (const arg of parts(selector, "neighbor-target")) args.push(this.target(arg));
+          for (const arg of parts(selector, "neighbor-target")) args.push(yield this.target(arg));
           break;
         case "family-selector":
-          args.push(this.target(rules(selector)[0]));
+          args.push(yield this.target(rules(selector)[0]));
           break;
         case "parse-selector": {
           const query = part(selector, "query-body");
           const choice = part(query, "choice");
           /** @type {any} */
-          const body = this.ownedBody(choice, { at: this.at(node) });
+          const body = yield this.ownedBody(choice, { at: this.at(node) });
           const sequence = [];
           if (this.value(query) === "…") sequence.push({ remainder: true });
           for (const operand of body.seq ?? [body]) sequence.push(operand);
@@ -33745,12 +33821,12 @@
 
     /**
      * @param {any} node
-     * @returns {any}
+     * @returns {Step}
      */
-    predicate(node) {
+    *predicate(node) {
       const expr = part(node, "expr");
       /** @type {any} */
-      const value = this.expression(expr);
+      const value = yield this.expression(expr);
       const first = expr.span[0];
       if (recordKind50(value, "expression") === "lambda" ||
           expr.span[1] === first + 1 && (value.const || value.capture || value.param)) {
@@ -33761,32 +33837,35 @@
       return { lambda: "", body: value, at: this.at(node) };
     }
 
-    /** @param {any} node */
-    entry(node) {
+    /**
+     * @param {any} node
+     * @returns {Step}
+     */
+    *entry(node) {
       const prefix = part(node, "prefix");
       const gates = parts(prefix, "feature-gate").map((/** @type {any} */ gate) => this.gate(gate));
       const guard = part(prefix, "guard");
-      const suffix = { gates, ...(guard && { guard: this.expression(part(guard, "expr")) }), at: this.at(node) };
+      const suffix = { gates, ...(guard && { guard: yield this.expression(part(guard, "expr")) }), at: this.at(node) };
       /** @type {[any, string][]} */
       const before = [[suffix.gates, "gate[]"], [suffix.guard, "expression"]];
-      return this.deferred(() => this.entryForm(node, suffix, before), before);
+      return yield this.deferred(this.entryForm(node, suffix, before), before);
     }
 
     /**
      * @param {any} node
      * @param {any} suffix
      * @param {[any, string][]} before
-     * @returns {any}
+     * @returns {Step}
      */
-    entryForm(node, suffix, before) {
+    *entryForm(node, suffix, before) {
       if (node.rule === "item") {
         const kind = leaves(node).length ? "splat" : "item";
-        return { kind, value: this.expression(part(node, "expr")), ...suffix };
+        return { kind, value: yield this.expression(part(node, "expr")), ...suffix };
       }
       if (node.rule === "output") {
         const selector = leaves(node)[0];
         const bag = part(node, "bag");
-        const term = bag && this.expression(bag);
+        const term = bag && (yield this.expression(bag));
         const value = this.value(selector);
         if (value === "ε") return { insert: true, term, ...suffix };
         if (value === "$" && !bag) this.domFault(suffix, "only a braced item can select the whole rule");
@@ -33797,20 +33876,21 @@
       switch (body.rule) {
         case "bare-entry":
           return { kind: "bare", key: this.name(part(body, "key")), ...suffix };
-        case "write-entry":
-          return { kind: "write", keys: parts(body, "key").map((/** @type {any} */ key) => this.name(key)),
-            value: this.expression(part(body, "expr")), ...suffix };
+        case "write-entry": {
+          const keys = parts(body, "key").map((/** @type {any} */ key) => this.name(key));
+          return { kind: "write", keys, value: yield this.expression(part(body, "expr")), ...suffix };
+        }
         case "delete-entry":
           return { kind: "delete", key: this.name(part(body, "key")), ...suffix };
         case "splat-entry":
-          return { kind: "splat", value: this.expression(part(body, "expr")), ...suffix };
+          return { kind: "splat", value: yield this.expression(part(body, "expr")), ...suffix };
         case "copy-entry": {
           const post = part(body, "post");
           const last = rules(post).at(-1);
           const itemProperty = last?.rule === "atom" && rules(last)[0]?.rule === "item-reference" &&
             !!part(rules(last)[0], "key");
           if (last?.rule !== "prop" && !itemProperty) this.fail(body, "a copy ends with a property selector");
-          const source = this.expression(post);
+          const source = yield this.expression(post);
           // A copy splits its source, so a fault there stands for the entry.
           if (faulty(source)) return this.waiting(source[FAULT], [...before, ...source[BEFORE]]);
           return { kind: "copy", source: source.receiver, key: source.property, ...suffix };
@@ -33820,17 +33900,17 @@
 
     /**
      * @param {any} node
-     * @returns {any}
+     * @returns {Step}
      */
     pattern(node) {
-      return this.deferred(() => this.patternRecord(node));
+      return this.deferred(this.patternRecord(node));
     }
 
     /**
      * @param {any} node
-     * @returns {any}
+     * @returns {Step}
      */
-    patternRecord(node) {
+    *patternRecord(node) {
       let children = rules(node);
       const paths = [];
       while (children.length === 1 && PATTERN_WRAPPERS.has(node.rule)) {
@@ -33839,21 +33919,22 @@
         children = rules(node);
       }
       if (paths.length) {
-        return paths.reduceRight((pattern, path) => this.patternPath(path, pattern), this.pattern(node));
+        const inner = yield this.pattern(node);
+        return paths.reduceRight((pattern, path) => this.patternPath(path, pattern), inner);
       }
       const first = children[0];
       const operators = leaves(node);
       switch (node.rule) {
         case "pattern-union":
         case "pattern-intersection":
-          return this.binary(node, (/** @type {any} */ child) => this.pattern(child), true);
+          return yield this.binary(node, (/** @type {any} */ child) => this.pattern(child), true);
         case "bare-child-list":
-          return { any: true, ...(operators.length && { exact: true }), children: this.items(first) };
+          return { any: true, ...(operators.length && { exact: true }), children: yield this.items(first) };
         case "pattern-node": {
           /** @type {any} */
-          const { at, ...atom } = this.pattern(first);
-          return { ...atom, ...(operators.length && { exact: true }),
-            ...(children[1] && { children: this.items(children[1]) }), at };
+          const { at, ...atom } = yield this.pattern(first);
+          const items = children[1] && (yield this.items(children[1]));
+          return { ...atom, ...(operators.length && { exact: true }), ...(children[1] && { children: items }), at };
         }
         case "pattern-atom": {
           const tests = this.testOrder(children.slice(1));
@@ -33861,10 +33942,10 @@
           let atom;
           switch (first.rule) {
             case "pattern-rule":
-              atom = rules(first).length ? this.pattern(rules(first)[0]) : { name: this.value(first), at };
+              atom = rules(first).length ? yield this.pattern(rules(first)[0]) : { name: this.value(first), at };
               break;
             case "call":
-              atom = this.call(first);
+              atom = yield this.call(first);
               break;
             case "parameter":
               atom = this.parameter(first);
@@ -33873,10 +33954,10 @@
               atom = { terminal: this.name(first), at };
               break;
             case "string":
-              atom = { literal: this.expression(first), at };
+              atom = { literal: yield this.expression(first), at };
               break;
             case "range":
-              atom = { ...this.body(first), at };
+              atom = { ...(yield this.body(first)), at };
               break;
             case "wildcard":
               atom = { wildcard: true, at };
@@ -33885,15 +33966,15 @@
               atom = { constant: this.value(first).slice(1), at };
               break;
           }
-          return this.tests(atom, tests);
+          return yield this.tests(atom, tests);
         }
         case "parameter":
           return this.parameter(node);
         case "call":
-          return this.call(node);
+          return yield this.call(node);
         case "child-set-operation":
         case "child-intersection":
-          return this.binary(node, (/** @type {any} */ child) => this.singlePattern(child), true);
+          return yield this.binary(node, (/** @type {any} */ child) => this.singlePattern(child), true);
         default:
           this.fail(node, `unexpected pattern part ${node.rule}`);
       }
@@ -33912,54 +33993,58 @@
 
     /**
      * @param {any} node
-     * @returns {any}
+     * @returns {Step}
      */
     singlePattern(node) {
-      return this.deferred(() => this.singlePatternRecord(node));
+      return this.deferred(this.singlePatternRecord(node));
     }
 
     /**
      * @param {any} node
-     * @returns {any}
+     * @returns {Step}
      */
-    singlePatternRecord(node) {
+    *singlePatternRecord(node) {
       /** @type {any} */
-      const items = this.items(node);
+      const items = yield this.items(node);
       if (items.length !== 1 || !items[0].child) this.fail(node, "an operator needs one whole pattern");
       return items[0].child;
     }
 
     /**
      * @param {any} node
-     * @returns {any}
+     * @returns {Step}
      */
-    items(node) {
+    *items(node) {
       const children = rules(node);
       const first = children[0];
       switch (node.rule) {
         case "child-list":
-          return first ? this.items(first) : [];
+          return first ? yield this.items(first) : [];
         case "child-choice": {
-          const choices = children.map((/** @type {any} */ alt) => this.items(alt));
+          /** @type {any[][]} */
+          const choices = yield this.each(children, (/** @type {any} */ alt) => this.items(alt));
           if (choices.length === 1) return choices[0];
-          return [{ choice: choices.flatMap((/** @type {any} */ items) => items.length === 1 && items[0].choice ? items[0].choice : [items]) }];
+          return [{ choice: choices.flatMap(items => items.length === 1 && items[0].choice ? items[0].choice : [items]) }];
         }
         case "child-alternative":
         case "child-item":
-          return first ? this.items(first) : [{ siblings: true }];
+          return first ? yield this.items(first) : [{ siblings: true }];
         case "child-primary":
-          return first.rule === "child-choice" ? this.items(first) : [{ child: this.pattern(first) }];
+          return first.rule === "child-choice" ? yield this.items(first) : [{ child: yield this.pattern(first) }];
         case "child-sequence":
-          return children.flatMap((/** @type {any} */ item) => this.items(item));
+          return (yield this.each(children, (/** @type {any} */ item) => this.items(item))).flat();
         case "child-path":
-          return leaves(node).length ? [{ child: this.patternPath(node, this.singlePattern(first)) }] : this.items(first);
+          return leaves(node).length ? [{ child: this.patternPath(node, yield this.singlePattern(first)) }] : yield this.items(first);
         case "child-set-operation":
         case "child-intersection":
-          return [{ child: this.pattern(node) }];
+          return [{ child: yield this.pattern(node) }];
         case "child-optional":
-          return [{ optional: this.items(first) }];
-        case "child-repetition":
-          return [{ repeat: this.items(first), ...(children[1] && { separator: this.items(children[1]) }) }];
+          return [{ optional: yield this.items(first) }];
+        case "child-repetition": {
+          const repeat = yield this.items(first);
+          const separator = children[1] && (yield this.items(children[1]));
+          return [{ repeat, ...(children[1] && { separator }) }];
+        }
         default:
           this.fail(node, `unexpected child part ${node.rule}`);
       }

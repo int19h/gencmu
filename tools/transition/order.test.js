@@ -63,3 +63,18 @@ for (const { rule, section, inputs, readers: names = ["native", "compiler"] } of
     }
   });
 }
+
+// Both readers convert on an explicit stack, so a document that nests deeper
+// than the call stack reaches the depth limit of engine §9.3.
+for (const [kind, line] of [
+  ["list", "%const $D " + "[".repeat(3000) + '"x"' + "]".repeat(3000)],
+  ["body", "%rule r " + "(A ".repeat(3000) + "B" + ")".repeat(3000)],
+]) {
+  test(`a ${kind} nested 3000 deep reports the depth limit`, () => {
+    for (const name of /** @type {const} */ (["native", "compiler"])) {
+      const error = firstFault(() => readers[name]({ source: [line] }));
+      assert.equal(error?.description, "an expression, term or condition is nested more than 256 deep", `${name} reader`);
+      assert.deepEqual([error.where.line, error.where.column], [2, 1]);
+    }
+  });
+}
