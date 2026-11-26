@@ -57,8 +57,8 @@
 <g class="rule"><rect x="40" y="374" width="210" height="24" rx="0"/><text x="145" y="391" textLength="193.2" lengthAdjust="spacingAndGlyphs">stray-prefix&lt;ER-PREFIX&gt;</text></g>
 <path d="M250 386h10"/>
 <path d="M260 386h20"/>
-<g class="rule"><rect x="280" y="374" width="84" height="24" rx="0"/><text x="322" y="391" textLength="67.2" lengthAdjust="spacingAndGlyphs">no-first</text></g>
-<path d="M364 386H782"/>
+<g class="rule"><rect x="280" y="374" width="109" height="24" rx="0"/><text x="334.5" y="391" textLength="92.4" lengthAdjust="spacingAndGlyphs">no-er-first</text></g>
+<path d="M389 386H782"/>
 <path d="M260 386a10 10 0 0 1 10 10V410a10 10 0 0 0 10 10"/>
 <g class="rule"><rect x="280" y="408" width="193" height="24" rx="0"/><text x="376.5" y="425" textLength="176.4" lengthAdjust="spacingAndGlyphs">open-first&lt;¬Spaced-E&gt;</text></g>
 <path d="M473 420H762a10 10 0 0 0 10 -10V396a10 10 0 0 1 10 -10"/>

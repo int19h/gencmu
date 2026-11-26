@@ -109,8 +109,8 @@ The book allows a hyphen only at a syllable boundary inside a word. Each digit i
 
 %rule item
   | space | ci-space | digit-word | borrowing | freeform-variable
-  | ((ci-hesitation | plain-hesitation | eraser-run | word-run | compound-run | stray-compound)
-      ≻ junk-run)
+  | ((ci-hesitation | plain-hesitation | eraser-run | word-run | quoted-run | compound-run
+      | stray-compound) ≻ junk-run)
 
 %rule run-char
   Letter | Hyphen
@@ -537,28 +537,34 @@ The conditions on `ni-word`, `vowel-particle-word`, `first-prefix` and `prefix-c
 
 A `co` that a complete opener follows starts a foreign quote, so it is never a plain word. A complete opener is `co`, its optional gap and delimiter, and an opening bracket, and `quote-opener` reads it. `consonant-particle-word` marks `component-particle` as its primary, so it has the bag and the strings of that word. Its condition adds the bar. It tests only a particle of the `CO` family, so no other particle before a bracket is tested.
 
-The word wrappers retain an erroneous edge `h`, as in `hmi` or `mih`. Roots use the recovering root skeleton below. No word begins with `h`, and a run goes on only with a word that begins with a non-sonorant consonant. So an `h` that stands before such a word in the same run ends the word before it. Only the first word of a run takes a leading `h`. The later words of a run read through `later-word`, whose condition states that. So `mihco` is `mih` and `co`, as `mih co` is.
+The word wrappers retain an erroneous edge `h`, as in `hmi` or `mih`. Roots use the recovering root skeleton below. No word begins with `h`, and a run goes on only with a word that begins with a non-sonorant consonant. So an `h` that stands before such a word in the same run ends the word before it. Only the first word of a run takes a leading `h`. `run-continues` states that once, and both the later words of a run and the attached components of a compound read it. A digit ends a run of letters, so a word after a digit can take a leading `h`, as in `a e 1hmi`. So `mihco` is `mih` and `co`, as `mih co` is, and the compound `en mihdai` holds `mih` and `dai`.
 
-The quotes chapter says that `ci` quotes one word "ignoring its grammar". So `ci-word` reads a `ci`, and `ci-space` reads a gap right after it. The word after either one is a plain word: `ce` starts no spelling quote there, and `co` starts no foreign quote. The neighbor tests on the quote rules state that. So `a ci ce ci cei` quotes the particles `ce` and `cei`, as the PEG reads it.
+The quotes chapter says that `ci` quotes one word "ignoring its grammar". So `ci-word` reads a clean `ci`, and `ci-space` reads a gap right after it. Only a correct marker quotes, as for the other quote markers, so `ci-word` tests `ci-marker`. A faulty `cih`, `chi`, `hci` or `ci-i` is a plain word with its error, and it quotes nothing. The word after either one is a plain word: `ce` starts no spelling quote there, and `co` starts no foreign quote. The neighbor tests on the quote rules state that. So `a ci ce ci cei` quotes the particles `ce` and `cei`, as the PEG reads it.
 
-A quoted word has no grammar, so a quoted `ci` quotes nothing. `ci-word` reads only a `ci` that no `ci` quotes, and a quoted `ci` is a plain particle. So in `a ci ci ce bu cei` the second `ci` is quoted, and `ce` opens a spelling quote. In `a ci ci ci ce` the third `ci` quotes `ce` again. Two more things can stand between `ci` and its word. A hyphen at the start of a run belongs to the run of the next word, and `ci-hyphen` reads it after `ci`. Hesitation is no word, and `ci-hesitation` reads it after the gap of a `ci`. The gap after that hesitation is a `ci-space` too. So `a ci -ce ci cei` and `a ci n ce` quote `ce`, as the PEG reads them.
+A quoted word has no grammar, so a quoted `ci` quotes nothing. `ci-word` reads only a `ci` that no `ci` quotes, and a quoted `ci` is a plain particle. So in `a ci ci ce bu cei` the second `ci` is quoted, and `ce` opens a spelling quote. In `a ci ci ci ce` the third `ci` quotes `ce` again. A run that starts after the gap of a `ci` is `quoted-run`. Its first word is any plain word, read by `quoted-word`, and its later words are those of any run. So a quote never starts at that first word, and the quote rules need no test for it. Within a run, a word right after a `ci-word` is quoted, and the quote rules test that neighbor. A hyphen at the start of a run belongs to the run, so `quoted-run` reads it before its first word. Hesitation is no word, and `ci-hesitation` reads it after the gap of a `ci`. The gap after that hesitation is a `ci-space` too. So `a ci -ce ci cei` and `a ci n ce` quote `ce`, as the PEG reads them.
 
 The quote reads its own `co` through the particle rule, so the bar never meets the quote. A compound reads its components without the bar ("Compounds" below). The test reads the opener alone, not the whole quote. So an unclosed quote is rejected, as in `a mico [x`.
 
 ```jbogenbau
 %rule word-run
-  | [run-hyphen | ci-hyphen] first-word [{later-word}] run-close
-  | [run-hyphen | ci-hyphen] foreign-quote
-
-%rule run-hyphen
-  hyphen-misplaced
+  *run-body
 %conditions
-  ¬$.preceded-by(ci-word | ci-space)
+  ¬$.preceded-by(ci-space)
 
-%rule ci-hyphen
-  hyphen-misplaced
+%rule quoted-run
+  *quoted-run-body
 %conditions
-  $.preceded-by(ci-word | ci-space)
+  $.preceded-by(ci-space)
+
+%rule run-body
+  | [hyphen-misplaced] first-word [{later-word}] run-close
+  | [hyphen-misplaced] foreign-quote
+
+%rule quoted-run-body
+  [hyphen-misplaced] quoted-word [{later-word}] run-close
+
+%rule quoted-word
+  component-particle | root-word | vowel-particle-word | ni-word
 
 %rule run-close
   run-end | foreign-quote
@@ -571,23 +577,27 @@ The quote reads its own `co` through the particle rule, so the bar never meets t
   | spelling-quote | empty-spelling-quote | faulty-spelling-quote | unclosed-spelling-quote
 
 %rule later-word
-  $w:consonant-word
+  run-continues ^consonant-word
+
+-- A later word of a run starts with no h, unless a digit ends the letters before it.
+%rule run-continues
+  ε
 %conditions
-  ¬$w.first-token.flags'H
+  ¬$.following-tokens.parse(Letter<H> …) ∨ $.preceding-tokens.parse(… after-digit)
 
 %rule consonant-particle-word
   ^$w:component-particle
 %conditions
-  ¬$w'CI ∨ $.preceded-by(ci-word | ci-space | ci-hyphen),
-  $w'CO ∧ ¬$.preceded-by(ci-word | ci-space | ci-hyphen) ⟹ ¬$.onward.parse(quote-opener …),
-  $w.parse(strict-ce [hyphen-misplaced]) ⟹ $.preceded-by(ci-word | ci-space | ci-hyphen)
+  ¬$w.parse(ci-marker) ∨ $.preceded-by(ci-word),
+  $w'CO ∧ ¬$.preceded-by(ci-word) ⟹ ¬$.onward.parse(quote-opener …),
+  $w.parse(ce-marker) ⟹ $.preceded-by(ci-word)
 %emit
 
 %rule ci-word
   ^$w:component-particle
 %conditions
-  $w'CI,
-  ¬$.preceded-by(ci-word | ci-space | ci-hyphen)
+  $w.parse(ci-marker),
+  ¬$.preceded-by(ci-word)
 %emit
 
 %rule ni-word
@@ -615,14 +625,17 @@ The quote reads its own `co` through the particle rule, so the bar never meets t
   Digit [Hyphen]
 ```
 
-<details><summary>Railroad diagrams of the 14 rules from <code>word-run</code> to <code>after-digit</code></summary>
+<details><summary>Railroad diagrams of the 17 rules from <code>word-run</code> to <code>after-digit</code></summary>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/word-run.svg" alt="Railroad diagram of the rule word-run"></p>
-<p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/run-hyphen.svg" alt="Railroad diagram of the rule run-hyphen"></p>
-<p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/ci-hyphen.svg" alt="Railroad diagram of the rule ci-hyphen"></p>
+<p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/quoted-run.svg" alt="Railroad diagram of the rule quoted-run"></p>
+<p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/run-body.svg" alt="Railroad diagram of the rule run-body"></p>
+<p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/quoted-run-body.svg" alt="Railroad diagram of the rule quoted-run-body"></p>
+<p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/quoted-word.svg" alt="Railroad diagram of the rule quoted-word"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/run-close.svg" alt="Railroad diagram of the rule run-close"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/first-word.svg" alt="Railroad diagram of the rule first-word"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/consonant-word.svg" alt="Railroad diagram of the rule consonant-word"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/later-word.svg" alt="Railroad diagram of the rule later-word"></p>
+<p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/run-continues.svg" alt="Railroad diagram of the rule run-continues"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/consonant-particle-word.svg" alt="Railroad diagram of the rule consonant-particle-word"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/ci-word.svg" alt="Railroad diagram of the rule ci-word"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/ni-word.svg" alt="Railroad diagram of the rule ni-word"></p>
@@ -910,7 +923,8 @@ A hyphen after a prefix or at the start of a run carries `hyphen-misplaced`, as 
   vowel-particle-word | component-particle | root-word
 
 %rule attached-later
-  component-particle | root-word | digit-word
+  | run-continues (component-particle | root-word)
+  | digit-word
 
 %rule spaced-component
   | [hyphen-misplaced] (component-particle | root-word | vowel-particle-word | ni-word)
@@ -1045,7 +1059,7 @@ An unfinished level of a compound lacks a required component, holds an unfinishe
 
 As in a complete compound, no quote starts in a component slot of an unfinished one. An eraser is no component, so it ends the compound. So in `a e co [ra a mo`, `co` is a plain particle and the bracket is a gap. Then `ra` erases the unfinished compound, and the text keeps `a mo`.
 
-An unfinished level ends only where its next component cannot start. The empty rules `no-first`, `no-later` and `no-er-later` mark each place where a level stops short, and their conditions test that no slot of that level starts there. Without them, the reader could stop before a component that it can read, and a quote could start in that slot. The book says that a compound "ignores the grammatical rules of the individual words", so its components are read as words. So in `a e co[pban ra] a mo`, the compound reads `co` and then `pban` after the bracket, which is a gap. That compound is complete with a faulty component, and `ra` erases it, as in the PEG. The same holds in a later slot, as in `a e mi co[pban ra] a mo`.
+An unfinished level ends only where its next component cannot start. The empty rules `no-first`, `no-later` and `no-er-later` mark each place where a level stops short, and their conditions test that no slot of that level starts there. Without them, the reader could stop before a component that it can read, and a quote could start in that slot. Their queries read sealed copies of the slot rules, `sealed-first`, `sealed-later`, `sealed-er-component` and `sealed-open-later`. So a faulty component still counts as one that can start, as the `pban` of `a er pban co[pban ra] a mo` does. An `er` level uses `no-er-first`, which tests the same slots without `Spaced-E`, as the `er` reader does. The book says that a compound "ignores the grammatical rules of the individual words", so its components are read as words. So in `a e co[pban ra] a mo`, the compound reads `co` and then `pban` after the bracket, which is a gap. That compound is complete with a faulty component, and `ra` erases it, as in the PEG. The same holds in a later slot, as in `a e mi co[pban ra] a mo`.
 
 The rule `open-compound` reads an unfinished compound. It follows `compound` level by level, with the same slot rules. Each level that it reads is unfinished, as defined above. An `e` level needs two components, and an `en` level needs three.
 
@@ -1080,24 +1094,46 @@ An empty `er e` retains its closing `e` as `Stray-Prefix`, without a second erro
       (no-first | open-first
         | first-component (no-later | open-later | later-slot (no-later | open-later)))
   | stray-prefix<ER-PREFIX>
-      (no-first | open-first<¬Spaced-E>
+      (no-er-first | open-first<¬Spaced-E>
         | first-component<¬Spaced-E> [{er-component}] (no-er-later | open-later<¬Spaced-E>))
 
 -- An unfinished level ends only where its next component cannot start.
+-- The queries read sealed slots, so a faulty component still counts.
 %rule no-first
   ε
 %conditions
-  ¬$.following-tokens.parse((first-component | open-first) …)
+  ¬$.following-tokens.parse(sealed-first …)
+
+%rule no-er-first
+  ε
+%conditions
+  ¬$.following-tokens.parse(sealed-first<¬Spaced-E> …)
 
 %rule no-later
   ε
 %conditions
-  ¬$.following-tokens.parse((later-slot | open-later) …)
+  ¬$.following-tokens.parse(sealed-later …)
 
 %rule no-er-later
   ε
 %conditions
-  ¬$.following-tokens.parse((er-component | open-later<¬Spaced-E>) …)
+  ¬$.following-tokens.parse((sealed-er-component | sealed-open-later<¬Spaced-E>) …)
+
+%rule sealed-first
+  first-component | open-first
+%erased
+
+%rule sealed-later
+  later-slot | open-later
+%erased
+
+%rule sealed-er-component
+  er-component
+%erased
+
+%rule sealed-open-later
+  open-later
+%erased
 
 %rule stray-prefix
   | *spaced-i-prefix
@@ -1152,12 +1188,17 @@ An empty `er e` retains its closing `e` as `Stray-Prefix`, without a second erro
   gap [hyphen-misplaced] ^open-compound
 ```
 
-<details><summary>Railroad diagrams of the 15 rules from <code>stray-compound</code> to <code>open-later</code></summary>
+<details><summary>Railroad diagrams of the 20 rules from <code>stray-compound</code> to <code>open-later</code></summary>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/stray-compound.svg" alt="Railroad diagram of the rule stray-compound"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/open-compound.svg" alt="Railroad diagram of the rule open-compound"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/no-first.svg" alt="Railroad diagram of the rule no-first"></p>
+<p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/no-er-first.svg" alt="Railroad diagram of the rule no-er-first"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/no-later.svg" alt="Railroad diagram of the rule no-later"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/no-er-later.svg" alt="Railroad diagram of the rule no-er-later"></p>
+<p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/sealed-first.svg" alt="Railroad diagram of the rule sealed-first"></p>
+<p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/sealed-later.svg" alt="Railroad diagram of the rule sealed-later"></p>
+<p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/sealed-er-component.svg" alt="Railroad diagram of the rule sealed-er-component"></p>
+<p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/sealed-open-later.svg" alt="Railroad diagram of the rule sealed-open-later"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/stray-prefix.svg" alt="Railroad diagram of the rule stray-prefix"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/spaced-i-tail.svg" alt="Railroad diagram of the rule spaced-i-tail"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/spaced-i-prefix.svg" alt="Railroad diagram of the rule spaced-i-prefix"></p>
@@ -1182,7 +1223,7 @@ The token carries `CE`, `Quote`, `Word` and `Particle`. Its image is the written
 
 The quote is one unit that starts with `c`, so a run of words can hold it, as in `mice bu cei`. The `ce` is a complete particle, so a word must be able to end after it. After a gap, the first unit can start with any consonant, as the book spells `nu`, `ri` and `lu`. Without a gap, the first unit starts with a non-sonorant consonant, which can begin a word. So `a cenu cei` reads the root `cenu`, and `a ce nu cei` reads a quote of `nu`.
 
-A unit that starts with a vowel needs a gap before it. The quote ends at the first complete `cei` particle, which `complete-cei` reads with a word boundary after it, as the PEG's `CEI` does. So a unit can be `cei` where no word boundary follows it, as in `a ce bu ceinu cei`. The quotes chapter says that `ce` and `cei` "allow, respectively, starting and ending a spelling quote", and it lets no `cei` be left out. The PEG's `SpellingQuote` requires its `CEI` too. So a `ce` that a first unit follows always starts a quote, as a `co` before an opener does. A `ra` inside a quote is a unit and erases nothing, closed or not.
+A unit that starts with a vowel needs a gap before it. The quote ends at the first complete `cei` particle, which `complete-cei` reads with a word boundary after it, as the PEG's `CEI` does. A `c` also begins a word only where no consonant stands right before it, and `word-start` states that. So a unit can be `cei` where no word boundary follows it, as in `a ce bu ceinu cei`, and `tcei` is one unit, as in `a ce tcei cei`. `closing-cei` is the `cei` that closes a quote. It is a complete `cei` that reads its own hyphen with a warning. Each reader that closes a quote reads it, and each test for a closer reads `complete-cei`. So `a ce bu ceipt ra a mo` has no closer, and the quote is unclosed. The quotes chapter says that `ce` and `cei` "allow, respectively, starting and ending a spelling quote", and it lets no `cei` be left out. The PEG's `SpellingQuote` requires its `CEI` too. So a `ce` that a first unit follows always starts a quote, as a `co` before an opener does. A `ra` inside a quote is a unit and erases nothing, closed or not.
 
 Four readers cover every correct `ce` that no `ci` quotes. The plain word and the junk run are barred there, so the four must leave no case out. They split on two questions: does a first unit follow, and does a complete `cei` close the quote?
 
@@ -1199,7 +1240,7 @@ The morphology chapter allows a hyphen at a syllable boundary. A consonant unit 
 
 ```jbogenbau
 %rule spelling-quote
-  $s:strict-ce $u:units unit-join $e:strict-cei [hyphen-misplaced]
+  $s:strict-ce $u:units unit-join $e:closing-cei
       → {
           Word,
           Particle,
@@ -1209,7 +1250,7 @@ The morphology chapter allows a hyphen at a syllable boundary. A consonant unit 
           image: $.source-text
         }
 %conditions
-  ¬$.preceded-by(ci-word | ci-space | ci-hyphen)
+  ¬$.preceded-by(ci-word)
 %emit
 
 %rule empty-spelling-quote
@@ -1221,12 +1262,11 @@ The morphology chapter allows a hyphen at a syllable boundary. A consonant unit 
 %emit
 
 %rule spelling-faulty
-  $s:strict-ce spelling-stretch $e:strict-cei [hyphen-misplaced]
+  $s:strict-ce spelling-stretch closing-cei
 %conditions
   $s.following-tokens.parse(first-unit …),
-  $e.onward.parse(complete-cei …),
   ¬$.parse(spelling-quote),
-  ¬$.preceded-by(ci-word | ci-space | ci-hyphen)
+  ¬$.preceded-by(ci-word)
 %error "the spelling quote holds text that is no unit"
 
 %rule spelling-stretch
@@ -1235,10 +1275,10 @@ The morphology chapter allows a hyphen at a syllable boundary. A consonant unit 
   ¬$.parse(… complete-cei …)
 
 %rule spelling-empty
-  $s:strict-ce [hyphen-misplaced] [unit-join complete-cei]
+  $s:strict-ce ([hyphen-misplaced] | unit-join closing-cei)
 %conditions
   ¬$s.following-tokens.parse(first-unit …),
-  ¬$.preceded-by(ci-word | ci-space | ci-hyphen)
+  ¬$.preceded-by(ci-word)
 %error "a spelling quote needs at least one unit"
 
 %rule units
@@ -1279,7 +1319,19 @@ The morphology chapter allows a hyphen at a syllable boundary. A consonant unit 
   (initial-pair | consonant) [hyphen-misplaced] vhowels
 
 %rule complete-cei
-  strict-cei particle-end [Hyphen] word-boundary
+  word-start strict-cei particle-end [Hyphen] word-boundary
+
+-- The cei that closes a spelling quote is a complete cei, read with its own hyphen.
+%rule closing-cei
+  word-start $e:strict-cei [hyphen-misplaced]
+%conditions
+  $e.onward.parse(complete-cei …)
+
+-- A c can begin a word only where no consonant, with or without a hyphen, stands right before it.
+%rule word-start
+  ε
+%conditions
+  ¬$.preceding-tokens.parse(… ns-consonant [Hyphen])
 
 %rule strict-family(@Vowel, @Except)
   ns-consonant="c" [hyphen-misplaced] $v:vhowels
@@ -1292,9 +1344,22 @@ The morphology chapter allows a hyphen at a syllable boundary. A consonant unit 
 %conditions
   $v'value = @Vowels
 
+%rule strict-open-family(@Vowel)
+  ns-consonant="c" [hyphen-misplaced] $v:vhowels
+%conditions
+  $v.parse(vowel=@Vowel …)
+
 %rule strict-ce = strict-family(= "e", = "ei")
 %rule strict-cei = strict-marker(= "ei")
 %rule strict-co = strict-family(= "o", = "oi")
+%rule strict-ci = strict-open-family(= "i")
+
+-- The clean markers that a word condition tests.
+%rule ce-marker
+  strict-ce [hyphen-misplaced]
+
+%rule ci-marker
+  strict-ci [hyphen-misplaced]
 
 %rule unclosed-spelling-quote
   $s:strict-ce {_} → {Word, Particle, CE, Quote, image: value: $.source-text}
@@ -1302,12 +1367,12 @@ The morphology chapter allows a hyphen at a syllable boundary. A consonant unit 
   $.ends-input,
   $s.following-tokens.parse(first-unit …),
   ¬$.parse(… complete-cei …),
-  ¬$.preceded-by(ci-word | ci-space | ci-hyphen)
+  ¬$.preceded-by(ci-word)
 %error "the spelling quote needs its closing cei"
 %emit
 ```
 
-<details><summary>Railroad diagrams of the 23 rules from <code>spelling-quote</code> to <code>unclosed-spelling-quote</code></summary>
+<details><summary>Railroad diagrams of the 29 rules from <code>spelling-quote</code> to <code>unclosed-spelling-quote</code></summary>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/spelling-quote.svg" alt="Railroad diagram of the rule spelling-quote"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/empty-spelling-quote.svg" alt="Railroad diagram of the rule empty-spelling-quote"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/faulty-spelling-quote.svg" alt="Railroad diagram of the rule faulty-spelling-quote"></p>
@@ -1325,11 +1390,17 @@ The morphology chapter allows a hyphen at a syllable boundary. A consonant unit 
 <p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/vowel-unit.svg" alt="Railroad diagram of the rule vowel-unit"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/unit-letters.svg" alt="Railroad diagram of the rule unit-letters"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/complete-cei.svg" alt="Railroad diagram of the rule complete-cei"></p>
+<p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/closing-cei.svg" alt="Railroad diagram of the rule closing-cei"></p>
+<p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/word-start.svg" alt="Railroad diagram of the rule word-start"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/strict-family.svg" alt="Railroad diagram of the rule strict-family"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/strict-marker.svg" alt="Railroad diagram of the rule strict-marker"></p>
+<p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/strict-open-family.svg" alt="Railroad diagram of the rule strict-open-family"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/strict-ce.svg" alt="Railroad diagram of the rule strict-ce"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/strict-cei.svg" alt="Railroad diagram of the rule strict-cei"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/strict-co.svg" alt="Railroad diagram of the rule strict-co"></p>
+<p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/strict-ci.svg" alt="Railroad diagram of the rule strict-ci"></p>
+<p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/ce-marker.svg" alt="Railroad diagram of the rule ce-marker"></p>
+<p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/ci-marker.svg" alt="Railroad diagram of the rule ci-marker"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/unclosed-spelling-quote.svg" alt="Railroad diagram of the rule unclosed-spelling-quote"></p>
 </details>
 
@@ -1358,7 +1429,7 @@ The value is the `co` word, a space and the text from `[` to `]`. In the second 
   $q:quote-co [opening-gap] $t:quoted-text
       → {Word, Particle, CO, Quote, value: $q'value ++ " " ++ $t'value, image: $.source-text}
 %conditions
-  ¬$.preceded-by(ci-word | ci-space | ci-hyphen)
+  ¬$.preceded-by(ci-word)
 %emit
 
 %rule quote-co
@@ -1411,7 +1482,7 @@ The recovery keeps the quote's class, value, and emission. It leaves no later er
       → {Word, Particle, CO, Quote, value: $q'value ++ " " ++ $t'value, image: $.source-text}
 %conditions
   $.ends-input,
-  ¬$.preceded-by(ci-word | ci-space | ci-hyphen)
+  ¬$.preceded-by(ci-word)
 %error "the foreign quote needs ] followed by its opening delimiter, if any"
 %emit
 
@@ -1504,13 +1575,11 @@ A run that this grammar reads as no word is one `Junk` token. Its value is its s
 
 Junk is the total fallback of this stage, so a bar on junk is safe only where another reader takes over. Each bar below asks a query, and the query reads what that reader reads. A query witness holds no error of its own outside an erased subtree, but the readers that take over read faulty words. So each bar reads its words through a rule with `%erased`, which seals their errors. Nothing is erased there. The two sealing rules stand only inside queries, so they never enter a tree.
 
-Three conditions keep junk from standing where a word reads. First, a run whose words end with the `co` of a complete opener is no junk. The rule `run-reaches-opener` reads the words of a run and then the opener. Its words are the forms without the word wrappers, with their edge `h` letters. A wrapper carries the plain-word bar, which asks the same opener query again. The query reads each word through `erased-word-form`, so a word with a fault does not hide the opener, such as the `pban` of `a pbanco[x ra a mo`. A test that only checks that the run ends with `co` does not need the seal. But it drops the word reading of the letters before the `co`, which the junk `ntco` needs. So the query keeps the words, and the seal. The same bar holds for a spelling quote, through `spelling-opener`. So `a pbanco[x ra a mo`, `a mhico[x ra a mo` and `a hmico[x ra a mo` are unclosed quotes and are rejected, as `a mhi co[x ra a mo` is. A run such as `ntco` before a bracket stays junk, because no word reading reaches its `co`. A quote never ends inside a junk run, so `a ntco [x] ra a mo` reads the junk `ntco`, then a gap.
+Two conditions keep junk from standing where a word reads. First, a run that another reader of a run reads is no junk. The bar reads the same rules as those readers: `run-body` and `quoted-run-body`, which `word-run` and `quoted-run` splice, and `compound-run` and `stray-compound`. It reads them through `sealed-run`, or `sealed-quoted-run` after the gap of a `ci`, so a faulty word does not hide the reading. A word run with an unclosed quote reads a longer stretch than the junk, and its blame is greater. Without the bar, the junk and a quote in the next run would win. So `a pbanco[x ra a mo`, `a mhico[x ra a mo` and `a hmico[x ra a mo` are unclosed quotes and are rejected, as `a mhi co[x ra a mo` is. In the same way, the prefix `e` of `a e co[pban ra] a mo` is no junk, because the compound reads it. A run such as `ntco` before a bracket stays junk, because no word reading of it exists. A quote never ends inside a junk run, so `a ntco [x] ra a mo` reads the junk `ntco`, then a gap. After a `ci`, the first word is plain, so `a ci cebup ra a mo` reads the junk `cebup`, and `ra` erases it.
 
-The query reads its words from the start of the run and cannot see what stands before the run. So the bar does not apply where a digit stands before a run that starts with a vowel or a sonorant, as `space-required-start` reads it. No word reading of that run exists, because such a word needs a space before it. So `a 1anco[x ra a mo` is junk that `ra` erases, while `a 1 anco[x ra a mo` is rejected.
+The query reads its words from the start of the run and cannot see what stands before the run. So the bar does not apply where a digit stands before a run that starts with a vowel or a sonorant, as `space-required-start` reads it. No word reading of that run exists, because such a word needs a space before it. So `a 1anco[x ra a mo` is junk that `ra` erases, while `a 1 anco[x ra a mo` is rejected. A compound cannot start there either, as the condition of `first-prefix` says, so `a 1eco[x ra a mo` is junk too.
 
-Second, a run where a compound starts is no junk, because `compound-run` or `stray-compound` reads it. The query reads them through `erased-compound-item`, so a faulty component does not hide the compound. A compound never starts right after a digit, as the condition of `first-prefix` says, but the query cannot see the digit. So this bar does not apply there, as in `a 1eco[x ra a mo`. Without that bar, the prefix `e` of `a e co[pban ra] a mo` reads as junk, and the `co` after it opens a quote. A junk `e` has less blame than the compound with its faulty `pban`, so the quote reading wins over the rule that no quote starts in a component slot.
-
-Third, a single hyphen beside a digit belongs to the digit word, so it is no junk. A row of hyphens beside a digit stays junk, so the syntax stage accepts it only where `ra` erases it. So `a mi 1--2 ra a mo` is a text, and `mi 1--2 bjan` is not. A hyphen with no digit beside it stays junk, so `a mi - bjan mo` is rejected.
+Second, a single hyphen beside a digit belongs to the digit word, so it is no junk. A row of hyphens beside a digit stays junk, so the syntax stage accepts it only where `ra` erases it. So `a mi 1--2 ra a mo` is a text, and `mi 1--2 bjan` is not. A hyphen with no digit beside it stays junk, so `a mi - bjan mo` is rejected.
 
 Before a longer junk run, a hyphen beside a digit belongs to the digit, with its warning. Thus `a mi 1-an mo` warns about the hyphen, and the junk `an` stops the text. The smaller junk span has less blame than a run that includes the hyphen.
 
@@ -1518,43 +1587,29 @@ Before a longer junk run, a hyphen beside a digit belongs to the digit, with its
 %rule junk-run
   {run-char} run-end → {Junk, value: $.decomposed-source-text, image: $.source-text}
 %conditions
-  ¬$.onward.parse(run-reaches-opener …) ∨
+  $.preceded-by(ci-space) ∨ ¬$.onward.parse(sealed-run …) ∨
     $.preceding-tokens.parse(… after-digit) ∧ $.onward.parse(space-required-start …),
-  ¬$.onward.parse(erased-compound-item …) ∨ $.preceding-tokens.parse(… after-digit),
+  ¬$.preceded-by(ci-space) ∨ ¬$.onward.parse(sealed-quoted-run …),
   ¬$.parse(Hyphen) ∨ ¬$.preceding-tokens.parse(… Digit) ∧ ¬$.following-tokens.parse(Digit …)
 %error "the run " ++ $.source-text ++ " has no word reading"
 %emit
 
-%rule erased-compound-item
-  compound-run | stray-compound
+%rule sealed-run
+  run-body | compound-run | stray-compound
 %erased
 
-%rule run-reaches-opener
-  [hyphen-misplaced] [{erased-word-form}] (quote-opener | spelling-opener)
-
-%rule erased-word-form
-  word-form
+%rule sealed-quoted-run
+  quoted-run-body | compound-run | stray-compound
 %erased
-
-%rule word-form
-  | (prefixes | recovering-root | spelling-quote) [hyphen-misplaced]
-  | *h-before-word (consonant-particle | vowel-particle | ni-particle) *h-after-word
-      [hyphen-misplaced]
-
-%rule spelling-opener
-  strict-ce particle-end [hyphen-misplaced] word-boundary
 
 %rule space-required-start
   [Hyphen] (vowel | sonorant)
 ```
 
-<details><summary>Railroad diagrams of the 7 rules from <code>junk-run</code> to <code>space-required-start</code></summary>
+<details><summary>Railroad diagrams of the 4 rules from <code>junk-run</code> to <code>space-required-start</code></summary>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/junk-run.svg" alt="Railroad diagram of the rule junk-run"></p>
-<p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/erased-compound-item.svg" alt="Railroad diagram of the rule erased-compound-item"></p>
-<p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/run-reaches-opener.svg" alt="Railroad diagram of the rule run-reaches-opener"></p>
-<p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/erased-word-form.svg" alt="Railroad diagram of the rule erased-word-form"></p>
-<p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/word-form.svg" alt="Railroad diagram of the rule word-form"></p>
-<p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/spelling-opener.svg" alt="Railroad diagram of the rule spelling-opener"></p>
+<p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/sealed-run.svg" alt="Railroad diagram of the rule sealed-run"></p>
+<p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/sealed-quoted-run.svg" alt="Railroad diagram of the rule sealed-quoted-run"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/space-required-start.svg" alt="Railroad diagram of the rule space-required-start"></p>
 </details>
 
@@ -1947,11 +2002,11 @@ The sentences chapter says that a `ra` inside a foreign quote erases a sentence 
 
 Her intent is that words and quotes are read first and parsed after. This stage does that. A closed quote is one unit wherever it stands, so a `ra` inside it is quoted text. A `co` and opener that no closer follows is an unclosed quote, and the text is rejected. The PEG reads such text again as erasable characters. So `a sune co [mi ra a sunu` and `a co [x ra a mo` are texts there.
 
-The quotes chapter starts a spelling quote with `ce` and ends it with `cei`, and no source lets `cei` be left out. The PEG's `SpellingQuote` needs its `CEI` too, but where that rule fails, the PEG reads `ce` as a plain word. So the PEG erases `a ce bu` in `a ce bu ra a mo` and keeps `a mo`. Here the `ce` opens a quote that `cei` must close, so the text is rejected with `unclosed-spelling-quote`, and the `ra` inside it erases nothing. The same holds for `a ce bun ra a mo` and for `a ce bu ra a mo a chei ra a ke`, where `chei` is no closer.
+The quotes chapter starts a spelling quote with `ce` and ends it with `cei`, and no source lets `cei` be left out. The PEG's `SpellingQuote` needs its `CEI` too, but where that rule fails, the PEG reads `ce` as a plain word. So the PEG erases `a ce bu` in `a ce bu ra a mo` and keeps `a mo`. Here the `ce` opens a quote that `cei` must close, so the text is rejected with `unclosed-spelling-quote`, and the `ra` inside it erases nothing. The same holds for `a ce bun ra a mo` and for `a ce bu ra a mo a chei ra a ke`, where `chei` is no closer. It holds for `a ce tcei ra a mo` and `a ce bu ceipt ra a mo` too, where no word can start or end at that `cei`.
 
 A closed spelling quote with text that is no unit, as in `a ce bun cei ra a mo`, is one quote token here, with the error `spelling-faulty`. A `ra` after its `cei` erases it, so both parsers keep `a mo`. A `ra` before the `cei` is quoted text here, so `a ce bun ra cei` is rejected with `spelling-faulty`. The PEG reads a plain `ce` there, erases it, and rejects the text because no starter follows the `ra`.
 
-The words before a quote opener can hold a fault, as in `a pbanco[x ra a mo`, `a mhico[x ra a mo`, `a hmico[x ra a mo` and `a mihco[x ra a mo`. Here a faulty word does not hide the opener after it, so each `co` opens an unclosed quote, and each text is rejected. The PEG reads each run as ungrammatical text that `ra` erases.
+The words before a quote opener can hold a fault, as in `a pbanco[x ra a mo`, `a mhico[x ra a mo`, `a hmico[x ra a mo`, `a mihco[x ra a mo` and `a chico[x ra a mo`. Here a faulty word does not hide the opener after it, so each `co` opens an unclosed quote, and each text is rejected. The PEG reads each run as ungrammatical text that `ra` erases.
 
 Both parsers read `u ra` as a borrowing, so its `ra` is content and no eraser. So `a e u ra` is rejected here, because nothing erases the unfinished compound. The PEG reads the characters of an ungrammatical sentence again, finds the `ra` there and erases `a e u`. The same holds inside a nested compound, as in `a e e-nu ra a mo`, whose nested `en` holds the borrowing `ura`. Both parsers accept `a u ra` and `a e u ra a mo`.
 
@@ -2026,8 +2081,10 @@ The prefix errors stand on the prefix. The PEG's `E_SpacedIPrefix` names the sep
 | `freeform-multi-consonant-ending` | The local `freeform-multi-consonant-ending` constituent inside its word | [`E_FreeformMultiConsonentsEnding`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L881) |
 | `junk-run` | The whole unclassified run | The default failure of [`Word` and `NativeWord`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy) |
 | `unclosed-foreign-quote` | The whole unclosed foreign quote, from `co` through input end | [`E_UnclosedForeignQuote`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L520) |
+| `unclosed-spelling-quote` | The whole unclosed spelling quote, from `ce` through input end | No named counterpart: [`SpellingQuote`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L524) fails without its `CEI` |
+| `spelling-faulty` | The whole closed spelling quote, from `ce` through its closing `cei` | No named counterpart: [`SpellingQuote`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L524) fails on text that is no unit |
 
-A faulty root emits `Word` and `Root`. A faulty borrowing or freeform keeps `Word` with `Borrowing` or `Freeform`. A faulty particle keeps `Word`, `Particle` and its family. Its `CE` mark for a missing spelling unit also remains where applicable. A complete compound keeps `Word` and `Compound` despite a component fault.
+A faulty root emits `Word` and `Root`. A faulty borrowing or freeform keeps `Word` with `Borrowing` or `Freeform`. A faulty particle keeps `Word`, `Particle` and its family. A spelling quote with an error keeps `Word`, `Particle`, `CE` and `Quote`. A complete compound keeps `Word` and `Compound` despite a component fault.
 
 These classes make morphology diagnostics available in every matching syntax position. Roots and compounds can be namespace components, definable targets, ordinary verbs, and words after `ci`. Freeforms reach definable targets and namespace components, but `ci` does not accept them. Borrowings reach borrowing groups and `ci`. Particles reach their family positions, including numbers for `TI`, and `ci` outside quote units.
 
@@ -2037,7 +2094,7 @@ An unclosed foreign quote reports in this stage because syntax cannot erase it. 
 
 The PEG's `E_SpacedQuoteMarkStart` has no named counterpart. `co` is a valid word, so its letters do not establish an attempted quote. Both parsers accept `a en co bu [x]bu` as a compound and `a co bu [x]bu ra a mo` by erasure. Both parsers reject `a co bu [x]bu mo`, for different reasons. The PEG takes `co bu` as the start of a quote, and then reports the space before the bracket. Here `co` is a plain particle, and syntax has no place for it there.
 
-An empty spelling quote reports in this stage, as an unclosed foreign quote does. It is still a quote token, so syntax reads it as a quote, and `ra` can erase it.
+An empty, faulty or unclosed spelling quote reports in this stage, as an unclosed foreign quote does. Each is still a quote token, so syntax reads it as a quote, and `ra` can erase a closed one.
 
 The `spaced-i-prefix` mark requires content after the spaced `i`. A bare `i` remains unfinished, so `a e i` retains the default rejection.
 
@@ -2085,13 +2142,16 @@ The format 49 copy of this document is `grammars/eberban/refgram/morphology.md`.
 - The quotes chapter says that `ci` quotes one word ignoring its grammar. So the word after `ci` is a plain word, and `a ci ce ci cei` is a text, as in the PEG. The format 49 copy read `ce ci cei` as a spelling quote and rejected the text.
 - The quotes chapter gives a spelling quote at least one unit. An empty one reports `spelling-empty` in this stage, on a quote token. The format 49 copy marked the `ce` with `Missing-spelling-unit`, and syntax reported the error. So a `ce` inside a compound drew a false spelling error, as in `a e ce`.
 - An unclosed spelling quote is an error, and a `ra` inside it erases nothing, so `a ce bu ra a mo` is rejected. The format 49 copy read a plain `ce` there, as the PEG does (see the PEG section above).
+- A closed spelling quote with text that is no unit is one quote token with the error `spelling-faulty`, and a `ra` inside it erases nothing. So `a ce bun ra a ce bu cei` is rejected. The format 49 copy read a plain `ce` there, as the PEG does, and `ra` erased it.
+- A faulty `ci`, as `cih`, `chi`, `hci` or `ci-i`, quotes nothing. So `a cihco[x ra a mo` and `a chico[x ra a mo` are unclosed quotes and are rejected. The format 49 copy read `ci hco` or junk there.
+- A `cei` closes a spelling quote only where a word can start at its `c` and end after it. So `a ce tcei ra a mo` and `a ce bu ceipt ra a mo` are unclosed quotes and are rejected. The format 49 copy closed the quote early there.
 - Only a correct marker opens or closes a quote, because the book allows `h` only between vowels. So `a che bu ra a mo a cei ra a ke` keeps `a mo`, and `a cho [ra a mo] a ke` and `a co-o [ra a mo] a ke` are texts. The format 49 copy opened a quote at the faulty marker.
 - A faulty word before a quote opener does not hide it, so `a pbanco[x ra a mo`, `a mhico[x ra a mo`, `a hmico[x ra a mo` and `a mihco[x ra a mo` are rejected. The format 49 copy read them as junk or words that `ra` erases (see the PEG section above).
 - A compound reads every component that can start in its next slot, so no quote starts there. So `a e co[pban ra] a mo` is a text, as in the PEG. The format 49 copy stopped the compound before `co` and rejected the text.
 - A quoted `ci` quotes nothing, and `ci` quotes its word past a leading hyphen or hesitation. So `a ci -ce ci cei` is a text, as in the PEG. The format 49 copy rejected it.
 - The compounds chapter puts an attached `i` only after `e`. An `i` after `i-` is read with the warning `prefix-i-not-after-e`, so `a ei-i ber ban ban ban` is a text. The format 49 copy rejected it as junk.
 
-Three diagnostic codes have other names here. The format 49 code `prefix-i-after-sonorant` is `prefix-i-not-after-e`, because it also covers an `i` after `i-`. `pair-voiceness` is `pair-voicing`, and `freeform-multi-consonents-ending` is `freeform-multi-consonant-ending`. The table above keeps the PEG's names.
+Two error codes are new here, `unclosed-spelling-quote` and `spelling-faulty`. Three diagnostic codes have other names here. The format 49 code `prefix-i-after-sonorant` is `prefix-i-not-after-e`, because it also covers an `i` after `i-`. `pair-voiceness` is `pair-voicing`, and `freeform-multi-consonents-ending` is `freeform-multi-consonant-ending`. The table above keeps the PEG's names.
 
 It emits the same tokens at the same places otherwise. One tag, some images and three kinds of value differ.
 
