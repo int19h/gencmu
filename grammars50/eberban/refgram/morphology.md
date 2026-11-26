@@ -537,7 +537,7 @@ The conditions on `ni-word`, `vowel-particle-word`, `first-prefix` and `prefix-c
 
 A `co` that a complete opener follows starts a foreign quote, so it is never a plain word. A complete opener is `co`, its optional gap and delimiter, and an opening bracket, and `quote-opener` reads it. `consonant-particle-word` marks `component-particle` as its primary, so it has the bag and the strings of that word. Its condition adds the bar. It tests only a particle of the `CO` family, so no other particle before a bracket is tested.
 
-The word wrappers retain an erroneous edge `h`, as in `hmi` or `mih`. Roots use the recovering root skeleton below. No word begins with `h`, and a run goes on only with a word that begins with a non-sonorant consonant. So an `h` that stands before such a word in the same run ends the word before it. Only the first word of a run takes a leading `h`, and the condition of `consonant-word` states that. So `mihco` is `mih` and `co`, as `mih co` is.
+The word wrappers retain an erroneous edge `h`, as in `hmi` or `mih`. Roots use the recovering root skeleton below. No word begins with `h`, and a run goes on only with a word that begins with a non-sonorant consonant. So an `h` that stands before such a word in the same run ends the word before it. Only the first word of a run takes a leading `h`. The later words of a run read through `later-word`, whose condition states that. So `mihco` is `mih` and `co`, as `mih co` is.
 
 The quotes chapter says that `ci` quotes one word "ignoring its grammar". So `ci-word` reads a `ci`, and `ci-space` reads a gap right after it. The word after either one is a plain word: `ce` starts no spelling quote there, and `co` starts no foreign quote. The neighbor tests on the quote rules state that. So `a ci ce ci cei` quotes the particles `ce` and `cei`, as the PEG reads it.
 
@@ -547,7 +547,7 @@ The quote reads its own `co` through the particle rule, so the bar never meets t
 
 ```jbogenbau
 %rule word-run
-  | [run-hyphen | ci-hyphen] first-word [{consonant-word}] run-close
+  | [run-hyphen | ci-hyphen] first-word [{later-word}] run-close
   | [run-hyphen | ci-hyphen] foreign-quote
 
 %rule run-hyphen
@@ -569,8 +569,11 @@ The quote reads its own `co` through the particle rule, so the bar never meets t
 %rule consonant-word
   | consonant-particle-word | ci-word | root-word
   | spelling-quote | empty-spelling-quote | faulty-spelling-quote | unclosed-spelling-quote
+
+%rule later-word
+  $w:consonant-word
 %conditions
-  ¬$.first-token.flags'H ∨ ¬$.preceded-by(first-word | consonant-word)
+  ¬$w.first-token.flags'H
 
 %rule consonant-particle-word
   ^$w:component-particle
@@ -612,13 +615,14 @@ The quote reads its own `co` through the particle rule, so the bar never meets t
   Digit [Hyphen]
 ```
 
-<details><summary>Railroad diagrams of the 13 rules from <code>word-run</code> to <code>after-digit</code></summary>
+<details><summary>Railroad diagrams of the 14 rules from <code>word-run</code> to <code>after-digit</code></summary>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/word-run.svg" alt="Railroad diagram of the rule word-run"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/run-hyphen.svg" alt="Railroad diagram of the rule run-hyphen"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/ci-hyphen.svg" alt="Railroad diagram of the rule ci-hyphen"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/run-close.svg" alt="Railroad diagram of the rule run-close"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/first-word.svg" alt="Railroad diagram of the rule first-word"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/consonant-word.svg" alt="Railroad diagram of the rule consonant-word"></p>
+<p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/later-word.svg" alt="Railroad diagram of the rule later-word"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/consonant-particle-word.svg" alt="Railroad diagram of the rule consonant-particle-word"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/ci-word.svg" alt="Railroad diagram of the rule ci-word"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/ni-word.svg" alt="Railroad diagram of the rule ni-word"></p>
@@ -887,7 +891,7 @@ A hyphen after a prefix or at the start of a run carries `hyphen-misplaced`, as 
 
 ```jbogenbau
 %rule compound-run
-  [hyphen-misplaced] compound [{consonant-word}] run-close
+  [hyphen-misplaced] compound [{later-word}] run-close
 
 %rule first-slot
   | [hyphen-misplaced] ^attached-first
@@ -1504,7 +1508,7 @@ Three conditions keep junk from standing where a word reads. First, a run whose 
 
 The query reads its words from the start of the run and cannot see what stands before the run. So the bar does not apply where a digit stands before a run that starts with a vowel or a sonorant, as `space-required-start` reads it. No word reading of that run exists, because such a word needs a space before it. So `a 1anco[x ra a mo` is junk that `ra` erases, while `a 1 anco[x ra a mo` is rejected.
 
-Second, a run where a compound starts is no junk, because `compound-run` or `stray-compound` reads it. The query reads them through `erased-compound-item`, so a faulty component does not hide the compound. Without that bar, the prefix `e` of `a e co[pban ra] a mo` reads as junk, and the `co` after it opens a quote. A junk `e` has less blame than the compound with its faulty `pban`, so the quote reading wins over the rule that no quote starts in a component slot.
+Second, a run where a compound starts is no junk, because `compound-run` or `stray-compound` reads it. The query reads them through `erased-compound-item`, so a faulty component does not hide the compound. A compound never starts right after a digit, as the condition of `first-prefix` says, but the query cannot see the digit. So this bar does not apply there, as in `a 1eco[x ra a mo`. Without that bar, the prefix `e` of `a e co[pban ra] a mo` reads as junk, and the `co` after it opens a quote. A junk `e` has less blame than the compound with its faulty `pban`, so the quote reading wins over the rule that no quote starts in a component slot.
 
 Third, a single hyphen beside a digit belongs to the digit word, so it is no junk. A row of hyphens beside a digit stays junk, so the syntax stage accepts it only where `ra` erases it. So `a mi 1--2 ra a mo` is a text, and `mi 1--2 bjan` is not. A hyphen with no digit beside it stays junk, so `a mi - bjan mo` is rejected.
 
@@ -1516,7 +1520,7 @@ Before a longer junk run, a hyphen beside a digit belongs to the digit, with its
 %conditions
   ¬$.onward.parse(run-reaches-opener …) ∨
     $.preceding-tokens.parse(… after-digit) ∧ $.onward.parse(space-required-start …),
-  ¬$.onward.parse(erased-compound-item …),
+  ¬$.onward.parse(erased-compound-item …) ∨ $.preceding-tokens.parse(… after-digit),
   ¬$.parse(Hyphen) ∨ ¬$.preceding-tokens.parse(… Digit) ∧ ¬$.following-tokens.parse(Digit …)
 %error "the run " ++ $.source-text ++ " has no word reading"
 %emit
