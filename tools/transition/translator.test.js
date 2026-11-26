@@ -420,14 +420,21 @@ test("invalid pipeline names are portable and language deferrals name the bundle
   // The format 50 bundle decides which pipelines a case can run. A pipeline is
   // in the bundle where grammars50/NAME/pipeline.md exists.
   const inBundle = name => fs.existsSync(new URL(`../../grammars50/${name}/pipeline.md`, import.meta.url));
-  assert.ok(!inBundle("lojban/bpfk") && inBundle("lojban/cll"), "the probes need one pipeline on each side");
-  const deferred = translateSharedCase("engine", "bundle-probe", { pipeline: "lojban/bpfk", input: "mi" });
+  // Each probe takes a bundled language pipeline from the source roots, so the
+  // test follows the migration instead of naming its state.
+  const pipelines = root => fs.readdirSync(new URL(`../../${root}/`, import.meta.url), { recursive: true })
+    .filter(file => file.endsWith("/pipeline.md") && !file.startsWith("gencmu/"))
+    .map(file => file.slice(0, -"/pipeline.md".length)).sort();
+  const old = pipelines("grammars").find(name => !inBundle(name));
+  const migrated = pipelines("grammars50")[0];
+  assert.ok(old && migrated, "the probes need one pipeline on each side");
+  const deferred = translateSharedCase("engine", "bundle-probe", { pipeline: old, input: "mi" });
   assert.equal(deferred.status, "deferred");
-  assert.match(deferred.reason, /lojban\/bpfk/);
-  const runnable = translateSharedCase("engine", "bundle-probe", { pipeline: "lojban/cll", input: "mi" });
+  assert.ok(deferred.reason.includes(old));
+  const runnable = translateSharedCase("engine", "bundle-probe", { pipeline: migrated, input: "mi" });
   assert.equal(runnable.status, "native-pending");
   assert.equal(runnable.reason, "Run the pipeline with the format 50 bundle.");
-  assert.equal(runnable.fixture.pipeline, "lojban/cll");
+  assert.equal(runnable.fixture.pipeline, migrated);
   const catalogCase = legacyFixture("engine", "pipeline-catalog.json");
   const catalog = translateSharedCase("engine", "pipeline-catalog.json", catalogCase);
   const missing = catalogCase.expect.bundledPipelines.filter(name => !inBundle(name));

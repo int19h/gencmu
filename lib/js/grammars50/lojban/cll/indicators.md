@@ -4,7 +4,7 @@ This document defines the indicator processing rules before syntax. A stage is o
 
 A token is one unit that a stage reads or emits. A token's value is the string that exact comparisons read. Its image is the string that people see.
 
-The [CLL](pipeline.md) pipeline includes these rules as its fourth stage. The BPFK, experimental and Zantufa pipelines include the copy in `grammars/lojban/cll/indicators.md`. BPFK is the Lojban language planning committee.
+The [CLL](pipeline.md) pipeline includes these rules as its fourth stage. The [BPFK pipeline](../bpfk/pipeline.md) includes this document too. The experimental and Zantufa pipelines, which are not yet in this notation, include its format 49 copy. BPFK is the Lojban language planning committee.
 
 This stage reads the words that the words stage emits and attaches emphasis markers and indicators before syntax. It implements the non-formal rule `word = [BAhE] any-word [indicators]` of *The Complete Lojban Language* (CLL). That rule applies before syntax and orders emphasis, a word, then indicators.[^cll-s21-1] The emphasis and indicator parts here each permit a run.
 

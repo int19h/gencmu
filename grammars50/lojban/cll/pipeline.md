@@ -145,7 +145,7 @@ The enabled `su-boundary` feature makes SU stop at the last surviving NIhO, LU, 
 
 A stop at an open LU or TO agrees with CLL's subordinate texts, as the [word stream](../common/stream.md#cll-and-magic-words) explains. A closed LU or TO is one that a later LIhU or TOI closed. A stop at a closed LU or TO departs from CLL[^cll-s19-13] under any reading. So does every NIhO and TUhE stop.
 
-gencmu's Cyrillic, `grammars/lojban/common/cyrillic.md`, assigns different values to some letters from CLL. This pipeline therefore selects only CLL's Cyrillic. A caller can turn it off with the `cll-cyrillic` feature.
+gencmu's Cyrillic, [common/cyrillic.md](../common/cyrillic.md), assigns different values to some letters from CLL. This pipeline therefore selects only CLL's Cyrillic. A caller can turn it off with the `cll-cyrillic` feature.
 
 This pipeline reads neither the Loglan-compatible orthography nor Tengwar from CLL[^cll-s3-12]. CLL says that the Loglan-compatible form was designed for a planned rapprochement between the Logical Language Group and The Loglan Institute. That rapprochement never took place.
 
