@@ -40,16 +40,33 @@ export function headingAnchors(markdown) {
 
 /**
  * Local Markdown links with a heading fragment must name an existing heading.
+ * With `exists`, every local link must also name an existing file, of any
+ * type, and a link may not end in an empty fragment.
  * @param {string} markdown
  * @param {string} file
  * @param {(path: string) => Set<string> | null} read
+ * @param {(path: string) => boolean} [exists] whether a repository file exists
  * @returns {string[]}
  */
-export function localAnchorProblems(markdown, file, read) {
+export function localAnchorProblems(markdown, file, read, exists) {
   const problems = [];
   for (const { node } of walk(parseMarkdown(markdown))) {
-    if (node.type !== "link" || !node.url || /^[a-z][a-z0-9+.-]*:/i.test(node.url) || node.url.startsWith("//")) continue;
+    if (node.type !== "link" || !node.url || !isLocal(node.url)) continue;
     const hash = node.url.indexOf("#");
+    if (exists) {
+      // Every local link names a file that exists, of any type, and a
+      // fragment that is not empty.
+      const target = decodeURIComponent(hash === -1 ? node.url : node.url.slice(0, hash));
+      const relative = target ? path.posix.normalize(path.posix.join(path.posix.dirname(file), target)) : file;
+      if (!exists(relative)) {
+        problems.push(`${file}:${node.position.start.line}: the local link ${node.url} names no file`);
+        continue;
+      }
+      if (hash === node.url.length - 1) {
+        problems.push(`${file}:${node.position.start.line}: the local link ${node.url} has an empty fragment`);
+        continue;
+      }
+    }
     if (hash === -1 || hash === node.url.length - 1) continue;
     const target = decodeURIComponent(node.url.slice(0, hash));
     if (target && !target.endsWith(".md")) continue;
@@ -128,32 +145,74 @@ export function includeLinks(markdown) {
 }
 
 /**
+ * Whether a link target is local: it has no URI scheme and is no network path.
+ * @param {string} url
+ */
+function isLocal(url) {
+  return !/^[a-z][a-z0-9+.-]*:/i.test(url) && !url.startsWith("//");
+}
+
+/**
  * A format 50 document names no format 49 file that has a format 50 copy.
- * A path `grammars/X` in its prose sends the reader to the old notation, where
- * `grammars50/X` now exists, so the document links that copy instead. A
- * section whose heading starts with "Differences from the format 49" names
- * the format 49 copies on purpose, and grammar blocks name no paths, so the
- * check skips both. A path to a directory, such as `grammars/lojban/`, names
- * the layers that have no format 50 copy yet.
+ * A path `grammars/X` sends the reader to the old notation, where
+ * `grammars50/X` now exists, so the document links that copy instead. The
+ * check reads the Markdown tree of tools/markdown.js. It reads the target of
+ * each local link, and each path in a text or code span, also a relative one
+ * such as `../../../grammars/X`. A section whose heading starts with
+ * "Differences from the format 49" names the format 49 copies on purpose, so
+ * the check skips it up to the next heading of the same or a higher level,
+ * with each footnote that only that section cites. It skips code blocks,
+ * which name no paths. A path that ends in `/`, such as `grammars/lojban/`,
+ * names the layers that have no format 50 copy yet.
  * @param {string} markdown
- * @param {string} file
- * @param {(path: string) => boolean} exists whether a repository file exists
+ * @param {string} file the repository path of the document
+ * @param {(path: string) => boolean} exists whether a repository file or directory exists
  * @returns {string[]}
  */
 export function formatPathProblems(markdown, file, exists) {
+  const tree = parseMarkdown(markdown);
+  const dir = path.posix.dirname(file);
+  // The top-level blocks that the check skips, and the footnotes that each part cites.
+  let skipDepth = null;
+  const skipped = new Set();
+  const citedOutside = new Set(), citedInside = new Set();
+  for (const block of tree.children ?? []) {
+    if (block.type === "heading") {
+      if (skipDepth !== null && block.depth <= skipDepth) skipDepth = null;
+      const text = [...walk(block)].map(({ node }) => ["text", "inlineCode"].includes(node.type) ? node.value ?? "" : "").join("");
+      if (skipDepth === null && text.startsWith("Differences from the format 49")) skipDepth = block.depth;
+    }
+    if (block.type === "footnoteDefinition") continue;
+    const inside = skipDepth !== null;
+    if (inside) skipped.add(block);
+    for (const { node } of walk(block)) {
+      if (node.type === "footnoteReference") (inside ? citedInside : citedOutside).add(node.identifier);
+    }
+  }
+  for (const block of tree.children ?? []) {
+    if (block.type === "footnoteDefinition" && citedInside.has(block.identifier) && !citedOutside.has(block.identifier)) skipped.add(block);
+  }
   const problems = [];
-  let fence = false, skip = false;
-  markdown.split("\n").forEach((line, index) => {
-    if (/^\s*```/.test(line)) { fence = !fence; return; }
-    if (fence) return;
-    const heading = /^#{1,6}\s+(.*)$/.exec(line);
-    if (heading) skip = heading[1].startsWith("Differences from the format 49");
-    if (skip) return;
-    for (const match of line.matchAll(/(?<![\w/.-])grammars\/([\w-]+(?:\/[\w.-]+)*\.[a-z]+)/g)) {
-      if (exists(`grammars50/${match[1]}`)) {
-        problems.push(`${file}:${index + 1}: grammars/${match[1]} has a format 50 copy; link grammars50/${match[1]} instead`);
+  const report = (node, written, relative) => {
+    if (!relative.startsWith("grammars/") || relative.endsWith("/")) return;
+    const copy = `grammars50/${relative.slice("grammars/".length)}`;
+    if (exists(copy)) problems.push(`${file}:${node.position.start.line}: ${written} names ${relative}, which has a format 50 copy; link ${copy} instead`);
+  };
+  const resolve = (target) => path.posix.normalize(path.posix.join(dir, target));
+  for (const block of tree.children ?? []) {
+    if (skipped.has(block)) continue;
+    for (const { node, ancestors } of walk(block)) {
+      if (node.type === "code" || ancestors.some((a) => a.type === "code")) continue;
+      if (node.type === "link" && node.url && isLocal(node.url)) {
+        const target = decodeURIComponent(node.url.split("#")[0]);
+        if (target) report(node, node.url, resolve(target));
+      }
+      if (node.type !== "text" && node.type !== "inlineCode") continue;
+      for (const match of (node.value ?? "").matchAll(/(?<![\w/.-])((?:\.\.\/)*)grammars\/[\w./-]*/g)) {
+        const written = match[0].replace(/\.+$/, "");
+        report(node, written, match[1] ? resolve(written) : written);
       }
     }
-  });
+  }
   return problems;
 }
