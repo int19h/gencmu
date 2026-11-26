@@ -203,8 +203,6 @@ The chapter says that `ra` "must be surrounded by spaces or pauses". The start o
 
 The PEG requires a written starter after an erasure, and states this rule in an error message. The book supports it only by inference. It lets only the first sentence of a paragraph leave its starter out, and the sentence after an erasure is not the first.
 
-`ra-run` has no term, so it passes no tag on. A repetition never passes the tags of one item, and no rule reads a tag of `ra-run`. Each `RA` leaf keeps its own bag.
-
 Erased text can follow an erasure too, because the later `ra` erases it. So `after-erasure` accepts a starter, a paragraph mark or more erased text. It also accepts the end of the text, or a particle that ends an enclosing quote or parenthesis. The particles of `elider-word` end a quote whose `cai` is left out.
 
 ```jbogenbau
@@ -684,7 +682,7 @@ A quote with written `cai` retains its own recovery scope. Without `cai`, a quot
 %rule unmatched-tail → {*$t!.flags.union}
   | (unmatched-resume | *resume-chain-empty) step-tail [ri-continuation] [$t:unmatched-tail]
   | $c:unmatched-closer [ri-continuation | definition] [$t:unmatched-tail]
-      → {$c'DAI? DAI}
+      → {$c'DAI}
 
 %rule unmatched-closer
   unmatched-fi | unmatched-vei | unmatched-be | unmatched-pei | unmatched-bu | unmatched-dai

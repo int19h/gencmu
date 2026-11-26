@@ -55,7 +55,7 @@ A tag is a capitalized key of a token's bag. The stage publishes the tags in `$O
 
 ## Letters and their classes
 
-The tags below name the sound classes of the morphology chapter and the PEG. The forms stage reads `Vowel`, `H`, `Consonant` and `Sonorant`, and it copies the chapter's lists of pairs.
+The tags below name the sound classes of the morphology chapter and the PEG. The forms stage reads `Vowel`, `H`, `Consonant`, `Sonorant`, `Voiced`, `Unvoiced`, `Sibilant`, `Plosive` and `Other`, and it copies the chapter's lists of pairs. No rule reads `Nasal` or `Liquid`.
 
 - `Vowel`: `i`, `e`, `a`, `o` and `u`.
 - `H`: the letter `h`, which stands only between vowels.

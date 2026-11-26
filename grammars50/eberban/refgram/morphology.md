@@ -27,15 +27,15 @@ The text is a sequence of items. An item is a space, a digit, a hesitation or an
 
 A run is a maximal stretch of letters and hyphens between two items that are not letters. Each rule that reads a run makes it maximal with a condition on the tokens after it. A foreign quote is the last part of its run, so a new run can start right after the quote. Otherwise two runs never stand side by side, and one run has one division.
 
-The ranked choice in `item` keeps the word and junk readings together. The engine prefers the reading with less blame. At an equal measure and span, the earlier word option excludes junk. The ranked group gives `item` no bag, and no rule reads one.
+The ranked choice in `item` keeps the word and junk readings together. The engine prefers the reading with less blame. At an equal measure and span, the earlier word option excludes junk. The ranked group passes no tags to `item`, and no rule reads the bag of `item`.
 
 Five forms can hold a space inside one token: a borrowing, a freeform variable, a compound, a spelling quote and a foreign quote. An unfinished compound also reaches over spaces, but it emits several tokens. The step `leftmost-longest #(·borrowing ∪ ·freeform-variable ∪ ·spelling-quote ∪ ·foreign-quote ∪ ·compound ∪ ·open-compound)` names the five rules and `open-compound`, the unfinished compound. At each free position, the stage takes the longest such form that starts there. The step chooses between forms by their start, then by their length.
 
 It never chooses where a foreign quote ends, because the quote rule fixes its end. The one exception is a trailing hyphen after a digit closer ("Delimiters" below). So a spelling quote at `ce` wins over an inner `co` by its earlier start, and `a ce co [ba] cei` is one spelling quote. In the same way, an unfinished compound wins over a quote in one of its slots. A complete compound wins over an unfinished one ("Unfinished compounds" below).
 
-The constant `$DEFAULTS` gives each rule node of the stage two strings. Its value joins the values of its children, and its image joins their images. So a node that writes no value has the letters of its parts, and a hyphen adds nothing to it. The function `$RAW` joins the values of the letters that a node or a span reads. Each word takes its value and its image from it.
+The constant `$DEFAULTS` gives each rule node of the stage two strings. Its value joins the values of its children, and its image joins their images. So a node that writes no value joins the values of its parts. A hyphen adds the empty string, a gap adds one space and a digit adds its `TI` word. The function `$RAW` joins the values of the letters that a node or a span reads. Each particle word, root word and eraser takes its value and its image from it.
 
-The stage publishes the keys in `$OUTPUTS`. These are the kinds of word, the particle families of `$FAMILIES`, and the marks that the syntax stage reads. The prefix marks of a compound stay in this stage. No letter class passes on, because each token writes its own tags.
+The stage publishes the keys in `$OUTPUTS`. These are the kinds of word, the particle families of `$FAMILIES`, and the marks that the later stages read. The prefix marks of a compound stay in this stage. No letter class passes on, because each token writes its own tags.
 
 The book allows a hyphen only at a syllable boundary inside a word. Each digit is a word of its own, so a hyphen beside a digit stands at a word boundary. So a run reads every hyphen, and `run-char` reads a hyphen as it reads a letter.
 
@@ -326,37 +326,31 @@ A freeform variable or borrowing has a third shape: `X` is a sonorant and `YZ` i
 
 A particle starts with a non-sonorant consonant followed only by vhowels, as `zi` or `tiho`. Or it starts with `n`, `a` or `o` and continues with vhowels and sonorants, as `a`, `on`, `ahu` or `nu`. The closing section explains why only these three letters start the second kind.
 
-The shape of a particle gives its family. The first consonant gives the family, as in the PEG. For `p`, `b`, `d`, `c`, and `j`, the first vowel refines it. The book makes six particles families of their own: `pei`, `vei`, `dai`, `cei`, `cai` and `coi`. The templates below read the kinds of family. Each instance passes its family as a key set, and the term of the template splats it. Each instance also passes its letters as strings, which the conditions compare with `$RAW`. Their recovering vowels retain a family through a malformed vowel join. The strict delimiter templates use separate vowels.
+The shape of a particle gives its family. The first consonant gives the family, as in the PEG. For `p`, `b`, `d`, `c`, and `j`, the first vowel refines it. The book makes six particles families of their own: `pei`, `vei`, `dai`, `cei`, `cai` and `coi`. The templates below read the kinds of family. Each instance passes its family as a key set, and the term of the template splats it. Each instance also passes its letters as strings. The body tests the first consonant against its letter, as `ns-consonant=@Consonant`. The conditions of the other templates compare the vowels with `$RAW`. Their recovering vowels retain a family through a malformed vowel join. The strict delimiter templates use separate vowels.
 
 ```jbogenbau
 %rule particle-cv(@Consonant, @Family)
-  $c:ns-consonant malformed-gap(hyphen-misplaced) malformed-vhowels → {*@Family}
-%conditions
-  $c'value = @Consonant
+  ns-consonant=@Consonant malformed-gap(hyphen-misplaced) malformed-vhowels → {*@Family}
 
 %rule particle-cv-except(@Consonant, @Except, @Family)
-  $c:ns-consonant malformed-gap(hyphen-misplaced) $v:malformed-vhowels → {*@Family}
+  ns-consonant=@Consonant malformed-gap(hyphen-misplaced) $v:malformed-vhowels → {*@Family}
 %conditions
-  $c'value = @Consonant,
   $RAW($v) ≠ @Except
 
 %rule particle-cvv(@Consonant, @Vowel, @Family)
-  $c:ns-consonant malformed-gap(hyphen-misplaced) $v:malformed-vhowels → {*@Family}
+  ns-consonant=@Consonant malformed-gap(hyphen-misplaced) $v:malformed-vhowels → {*@Family}
 %conditions
-  $c'value = @Consonant,
   $RAW($v.first-token) = @Vowel
 
 %rule particle-cvv-except(@Consonant, @Vowel, @Except, @Family)
-  $c:ns-consonant malformed-gap(hyphen-misplaced) $v:malformed-vhowels → {*@Family}
+  ns-consonant=@Consonant malformed-gap(hyphen-misplaced) $v:malformed-vhowels → {*@Family}
 %conditions
-  $c'value = @Consonant,
   $RAW($v.first-token) = @Vowel,
   $RAW($v) ≠ @Except
 
 %rule particle-exact(@Consonant, @Vowels, @Family)
-  $c:ns-consonant malformed-gap(hyphen-misplaced) $v:malformed-vhowels → {*@Family}
+  ns-consonant=@Consonant malformed-gap(hyphen-misplaced) $v:malformed-vhowels → {*@Family}
 %conditions
-  $c'value = @Consonant,
   $RAW($v) = @Vowels
 ```
 
@@ -537,13 +531,13 @@ A run of words starts with any word and continues with words that begin with a n
 
 A run that starts with compound prefixes starts a compound ("Compounds" below). Where the compound is not complete, its prefixes carry their errors and its components stay words. A vowel-initial particle or a borrowing can follow the prefixes directly, as the [compounds chapter](https://eberban.github.io/eberban/books/refgram/book/grammar/compounds.html) allows. A hyphen at the start of a run, after the prefixes or at the end of a word is a warning.
 
-Each word emits one token tagged `Word` and its kind. A particle also carries `Particle` and its family. The value and the image of a word join the values of its letters, so a hyphen inside a word never shows in it. A digit keeps the digit as its image, as the letters stage gives it.
+Each word emits one token tagged `Word` and its kind. A particle also carries `Particle` and its family. The value and the image of a particle word and of a root word join the values of its letters, so a hyphen inside the word never shows in it. A digit keeps the digit as its image, as the letters stage gives it.
 
 The morphology chapter says: "Spaces are only mandatory before words starting with a vowel or a sonorant." A digit is a word, so that rule holds after a digit too. So a word that starts with a vowel or `n` never stands right after a digit, with or without a hyphen between them. The rule `after-digit` names that place.
 
 The conditions on `ni-word`, `vowel-particle-word`, `first-prefix` and `freeform-word` refuse it. So `a mi 1an mo` and `a mi 1-an mo` are rejected, while `a mi 1 an mo` and `a mi 1mo` are texts. The erasers and hesitation already need a space before them.
 
-A `co` that a complete opener follows starts a foreign quote, so it is never a plain word. A complete opener is `co`, its optional gap and delimiter, and an opening bracket, and `quote-opener` reads it. The condition on `consonant-particle-word` states the bar. It tests only a particle of the `CO` family, so no other particle before a bracket is tested.
+A `co` that a complete opener follows starts a foreign quote, so it is never a plain word. A complete opener is `co`, its optional gap and delimiter, and an opening bracket, and `quote-opener` reads it. `consonant-particle-word` marks `component-particle` as its primary, so it has the bag and the strings of that word. Its condition adds the bar. It tests only a particle of the `CO` family, so no other particle before a bracket is tested.
 
 The word wrappers retain an erroneous edge `h`, as in `hmi` or `mih`. Roots use the recovering root skeleton below. An ordinary `ce` carries `Missing-spelling-unit` only where the forms reader finds no first spelling unit. This test uses the letters, including malformed runs, before syntax receives whole tokens.
 
@@ -564,16 +558,9 @@ The quote reads its own `co` through the particle rule, so the bar never meets t
   consonant-particle-word | root-word | spelling-quote
 
 %rule consonant-particle-word
-  *h-before-word $p:consonant-particle *h-after-word [hyphen-misplaced]
-      → {
-          Word,
-          Particle,
-          *$p.flags,
-          ($p'CE ∧ ¬$.following-tokens.parse(first-unit …))? Missing-spelling-unit,
-          image: value: $RAW($)
-        }
+  ^$w:component-particle
 %conditions
-  $p'CO ⟹ ¬$.onward.parse(quote-opener …)
+  $w'CO ⟹ ¬$.onward.parse(quote-opener …)
 %emit
 
 %rule ni-word
@@ -628,10 +615,10 @@ The PEG warns about a hyphen before or after the prefix, and about content that 
 
 ```jbogenbau
 %rule freeform-word(@Prefix, @Kind)
-  [hyphen-misplaced] $p:Letter prefix-gap $c:malformed-content [hyphen-misplaced] space-after
+  [hyphen-misplaced] $p:Letter=@Prefix prefix-gap $c:malformed-content
+    [hyphen-misplaced] space-after
       → {Word, *@Kind, image: value: @Prefix ++ $RAW($c)}
 %conditions
-  $p'value = @Prefix,
   ¬$p.preceding-tokens.parse(… after-digit)
 %emit
 
@@ -847,7 +834,7 @@ The rule `prefixes` reads the prefixes at the start of a run as one form. The ju
 
 ### Components
 
-The rule `compound-run` reads a compound at the start of a run. The run can go on after the compound with more words, as in `eberbanmi`. The rules `first-slot` and `later-slot` read a component with what joins it to the part before it. `first-slot` follows a prefix, and `later-slot` follows a component. Both read the gap between two parts, which holds spaces, brackets and hesitation. A gap holds no eraser, so an eraser ends the compound.
+The rule `compound-run` reads a compound at the start of a run. The run can go on after the compound with more words, as in `eberbanmi`. The rules `first-slot` and `later-slot` read a component with what joins it to the part before it. `first-slot` follows a prefix, and `later-slot` follows a component. Each slot marks its component as its primary, so the slot has the bag and the value of the component. Both read the gap between two parts, which holds spaces, brackets and hesitation. A gap holds no eraser, so an eraser ends the compound.
 
 Without a gap, a component must be able to stand where it stands in a run of words. After a prefix, it can start with a vowel, as in `ea mi`, or it can be a borrowing. After another component, it starts with a non-sonorant consonant or it is a digit. An `NI` particle and a nested compound later in the compound need a gap before them. A word that starts with a vowel needs a space after a digit, as the conditions of the word rules say.
 
@@ -859,15 +846,15 @@ A hyphen after a prefix or at the start of a run carries `hyphen-misplaced`, as 
 %rule compound-run
   [hyphen-misplaced] compound [{consonant-word}] run-close
 
-%rule first-slot → {value: $c'value}
-  | [hyphen-misplaced] $c:attached-first
-  | $c:digit-word
-  | $c:borrowing
-  | [hyphen-misplaced] gap $c:spaced-component
+%rule first-slot
+  | [hyphen-misplaced] ^attached-first
+  | ^digit-word
+  | ^borrowing
+  | [hyphen-misplaced] gap ^spaced-component
 
-%rule later-slot → {$c'Spaced-E? Spaced-E, value: $c'value}
-  | $c:attached-later
-  | gap $c:spaced-later
+%rule later-slot
+  | ^attached-later
+  | gap ^spaced-later
 
 %rule prefix-join
   [hyphen-misplaced] [gap [hyphen-misplaced]]
@@ -884,7 +871,7 @@ A hyphen after a prefix or at the start of a run carries `hyphen-misplaced`, as 
 
 %rule spaced-later
   | spaced-component
-  | [hyphen-misplaced] $n:compound → {$n'Spaced-E? Spaced-E}
+  | [hyphen-misplaced] $n:compound → {$n'Spaced-E}
 
 %rule component-particle
   *h-before-word $p:consonant-particle *h-after-word [hyphen-misplaced]
@@ -914,7 +901,7 @@ A hyphen after a prefix or at the start of a run carries `hyphen-misplaced`, as 
 
 A compound emits one token tagged `Word` and `Compound`. Its value is the compound in the shortest canonical form of the compounds chapter, which the dictionary uses. When a nested compound is the first component of another, their prefixes join into one unit. The joined prefix spells its vowel `i` after `e` and `e` after `n` or `r`. So `e e ber ban ban` and `ei ber ban ban` both have the value `ei ber ban ban`. Single spaces separate the other parts.
 
-A component keeps its word value, so a digit stands as its `TI` word. The image of the compound is the same as its value. Each rule below writes the value of its node from the values of its parts. The defaults join the values of the components of an `er` list.
+A component keeps its word value, so a digit stands as its `TI` word. The image of the compound is the same as its value. Each rule below with several parts writes the value of its node from the values of those parts. `compound-tail` and `joined-tail` take the value of `fixed-tail`, and the defaults join the values of the components of an `er` list.
 
 The rule `compound-tail` reads a compound and gives its value without the vowel of its own prefix. A compound puts `e` in front of its tail. A compound whose first component is a nested compound reads that component as a tail after `prefix-join`. It joins the tail with the vowel that the chapter gives.
 
@@ -922,7 +909,7 @@ That vowel depends on the letter before it, so a tail comes in two kinds. `compo
 
 ```jbogenbau
 %rule compound
-  $t:compound-tail → {Word, Compound, $t'Spaced-E? Spaced-E, image: value: "e" ++ $t'value}
+  $t:compound-tail → {Word, Compound, $t'Spaced-E, image: value: "e" ++ $t'value}
 %emit
 
 %rule compound-tail
@@ -1080,13 +1067,13 @@ An empty `er e` retains its closing `e` as `Stray-Prefix`, without a second erro
 
 %rule first-component
   | first-slot
-  | prefix-join $n:compound → {$n'Spaced-E? Spaced-E}
+  | prefix-join $n:compound → {$n'Spaced-E}
 
 %rule open-first
-  prefix-join $o:open-compound → {$o'Spaced-E? Spaced-E}
+  prefix-join $o:open-compound → {$o'Spaced-E}
 
 %rule open-later
-  gap [hyphen-misplaced] $o:open-compound → {$o'Spaced-E? Spaced-E}
+  gap [hyphen-misplaced] $o:open-compound → {$o'Spaced-E}
 ```
 
 <details><summary>Railroad diagrams of the 12 rules from <code>stray-compound</code> to <code>open-later</code></summary>
@@ -1230,7 +1217,7 @@ The value is the `co` word, a space and the text from `[` to `]`. In the second 
 %rule delimited-text
   $d:native-delimiter Open [{quote-char | $c:shaped-close | $k:Close}] Close $e:native-delimiter
 %conditions
-  $c.all(.tokens-after-first.tokens!'value.join() ≠ $d'value),
+  $c.all($s ↦ $RAW($s.tokens-after-first) ≠ $d'value),
   $k.all(¬.following-tokens.parse(delimiter-shape …)),
   $e'value = $d'value
 
@@ -1272,7 +1259,7 @@ The recovery keeps the quote's class, value, and emission. It leaves no later er
   | Open [{quote-char}]
   | $d:native-delimiter Open [{quote-char | $c:shaped-close | $k:Close}]
 %conditions
-  $c.all(.tokens-after-first.tokens!'value.join() ≠ $d'value),
+  $c.all($s ↦ $RAW($s.tokens-after-first) ≠ $d'value),
   $k.all(¬.following-tokens.parse(delimiter-shape …))
 ```
 
@@ -1625,13 +1612,13 @@ The particle tail retains its family even with two adjacent sonorants. An errone
 %error "the particle pair " ++ $.source-text ++ " contains two sonorants"
 
 %rule h-not-between-vowels
-  Letter<H> → {}
+  Letter<H>
 %conditions
   ¬$.preceding-tokens.parse(… vowel [Hyphen]) ∨ ¬$.following-tokens.parse([Hyphen] vowel …)
 %error "the h " ++ $.source-text ++ " needs vowels on both sides, except at a freeform onset"
 
 %rule hyphen-same-vowels
-  Hyphen → {}
+  Hyphen
 %conditions
   $.preceding-tokens.last-token.flags'Vowel,
   $.following-tokens.first-token.flags'Vowel,
@@ -1711,11 +1698,11 @@ Root and freeform triplet wrappers share the failed pair and shape restrictions.
 %error "the triplet " ++ $.source-text ++ " cannot have m in its middle"
 
 %rule triplet-root-first-pair
-  faulty-triplet-first-pair → {}
+  faulty-triplet-first-pair
 %error "the root triplet " ++ $.source-text ++ " needs a medial or initial first pair"
 
 %rule triplet-freeform-first-pair
-  faulty-triplet-first-pair → {}
+  faulty-triplet-first-pair
 %error "the freeform triplet " ++ $.source-text ++ " needs a medial or initial first pair"
 
 %rule faulty-triplet-first-pair
@@ -1724,12 +1711,12 @@ Root and freeform triplet wrappers share the failed pair and shape restrictions.
   $x'value ++ $y'value ∉ $PAIRS
 
 %rule triplet-root-shape
-  faulty-triplet-shape → {}
+  faulty-triplet-shape
 %error "the root triplet " ++ $.source-text ++
        " needs a medial-initial shape or a permitted liquid ending"
 
 %rule triplet-freeform-shape
-  faulty-triplet-shape → {}
+  faulty-triplet-shape
 %error "the freeform triplet " ++ $.source-text ++ " fits no permitted shape"
 
 %rule faulty-triplet-shape
@@ -1852,7 +1839,7 @@ The prefix errors stand on the prefix. The PEG's `E_SpacedIPrefix` names the sep
 | `junk-run` | The whole unclassified run | The default failure of [`Word` and `NativeWord`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy) |
 | `unclosed-foreign-quote` | The whole unclosed foreign quote, from `co` through input end | [`E_UnclosedForeignQuote`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L520) |
 
-A faulty root emits `Word` and `Root`. A faulty borrowing or freeform keeps `Word` with `Borrowing` or `Freeform`. A faulty particle keeps `Word ∪ Particle` and its family. Its `CE` mark for a missing spelling unit also remains where applicable. A complete compound keeps `Word` and `Compound` despite a component fault.
+A faulty root emits `Word` and `Root`. A faulty borrowing or freeform keeps `Word` with `Borrowing` or `Freeform`. A faulty particle keeps `Word`, `Particle` and its family. Its `CE` mark for a missing spelling unit also remains where applicable. A complete compound keeps `Word` and `Compound` despite a component fault.
 
 These classes make morphology diagnostics available in every matching syntax position. Roots and compounds can be namespace components, definable targets, ordinary verbs, and words after `ci`. Freeforms reach definable targets and namespace components, but `ci` does not accept them. Borrowings reach borrowing groups and `ci`. Particles reach their family positions, including numbers for `TI`, and `ci` outside quote units.
 
@@ -1907,8 +1894,8 @@ Erased adjacent hyphens remain junk and emit no hyphen warning. So `a mi 1--2 ra
 
 This document reads the same texts as its format 49 copy, `grammars/eberban/refgram/morphology.md`. It reports the same errors and warnings at the same places, and it emits the same tokens with the same values, images and places. One tag differs.
 
-A compound token no longer carries `Spaced-E`. The mark says that the prefix of a compound is a standalone `e`, and only the compound reader reads it. So it stays in this stage, as the other prefix marks do. `$OUTPUTS` names only the kinds of word, the particle families and the marks that the syntax stage reads. So `a e mi mo` hands on a compound with `Word` and `Compound` alone.
+A compound token no longer carries `Spaced-E`. The mark says that the prefix of a compound is a standalone `e`, and only the compound reader reads it. So it stays in this stage, as the other prefix marks do. `$OUTPUTS` names only the kinds of word, the particle families and the marks that the later stages read. So `a e mi mo` hands on a compound with `Word` and `Compound` alone.
 
 A `Junk` token takes no tags of the run that it reads. The format 49 rule added the tags of the run node, but such a node had none, so no token changes.
 
-The rules write the same reads in the forms of the new notation. A test of a letter reads its value, as `$x'value`. A test of a run of letters joins the values of its input tokens with `$RAW`. A compound, a spelling quote and a foreign quote read the values that their parts compute, as `$t'value`. The particle and freeform templates take their family or kind as a key set and their letters as strings. An optional or repeated capture in a condition is a list, so the condition tests each item with `.all`.
+The rules write the same reads in the forms of the new notation. A test of a letter reads its value, as `$x'value`, or tests it in the body, as `ns-consonant=@Consonant`. A test of a run of letters joins the values of its input tokens with `$RAW`. A compound, a spelling quote and a foreign quote read the values that their parts compute, as `$t'value`. The particle and freeform templates take their family or kind as a key set and their letters as strings. An optional or repeated capture in a condition is a list, so the condition tests each item with `.all`.
