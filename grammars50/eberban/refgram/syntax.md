@@ -488,7 +488,7 @@ A verb is a definable word with its namespace, or an inline assignment with `bo`
 
 ### Quotes
 
-The [quotes chapter](https://eberban.github.io/eberban/books/refgram/book/grammar/quotes.html) gives four quotes. `ca` quotes a grammatical text up to `cai`. The text can be empty. `ci` quotes one actual word: a particle, a root, a compound or a borrowing. A spelling quote and a foreign quote are each one quote unit, not a word, so `ci` does not quote them. A digit is a particle, so `ci` quotes it.
+The [quotes chapter](https://eberban.github.io/eberban/books/refgram/book/grammar/quotes.html) gives four quotes. `ca` quotes a grammatical text up to `cai`. The text can be empty. `ci` quotes one actual word, "ignoring its grammar": a particle, a root, a compound or a borrowing. So the word after `ci` is a plain word even where it could start a quote. The [word forms](morphology.md) read it so, and `ci ce` and `ci co` quote the particles `ce` and `co`. A digit is a particle, so `ci` quotes it.
 
 `ce` spells a text up to `cei`, which the forms stage reads as one unit. `co` quotes foreign text, which the forms stage also reads as one unit, and `coi` stands for a quote whose content the speaker cannot read.
 
@@ -944,24 +944,9 @@ An unclosed parenthetical reports on its whole span, from `da` through the input
 <p><img src="../../../docs/diagrams/50/eberban/refgram/syntax/empty-parenthetical.svg" alt="Railroad diagram of the rule empty-parenthetical"></p>
 </details>
 
-A written `ce cei` reports an empty spelling quote. Without `cei`, the error requires the forms mark for a missing first unit. The forms stage marks that absence before words become indivisible syntax tokens. A following digit or malformed pair starts no unit. A valid unit without `cei` remains an unclosed quote, including `a ce mi`.
-
 A sentence after `ra` needs a written starter. A sentence without that starter is an `a-sentence` with an omitted `A`. The recovery follows the erased constituent and retains its own error.
 
 ```jbogenbau
-%extend-rule base-verb
-  *spelling-empty
-
-%rule spelling-empty
-  [{prefix}] CE<¬Quote> CEI
-%error "a spelling quote needs at least one unit"
-
-%extend-rule spelling-empty
-  [{prefix}] CE<¬Quote>
-%conditions
-  $.last-token.flags'Missing-spelling-unit
-%error "a spelling quote needs at least one unit"
-
 %rule erasure-needs-starter
   $s:a-sentence
 %conditions
@@ -969,10 +954,7 @@ A sentence after `ra` needs a written starter. A sentence without that starter i
 %error "after ra, write a sentence starter: a, o, or ni"
 ```
 
-<details><summary>Railroad diagrams of <code>base-verb</code>, <code>spelling-empty</code> and <code>erasure-needs-starter</code></summary>
-<p><img src="../../../docs/diagrams/50/eberban/refgram/syntax/base-verb.3.svg" alt="Railroad diagram of the rule base-verb"></p>
-<p><img src="../../../docs/diagrams/50/eberban/refgram/syntax/spelling-empty.svg" alt="Railroad diagram of the rule spelling-empty"></p>
-<p><img src="../../../docs/diagrams/50/eberban/refgram/syntax/spelling-empty.2.svg" alt="Railroad diagram of the rule spelling-empty"></p>
+<details><summary>Railroad diagram of <code>erasure-needs-starter</code></summary>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/syntax/erasure-needs-starter.svg" alt="Railroad diagram of the rule erasure-needs-starter"></p>
 </details>
 
@@ -1059,7 +1041,7 @@ Number recovery normally ends at written `JI`, before a token outside `number-st
 ```
 
 <details><summary>Railroad diagrams of the 16 rules from <code>base-verb</code> to <code>number-part-order</code></summary>
-<p><img src="../../../docs/diagrams/50/eberban/refgram/syntax/base-verb.4.svg" alt="Railroad diagram of the rule base-verb"></p>
+<p><img src="../../../docs/diagrams/50/eberban/refgram/syntax/base-verb.3.svg" alt="Railroad diagram of the rule base-verb"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/syntax/number-part.svg" alt="Railroad diagram of the rule number-part"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/syntax/loose-base.svg" alt="Railroad diagram of the rule loose-base"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/syntax/loose-digits.svg" alt="Railroad diagram of the rule loose-digits"></p>
@@ -1089,7 +1071,7 @@ The match departs from the PEG in three places. In the first two, a word compare
 
 The numbers chapter says that a `JI` other than `jie` must follow a positive integer, with no fractional part. Whether a number is a positive integer depends on its value, as `to jei ti` shows. The grammar tests no values, so it accepts any `JI` after any number, as the PEG does. So `a to jo te ji mian` is a text here. This departs from the book's usage rule, not from the PEG.
 
-The PEG's `ci` reads a native word, a compound or a borrowing, so it reads no digit. A digit is a particle here, so `a ci 1 mian` is a text here and not in the PEG. The PEG's `ci` reads `co` as a particle and its brackets as spaces. A quote is one quote unit here, and `ci` quotes only words. So `a ci co [x] mian` is a text in the PEG and not here.
+The PEG's `ci` reads a native word, a compound or a borrowing, so it reads no digit. A digit is a particle here, so `a ci 1 mian` is a text here and not in the PEG. The PEG's `ci` and this grammar both read `co` after `ci` as a particle and its brackets as spaces, so `a ci co [x] mian` is a text in both.
 
 If no starter, paragraph mark or end of the whole text follows an erasure, the PEG queues its message about the starter. It applies that rule inside a quote or a parenthesis too. A later `ra` that erases ungrammatical text discards the message. So erased text can follow an erasure in the PEG, as it can here. This grammar also accepts the end of an enclosing quote or parenthesis after an erasure. So `a mi da a mo ra dai` is a text here and not in the PEG.
 
@@ -1142,7 +1124,6 @@ Morphology faults originate in the [forms stage](morphology.md#diagnostic-codes-
 | `not-definable-ni` | The opening `NI` token in `ni-sentence` | [`E_NotDefinableNI`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L298) |
 | `unclosed-parenthetical` | The whole unclosed `parenthetical`, from `DA` through input end or to a following `cai` | [`E_UnclosedParenthetical`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L631) |
 | `empty-parenthetical` | The `DA` and `DAI` of an empty parenthetical | [`E_EmptyParenthetical`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L630) |
-| `spelling-empty` | `base-verb` | [`E_SpellingEmpty`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L524) |
 | `erasure-needs-starter` | The optional final child inside `ra-run` | [`E_ErasedMustBeFollowedBySentenceStarter`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L287) |
 | `number-end-alone` | `base-verb` | [`E_NumberEndAlone`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L611) |
 | `number-empty-base` | `empty-base-number`, on its `JU` | [`E_NumberEmptyBase`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L612) |
@@ -1158,7 +1139,7 @@ A numeric word quoted by `ci` is not a number constituent. It does not block `nu
 
 A grammatical complete body can precede one empty `ja` or `je` in number recovery. Other misplaced parts have no general segmentation preference. An empty `ju` after a complete body retains ordinary rejection, as in `a to je te ju`. Digits before `ju` form a base. If recovery retains the complete body before `ju`, its final digits also form a base with that marker. That base competes with `number-without-digits` on the same faulty `ju`.
 
-The `ci` position accepts malformed roots, compounds, borrowings, and ordinary particles with their forms diagnostics. A freeform or quote unit remains unsupported there. Unclassified junk and missing word boundaries retain ordinary rejection, with any carried forms error. A free prefix before `po` also retains ordinary rejection. A `JI` value restriction also remains outside this grammar, as the preceding numbers discussion explains.
+The `ci` position accepts malformed roots, compounds, borrowings, and ordinary particles with their forms diagnostics. A freeform remains unsupported there. Unclassified junk and missing word boundaries retain ordinary rejection, with any carried forms error. A free prefix before `po` also retains ordinary rejection. A `JI` value restriction also remains outside this grammar, as the preceding numbers discussion explains.
 
 An unclaimed `cai` keeps the default rejection, including `a mo ra cai`. This map has no named error for an unmatched `cai`.
 

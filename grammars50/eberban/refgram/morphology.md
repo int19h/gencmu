@@ -52,7 +52,6 @@ The book allows a hyphen only at a syllable boundary inside a word. Each digit i
   Freeform,
   Compound,
   Quote,
-  Missing-spelling-unit,
   RA,
   RI,
   Space,
@@ -109,7 +108,7 @@ The book allows a hyphen only at a syllable boundary inside a word. Each digit i
   [{item}]
 
 %rule item
-  | space | digit-word | borrowing | freeform-variable
+  | space | ci-space | digit-word | borrowing | freeform-variable
   | ((hesitation | eraser-run | word-run | compound-run | stray-compound) ≻ junk-run)
 
 %rule run-char
@@ -144,10 +143,21 @@ The rules `space-before` and `space-after` hold beside a space, a bracket of a g
 
 ```jbogenbau
 %rule space
-  {space-unit | space-open | space-close} → {Space, image: value: " "}
+  space-run → {Space, image: value: " "}
 %conditions
-  ¬$.following-tokens.parse((Space | Open | Close) …)
+  ¬$.following-tokens.parse((Space | Open | Close) …),
+  ¬$.preceded-by(ci-word)
 %emit
+
+%rule ci-space
+  space-run → {Space, image: value: " "}
+%conditions
+  ¬$.following-tokens.parse((Space | Open | Close) …),
+  $.preceded-by(ci-word)
+%emit
+
+%rule space-run
+  {space-unit | space-open | space-close}
 
 %rule space-unit
   Space<¬Foreign-Letter>
@@ -178,8 +188,10 @@ The rules `space-before` and `space-after` hold beside a space, a bracket of a g
   $.ends-input ∨ $.followed-by(space-unit | space-open | space-close)
 ```
 
-<details><summary>Railroad diagrams of the 8 rules from <code>space</code> to <code>space-after</code></summary>
+<details><summary>Railroad diagrams of the 10 rules from <code>space</code> to <code>space-after</code></summary>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/space.svg" alt="Railroad diagram of the rule space"></p>
+<p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/ci-space.svg" alt="Railroad diagram of the rule ci-space"></p>
+<p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/space-run.svg" alt="Railroad diagram of the rule space-run"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/space-unit.svg" alt="Railroad diagram of the rule space-unit"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/non-eberban-letter.svg" alt="Railroad diagram of the rule non-eberban-letter"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/space-open.svg" alt="Railroad diagram of the rule space-open"></p>
@@ -538,7 +550,7 @@ The conditions on `ni-word`, `vowel-particle-word`, `first-prefix` and `freeform
 
 A `co` that a complete opener follows starts a foreign quote, so it is never a plain word. A complete opener is `co`, its optional gap and delimiter, and an opening bracket, and `quote-opener` reads it. `consonant-particle-word` marks `component-particle` as its primary, so it has the bag and the strings of that word. Its condition adds the bar. It tests only a particle of the `CO` family, so no other particle before a bracket is tested.
 
-The word wrappers retain an erroneous edge `h`, as in `hmi` or `mih`. Roots use the recovering root skeleton below. An ordinary `ce` carries `Missing-spelling-unit` only where the forms reader finds no first spelling unit. This test uses the letters, including malformed runs, before syntax receives whole tokens.
+The word wrappers retain an erroneous edge `h`, as in `hmi` or `mih`. Roots use the recovering root skeleton below. The quotes chapter says that `ci` quotes one word "ignoring its grammar". So `ci-word` reads a `ci`, and `ci-space` reads a gap right after it. The word after either one is a plain word: `ce` starts no spelling quote there, and `co` starts no foreign quote. The neighbor tests on the quote rules state that. So `a ci ce ci cei` quotes the particles `ce` and `cei`, as the PEG reads it.
 
 The quote reads its own `co` through the particle rule, so the bar never meets the quote. A compound reads its components without the bar ("Compounds" below). The test reads the opener alone, not the whole quote. So an unclosed quote is rejected, as in `a mico [x`.
 
@@ -554,12 +566,21 @@ The quote reads its own `co` through the particle rule, so the bar never meets t
   consonant-word | vowel-particle-word | ni-word
 
 %rule consonant-word
-  consonant-particle-word | root-word | spelling-quote
+  consonant-particle-word | ci-word | root-word | spelling-quote | empty-spelling-quote
 
 %rule consonant-particle-word
   ^$w:component-particle
 %conditions
-  $w'CO ⟹ ¬$.onward.parse(quote-opener …)
+  ¬$w'CI,
+  $w'CO ∧ ¬$.preceded-by(ci-word | ci-space) ⟹ ¬$.onward.parse(quote-opener …),
+  $w'CE ∧ ¬$.preceded-by(ci-word | ci-space) ⟹
+    $.following-tokens.parse(first-unit …)
+%emit
+
+%rule ci-word
+  ^$w:component-particle
+%conditions
+  $w'CI
 %emit
 
 %rule ni-word
@@ -587,12 +608,13 @@ The quote reads its own `co` through the particle rule, so the bar never meets t
   Digit [Hyphen]
 ```
 
-<details><summary>Railroad diagrams of the 10 rules from <code>word-run</code> to <code>after-digit</code></summary>
+<details><summary>Railroad diagrams of the 11 rules from <code>word-run</code> to <code>after-digit</code></summary>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/word-run.svg" alt="Railroad diagram of the rule word-run"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/run-close.svg" alt="Railroad diagram of the rule run-close"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/first-word.svg" alt="Railroad diagram of the rule first-word"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/consonant-word.svg" alt="Railroad diagram of the rule consonant-word"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/consonant-particle-word.svg" alt="Railroad diagram of the rule consonant-particle-word"></p>
+<p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/ci-word.svg" alt="Railroad diagram of the rule ci-word"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/ni-word.svg" alt="Railroad diagram of the rule ni-word"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/vowel-particle-word.svg" alt="Railroad diagram of the rule vowel-particle-word"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/root-word.svg" alt="Railroad diagram of the rule root-word"></p>
@@ -878,12 +900,7 @@ A hyphen after a prefix or at the start of a run carries `hyphen-misplaced`, as 
 
 %rule component-particle
   *h-before-word $p:consonant-particle *h-after-word [hyphen-misplaced]
-      → {
-          Word,
-          Particle,
-          *$p.flags,
-          ($p'CE ∧ ¬$.following-tokens.parse(first-unit …))? Missing-spelling-unit
-        }
+      → {Word, Particle, *$p.flags}
 %emit
 ```
 
@@ -1116,7 +1133,7 @@ The token carries `CE`, `Quote`, `Word` and `Particle`. Its image is the written
 
 The quote is one unit that starts with `c`, so a run of words can hold it, as in `mice bu cei`. The `ce` is a complete particle, so a word must be able to end after it. After a gap, the first unit can start with any consonant, as the book spells `nu`, `ri` and `lu`. Without a gap, the first unit starts with a non-sonorant consonant, which can begin a word. So `a cenu cei` reads the root `cenu`, and `a ce nu cei` reads a quote of `nu`.
 
-A unit that starts with a vowel needs a gap before it. The quote ends at the first complete `cei` particle, which `complete-cei` reads with a word boundary after it, as the PEG's `CEI` does. So a unit can be `cei` where no word boundary follows it, as in `a ce bu ceinu cei`. A `ce` particle that no `cei` closes is an ordinary word. If no first unit follows that `ce`, syntax reports an empty quote. Otherwise the missing `cei` retains the default rejection.
+A unit that starts with a vowel needs a gap before it. The quote ends at the first complete `cei` particle, which `complete-cei` reads with a word boundary after it, as the PEG's `CEI` does. So a unit can be `cei` where no word boundary follows it, as in `a ce bu ceinu cei`. A `ce` particle that no `cei` closes is an ordinary word if a first unit follows it, and then the missing `cei` retains the default rejection. If no first unit follows a `ce`, the quote is empty, as in `a ce` or `a ce cei`. The quotes chapter gives a quote at least one unit, so `empty-spelling-quote` reads such a quote with the error `spelling-empty`. After `ci`, a `ce` is a quoted word, so it reports nothing.
 
 The morphology chapter allows a hyphen at a syllable boundary. A consonant unit starts a syllable, so a hyphen right before it is silent, as in `a ce bu-nu cei`. Inside a unit, the hyphen rules of the words apply, so `a ce b-u cei` carries `hyphen-misplaced`. A hyphen beside a gap, after `ce` or before `cei` stands at the edge of a word, so it carries the warning too.
 
@@ -1131,7 +1148,20 @@ The morphology chapter allows a hyphen at a syllable boundary. A consonant unit 
           value: $s'value ++ " " ++ $u'value ++ " " ++ $e'value,
           image: $.source-text
         }
+%conditions
+  ¬$.preceded-by(ci-word | ci-space)
 %emit
+
+%rule empty-spelling-quote
+  *spelling-empty → {Word, Particle, CE, Quote, image: $.source-text}
+%emit
+
+%rule spelling-empty
+  $s:ce-particle [hyphen-misplaced] [unit-join complete-cei]
+%conditions
+  ¬$s.following-tokens.parse(first-unit …),
+  ¬$.preceded-by(ci-word | ci-space)
+%error "a spelling quote needs at least one unit"
 
 %rule units
   first-unit [{later-unit}]
@@ -1174,8 +1204,10 @@ The morphology chapter allows a hyphen at a syllable boundary. A consonant unit 
   cei-particle particle-end [Hyphen] word-boundary
 ```
 
-<details><summary>Railroad diagrams of the 12 rules from <code>spelling-quote</code> to <code>complete-cei</code></summary>
+<details><summary>Railroad diagrams of the 14 rules from <code>spelling-quote</code> to <code>complete-cei</code></summary>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/spelling-quote.svg" alt="Railroad diagram of the rule spelling-quote"></p>
+<p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/empty-spelling-quote.svg" alt="Railroad diagram of the rule empty-spelling-quote"></p>
+<p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/spelling-empty.svg" alt="Railroad diagram of the rule spelling-empty"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/units.svg" alt="Railroad diagram of the rule units"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/first-unit.svg" alt="Railroad diagram of the rule first-unit"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/later-unit.svg" alt="Railroad diagram of the rule later-unit"></p>
@@ -1213,6 +1245,8 @@ The value is the `co` word, a space and the text from `[` to `]`. In the second 
 %rule foreign-quote
   $q:quote-co [opening-gap] $t:quoted-text
       → {Word, Particle, CO, Quote, value: $q'value ++ " " ++ $t'value, image: $.source-text}
+%conditions
+  ¬$.preceded-by(ci-word | ci-space)
 %emit
 
 %rule quote-co
@@ -1264,7 +1298,8 @@ The recovery keeps the quote's class, value, and emission. It leaves no later er
   $q:quote-co [opening-gap] $t:unclosed-quoted-text
       → {Word, Particle, CO, Quote, value: $q'value ++ " " ++ $t'value, image: $.source-text}
 %conditions
-  $.ends-input
+  $.ends-input,
+  ¬$.preceded-by(ci-word | ci-space)
 %error "the foreign quote needs ] followed by its opening delimiter, if any"
 %emit
 
@@ -1828,6 +1863,7 @@ The prefix errors stand on the prefix. The PEG's `E_SpacedIPrefix` names the sep
 
 | Code | Forms reader or bearer | PEG source |
 | --- | --- | --- |
+| `spelling-empty` | The `ce`, and the `cei` if one follows, of an empty spelling quote | [`E_SpellingEmpty`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L524) |
 | `spaced-i-prefix` | The `spaced-i-prefix` alternative of `stray-prefix` | [`E_SpacedIPrefix`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L807) |
 | `compound-empty` | The `compound-empty` alternative of `stray-prefix` | [`CompoundN`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L785) |
 | `incomplete-compound` | The `incomplete-compound` alternative of `stray-prefix` | [`E_IncompleteCompound`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L810) |
@@ -1860,7 +1896,7 @@ An unclosed foreign quote reports in this stage because syntax cannot erase it. 
 
 The PEG's `E_SpacedQuoteMarkStart` has no named counterpart. `co` is a valid word, so its letters do not establish an attempted quote. Both parsers accept `a en co bu [x]bu` as a compound and `a co bu [x]bu ra a mo` by erasure.
 
-The `Missing-spelling-unit` mark describes the letters after an ordinary `ce`, including a word quoted by `ci`. Thus valid `a ci ce` carries the mark, while `a ci ce mo` does not. The mark changes no grammatical reading, and tree comparison ignores tags.
+An empty spelling quote reports in this stage, as an unclosed foreign quote does. It is still a quote token, so syntax reads it as a quote, and `ra` can erase it.
 
 The `spaced-i-prefix` mark requires content after the spaced `i`. A bare `i` remains unfinished, so `a e i` retains the default rejection.
 
