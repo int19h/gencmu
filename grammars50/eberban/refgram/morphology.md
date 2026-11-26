@@ -209,7 +209,7 @@ The morphology chapter says that a hyphen can stand at a syllable boundary insid
 
 Anywhere else, the grammar accepts a hyphen with the warning `hyphen-misplaced`. That includes the start and the end of a word. The rule `hyphen-misplaced` reads such a hyphen, and the pipeline turns the warning on. The PEG warns at most of these places, and the closing section lists the others.
 
-A delimiter of a foreign quote is an Eberban word, and the quote reads such a word in two ways. It reads its delimiters with warnings, and the words inside its text in silence ("Foreign quotes" below). So the rules that a delimiter reaches take the hyphen rule as the parameter `@Hyphen`. The warned delimiter reader `native-delimiter` and the spelling units read them with `hyphen-misplaced`, which warns. The silent reader reads them with a plain `Hyphen`. A named instance gives each warned reading its own name, such as `vhowels` or `root-form`. Ordinary words do not use these strict readers. They use the recovering readers of the section on malformed words, which also admit a faulty piece.
+A delimiter of a foreign quote is an Eberban word, and the quote reads such a word in two ways. It reads its delimiters with warnings, and the words inside its text in silence ("Foreign quotes" below). The strict rules that a delimiter reaches, such as `vhowels` or `root-form`, read a stray hyphen with `hyphen-misplaced`, which warns. The delimiter reader `native-delimiter` and the spelling units use these rules as they are. The silent reader `delimiter-shape` splices `native-delimiter` and suppresses its warnings. Ordinary words do not use these strict readers. They use the recovering readers of the section on malformed words, which also admit a faulty piece.
 
 ```jbogenbau
 %rule vowel
@@ -247,15 +247,13 @@ Two vowels written in a row are two letters, because the letters stage merges a 
 %conditions
   $a'last ≠ $b'value
 
-%rule vhowels-of(@Hyphen)
-  vowels [{[Hyphen] Letter<H> [@Hyphen] vowels}]
+%rule vhowels
+  vowels [{[Hyphen] Letter<H> [hyphen-misplaced] vowels}]
 
-%rule vhowels = vhowels-of(hyphen-misplaced)
 ```
 
-<details><summary>Railroad diagrams of <code>vowels</code>, <code>vhowels-of</code> and <code>vhowels</code></summary>
+<details><summary>Railroad diagrams of <code>vowels</code> and <code>vhowels</code></summary>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/vowels.svg" alt="Railroad diagram of the rule vowels"></p>
-<p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/vhowels-of.svg" alt="Railroad diagram of the rule vhowels-of"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/vhowels.svg" alt="Railroad diagram of the rule vhowels"></p>
 </details>
 
@@ -284,12 +282,11 @@ The morphology chapter lists the consonant pairs. An initial pair can begin a wo
 
 %const $NOT-BEFORE-LIQUID ["m", "n", "r", "l"]
 
-%rule initial-pair-of(@Hyphen)
-  $x:consonant [@Hyphen] $y:consonant
+%rule initial-pair
+  $x:consonant [hyphen-misplaced] $y:consonant
 %conditions
   $x'value ++ $y'value ∈ $INITIAL-PAIRS
 
-%rule initial-pair = initial-pair-of(hyphen-misplaced)
 
 %rule medial-pair
   $x:consonant [Hyphen] $y:consonant
@@ -297,8 +294,7 @@ The morphology chapter lists the consonant pairs. An initial pair can begin a wo
   $x'value ++ $y'value ∈ $MEDIAL-PAIRS
 ```
 
-<details><summary>Railroad diagrams of <code>initial-pair-of</code>, <code>initial-pair</code> and <code>medial-pair</code></summary>
-<p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/initial-pair-of.svg" alt="Railroad diagram of the rule initial-pair-of"></p>
+<details><summary>Railroad diagrams of <code>initial-pair</code> and <code>medial-pair</code></summary>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/initial-pair.svg" alt="Railroad diagram of the rule initial-pair"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/medial-pair.svg" alt="Railroad diagram of the rule medial-pair"></p>
 </details>
@@ -308,14 +304,13 @@ A triplet is three consonants `XYZ` between vowels. In a root it has one of two 
 A freeform variable or borrowing has a third shape: `X` is a sonorant and `YZ` is an initial pair or a consonant-sonorant medial pair. A consonant-sonorant medial pair starts with a non-sonorant consonant, so `nrn` is no triplet. Four consonants in a row form no word.
 
 ```jbogenbau
-%rule root-triplet-of(@Hyphen)
-  $x:consonant [Hyphen] $y:consonant [@Hyphen] $z:consonant
+%rule root-triplet
+  $x:consonant [Hyphen] $y:consonant [hyphen-misplaced] $z:consonant
 %conditions
   $x'value ++ $y'value ∈ $MEDIAL-PAIRS ∧ $y'value ++ $z'value ∈ $INITIAL-PAIRS ∨
     ($x'value ++ $y'value ∈ $MEDIAL-PAIRS ∨ $x'value ++ $y'value ∈ $INITIAL-PAIRS) ∧
       $y'value ∉ $NOT-BEFORE-LIQUID ∧ $z'value ∈ $LIQUIDS
 
-%rule root-triplet = root-triplet-of(hyphen-misplaced)
 
 %rule freeform-triplet
   root-triplet | sonorant-triplet
@@ -326,8 +321,7 @@ A freeform variable or borrowing has a third shape: `X` is a sonorant and `YZ` i
   $y'value ++ $z'value ∈ $INITIAL-PAIRS ∨ $y'value ++ $z'value ∈ $MEDIAL-PAIRS ∧ $z'Sonorant
 ```
 
-<details><summary>Railroad diagrams of the 4 rules from <code>root-triplet-of</code> to <code>sonorant-triplet</code></summary>
-<p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/root-triplet-of.svg" alt="Railroad diagram of the rule root-triplet-of"></p>
+<details><summary>Railroad diagrams of <code>root-triplet</code>, <code>freeform-triplet</code> and <code>sonorant-triplet</code></summary>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/root-triplet.svg" alt="Railroad diagram of the rule root-triplet"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/freeform-triplet.svg" alt="Railroad diagram of the rule freeform-triplet"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/sonorant-triplet.svg" alt="Railroad diagram of the rule sonorant-triplet"></p>
@@ -337,7 +331,7 @@ A freeform variable or borrowing has a third shape: `X` is a sonorant and `YZ` i
 
 A particle starts with a non-sonorant consonant followed only by vhowels, as `zi` or `tiho`. Or it starts with `n`, `a` or `o` and continues with vhowels and sonorants, as `a`, `on`, `ahu` or `nu`. The closing section explains why only these three letters start the second kind.
 
-The shape of a particle gives its family. The first consonant gives the family, as in the PEG. For `p`, `b`, `d`, `c`, and `j`, the first vowel refines it. The book makes six particles families of their own: `pei`, `vei`, `dai`, `cei`, `cai` and `coi`. The templates below read the kinds of family. Each instance passes its family as a key set, and the term of the template splats it. Each instance also passes its letters as strings. The body tests the first consonant against its letter, as `ns-consonant=@Consonant`. The conditions of the other templates compare the value of the vowels with a string, or test their first vowel with the query `$v.parse(vowel=@Vowel …)`. Their recovering vowels retain a family through a malformed vowel join. The strict delimiter templates use separate vowels.
+The shape of a particle gives its family. The first consonant gives the family, as in the PEG. For `p`, `b`, `d`, `c`, and `j`, the first vowel refines it. The book makes six particles families of their own: `pei`, `vei`, `dai`, `cei`, `cai` and `coi`. The templates below read the kinds of family. Each instance passes its family as a key set, and the term of the template splats it. Each instance also passes its letters as strings. The body tests the first consonant against its letter, as `ns-consonant=@Consonant`. The conditions of the other templates compare the value of the vowels with a string, or test their first vowel with the query `$v.parse(vowel=@Vowel …)`. Their recovering vowels retain a family through a malformed vowel join. The strict delimiter rules use separate vowels.
 
 ```jbogenbau
 %rule particle-cv(@Consonant, @Family)
@@ -475,10 +469,9 @@ The particle families of `n`, `a` and `o` are `NI`, `A` and `O`. The `n` can tak
 %conditions
   $v.parse(vowel="o" …)
 
-%rule particle-tail-of(@Hyphen)
-  [{[Hyphen] sonorant [@Hyphen] vhowels-of(@Hyphen)}] [[@Hyphen] sonorant]
+%rule particle-tail
+  [{[Hyphen] sonorant [hyphen-misplaced] vhowels}] [[hyphen-misplaced] sonorant]
 
-%rule particle-tail = particle-tail-of(hyphen-misplaced)
 
 %rule consonant-particle
   | mi-particle | fi-particle | vi-particle | vei-particle | ti-particle | si-particle | zi-particle
@@ -492,11 +485,10 @@ The particle families of `n`, `a` and `o` are `NI`, `A` and `O`. The `n` can tak
   a-particle | o-particle
 ```
 
-<details><summary>Railroad diagrams of the 7 rules from <code>ni-particle</code> to <code>vowel-particle</code></summary>
+<details><summary>Railroad diagrams of the 6 rules from <code>ni-particle</code> to <code>vowel-particle</code></summary>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/ni-particle.svg" alt="Railroad diagram of the rule ni-particle"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/a-particle.svg" alt="Railroad diagram of the rule a-particle"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/o-particle.svg" alt="Railroad diagram of the rule o-particle"></p>
-<p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/particle-tail-of.svg" alt="Railroad diagram of the rule particle-tail-of"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/particle-tail.svg" alt="Railroad diagram of the rule particle-tail"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/consonant-particle.svg" alt="Railroad diagram of the rule consonant-particle"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/vowel-particle.svg" alt="Railroad diagram of the rule vowel-particle"></p>
@@ -507,30 +499,24 @@ The particle families of `n`, `a` and `o` are `NI`, `A` and `O`. The `n` can tak
 A root starts with a non-sonorant consonant or an initial pair. After its first vhowels come any number of middles, each a sonorant, a medial pair or a triplet before more vhowels. A sonorant can end it. A root that starts with one consonant needs at least one middle or a final sonorant, because a consonant and vhowels alone form a particle.
 
 ```jbogenbau
-%rule root-form-of(@Hyphen)
-  | ns-consonant [@Hyphen] vhowels-of(@Hyphen) {root-middle-of(@Hyphen)}
-    [final-sonorant-of(@Hyphen)]
-  | ns-consonant [@Hyphen] vhowels-of(@Hyphen) final-sonorant-of(@Hyphen)
-  | initial-pair-of(@Hyphen) [@Hyphen] vhowels-of(@Hyphen) [{root-middle-of(@Hyphen)}]
-    [final-sonorant-of(@Hyphen)]
+%rule root-form
+  | ns-consonant [hyphen-misplaced] vhowels {root-middle}
+    [final-sonorant]
+  | ns-consonant [hyphen-misplaced] vhowels final-sonorant
+  | initial-pair [hyphen-misplaced] vhowels [{root-middle}]
+    [final-sonorant]
 
-%rule root-middle-of(@Hyphen)
-  | [Hyphen] sonorant [@Hyphen] vhowels-of(@Hyphen)
-  | [@Hyphen] medial-pair [@Hyphen] vhowels-of(@Hyphen)
-  | [@Hyphen] root-triplet-of(@Hyphen) [@Hyphen] vhowels-of(@Hyphen)
+%rule root-middle
+  | [Hyphen] sonorant [hyphen-misplaced] vhowels
+  | [hyphen-misplaced] medial-pair [hyphen-misplaced] vhowels
+  | [hyphen-misplaced] root-triplet [hyphen-misplaced] vhowels
 
-%rule final-sonorant-of(@Hyphen)
-  [@Hyphen] sonorant
+%rule final-sonorant
+  [hyphen-misplaced] sonorant
 
-%rule root-form = root-form-of(hyphen-misplaced)
-%rule root-middle = root-middle-of(hyphen-misplaced)
-%rule final-sonorant = final-sonorant-of(hyphen-misplaced)
 ```
 
-<details><summary>Railroad diagrams of the 6 rules from <code>root-form-of</code> to <code>final-sonorant</code></summary>
-<p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/root-form-of.svg" alt="Railroad diagram of the rule root-form-of"></p>
-<p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/root-middle-of.svg" alt="Railroad diagram of the rule root-middle-of"></p>
-<p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/final-sonorant-of.svg" alt="Railroad diagram of the rule final-sonorant-of"></p>
+<details><summary>Railroad diagrams of <code>root-form</code>, <code>root-middle</code> and <code>final-sonorant</code></summary>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/root-form.svg" alt="Railroad diagram of the rule root-form"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/root-middle.svg" alt="Railroad diagram of the rule root-middle"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/final-sonorant.svg" alt="Railroad diagram of the rule final-sonorant"></p>
@@ -959,11 +945,15 @@ That vowel depends on the letter before it, so a tail comes in two kinds. `compo
       → {value: "n " ++ $a'value ++ " " ++ $b'value ++ " " ++ $c'value}
   | compound-prefix<EN-PREFIX> prefix-join $n:compound-tail $b:later-slot $c:later-slot
       → {value: "ne" ++ $n'value ++ " " ++ $b'value ++ " " ++ $c'value}
-  | compound-prefix<ER-PREFIX> $l:er-components er-closer → {value: "r" ++ $l'value ++ " e"}
+  | compound-prefix<ER-PREFIX> $r:er-components er-closer → {value: "r" ++ $r'value ++ " e"}
   | *compound-size
+%conditions
+  $r'size = 4
 
 %rule compound-size
-  compound-prefix<ER-PREFIX> $l:few-er-components er-closer → {value: "r" ++ $l'value ++ " e"}
+  compound-prefix<ER-PREFIX> $l:er-components er-closer → {value: "r" ++ $l'value ++ " e"}
+%conditions
+  $l'size < 4
 %warning "this er compound has three components or fewer"
 ```
 
@@ -981,7 +971,7 @@ The compounds chapter says that an `er` compound stops at a single `e` with a sp
 
 The rules test only the direct components of the `er` compound, as the PEG does. A standalone `e` deeper inside a nested compound does not end it, so `a er mi en e ber ban ban ban e` is a text. Issue [#273](https://github.com/int19h/gencmu/issues/273) asks the designer whether the end reaches every depth.
 
-The PEG warns about an `er` compound of one, two or three components. A single word needs no compound, and `e` and `en` spell two and three. The warning `compound-size` marks such a compound here. The rule `few-er-components` reads one to three components, and `er-components` reads four or more. Their bodies show the bounds.
+The PEG warns about an `er` compound of one, two or three components. A single word needs no compound, and `e` and `en` spell two and three. The warning `compound-size` marks such a compound here. The rule `er-components` reads the components as a list, and its key `size` counts them up to four. The conditions of `fixed-tail` and `compound-size` test that count.
 
 The closer emits its gap and `e` where no whole compound covers them. An empty `er e` needs those tokens for recovery. A complete compound replaces this list with its own word token.
 
@@ -993,11 +983,9 @@ The closer emits its gap and `e` where no whole compound covers them. An empty `
 %rule er-component
   $c:later-slot<¬Spaced-E> → {value: " " ++ ($c.has-value(attached) ? $c'attached | $c'value)}
 
-%rule few-er-components
-  er-first [er-component [er-component]]
-
 %rule er-components
-  er-first er-component er-component er-component [{er-component}]
+  | er-first → {size: 1}
+  | $l:er-components er-component → {size: ($l'size + 1).at-most(4)}
 
 -- In a complete compound, the compound token replaces these emissions.
 -- In an empty er e, they reach the words stage.
@@ -1008,10 +996,9 @@ The closer emits its gap and `e` where no whole compound covers them. An empty `
   $e{Stray-Prefix, image: $e.source-text}
 ```
 
-<details><summary>Railroad diagrams of the 5 rules from <code>er-first</code> to <code>er-closer</code></summary>
+<details><summary>Railroad diagrams of <code>er-first</code>, <code>er-component</code>, <code>er-components</code> and <code>er-closer</code></summary>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/er-first.svg" alt="Railroad diagram of the rule er-first"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/er-component.svg" alt="Railroad diagram of the rule er-component"></p>
-<p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/few-er-components.svg" alt="Railroad diagram of the rule few-er-components"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/er-components.svg" alt="Railroad diagram of the rule er-components"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/er-closer.svg" alt="Railroad diagram of the rule er-closer"></p>
 </details>
@@ -1349,44 +1336,45 @@ The recovery keeps the quote's class, value, and emission. It leaves no later er
 
 The quote reads a delimiter word in two ways. The opening and closing delimiters are Eberban words outside the quoted text, so `native-delimiter` reads them with the ordinary warnings. Inside the text, `delimiter-shape` reads the word after each `]` in silence, because quoted text runs no word rule. The two readers must accept the same spans as a complete first word, end at a word boundary and give the same value. Otherwise one reader can find a delimiter that the other misses, and the quote then has two ends.
 
-So both readers are instances of the template `delimiter-of`, over the same form templates. They differ in their hyphen rule and in one more warning. After a digit, the ordinary reader reads `digit-math`, which reads no token, and the silent reader reads nothing there.
+So `delimiter-shape` is a splice of `native-delimiter`, and it suppresses the warnings `hyphen-misplaced` and `math-symbol`. Suppression changes only the warnings that a stage reports. It never changes what a rule reads, so the two readers accept the same words with the same values.
 
 A delimiter follows the PEG's `NativeWord`. It is the longest root or particle form that reads from its start, with a root before a particle, and a word boundary after it. The rule `word-boundary` holds at the end of the text, and before a non-sonorant consonant, a digit, a space or a bracket. It does not hold before a hyphen, so a second hyphen never ends a word. A trailing hyphen stays in the word where a word boundary follows it.
 
 The root branch reads its longest form and then tests the boundary. A root that ends in a vowel goes on through a root middle only. So the condition on `$r` refuses such a root where a middle follows it. A root that ends in a sonorant goes on through nothing. If the boundary fails, the form is not shortened, and the root branch fails. So `bjaptah` reads no word, because the root `bjapta` fails before `h`.
 
-The particle branch reads only where no root word reads from the same start. A particle also refuses a medial pair right after its whole form, before any trailing hyphen, as `particle-end` says. So `nan` is no word before `pta`, and `zaostrah` reads the particle `zao`. The rule `particle-shape-of` reads the particle forms without their families, because a delimiter needs only its form and value.
+The particle branch reads only where no root word reads from the same start. A particle also refuses a medial pair right after its whole form, before any trailing hyphen, as `particle-end` says. So `nan` is no word before `pta`, and `zaostrah` reads the particle `zao`. The rule `particle-shape` reads the particle forms without their families, because a delimiter needs only its form and value.
 
 A digit is one `TI` particle, and a digit can be a delimiter. It needs no word boundary after it, as in the PEG's `TI` rule. A word that starts with a vowel or `n` still needs a space after it, as after any digit ("Runs of words" above). It takes the same optional hyphens as a letter word, with one hyphen at most at each boundary. With no word boundary after it, a digit closer can take a trailing hyphen or leave it. There the step of the stage takes the longer quote, so `a co te[x]1-an mo` holds the hyphen in its quote.
 
 ```jbogenbau
-%rule delimiter-of(@Hyphen, @Math)
-  | [@Hyphen] native-root-of(@Hyphen)
-  | [@Hyphen] native-particle-of(@Hyphen)
-  | digit-form-of(@Hyphen) @Math
+%rule native-delimiter
+  | [hyphen-misplaced] native-root
+  | [hyphen-misplaced] native-particle
+  | digit-form digit-math
 
-%rule native-delimiter = delimiter-of(hyphen-misplaced, digit-math)
-%rule delimiter-shape = delimiter-of(Hyphen, ε)
+%rule delimiter-shape
+  *native-delimiter
+%suppress-warnings hyphen-misplaced, math-symbol
 
-%rule native-root-of(@Hyphen)
-  $r:root-form-of(@Hyphen) [@Hyphen] word-boundary
+%rule native-root
+  $r:root-form [hyphen-misplaced] word-boundary
 %conditions
-  $r.last-token.flags'Sonorant ∨ ¬$r.following-tokens.parse(root-middle-of(@Hyphen) …)
+  $r.last-token.flags'Sonorant ∨ ¬$r.following-tokens.parse(root-middle …)
 
-%rule native-particle-of(@Hyphen)
-  particle-shape-of(@Hyphen) particle-end [@Hyphen] word-boundary
+%rule native-particle
+  particle-shape particle-end [hyphen-misplaced] word-boundary
 %conditions
-  ¬$.onward.parse(native-root-of(@Hyphen) …)
+  ¬$.onward.parse(native-root …)
 
-%rule particle-shape-of(@Hyphen)
-  | ns-consonant [@Hyphen] vhowels-of(@Hyphen)
-  | Letter="n" [@Hyphen] vhowels-of(@Hyphen) particle-tail-of(@Hyphen)
-  | $v:vhowels-of(@Hyphen) particle-tail-of(@Hyphen)
+%rule particle-shape
+  | ns-consonant [hyphen-misplaced] vhowels
+  | Letter="n" [hyphen-misplaced] vhowels particle-tail
+  | $v:vhowels particle-tail
 %conditions
   $v.parse((vowel="a" | vowel="o") …)
 
-%rule digit-form-of(@Hyphen)
-  [$l:@Hyphen] Digit [$t:@Hyphen]
+%rule digit-form
+  [$l:hyphen-misplaced] Digit [$t:hyphen-misplaced]
 %conditions
   $l.all(¬.preceding-tokens.parse(… Hyphen)),
   $t.all(¬.following-tokens.parse(Hyphen …))
@@ -1402,14 +1390,13 @@ A digit is one `TI` particle, and a digit can be a delimiter. It needs no word b
   $.ends-input ∨ $.following-tokens.parse((ns-consonant | Digit | Space | Open | Close) …)
 ```
 
-<details><summary>Railroad diagrams of the 9 rules from <code>delimiter-of</code> to <code>word-boundary</code></summary>
-<p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/delimiter-of.svg" alt="Railroad diagram of the rule delimiter-of"></p>
+<details><summary>Railroad diagrams of the 8 rules from <code>native-delimiter</code> to <code>word-boundary</code></summary>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/native-delimiter.svg" alt="Railroad diagram of the rule native-delimiter"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/delimiter-shape.svg" alt="Railroad diagram of the rule delimiter-shape"></p>
-<p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/native-root-of.svg" alt="Railroad diagram of the rule native-root-of"></p>
-<p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/native-particle-of.svg" alt="Railroad diagram of the rule native-particle-of"></p>
-<p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/particle-shape-of.svg" alt="Railroad diagram of the rule particle-shape-of"></p>
-<p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/digit-form-of.svg" alt="Railroad diagram of the rule digit-form-of"></p>
+<p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/native-root.svg" alt="Railroad diagram of the rule native-root"></p>
+<p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/native-particle.svg" alt="Railroad diagram of the rule native-particle"></p>
+<p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/particle-shape.svg" alt="Railroad diagram of the rule particle-shape"></p>
+<p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/digit-form.svg" alt="Railroad diagram of the rule digit-form"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/particle-end.svg" alt="Railroad diagram of the rule particle-end"></p>
 <p><img src="../../../docs/diagrams/50/eberban/refgram/morphology/word-boundary.svg" alt="Railroad diagram of the rule word-boundary"></p>
 </details>
@@ -1467,9 +1454,9 @@ Before a longer junk run, a hyphen beside a digit belongs to the digit, with its
 
 A malformed word retains its word class. These readers admit a faulty piece where a strict word restriction fails. They attach its error to the containing word token. Several pieces can report in one word, as in `hpbanh`.
 
-The strict delimiter templates never call these readers. A malformed root can therefore stand after `ci`, but cannot delimit a foreign quote. Spelling units also keep their strict readers.
+The strict delimiter rules never call these readers. A malformed root can therefore stand after `ci`, but cannot delimit a foreign quote. Spelling units also keep their strict readers.
 
-Recovering gaps retain a misplaced `h` between the letters of a word shape. Thus `mhi` keeps its particle family, and `bhjan` keeps its root onset. Their consonant captures still compare the actual consonants. The strict templates never call these gaps. The ordinary cluster shapes retain their strict tables but use recovering joins. The final sonorant uses the same join.
+Recovering gaps retain a misplaced `h` between the letters of a word shape. Thus `mhi` keeps its particle family, and `bhjan` keeps its root onset. Their consonant captures still compare the actual consonants. The strict rules never call these gaps. The ordinary cluster shapes retain their strict tables but use recovering joins. The final sonorant uses the same join.
 
 Fault productions retain their literal restrictions, so a pair fault never spans an intervening `h`.
 
