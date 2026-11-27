@@ -125,11 +125,13 @@ export declare class Stage50 {
      * @param {Token50[]} tokens
      * @param {string[]} sourceText
      * @param {any} unicode
-     * @param {{features: Set<string>, inputKeys: Set<string>}} options
+     * @param {{features: Set<string>, inputKeys: Set<string>, elisionOnly?: boolean, pendingErrors?: boolean}} options
      */
     run(tokens: Token50[], sourceText: string[], unicode: any, options: {
         features: Set<string>;
         inputKeys: Set<string>;
+        elisionOnly?: boolean;
+        pendingErrors?: boolean;
     }): any;
     /**
      * The check of elision-only (engine §7), run by the format 49 checker on
@@ -154,7 +156,7 @@ export declare class Stage50 {
      */
     lateQuery(data: any, kind: any, node: any, scope: any): any;
     /**
-     * The messages of the chosen tree (engine §6): each %error, and each
+     * The messages of the chosen tree (engine §12.1): each %error, and each
      * %warning whose code is on and not suppressed, in preorder. Erased
      * subtrees evaluate no message.
      * @param {any} root
@@ -177,7 +179,7 @@ export declare class Stage50 {
         };
     }[];
     /**
-     * Competitor rejection evidence (engine §6, as in format 49): an error
+     * Competitor rejection evidence (engine §12.1, as in format 49): an error
      * whose rule is itself one ranked option gets the expected terminals of
      * the other options of its definition, up to the end of the error.
      * @param {any[]} found
@@ -186,7 +188,7 @@ export declare class Stage50 {
      */
     competitorEvidence(found: any[], root: any, data: any): void;
     /**
-     * Gives each report an owner among the output tokens (engine §6). The
+     * Gives each report an owner among the output tokens (engine §11.4). The
      * support of a node is the set of live input leaves under it.
      *
      * 1. The first token whose support meets the support of the report.
@@ -293,7 +295,10 @@ export declare class Stage50 {
      * @param {any} root
      * @param {any} data
      */
-    publish(root: any, data: any): (Token50 & {
+    publish(root: any, data: any): ({
+        span: any;
+        source: any;
+    } & {
         node: any;
     })[];
     /** @param {any} data */

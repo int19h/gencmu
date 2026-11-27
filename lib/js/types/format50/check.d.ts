@@ -209,9 +209,13 @@ export declare class StageCheck {
      */
     provenance(term: any, document: any, at?: any): void;
     /**
-     * Whether a value takes its entries from a permission set: $INPUTS, a bag
-     * that names an engine key, or a constant, a function or a selection whose
-     * entries come from one.
+     * Whether a value can carry an engine membership that no node gives: the
+     * permission set $INPUTS, or a value that names an engine key. A value is
+     * safe in two ways only. A node gives its keys, as a capture, the item of
+     * a predicate, and the key sets and selections of these. Or the value
+     * provably holds no engine key: strings, numbers, and bags, lists and key
+     * sets whose written keys are ordinary. Every other form counts as
+     * permission, so a new form is refused until it is proven safe.
      * @param {any} node
      * @param {Set<any>} [active] the constant versions being followed
      * @returns {boolean}

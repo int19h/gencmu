@@ -1,0 +1,981 @@
+[
+ {
+  "name": "1a_lambda_skip",
+  "sources": {
+   "p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n\n%rule a \"a\" \u2192 { Good }\n%rule text {$x:a}\n  %conditions $x.all($item \u21a6 $item.has(Good))\n```\n"
+  },
+  "input": "aa",
+  "outcome": {
+   "ok": true
+  }
+ },
+ {
+  "name": "1b_non_lambda_exposes_disagreement",
+  "sources": {
+   "p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n\n%const $DEFAULTS $n \u21a6 { value: $n.children!'value.join(), image: $n.children!'image.join() }\n%rule r [+JI=\"jie\"] A\n%rule text $r:r\n  %conditions $r'value = \"a\"\n```\n"
+  },
+  "input": "a",
+  "options": {
+   "tokens": [
+    {
+     "text": "a",
+     "props": {
+      "A": true
+     },
+     "span": [
+      0,
+      1
+     ],
+     "source": [
+      0,
+      1
+     ]
+    }
+   ]
+  },
+  "outcome": {
+   "error": "grammar",
+   "message": "p.md:8:17: the read of the value of $r in recognition has no proof tha"
+  }
+ },
+ {
+  "name": "1b_lambda_hides_disagreement",
+  "sources": {
+   "p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n\n%const $DEFAULTS $n \u21a6 { value: $n.children!'value.join(), image: $n.children!'image.join() }\n%rule r [+JI=\"jie\"] A\n%rule text {$r:r}\n  %conditions $r.all($item \u21a6 $item'value = \"a\")\n```\n"
+  },
+  "input": "a",
+  "options": {
+   "tokens": [
+    {
+     "text": "a",
+     "props": {
+      "A": true
+     },
+     "span": [
+      0,
+      1
+     ],
+     "source": [
+      0,
+      1
+     ]
+    }
+   ]
+  },
+  "outcome": {
+   "error": "grammar",
+   "message": "p.md:8:35: the read of the value of $r in recognition has no proof tha"
+  }
+ },
+ {
+  "name": "1c_i_ab",
+  "sources": {
+   "p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n\n%rule a \"a\" \u2192 { K }\n%rule text $x:a \"c\" | [$x:a] \"b\"\n  %conditions $x'K\n```\n"
+  },
+  "input": "ab",
+  "outcome": {
+   "load": "p.md:7:17: the alternatives bind $x as one node and as a list, so a shared clause can test"
+  }
+ },
+ {
+  "name": "1c_i_b",
+  "sources": {
+   "p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n\n%rule a \"a\" \u2192 { K }\n%rule text $x:a \"c\" | [$x:a] \"b\"\n  %conditions $x'K\n```\n"
+  },
+  "input": "b",
+  "outcome": {
+   "load": "p.md:7:17: the alternatives bind $x as one node and as a list, so a shared clause can test"
+  }
+ },
+ {
+  "name": "1c_ii_ab",
+  "sources": {
+   "p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n\n%rule a \"a\"\n%rule text $x:a \"c\" | [$x:a] \"b\"\n  %conditions \u00ac($x'K)\n```\n"
+  },
+  "input": "ab",
+  "outcome": {
+   "load": "p.md:7:15: the alternatives bind $x as one node and as a list, so a shared clause can test"
+  }
+ },
+ {
+  "name": "1c_iii_ac",
+  "sources": {
+   "p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n\n%rule a \"a\"\n%rule text $x:a \"c\" | {$x:a} \"b\"\n  %conditions $x.all('K)\n```\n"
+  },
+  "input": "ac",
+  "outcome": {
+   "load": "p.md:7:17: the alternatives bind $x as one node and as a list, so a shared clause can test"
+  }
+ },
+ {
+  "name": "1d_ranked_fallback",
+  "sources": {
+   "p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n\n%const $OUTPUTS { Hi, Lo, note }\n%const $CHECK $x \u21a6 $x.has(note)\n%rule hi \"a\" \u2192 { Hi, note, value: \"a\", image: \"a\" }\n  %conditions $CHECK($)\n%rule lo \"a\" \u2192 { Lo, value: \"a\", image: \"a\" }\n%rule pick (hi \u227b lo)\n%rule text pick\n  %emit\n```\n"
+  },
+  "input": "a",
+  "outcome": {
+   "error": "grammar",
+   "message": "the token of text has no value"
+  }
+ },
+ {
+  "name": "1e_ranked_empty_list",
+  "sources": {
+   "p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n\n%const $OUTPUTS { Tag }\n%rule a \"a\" \u2192 { K }\n%rule text ([$a:a] \"b\" \u227b \"b\" \"c\") \u2192 { Tag }\n  %conditions (\u00ac$a \u27f9 $'Tag)\n```\n"
+  },
+  "input": "b",
+  "outcome": {
+   "ok": true
+  }
+ },
+ {
+  "name": "2a_cond_dollar",
+  "sources": {
+   "p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n\n%rule text \"a\"\n  %conditions $\n```\n"
+  },
+  "input": "a",
+  "outcome": {
+   "ok": true
+  }
+ },
+ {
+  "name": "2b_cond_dollar_present",
+  "sources": {
+   "p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n\n%rule text \"a\"\n  %conditions $.present\n```\n"
+  },
+  "input": "a",
+  "outcome": {
+   "ok": true
+  }
+ },
+ {
+  "name": "2c_select_cond",
+  "sources": {
+   "p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n\n%const $MASK { A, note, kind }\n%rule inner \"a\" \u2192 { A, note, kind: \"ok\" }\n%rule mid $i:inner \u2192 { *$i.select($MASK) }\n%rule text $m:mid\n  %conditions $m.has(note) \u2227 $m'kind = \"ok\"\n```\n"
+  },
+  "input": "a",
+  "outcome": {
+   "load": "p.md:7:35: the format 50 recognizer cannot yet read the keys of the constant MASK"
+  }
+ },
+ {
+  "name": "2c_select_emit_only",
+  "sources": {
+   "p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n\n%const $OUTPUTS { A, note, kind }\n%const $MASK { A, note, kind }\n%rule inner \"a\" \u2192 { A, note, kind: \"ok\" }\n%rule mid $i:inner \u2192 { *$i.select($MASK) }\n%rule text $m:mid\n  %emit $m\n```\n"
+  },
+  "input": "a",
+  "outcome": {
+   "ok": true
+  }
+ },
+ {
+  "name": "2d_i_nested_bag_splat",
+  "sources": {
+   "p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n\n%rule inner \"a\" \u2192 { *{ note } }\n%rule text $i:inner\n  %conditions $i.has(note)\n```\n"
+  },
+  "input": "a",
+  "outcome": {
+   "ok": true
+  }
+ },
+ {
+  "name": "2d_ii_overwrite_cond",
+  "sources": {
+   "p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n\n%rule i1 \"a\" \u2192 { k: \"old\" }\n%rule i2 \u03b5 \u2192 { k: \"new\" }\n%rule mid $x:i1 $y:i2 \u2192 { *{*$x, *$y} }\n%rule text $m:mid\n  %conditions $m'k \u2260 \"old\"\n```\n"
+  },
+  "input": "a",
+  "outcome": {
+   "ok": true
+  }
+ },
+ {
+  "name": "2d_ii_overwrite_emit_only",
+  "sources": {
+   "p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n\n%const $OUTPUTS { k }\n%rule i1 \"a\" \u2192 { k: \"old\" }\n%rule i2 \u03b5 \u2192 { k: \"new\" }\n%rule mid $x:i1 $y:i2 \u2192 { *{*$x, *$y} }\n%rule text $m:mid\n  %emit $m\n```\n"
+  },
+  "input": "a",
+  "outcome": {
+   "ok": true
+  }
+ },
+ {
+  "name": "2e_hidden_keys_fn_const",
+  "sources": {
+   "p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n\n%const $CHECK $x \u21a6 $x.has(note)\n%rule r \"a\" \u2192 { note }\n%rule text $r:r\n  %conditions $CHECK($r)\n```\n"
+  },
+  "input": "a",
+  "outcome": {
+   "ok": true
+  }
+ },
+ {
+  "name": "2f_redefine_const_cond",
+  "sources": {
+   "p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%include \"a.md\"\n%include \"b.md\"\n%rule text $w:wrap\n  %conditions $w'Hit\n```\n",
+   "a.md": "```jbogenbau\n%const $LIST [\"a\", \"b\"]\n%rule item \"c\" \u2192 { k: \"c\" }\n%rule wrap $x:item \u2192 { ($x'k \u2208 $LIST)? Hit }\n```\n",
+   "b.md": "```jbogenbau\n%redefine-const $LIST [*$LIST, \"c\"]\n```\n"
+  },
+  "input": "c",
+  "outcome": {
+   "load": "a.md:4:27: the format 50 recognizer cannot yet compute this string"
+  }
+ },
+ {
+  "name": "2f_redefine_const_emit_only",
+  "sources": {
+   "p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%const $OUTPUTS { Hit }\n%include \"a.md\"\n%include \"b.md\"\n%rule text $w:wrap\n  %emit $w\n```\n",
+   "a.md": "```jbogenbau\n%const $LIST [\"a\", \"b\"]\n%rule item \"c\" \u2192 { k: \"c\" }\n%rule wrap $x:item \u2192 { ($x'k \u2208 $LIST)? Hit }\n```\n",
+   "b.md": "```jbogenbau\n%redefine-const $LIST [*$LIST, \"c\"]\n```\n"
+  },
+  "input": "c",
+  "outcome": {
+   "ok": true
+  }
+ },
+ {
+  "name": "2g_stage2_input_domain_cond",
+  "sources": {
+   "p.md": "```jbogenbau\n%stage s1\n%ambiguity-resolution greedy\n%const $OUTPUTS { T, kind, n }\n%rule text \"a\" \u2192 { T, value: \"a\", image: \"a\", kind: \"x\", n: 1 }\n  %emit\n\n%stage s2\n%ambiguity-resolution greedy\n%rule wrap $t:T \u2192 { mykind: $t'kind, m: $t'n + 1 }\n%rule text $w:wrap\n  %conditions $w'mykind = \"x\" \u2227 $w'm = 2\n```\n"
+  },
+  "input": "a",
+  "outcome": {
+   "error": "grammar",
+   "message": "p.md:10:31: the read of 'kind on $t can reach an absent or bare key"
+  }
+ },
+ {
+  "name": "2g_stage2_input_domain_emit_only",
+  "sources": {
+   "p.md": "```jbogenbau\n%stage s1\n%ambiguity-resolution greedy\n%const $OUTPUTS { T, kind, n }\n%rule text \"a\" \u2192 { T, value: \"a\", image: \"a\", kind: \"x\", n: 1 }\n  %emit\n\n%stage s2\n%ambiguity-resolution greedy\n%const $OUTPUTS { mykind, m }\n%rule wrap $t:T \u2192 { mykind: $t'kind, m: $t'n + 1 }\n%rule text $w:wrap\n  %emit $w\n```\n"
+  },
+  "input": "a",
+  "outcome": {
+   "error": "grammar",
+   "message": "p.md:11:31: the read of 'kind on $t can reach an absent or bare key"
+  }
+ },
+ {
+  "name": "2h_outputStates_splat",
+  "sources": {
+   "p.md": "```jbogenbau\n%stage s1\n%ambiguity-resolution greedy\n%const $OUTPUTS { T, k }\n%const $EXTRA { k: 3 }\n%rule text \"a\" \u2192 { T, value: \"a\", image: \"a\", *$EXTRA }\n  %emit\n\n%stage s2\n%ambiguity-resolution greedy\n%rule text $t:T\n  %conditions $t'k = 3\n```\n"
+  },
+  "input": "a",
+  "outcome": {
+   "error": "grammar",
+   "message": "p.md:12:17: the read of 'k on $t can reach an absent or bare key"
+  }
+ },
+ {
+  "name": "2h_outputStates_inline",
+  "sources": {
+   "p.md": "```jbogenbau\n%stage s1\n%ambiguity-resolution greedy\n%const $OUTPUTS { T, k }\n%rule text \"a\" \u2192 { T, value: \"a\", image: \"a\", k: 3 }\n  %emit\n\n%stage s2\n%ambiguity-resolution greedy\n%rule text $t:T\n  %conditions $t'k = 3\n```\n"
+  },
+  "input": "a",
+  "outcome": {
+   "error": "grammar",
+   "message": "p.md:11:17: the read of 'k on $t can reach an absent or bare key"
+  }
+ },
+ {
+  "name": "3a_equality_default_cert",
+  "sources": {
+   "p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n\n%const $OUTPUTS { A }\n%const $DEFAULTS $n \u21a6 { value: $n.children!'value.join(), image: $n.children!'image.join() }\n%rule r [+JI=\"jie\"] A\n  %emit\n%rule text $r:r\n  %conditions $r'value = \"a\"\n  %emit $r{}\n```\n"
+  },
+  "input": "a",
+  "options": {
+   "tokens": [
+    {
+     "text": "a",
+     "props": {
+      "A": true
+     },
+     "span": [
+      0,
+      1
+     ],
+     "source": [
+      0,
+      1
+     ]
+    }
+   ]
+  },
+  "outcome": {
+   "error": "grammar",
+   "message": "p.md:10:17: the read of the value of $r in recognition has no proof th"
+  }
+ },
+ {
+  "name": "3b_primary_in_choice",
+  "sources": {
+   "p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n\n%const $OUTPUTS {}\n%const $DEFAULTS $n \u21a6 { value: $n.children!'value.join(), image: $n.children!'image.join() }\n%rule a \"a\" \u2192 { value: \"a\", image: \"a\" }\n%rule b \"b\" \u2192 { value: \"b\", image: \"b\" }\n%rule c \"c\" \u2192 { value: \"c\", image: \"c\" }\n%rule d \"d\" \u2192 { value: \"d\", image: \"d\" }\n%rule r (^a b | ^c d)\n  %emit\n%rule text $r:r\n  %conditions $r'value = \"ab\"\n  %emit $r{}\n```\n"
+  },
+  "input": "ab",
+  "outcome": {
+   "error": "grammar",
+   "message": "p.md:14:17: the read of the value of $r in recognition has no proof th"
+  }
+ },
+ {
+  "name": "3c_choice_no_defaults",
+  "sources": {
+   "p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n\n%rule r (\"a\" \"b\" | \"c\" \"d\")\n%rule text $r:r\n  %conditions $r'value = \"ab\"\n```\n"
+  },
+  "input": "ab",
+  "outcome": {
+   "error": "grammar",
+   "message": "p.md:7:17: the read of the value of $r in recognition has no proof tha"
+  }
+ },
+ {
+  "name": "3d_i_defaults_not_value",
+  "sources": {
+   "p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n\n%const $DEFAULTS $n \u21a6 { value: $n.children!'value.join(), image: $n.children!'image.join(), \u00acvalue }\n%rule r \"a\" \"b\"\n%rule text $r:r\n  %conditions $r'value = \"ab\"\n```\n"
+  },
+  "input": "ab",
+  "outcome": {
+   "error": "grammar",
+   "message": "p.md:8:17: the read of the value of $r in recognition has no proof tha"
+  }
+ },
+ {
+  "name": "3d_ii_defaults_feature_gate",
+  "sources": {
+   "p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n\n%features f\n%const $DEFAULTS $n \u21a6 { f? value: $n.children!'value.join(), image: $n.children!'image.join() }\n%rule r \"a\" \"b\"\n%rule text $r:r\n  %conditions $r'value = \"ab\"\n```\n"
+  },
+  "input": "ab",
+  "options": {
+   "withoutFeatures": [
+    "f"
+   ]
+  },
+  "outcome": {
+   "error": "grammar",
+   "message": "p.md:9:17: the read of the value of $r in recognition has no proof tha"
+  }
+ },
+ {
+  "name": "3e_classifier_bare_value",
+  "sources": {
+   "p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n\n%const $DEFAULTS $n \u21a6 { value: $n.children!'value.join(), image: $n.children!'image.join() }\n%const $LEX { value: [\"a\"] }\n%rule r $x:\"a\" \u2192 { *$LEX.classify($x'value) }\n%rule text $r:r\n  %conditions $r'value = \"a\"\n```\n"
+  },
+  "input": "a",
+  "outcome": {
+   "error": "grammar",
+   "message": "p.md:9:17: the read of the value of $r in recognition has no proof tha"
+  }
+ },
+ {
+  "name": "3f_i_query_template",
+  "sources": {
+   "p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n\n%const $DEFAULTS $n \u21a6 { value: $n.children!'value.join(), image: $n.children!'image.join() }\n%rule uncert \"a\" \u2192 { K, value: \"z\", image: \"a\" }\n%rule t(@X) $x:@X\n  %conditions $x'value = \"a\"\n\n%rule text \"a\"\n  %conditions $.parse(t(uncert))\n```\n"
+  },
+  "input": "a",
+  "outcome": {
+   "error": "grammar",
+   "message": "p.md:8:17: the read of the value of $x in recognition has no proof tha"
+  }
+ },
+ {
+  "name": "3f_ii_template_refinement",
+  "sources": {
+   "p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n\n%const $DEFAULTS $n \u21a6 { value: $n.children!'value.join(), image: $n.children!'image.join() }\n%rule uncert \"a\" \u2192 { K, value: \"z\", image: \"a\" }\n%rule t(@X) $x:@X\n  %conditions $x'value = \"a\"\n\n%rule text t(uncert<K>)\n```\n"
+  },
+  "input": "a",
+  "outcome": {
+   "error": "grammar",
+   "message": "p.md:8:17: the read of the value of $x in recognition has no proof tha"
+  }
+ },
+ {
+  "name": "3f_iii_nested_template",
+  "sources": {
+   "p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n\n%const $DEFAULTS $n \u21a6 { value: $n.children!'value.join(), image: $n.children!'image.join() }\n%rule uncert \"a\" \u2192 { K, value: \"z\", image: \"a\" }\n%rule t(@X) $x:@X\n  %conditions $x'value = \"a\"\n\n%rule outer(@Y) t(@Y)\n%rule text outer(uncert)\n```\n"
+  },
+  "input": "a",
+  "outcome": {
+   "error": "grammar",
+   "message": "p.md:8:17: the read of the value of $x in recognition has no proof tha"
+  }
+ },
+ {
+  "name": "3g_i_capture_choice_uncert",
+  "sources": {
+   "p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n\n%rule uncert \"b\" \u2192 { value: \"z\", image: \"b\" }\n%rule text ($x:\"a\"=\"a\" | $x:uncert)\n  %conditions $x'value = \"a\"\n```\n"
+  },
+  "input": "b",
+  "outcome": {
+   "error": "grammar",
+   "message": "p.md:7:17: the read of the value of $x in recognition has no proof tha"
+  }
+ },
+ {
+  "name": "3g_ii_capture_choice_wildcard",
+  "sources": {
+   "p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n\n%rule text ($x:_=\"a\" | $x:_=\"b\")\n  %conditions $x'value = \"a\"\n```\n"
+  },
+  "input": "b",
+  "outcome": {
+   "error": "rejected",
+   "message": "the main stage could not continue at token 0; expected _=\"a\", _=\"b\""
+  }
+ },
+ {
+  "name": "3h_recon_synthetic_default",
+  "sources": {
+   "p.md": "```jbogenbau\n%stage main\n%elision-only\n%ambiguity-resolution greedy\n%rule check $j:JI\n  %conditions $j.span.tokens!'value.join() = \"\"\n%rule a [+JI \u225d \"jie\"] B\n  %conditions $.without-elision.parse(check \u2026)\n%rule c JI B\n%rule text (a | c)\n```\n"
+  },
+  "input": "b",
+  "options": {
+   "tokens": [
+    {
+     "text": "b",
+     "props": {
+      "B": true
+     },
+     "span": [
+      0,
+      1
+     ],
+     "source": [
+      0,
+      1
+     ]
+    }
+   ]
+  },
+  "outcome": {
+   "error": "rejected",
+   "message": "the main stage could not continue at token 0; expected B, JI"
+  }
+ },
+ {
+  "name": "3i_i_erased_value",
+  "sources": {
+   "p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n\n%const $DEFAULTS $n \u21a6 { value: $n.children!'value.join(), image: $n.children!'image.join() }\n%rule er \"a\" \u2192 { K }\n  %erased\n%rule text \"a\"\n  %conditions $.parse(er).any($x \u21a6 $x'value = \"a\")\n```\n"
+  },
+  "input": "a",
+  "outcome": {
+   "load": "p.md:6:1: the format 50 recognizer cannot yet read the value of a root of a forest, which "
+  }
+ },
+ {
+  "name": "3i_i_uncert_z",
+  "sources": {
+   "p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n\n%const $DEFAULTS $n \u21a6 { value: $n.children!'value.join(), image: $n.children!'image.join() }\n%rule uncert \"a\" \u2192 { value: \"z\", image: \"a\" }\n%rule text \"a\"\n  %conditions $.parse(uncert).any($x \u21a6 $x'value = \"z\")\n```\n"
+  },
+  "input": "a",
+  "outcome": {
+   "error": "grammar",
+   "message": "p.md:8:49: the read of the value of a root of a forest of uncert has n"
+  }
+ },
+ {
+  "name": "3i_i_uncert_a",
+  "sources": {
+   "p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n\n%const $DEFAULTS $n \u21a6 { value: $n.children!'value.join(), image: $n.children!'image.join() }\n%rule uncert \"a\" \u2192 { value: \"z\", image: \"a\" }\n%rule text \"a\"\n  %conditions $.parse(uncert).any($x \u21a6 $x'value = \"a\")\n```\n"
+  },
+  "input": "a",
+  "outcome": {
+   "error": "grammar",
+   "message": "p.md:8:49: the read of the value of a root of a forest of uncert has n"
+  }
+ },
+ {
+  "name": "3i_ii_empty_forest_impl",
+  "sources": {
+   "p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n\n%rule target \"b\" \u2192 { A }\n%rule text \"a\"\n  %conditions $.parse(target).any($x \u21a6 ($x'A \u27f9 $x'B))\n```\n"
+  },
+  "input": "a",
+  "outcome": {
+   "load": "p.md:7:30: the format 50 recognizer cannot yet test this expression"
+  }
+ },
+ {
+  "name": "3i_ii_empty_forest_subset",
+  "sources": {
+   "p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n\n%rule target \"b\" \u2192 { A }\n%rule text \"a\"\n  %conditions $.parse(target).any($x \u21a6 $x.flags \u2286 {A})\n```\n"
+  },
+  "input": "a",
+  "outcome": {
+   "load": "p.md: the format 50 recognizer cannot yet read a root of a forest through $x here"
+  }
+ },
+ {
+  "name": "3i_ii_empty_forest_notsubset",
+  "sources": {
+   "p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n\n%rule target \"b\" \u2192 { A }\n%rule text \"a\"\n  %conditions $.parse(target).any($x \u21a6 {A} \u2288 $x.flags)\n```\n"
+  },
+  "input": "a",
+  "outcome": {
+   "load": "p.md: the format 50 recognizer cannot yet read a root of a forest through $x here"
+  }
+ },
+ {
+  "name": "3i_iii_two_root_impl",
+  "sources": {
+   "p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n\n%rule amb \"a\" \u2192 {} | \"a\" \u2192 { B }\n%rule text \"a\"\n  %conditions $.parse(amb).any($x \u21a6 ($x'B \u27f9 $x'A))\n```\n"
+  },
+  "input": "a",
+  "outcome": {
+   "load": "p.md:7:27: the format 50 recognizer cannot yet test this expression"
+  }
+ },
+ {
+  "name": "3i_iii_two_root_subset",
+  "sources": {
+   "p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n\n%rule amb \"a\" \u2192 {} | \"a\" \u2192 { B }\n%rule text \"a\"\n  %conditions $.parse(amb).any($x \u21a6 $x.flags \u2286 {A})\n```\n"
+  },
+  "input": "a",
+  "outcome": {
+   "load": "p.md: the format 50 recognizer cannot yet read a root of a forest through $x here"
+  }
+ },
+ {
+  "name": "4a_i_defaults_ident",
+  "sources": {
+   "p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n\n%const $F $n \u21a6 { K }\n%const $DEFAULTS $F\n%rule r \"a\"\n%rule text $r:r\n  %conditions $r'K\n```\n"
+  },
+  "input": "a",
+  "outcome": {
+   "load": "p.md:9:17: the format 50 recognizer cannot yet read the key K that the stage defaults give"
+  }
+ },
+ {
+  "name": "4a_i_defaults_ident_neg",
+  "sources": {
+   "p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n\n%const $F $n \u21a6 { K }\n%const $DEFAULTS $F\n%rule r \"a\"\n%rule text $r:r\n  %conditions \u00ac($r'K)\n```\n"
+  },
+  "input": "a",
+  "outcome": {
+   "load": "p.md:9:19: the format 50 recognizer cannot yet read the key K that the stage defaults give"
+  }
+ },
+ {
+  "name": "4a_ii_defaults_call",
+  "sources": {
+   "p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n\n%const $F $n \u21a6 { K }\n%const $DEFAULTS $n \u21a6 $F($n)\n%rule r \"a\"\n%rule text $r:r\n  %conditions $r'K\n```\n"
+  },
+  "input": "a",
+  "outcome": {
+   "load": "p.md:9:17: the format 50 recognizer cannot yet read the key K that the stage defaults give"
+  }
+ },
+ {
+  "name": "4a_ii_defaults_call_neg",
+  "sources": {
+   "p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n\n%const $F $n \u21a6 { K }\n%const $DEFAULTS $n \u21a6 $F($n)\n%rule r \"a\"\n%rule text $r:r\n  %conditions \u00ac($r'K)\n```\n"
+  },
+  "input": "a",
+  "outcome": {
+   "load": "p.md:9:19: the format 50 recognizer cannot yet read the key K that the stage defaults give"
+  }
+ },
+ {
+  "name": "4a_iii_defaults_cond",
+  "sources": {
+   "p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n\n%const $DEFAULTS $n \u21a6 ((\"\" = \"\") ? { K } | {})\n%rule r \"a\"\n%rule text $r:r\n  %conditions $r'K\n```\n"
+  },
+  "input": "a",
+  "outcome": {
+   "load": "p.md:8:17: the format 50 recognizer cannot yet read the key K that the stage defaults give"
+  }
+ },
+ {
+  "name": "4a_iii_defaults_cond_neg",
+  "sources": {
+   "p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n\n%const $DEFAULTS $n \u21a6 ((\"\" = \"\") ? { K } | {})\n%rule r \"a\"\n%rule text $r:r\n  %conditions \u00ac($r'K)\n```\n"
+  },
+  "input": "a",
+  "outcome": {
+   "load": "p.md:8:19: the format 50 recognizer cannot yet read the key K that the stage defaults give"
+  }
+ },
+ {
+  "name": "4b_i_rule_term_cond",
+  "sources": {
+   "p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n\n%rule inner $g:(\"a\" \"b\")\n  \u2192 { ($g \u2245 #\u2045 \"a\" \"b\" \u2046)? Match }\n%rule text $i:inner\n  %conditions $i'Match\n```\n"
+  },
+  "input": "ab",
+  "outcome": {
+   "load": "p.md:6:11: the format 50 recognizer cannot yet compare the compound binding $g with a patt"
+  }
+ },
+ {
+  "name": "4b_i_rule_term_emit",
+  "sources": {
+   "p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n\n%const $OUTPUTS { Match }\n%rule inner $g:(\"a\" \"b\")\n  \u2192 { ($g \u2245 #\u2045 \"a\" \"b\" \u2046)? Match }\n%rule text $i:inner\n  %emit $i\n```\n"
+  },
+  "input": "ab",
+  "outcome": {
+   "ok": true
+  }
+ },
+ {
+  "name": "4b_ii_fn_const_match",
+  "sources": {
+   "p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n\n%const $M $x \u21a6 ($x \u2245 #\u2045 \"a\" \"b\" \u2046)\n%rule text $g:(\"a\" \"b\")\n  %conditions $M($g)\n```\n"
+  },
+  "input": "ab",
+  "outcome": {
+   "load": "p.md:5:20: the format 50 recognizer cannot yet compare the compound binding $g with a patt"
+  }
+ },
+ {
+  "name": "4c_symbolNames_ranked",
+  "sources": {
+   "p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n\n%rule a $x:\"a\" \u2192 { ($x.verbatim-text = \"a\")? K }\n%rule b \"b\"\n%rule text \"a\"\n  %conditions $.parse(a \u227b b).any('K)\n```\n"
+  },
+  "input": "a",
+  "outcome": {
+   "load": "p.md:5:23: the format 50 recognizer cannot yet compute this string"
+  }
+ },
+ {
+  "name": "4c_symbolNames_choice",
+  "sources": {
+   "p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n\n%rule a $x:\"a\" \u2192 { ($x.verbatim-text = \"a\")? K }\n%rule b \"b\"\n%rule text \"a\"\n  %conditions $.parse(a | b).any('K)\n```\n"
+  },
+  "input": "a",
+  "outcome": {
+   "load": "p.md:5:23: the format 50 recognizer cannot yet compute this string"
+  }
+ },
+ {
+  "name": "4d_ranking_step_const",
+  "sources": {
+   "p.md": "```jbogenbau\n%stage main\n%const $OUTPUTS { A, B }\n%const $P ((\"\" = \"\") ? #a | #b)\n%ambiguity-resolution fewest $P\n%rule a \"x\" \u2192 { A }\n%rule b \"x\" \u2192 { B }\n%rule wrap b\n%rule text (a | wrap)\n  %emit\n```\n"
+  },
+  "input": "x",
+  "outcome": {
+   "load": "p.md:5:30: stage main: a ranking step requires a pattern"
+  }
+ },
+ {
+  "name": "5a_i_rule_instance_b",
+  "sources": {
+   "p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n\n%const $OUTPUTS {}\n%rule tok(@X) @X \u2192 { value: \"a\", image: \"a\" }\n  %emit\n%rule a = tok(\"a\")\n%rule dup $x:a\n  %emit $x{value: \"1\", image: \"1\"}, $x{value: \"2\", image: \"2\"}\n%rule text\n  | dup\n  | \"b\" \u2192 { value: \"b\", image: \"b\" }\n    %emit\n```\n"
+  },
+  "input": "b",
+  "outcome": {
+   "load": "p.md:10:37: the emission of dup covers input that another of its items covers"
+  }
+ },
+ {
+  "name": "5a_i_rule_instance_a",
+  "sources": {
+   "p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n\n%const $OUTPUTS {}\n%rule tok(@X) @X \u2192 { value: \"a\", image: \"a\" }\n  %emit\n%rule a = tok(\"a\")\n%rule dup $x:a\n  %emit $x{value: \"1\", image: \"1\"}, $x{value: \"2\", image: \"2\"}\n%rule text\n  | dup\n  | \"b\" \u2192 { value: \"b\", image: \"b\" }\n    %emit\n```\n"
+  },
+  "input": "a",
+  "outcome": {
+   "load": "p.md:10:37: the emission of dup covers input that another of its items covers"
+  }
+ },
+ {
+  "name": "5a_ii_choice_order_ab",
+  "sources": {
+   "p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n\n%const $OUTPUTS {}\n%rule a \"a\" \u2192 { value: \"a\", image: \"a\" }\n  %emit\n%rule b \"b\" \u2192 { value: \"b\", image: \"b\" }\n  %emit\n%rule text ($x:a $y:b | $y:b $x:a)\n  %emit $x{}, $y{}\n```\n"
+  },
+  "input": "ab",
+  "outcome": {
+   "load": "p.md:11:15: the emission of text lists its covers out of the input order of their parts"
+  }
+ },
+ {
+  "name": "5a_ii_choice_order_ba",
+  "sources": {
+   "p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n\n%const $OUTPUTS {}\n%rule a \"a\" \u2192 { value: \"a\", image: \"a\" }\n  %emit\n%rule b \"b\" \u2192 { value: \"b\", image: \"b\" }\n  %emit\n%rule text ($x:a $y:b | $y:b $x:a)\n  %emit $x{}, $y{}\n```\n"
+  },
+  "input": "ba",
+  "outcome": {
+   "load": "p.md:11:15: the emission of text lists its covers out of the input order of their parts"
+  }
+ },
+ {
+  "name": "5a_iii_nullable_first_b",
+  "sources": {
+   "p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n\n%const $OUTPUTS {}\n%rule e \u03b5\n%rule a \"a\" \u2192 { value: \"a\", image: \"a\" }\n  %emit\n%rule b \"b\" \u2192 { value: \"b\", image: \"b\" }\n  %emit\n%rule text ($x:e | $x:a) $y:b\n  %emit $y{}, $x{}\n```\n"
+  },
+  "input": "b",
+  "outcome": {
+   "load": "p.md:12:15: the emission of text lists its covers out of the input order of their parts"
+  }
+ },
+ {
+  "name": "5a_iii_nullable_first_ab",
+  "sources": {
+   "p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n\n%const $OUTPUTS {}\n%rule e \u03b5\n%rule a \"a\" \u2192 { value: \"a\", image: \"a\" }\n  %emit\n%rule b \"b\" \u2192 { value: \"b\", image: \"b\" }\n  %emit\n%rule text ($x:e | $x:a) $y:b\n  %emit $y{}, $x{}\n```\n"
+  },
+  "input": "ab",
+  "outcome": {
+   "load": "p.md:12:15: the emission of text lists its covers out of the input order of their parts"
+  }
+ },
+ {
+  "name": "5a_iv_rep_interleave_ab",
+  "sources": {
+   "p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n\n%const $OUTPUTS {}\n%rule a \"a\" \u2192 { value: \"a\", image: \"a\" }\n  %emit\n%rule b \"b\" \u2192 { value: \"b\", image: \"b\" }\n  %emit\n%rule text { $x:a $y:b }\n  %emit $x{}, $y{}\n```\n"
+  },
+  "input": "ab",
+  "outcome": {
+   "load": "p.md:11:9: a braced output item needs a node"
+  }
+ },
+ {
+  "name": "5a_iv_rep_interleave_abab",
+  "sources": {
+   "p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n\n%const $OUTPUTS {}\n%rule a \"a\" \u2192 { value: \"a\", image: \"a\" }\n  %emit\n%rule b \"b\" \u2192 { value: \"b\", image: \"b\" }\n  %emit\n%rule text { $x:a $y:b }\n  %emit $x{}, $y{}\n```\n"
+  },
+  "input": "abab",
+  "outcome": {
+   "load": "p.md:11:9: a braced output item needs a node"
+  }
+ },
+ {
+  "name": "5b_i_same_stage_error",
+  "sources": {
+   "p.md": "```jbogenbau\n%stage main\n%elision-only\n%ambiguity-resolution greedy\n%rule bad A\n  %error \"err\"\n%rule left bad [+KU] bad\n%rule right bad KU bad\n%rule text left | right\n```\n"
+  },
+  "input": "aa",
+  "options": {
+   "tokens": [
+    {
+     "text": "a",
+     "props": {
+      "A": true
+     },
+     "span": [
+      0,
+      1
+     ],
+     "source": [
+      0,
+      1
+     ]
+    },
+    {
+     "text": "a",
+     "props": {
+      "A": true
+     },
+     "span": [
+      1,
+      2
+     ],
+     "source": [
+      1,
+      2
+     ]
+    }
+   ]
+  },
+  "outcome": {
+   "error": "reported",
+   "message": "the chosen derivation reports errors"
+  }
+ },
+ {
+  "name": "5b_ii_carried_error",
+  "sources": {
+   "p.md": "```jbogenbau\n%stage s1\n%include \"s1.md\"\n%stage s2\n%include \"s2.md\"\n```\n",
+   "s1.md": "```jbogenbau\n%ambiguity-resolution greedy\n%const $OUTPUTS { A, KU }\n%rule bad \"a\" \u2192 { A, value: \"a\", image: \"a\" }\n  %error \"e1\"\n  %emit\n%rule k \"k\" \u2192 { KU, value: \"k\", image: \"k\" }\n  %emit\n%rule text { bad | k }\n```\n",
+   "s2.md": "```jbogenbau\n%elision-only\n%ambiguity-resolution greedy\n%rule left A [+KU] A\n%rule right A KU A\n%rule text left | right\n```\n"
+  },
+  "input": "aa",
+  "outcome": {
+   "error": "reported",
+   "message": "the chosen derivation reports errors"
+  }
+ },
+ {
+  "name": "6a_inputs_union",
+  "sources": {
+   "p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n\n%const $OUTPUTS {}\n%rule tok \"1\" \u2192 { value: \"1\", image: \"1\", *([$INPUTS].union) }\n  %emit\n%rule lat \"a\" \u2192 { value: \"a\", image: \"a\" }\n  %emit\n%rule text { tok | lat }\n  %emit\n```\n"
+  },
+  "input": "1a",
+  "outcome": {
+   "load": "p.md:6:43: a permission set such as $INPUTS cannot supply stored engine memberships"
+  }
+ },
+ {
+  "name": "6b_script_latin_union",
+  "sources": {
+   "p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n\n%const $OUTPUTS {}\n%rule text \"1\" \u2192 { value: \"1\", image: \"1\", *([{_Script_Latin}].union) }\n  %emit\n```\n"
+  },
+  "input": "1",
+  "outcome": {
+   "load": "p.md:6:44: a permission set such as $INPUTS cannot supply stored engine memberships"
+  }
+ },
+ {
+  "name": "6c_box_script_latin_cond",
+  "sources": {
+   "p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n\n%const $OUTPUTS {}\n%const $B { box: {_Script_Latin} }\n%rule text \"1\" \u2192 { value: \"1\", image: \"1\", *($B'box) }\n  %conditions $B'box'_Script_Latin\n  %emit\n```\n"
+  },
+  "input": "1",
+  "outcome": {
+   "load": "p.md:7:44: a permission set such as $INPUTS cannot supply stored engine memberships"
+  }
+ },
+ {
+  "name": "6c_box_script_latin_emit",
+  "sources": {
+   "p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n\n%const $OUTPUTS {}\n%const $B { box: {_Script_Latin} }\n%rule text \"1\" \u2192 { value: \"1\", image: \"1\", *($B'box) }\n  %emit\n```\n"
+  },
+  "input": "1",
+  "outcome": {
+   "load": "p.md:7:44: a permission set such as $INPUTS cannot supply stored engine memberships"
+  }
+ },
+ {
+  "name": "6c_bi_inputs",
+  "sources": {
+   "p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n\n%const $OUTPUTS {}\n%const $BI { box: $INPUTS }\n%rule tok \"1\" \u2192 { value: \"1\", image: \"1\", *($BI'box) }\n  %emit\n%rule lat \"a\" \u2192 { value: \"a\", image: \"a\" }\n  %emit\n%rule text { tok | lat }\n  %emit\n```\n"
+  },
+  "input": "1a",
+  "outcome": {
+   "load": "p.md:7:43: a permission set such as $INPUTS cannot supply stored engine memberships"
+  }
+ },
+ {
+  "name": "6d_value_null",
+  "sources": {
+   "p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text _\n```\n"
+  },
+  "input": "a",
+  "options": {
+   "tokens": [
+    {
+     "text": "a",
+     "value": null,
+     "span": [
+      0,
+      1
+     ],
+     "source": [
+      0,
+      1
+     ]
+    }
+   ]
+  },
+  "outcome": {
+   "usage": "token 0: value must contain scalar values"
+  }
+ },
+ {
+  "name": "6d_lone_surrogate",
+  "sources": {
+   "p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text _\n```\n"
+  },
+  "input": "a",
+  "options": {
+   "tokens": [
+    {
+     "text": "a",
+     "value": "\ud800",
+     "span": [
+      0,
+      1
+     ],
+     "source": [
+      0,
+      1
+     ]
+    }
+   ]
+  },
+  "outcome": {
+   "usage": "token 0: value must contain scalar values"
+  }
+ },
+ {
+  "name": "6d_elided_tags",
+  "sources": {
+   "p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text _\n```\n"
+  },
+  "input": "a",
+  "options": {
+   "tokens": [
+    {
+     "text": "a",
+     "tags": [
+      "_Elided",
+      "'a'"
+     ],
+     "span": [
+      0,
+      1
+     ],
+     "source": [
+      0,
+      1
+     ]
+    }
+   ]
+  },
+  "outcome": {
+   "usage": "token 0: invalid tags"
+  }
+ },
+ {
+  "name": "6d_errors",
+  "sources": {
+   "p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text _\n```\n"
+  },
+  "input": "a",
+  "options": {
+   "tokens": [
+    {
+     "text": "a",
+     "errors": [
+      {
+       "code": "e"
+      }
+     ],
+     "span": [
+      0,
+      1
+     ],
+     "source": [
+      0,
+      1
+     ]
+    }
+   ]
+  },
+  "outcome": {
+   "usage": "token 0 has diagnostics, which a caller cannot supply"
+  }
+ },
+ {
+  "name": "6d_before",
+  "sources": {
+   "p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text _\n```\n"
+  },
+  "input": "a",
+  "options": {
+   "tokens": [
+    {
+     "text": "a",
+     "before": [
+      {
+       "text": "b"
+      }
+     ],
+     "span": [
+      0,
+      1
+     ],
+     "source": [
+      0,
+      1
+     ]
+    }
+   ]
+  },
+  "outcome": {
+   "usage": "token 0 has attachments, which a caller cannot supply"
+  }
+ }
+]

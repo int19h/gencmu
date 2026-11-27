@@ -49,11 +49,17 @@ export function privateReferenceProblems(root) {
     if (bytes.subarray(0, 4096).includes(0)) continue;
     const code = CODE.test(file);
     const lines = bytes.toString("utf8").split("\n");
+    // A reference can wrap from one line of a comment to the next, so each
+    // line is read alone and joined with the next one, without its comment
+    // marks. A match that starts on the next line alone belongs to it.
+    const bare = lines.map((line) => line.replace(/^\s*(?:\/\/+|\*+|#+)?\s*/, ""));
     lines.forEach((line, index) => {
+      const joined = index + 1 < lines.length ? `${line} ${bare[index + 1]}` : line;
       for (const { name, pattern, code: inCode } of PATTERNS) {
         if (inCode && !code) continue;
-        for (const match of line.matchAll(pattern)) {
-          const around = line.slice(Math.max(0, match.index - 30), match.index + match[0].length + 30);
+        for (const match of joined.matchAll(pattern)) {
+          if (match.index >= line.length) continue;
+          const around = joined.slice(Math.max(0, match.index - 30), match.index + match[0].length + 30);
           if (ALLOWED.some((allowed) => allowed.test(around))) continue;
           problems.push(`${file}:${index + 1}: "${match[0]}" names ${name} of a document that the repository does not hold. Say what the code does, and cite a heading of a manual under docs/`);
         }

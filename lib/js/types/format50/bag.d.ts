@@ -1,6 +1,6 @@
 /**
- * Work counts of the format 50 engine, for the cost measurements of part 2
- * §10: the values that bags compute, the writes into bags, the lookups of
+ * Work counts of the format 50 engine, for the cost measurements of its
+ * tests: the values that bags compute, the writes into bags, the lookups of
  * one key, and the parts that string joins share. A caller resets them.
  */
 export declare const counts50: {

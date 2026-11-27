@@ -21,6 +21,18 @@ export declare function decoration(node: any, listed?: ((node: any) => any[]) | 
     after: any;
 } | null;
 /**
+ * The satellites that a published unit shows, along its whole primary
+ * path: the satellites before the core from the outermost level inwards,
+ * and those after it from the innermost level outwards. The path crosses
+ * into earlier stages through input tokens (engine §11.3).
+ * @param {any} node
+ * @returns {{before: any[], after: any[]}}
+ */
+export declare function satellitesOf(node: any): {
+    before: any[];
+    after: any[];
+};
+/**
  * Makes the faces of the units that the published tokens of a stage can
  * show: each satellite beside a primary, and each primary whose path
  * reaches satellites, as display reads them. A satellite needs an image,

@@ -349,6 +349,25 @@ export declare class Bridge {
      */
     bagTags(term: any, tags: any): any;
     /**
+     * The tags that a splat gives a bag, hidden key groups included. A nested
+     * bag goes through the same steps as the bag around it. A selection of a
+     * node by a mask takes each hidden group that the mask names, and the
+     * visible tags of the mask. Every other value gives its tags.
+     * @param {any} value
+     * @param {any} at
+     * @param {(key: string) => boolean} hidden
+     * @returns {any}
+     */
+    splatTags(value: any, at: any, hidden: (key: string) => boolean): any;
+    /**
+     * The keys of a mask that the document fixes: a bag of bare keys, or a
+     * constant whose versions in this document are such bags. Null for any
+     * other mask.
+     * @param {any} mask
+     * @returns {string[] | null}
+     */
+    closedKeys(mask: any): string[] | null;
+    /**
      * Whether an entry writes, copies, splats or deletes a key that the tag
      * term holds.
      * @param {any} entry
@@ -444,6 +463,13 @@ export declare class Bridge {
     /** @param {any} node */
     pattern(node: any): any;
     /**
+     * A pattern with the arguments of each call atom in the recognizer's
+     * form, as a call in a body has them.
+     * @param {any} node
+     * @returns {any}
+     */
+    patternCalls(node: any): any;
+    /**
      * A tag test of a rule atom in a tree pattern reads the keys of that rule,
      * as a body filter does. A rule term that cannot be translated then fails
      * at load, and is not dropped.
@@ -451,8 +477,8 @@ export declare class Bridge {
      */
     notePatternReaders(pattern: any): void;
     /**
-     * The recognizer clauses of one written clause. A conjunction becomes
-     * one clause for each operand. A universal predicate on a capture inside
+     * The recognizer clauses of one written clause. A conjunction stays one
+     * clause. A universal predicate on a capture inside
      * a repetition becomes the predicate on the capture: the recognizer
      * checks a clause that names such a capture on each of its items, and an
      * empty list has none, as `.all` requires (docs/notation.md, "Conditions").

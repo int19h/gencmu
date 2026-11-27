@@ -5558,6 +5558,14 @@
    */
   const NATIVE_KEYS = "native50:keys";
 
+  /**
+   * @internal The join of the values or the images of the original tokens of
+   * a span, which a synthetic token of a reconstruction does not join. Its one
+   * argument names the key, "value" or "image". The record check admits it
+   * only in a document of the bridge.
+   */
+  const NATIVE_JOIN = "native50:input-join";
+
   const METHODS = new Set([...SPAN_METHODS, ...QUERY_METHODS, ...INPUT_STRINGS, "tags", "classes", "split", "ngrams", "classify", "verbatim-text", "emitted"]);
 
   /**
@@ -5579,6 +5587,11 @@
     if (name === NATIVE_VISIBLE) {
       return object(receiver) && Array.isArray(args) && args.length > 0 &&
         args.every(arg => object(arg) && Object.keys(arg).length === 1 && typeof arg.string === "string" && arg.string !== "") ? null : METHOD_SIGNATURE_PROBLEM;
+    }
+    if (name === NATIVE_JOIN) {
+      const key = args?.[0]?.string;
+      return object(receiver) && Array.isArray(args) && args.length === 1 && object(args[0]) && Object.keys(args[0]).length === 1 &&
+        (key === "value" || key === "image") ? null : METHOD_SIGNATURE_PROBLEM;
     }
     if (name === NATIVE_KEYS) {
       const mode = args?.[0]?.string;
@@ -5628,6 +5641,7 @@
     // its visible keys is a tag set.
     if (name === NATIVE_PAYLOAD) return type === "string" || type === "any" ? null : METHOD_SIGNATURE_PROBLEM;
     if (name === NATIVE_VISIBLE || name === NATIVE_KEYS) return type === "tags" || type === "set" || type === "any" ? null : METHOD_SIGNATURE_PROBLEM;
+    if (name === NATIVE_JOIN) return null;
     if (!METHODS.has(name)) return `unknown method ${name}`;
     const span = type === "span";
     const string = type === "string" || type === "any" || span;
@@ -6810,7 +6824,8 @@
         else if ("emptySet" in value) { if (value.emptySet !== true) return "a malformed empty set"; }
         else if ("capture" in value) { if (typeof value.capture !== "string" || value.capture !== "" && !CAPTURE_NAME.test(value.capture)) return "a malformed capture reference"; }
         else if ("method" in value) {
-          if ((value.method === NATIVE_PAYLOAD || value.method === NATIVE_VISIBLE || value.method === NATIVE_KEYS) && nativeDepth === 0) return "a malformed method";
+          // A native method of the bridge is no method of a written document.
+          if ((value.method === NATIVE_PAYLOAD || value.method === NATIVE_VISIBLE || value.method === NATIVE_KEYS || value.method === NATIVE_JOIN) && nativeDepth === 0) return `unknown method ${value.method}`;
           if (["classify","ngrams"].includes(value.method) && Array.isArray(value.args) && value.args.some(hasUnresolved)) return "a parameter cannot replace a classifier name or integer argument";
           if (!Array.isArray(value.args) || !object(value.receiver) || (!task.recipe && (value.method === "verbatim-text" || value.method === "emitted")) || (!task.query && QUERY_METHODS.has(value.method) && !["parse","error-free"].includes(value.method))) return "a malformed method";
           push("method-shape", value, depth, { recipe: task.recipe });
@@ -15892,6 +15907,15 @@
         case "value": case "image": {
           const where = observe(context, spanOf(context, receiver, scope), scope, term.method);
           return { string: where.context.tokens.slice(where.start, where.end).map(token => token[/** @type {"value" | "image"} */ (term.method)]).join("") };
+        }
+        case NATIVE_JOIN: {
+          // The join of the original tokens: a synthetic token of a
+          // reconstruction joins nothing.
+          const key = /** @type {"value" | "image"} */ (/** @type {any} */ (args[0]).string);
+          const where = observe(context, spanOf(context, receiver, scope), scope, key);
+          const synthetic = where.context.synthetic;
+          return { string: where.context.tokens.slice(where.start, where.end)
+            .filter((/** @type {any} */ token, /** @type {number} */ offset) => !synthetic?.[where.start + offset]).map(token => token[key]).join("") };
         }
         case "source-text": case "decomposed-source-text": {
           const where = observe(context, spanOf(context, receiver, scope), scope, "source-text");
@@ -25541,8 +25565,8 @@
 
 
   /**
-   * Work counts of the format 50 engine, for the cost measurements of part 2
-   * §10: the values that bags compute, the writes into bags, the lookups of
+   * Work counts of the format 50 engine, for the cost measurements of its
+   * tests: the values that bags compute, the writes into bags, the lookups of
    * one key, and the parts that string joins share. A caller resets them.
    */
   const counts50 = { values: 0, writes: 0, lookups: 0, joinParts: 0 };
@@ -29924,11 +29948,12 @@
     directive(directive) {
       const copy = { ...directive };
       // The pipeline evaluates the conditions of %features itself, so the
-      // recognizer gets the directive with no conditions. The format 49
-      // reader ignores the extra member.
+      // recognizer gets the directive with no conditions. The extra member is
+      // not enumerable, so the readers of format 49, which walk every member
+      // of a record, do not see its format 50 records.
       if (directive.conditions) {
         copy.conditions = [];
-        copy.conditions50 = directive.conditions;
+        Object.defineProperty(copy, "conditions50", { value: directive.conditions, enumerable: false });
       }
       if (directive.steps) copy.steps = directive.steps.map((/** @type {any} */ step) => step.pattern ? { ...step, pattern: this.pattern(step.pattern) } : step);
       return copy;
@@ -29938,6 +29963,8 @@
     rule(rule) {
       if (rule.instance) {
         this.registerCall(rule.instance);
+        // The recognizer names an instance binding by the binding's place.
+        if (rule.at) this.origins.set(`call:${this.path}#${rule.at[0]}:${rule.at[1]}`, rule.instance);
         this.addTagSource(rule.name, rule.instance.call);
         // The stage checks read the format 50 actuals, which stay beside the
         // document that the recognizer reads.
@@ -29992,6 +30019,10 @@
       }
       try {
         copy.conditions = rule.conditions.flatMap((/** @type {any} */ node) => this.clauses(node));
+        // A condition that is always false removes the production, and one
+        // that is always true adds nothing.
+        if (copy.conditions.includes(DOM_FALSE)) copy.conditions = [DOM_FALSE];
+        else copy.conditions = copy.conditions.filter((/** @type {any} */ condition) => condition !== DOM_TRUE);
         // The recognizer evaluates the tags of an emission item only when it
         // emits, which the format 50 stage does itself. So one item carries
         // the late comparisons to lowering, and recognition never runs them.
@@ -30032,7 +30063,9 @@
       // Every read that recognition makes has a row of the table of
       // observations. A read with none fails here, so refusal is the default.
       try {
-        this.assertObserved([copy.conditions, copy.tags, (copy.alternatives ?? []).map((/** @type {any} */ alternative) => alternative.tags)]);
+        // The lowered bodies hold the filters and value tests of the symbols,
+        // which read no capture, so a capture read there has no row either.
+        this.assertObserved([copy.conditions, copy.tags, (copy.alternatives ?? []).map((/** @type {any} */ alternative) => [alternative.tags, alternative.expr])]);
       } catch (error) {
         if (!(error instanceof GencmuError)) throw error;
         this.deferred.push(error);
@@ -30102,11 +30135,12 @@
       const record = { rule, alternative, ...(primary.name !== null ? { primary: primary.name, primarySynthetic: primary.name === synthetic } : {}) };
       // The recognizer validates instance definitions strictly, so the
       // alternatives of a template name no origin. The stage finds them by
-      // the template's name and the index of the alternative.
+      // the statement that writes them and the index of the alternative in
+      // it, since a template can have several statements.
       /** @type {any} */
       let copy;
       if (rule.params) {
-        this.origins.set(`template:${rule.name}#${rule.alternatives.indexOf(alternative)}`, { ...record, document: this.path });
+        this.origins.set(`template:${alternativeKey(this.path, rule.at, rule.alternatives.indexOf(alternative))}`, { ...record, document: this.path });
         copy = { gates: alternative.gates, expr };
       } else {
         this.origins.set(alternativeKey(this.path, rule.at, rule.alternatives.indexOf(alternative)), { ...record, document: this.path });
@@ -30220,7 +30254,7 @@
             break;
           }
           case "splat":
-            tags = splat(guarded(this.tagsOf(entry.value, entry.at)));
+            tags = splat(guarded(this.splatTags(entry.value, entry.at, hidden)));
             break;
           case "delete":
             if (tags === null) break;
@@ -30235,6 +30269,62 @@
         }
       }
       return tags;
+    }
+
+    /**
+     * The tags that a splat gives a bag, hidden key groups included. A nested
+     * bag goes through the same steps as the bag around it. A selection of a
+     * node by a mask takes each hidden group that the mask names, and the
+     * visible tags of the mask. Every other value gives its tags.
+     * @param {any} value
+     * @param {any} at
+     * @param {(key: string) => boolean} hidden
+     * @returns {any}
+     */
+    splatTags(value, at, hidden) {
+      if (value?.bag) return this.bagTags(value, null) ?? { emptySet: true };
+      if (value?.method === "select") {
+        const receiver = this.tagsOf(value.receiver, at);
+        const keys = this.closedKeys(value.args[0]);
+        const visible = { intersection: [receiver, this.tagsOf(value.args[0], at)] };
+        if (keys === null) {
+          // A mask whose keys are not closed can name a hidden key that a
+          // recognizer test reads.
+          if ([...this.hidden.demanded].length) return this.fail("splat a selection by a mask whose keys are not closed, where a test reads a hidden key", at);
+          return visible;
+        }
+        const groups = keys.filter(key => !isVisibleKey(key) && hidden(key));
+        if (!groups.length) return visible;
+        const taken = { method: NATIVE_KEYS, receiver, args: [{ string: "take" }, ...groups.map(key => ({ string: hex(key) }))] };
+        return { union: [visible, taken] };
+      }
+      return this.tagsOf(value, at);
+    }
+
+    /**
+     * The keys of a mask that the document fixes: a bag of bare keys, or a
+     * constant whose versions in this document are such bags. Null for any
+     * other mask.
+     * @param {any} mask
+     * @returns {string[] | null}
+     */
+    closedKeys(mask) {
+      if (mask?.bag) {
+        if (!mask.bag.every((/** @type {any} */ entry) => entry.kind === "bare" && !entry.gates.length && !entry.guard)) return null;
+        return mask.bag.map((/** @type {any} */ entry) => entry.key);
+      }
+      if (mask?.const !== undefined) {
+        const versions = this.dom.constants.filter((/** @type {any} */ constant) => constant.name === mask.const);
+        if (!versions.length) return null;
+        const keys = new Set();
+        for (const version of versions) {
+          const own = this.closedKeys(version.value);
+          if (own === null) return null;
+          for (const key of own) keys.add(key);
+        }
+        return [...keys];
+      }
+      return null;
     }
 
     /**
@@ -30717,7 +30807,24 @@
       this.notePatternReaders(node);
       // A test record of DOM 50 keeps its position, which the pattern checks
       // of the recognizer do not admit on a test (docs/output.md, "Source positions and nesting").
-      return withoutTestPositions(node);
+      return this.patternCalls(withoutTestPositions(node));
+    }
+
+    /**
+     * A pattern with the arguments of each call atom in the recognizer's
+     * form, as a call in a body has them.
+     * @param {any} node
+     * @returns {any}
+     */
+    patternCalls(node) {
+      if (Array.isArray(node)) return node.map(item => this.patternCalls(item));
+      if (!node || typeof node !== "object") return node;
+      const copy = Object.fromEntries(Object.entries(node).map(([key, value]) => [key, key === "args" ? value : this.patternCalls(value)]));
+      if (typeof node.call === "string" && Array.isArray(node.args)) {
+        this.noteCall(node);
+        copy.args = node.args.map((/** @type {any} */ arg) => this.argument(arg));
+      }
+      return copy;
     }
 
     /**
@@ -30756,8 +30863,8 @@
     }
 
     /**
-     * The recognizer clauses of one written clause. A conjunction becomes
-     * one clause for each operand. A universal predicate on a capture inside
+     * The recognizer clauses of one written clause. A conjunction stays one
+     * clause. A universal predicate on a capture inside
      * a repetition becomes the predicate on the capture: the recognizer
      * checks a clause that names such a capture on each of its items, and an
      * empty list has none, as `.all` requires (docs/notation.md, "Conditions").
@@ -30818,7 +30925,8 @@
       // each visit, also around a ranked choice (docs/notation.md, "Ranked choices").
       if (node.capture !== undefined && this.compounds.has(node.capture) &&
           this.bindings?.every((/** @type {any} */ counts) => counts.min.get(node.capture) >= 1)) return DOM_TRUE;
-      if (node.capture !== undefined) return node.capture === "" ? { emptySet: false } : this.observe("presence", this.receiverKind(node), { captured: node.capture }, node.at);
+      // The occurrence itself is present wherever a condition reads it.
+      if (node.capture !== undefined) return node.capture === "" ? DOM_TRUE : this.observe("presence", this.receiverKind(node), { captured: node.capture }, node.at);
       // .present says what the bare name says, on a node and on a list
       // (docs/notation.md, "Captures"). The item of a predicate is bound.
       if (isPresence(node)) return node.receiver.item ? DOM_TRUE : this.truth(node.receiver);
@@ -31097,6 +31205,15 @@
         (!isVisibleKey(side.property) && (side.receiver?.capture !== undefined || side.receiver?.item) || tokenCapture(side.receiver)) ? side : null;
       const [left, right] = [read(node.left), read(node.right)];
       if (!left && !right) return null;
+      // A read of the value of a root in recognition needs the certificate of
+      // its rule, as any recognition read of a rule value does (docs/engine.md,
+      // "Proof for a rule value").
+      for (const side of [left, right]) {
+        if (side && side.property === "value" && rootRead(side)) {
+          this.valueReads.push({ targets: [{ ref: this.forestRootRule }], shown: `the read of the value of a root of a forest of ${this.forestRootRule}`,
+            at: node.at, term: this.inTagTerm, template: this.currentTemplate });
+        }
+      }
       /**
        * @param {any} a
        * @param {any} b
@@ -31181,7 +31298,10 @@
         /** @param {any} atom */
         const keyOf = atom => atom.left?.tag?.split("_")[1];
         const kept = root.filter((/** @type {any} */ atom) => values.includes(atom) || !values.some((/** @type {any} */ value) => keyOf(value) === keyOf(atom)));
-        if (kept.length > 1 || kept.some((/** @type {any} */ atom) => atom.not)) return null;
+        // A root atom reads the union of the tags of the roots. That is
+        // exact only for a test that one tag is among them: some root holds
+        // the tag where the union holds it. Any other test of a root is not.
+        if (kept.length > 1 || kept.some((/** @type {any} */ atom) => !isRootMembership(atom))) return null;
         for (let index = conjuncts.length - 1; index >= 0; index--) if (root.includes(conjuncts[index]) && !kept.includes(conjuncts[index])) conjuncts.splice(index, 1);
       }
       /**
@@ -31197,7 +31317,9 @@
         if (this.observed.has(value)) this.observed.add(copy);
         return copy;
       };
-      const any = replace({ any: disjuncts.map((/** @type {any} */ conjuncts) => conjuncts.length === 1 ? conjuncts[0] : { all: conjuncts }) });
+      // .any is false on an empty forest, so each disjunct needs a root.
+      const nonempty = this.truth(node.receiver);
+      const any = replace({ any: disjuncts.map((/** @type {any} */ conjuncts) => ({ all: [nonempty, ...conjuncts] })) });
       if (node.method === "any") return any.any.length === 1 ? any.any[0] : any;
       return null;
     }
@@ -31205,12 +31327,19 @@
     /** @param {any} node */
     comparison(node) {
       const op = node.op;
+      // The recognizer reads a compound binding as an anonymous node, and it
+      // cannot yet match a list of its children.
+      if ((op === "≅" || op === "≇") && node.left.capture !== undefined && this.compounds.has(node.left.capture) &&
+          JSON.stringify(node.right).includes('"children":')) {
+        return this.fail("compare the compound binding $" + node.left.capture + " with a pattern that lists children", node.at);
+      }
       // Structural comparisons keep the pattern records of the recognizer.
       if ((op === "≅" || op === "≇") && node.left.capture !== undefined && (isPatternSet(node.right) || node.right.emptySet)) {
         // A set of patterns becomes one pattern of the recognizer. A set
         // that can match nothing makes the comparison a constant.
-        const pattern = patternSet(node.right);
-        if (pattern === EMPTY_PATTERN) return op === "≅" ? DOM_FALSE : DOM_TRUE;
+        const set = patternSet(node.right);
+        if (set === EMPTY_PATTERN) return op === "≅" ? DOM_FALSE : DOM_TRUE;
+        const pattern = this.patternCalls(set);
         this.notePatternReaders(pattern);
         return this.observe("pattern", this.receiverKind(node.left), { op, left: { capture: node.left.capture }, right: { pattern } }, node.at);
       }
@@ -31285,8 +31414,8 @@
       if (node.param !== undefined) return { ...node };
       if (node.concat) return { concat: node.concat.map((/** @type {any} */ item) => this.string(item)) };
       // A leaf bound under T="s" has the value s, written or omitted.
-      if (node.property === "value" && node.receiver?.capture !== undefined && this.captureSymbols.has(`${node.receiver.capture}=`)) {
-        return { string: this.captureSymbols.get(`${node.receiver.capture}=`) };
+      if (node.property === "value" && node.receiver?.capture !== undefined && typeof this.captureSymbols.get(`${node.receiver.capture}=`) === "string") {
+        return this.observe("token-value", "token", { string: this.captureSymbols.get(`${node.receiver.capture}=`) }, node.at);
       }
       if (node.property === "value" && node.receiver) {
         if (node.receiver.capture !== undefined) this.notForestRoot(node.receiver.capture);
@@ -31301,12 +31430,13 @@
         if (kind !== "token" && kind !== "omitted") return this.fail(`read the image of ${this.shownReceiver(node.receiver)}, which no certificate covers`, node.at);
         return this.observe("token-image", kind, { method: "image", receiver: this.expression(node.receiver), args: [] }, node.at);
       }
-      // The join of the input values or images of a span is the value or
-      // the image of that span.
+      // The join of the input values or images of a span joins its original
+      // tokens. A synthetic token of a reconstruction adds nothing to it
+      // (engine §1).
       if (node.method === "join" && !node.args.length && node.receiver.map &&
           ["value", "image"].includes(node.receiver.by.property) && node.receiver.map.method === "tokens") {
         return this.observe("input-join", this.receiverKind(node.receiver.map.receiver.receiver ?? node.receiver.map.receiver),
-          { method: node.receiver.by.property, receiver: this.expression(node.receiver.map.receiver), args: [] }, node.at);
+          { method: NATIVE_JOIN, receiver: this.expression(node.receiver.map.receiver), args: [{ string: node.receiver.by.property }] }, node.at);
       }
       // .verbatim-text is late (notation, "Text of a span"), so recognition
       // cannot compute it.
@@ -31340,7 +31470,8 @@
   }
 
   // The head of an elidable optional with its positive _Elided requirement
-  // replaced by the value test of the empty string.
+  // replaced by the negated requirement of the hidden key that every written
+  // token carries.
   /**
    * @param {any} head
    * @returns {any}
@@ -31489,11 +31620,17 @@
     /** @type {{entry: any, constants: any[]}[]} */
     const writes = [];
     for (const dom of doms) {
+      // A guard reads the constants of its document. A fold that another
+      // document can change is refused where the bridge folds it.
+      const constants = dom.constants;
       for (const constant of dom.constants) {
+        // A function is inlined where a condition calls it, so a key that its
+        // body reads is read there.
+        reads(constant.value.lambda !== undefined ? constant.value.body : constant.value);
         if (constant.value.lambda !== undefined && constant.value.body?.bag) {
           for (const entry of constant.value.body.bag) {
             reads(entry.guard);
-            writes.push({ entry, constants: dom.constants });
+            writes.push({ entry, constants });
           }
         }
       }
@@ -31502,7 +31639,7 @@
         for (const term of [rule.term, ...(rule.alternatives ?? []).map((/** @type {any} */ alternative) => alternative.term)].filter(Boolean)) {
           for (const entry of term.bag) {
             reads(entry.guard);
-            writes.push({ entry, constants: dom.constants });
+            writes.push({ entry, constants });
           }
         }
       }
@@ -31578,7 +31715,7 @@
   function isPresence(node, binder) {
     if (node?.method !== "present" || node.args?.length !== 0) return false;
     const receiver = node.receiver;
-    return receiver?.item === true || typeof receiver?.capture === "string" && receiver.capture !== "" &&
+    return receiver?.item === true || typeof receiver?.capture === "string" &&
       (binder === undefined || receiver.capture === binder);
   }
 
@@ -31755,6 +31892,18 @@
       return product;
     }
     return [[node]];
+  }
+
+  /**
+   * Whether a lowered atom tests that one tag is among the tags of a root.
+   * @param {any} atom
+   */
+  function isRootMembership(atom) {
+    if (atom?.op !== "⊆" || atom.right?.forestRoot !== true) return false;
+    const left = atom.left;
+    // One tag: a written one, or the payload tag of a string, which the
+    // recognizer computes.
+    return typeof left?.tag === "string" && Object.keys(left).length === 1 || left?.method === NATIVE_PAYLOAD;
   }
 
   /**
@@ -32101,9 +32250,15 @@
       }
       // A name with different symbols on different alternatives has none.
       const found = base.ref !== undefined ? base.ref : null;
-      if (symbols.has(node.capture) && symbols.get(node.capture) !== found) symbols.set(node.capture, null);
+      const first = !symbols.has(node.capture);
+      if (!first && symbols.get(node.capture) !== found) symbols.set(node.capture, null);
       else symbols.set(node.capture, found);
-      if (equals !== undefined && found !== null && /^[A-Z]/.test(found)) symbols.set(`${node.capture}=`, equals);
+      // A leaf bound under T="s" has the value s only where every binding of
+      // the name has the same test. Any other binding leaves no fixed value.
+      const fixed = equals !== undefined && found !== null && /^[A-Z]/.test(found) ? equals : null;
+      const key = `${node.capture}=`;
+      if (first) symbols.set(key, fixed);
+      else if (symbols.get(key) !== fixed) symbols.set(key, null);
     }
     for (const value of Object.values(node)) if (value && typeof value === "object") collectCaptureSymbols(value, symbols);
   }
@@ -32201,8 +32356,8 @@
    */
   function symbolNames(node, into = new Set()) {
     if (!node || typeof node !== "object") return into;
-    if (node.choice) {
-      for (const route of node.choice) symbolNames(route, into);
+    if (node.choice || node.ranked) {
+      for (const route of node.choice ?? node.ranked) symbolNames(route, into);
       return into;
     }
     let base = node;
@@ -32223,7 +32378,9 @@
   function structurallyCompared(rule) {
     /** @type {Set<string>} */
     const names = new Set();
-    const stack = [rule.conditions, rule.error, rule.warning, rule.emit,
+    // Every clause of the statement: its conditions, its messages, its
+    // emission, and the terms of the statement and of each alternative.
+    const stack = [rule.conditions, rule.error, rule.warning, rule.emit, rule.term,
       ...(rule.alternatives ?? []).map((/** @type {any} */ alternative) => alternative.term)];
     while (stack.length) {
       const node = stack.pop();
@@ -32233,7 +32390,32 @@
         continue;
       }
       if ((node.op === "≅" || node.op === "≇") && typeof node.left?.capture === "string") names.add(node.left.capture);
+      // A function can compare its argument, and its body can stand in
+      // another document. So each capture that an argument reads counts.
+      if (node.apply !== undefined) for (const name of capturesIn(node.arg ?? node.args)) names.add(name);
       for (const value of Object.values(node)) if (value && typeof value === "object") stack.push(value);
+    }
+    return names;
+  }
+
+  /**
+   * The capture names that an expression reads.
+   * @param {any} node
+   * @returns {Set<string>}
+   */
+  function capturesIn(node) {
+    /** @type {Set<string>} */
+    const names = new Set();
+    const stack = [node];
+    while (stack.length) {
+      const current = stack.pop();
+      if (!current || typeof current !== "object") continue;
+      if (Array.isArray(current)) {
+        for (const item of current) stack.push(item);
+        continue;
+      }
+      if (typeof current.capture === "string" && current.capture !== "") names.add(current.capture);
+      for (const value of Object.values(current)) if (value && typeof value === "object") stack.push(value);
     }
     return names;
   }
@@ -32433,8 +32615,9 @@
    */
   function patternSet(node) {
     if (node.pattern !== undefined) return withoutTestPositions(node.pattern);
-    // A constant inside a pattern of the recognizer is a constant atom.
-    if (node.const !== undefined) return { constant: node.const };
+    // A constant inside a pattern of the recognizer is a constant atom, with
+    // its place for the error of an undefined constant.
+    if (node.const !== undefined) return { constant: node.const, ...(node.at ? { at: node.at } : {}) };
     if (node.emptySet) return EMPTY_PATTERN;
     if (node.difference) {
       const [left, right] = node.difference.map(patternSet);
@@ -32456,153 +32639,675 @@
 
   // ---- format50/oracle.js
   // A test mode of the format 50 stage. After the choice of a parse, it
-  // evaluates each condition and each symbol test of the chosen tree again,
-  // with the evaluator of late expressions on the real bags. The recognizer
-  // accepted the tree, so each of them held for it there. An answer that
-  // differs is a disagreement between recognition and the stage. This module
-  // shares no code with the bridge, which translates the reads for the
-  // recognizer. It runs only where a test sets hooks.oracle50.
+  // checks the chosen tree against the written format 50 records, on the real
+  // bags. For each rule occurrence, it matches the written body of its
+  // alternative against the working children of the occurrence. It checks the
+  // symbol tests of the body on the children, binds the captures itself, and
+  // evaluates each condition that applies. The recognizer accepted the tree,
+  // so some route of the body holds. Where no route holds, recognition and
+  // the stage disagree.
+  //
+  // The module reads nothing that the bridge lowered: no lowered production,
+  // no lowered test and no capture list of the recognizer. A query, a neighbor
+  // test and a structural comparison run only through the recognizer, so the
+  // oracle refuses them, and it counts each refusal. A thrown error on a
+  // condition or a test is a disagreement, unless it is an explicit refusal
+  // of the late path. It runs only where a test sets hooks.oracle50.
+
 
 
 
   /**
-   * @typedef {{stage: string, kind: "condition" | "filter", rule: string, document?: string,
+   * @typedef {{stage: string, kind: string, rule: string, document?: string,
    *   at?: any, answer: boolean | null, detail: string}} Disagreement
    */
+
+  // The most routes that the oracle follows for one occurrence.
+  const ROUTE_LIMIT = 512;
+
+  // The messages of an explicit refusal: of the late path, and of the reads
+  // that only the recognizer runs.
+  const REFUSAL = /cannot yet|cannot run after the choice of a parse|cannot run here|the oracle does not evaluate/;
+  const ORACLE_REFUSAL = "the oracle does not evaluate a query, a neighbor test or a structural comparison, which only the recognizer runs";
 
   /**
    * Checks the chosen tree of one stage.
    * @param {any} root the occurrence of the chosen tree
-   * @param {any} derivation the chosen derivation
-   * @param {Map<any, any>} made the occurrence of each derivation node
    * @param {any} data the stage data, with its evaluator
-   * @param {string} stage
-   * @returns {{checked: number, undecided: Disagreement[], disagreements: Disagreement[]}}
+   * @param {string} stage the name of the stage
+   * @param {any} owner the stage, which makes compound bindings
+   * @returns {{checked: number, refused: Disagreement[], undecided: Disagreement[], disagreements: Disagreement[], higher: {checked: number, unmatched: number}}}
    */
-  function checkChosenTree(root, derivation, made, data, stage) {
-    const result = { checked: 0, undecided: /** @type {Disagreement[]} */ ([]), disagreements: /** @type {Disagreement[]} */ ([]) };
-    conditionsOf(root, data, stage, result);
-    filtersOf(derivation, made, stage, result);
-    return result;
-  }
-
-  /**
-   * Each condition of each rule occurrence of the tree holds for it.
-   * @param {any} root
-   * @param {any} data
-   * @param {string} stage
-   * @param {any} result
-   */
-  function conditionsOf(root, data, stage, result) {
+  function checkChosenTree(root, data, stage, owner) {
+    const result = {
+      checked: 0, refused: /** @type {Disagreement[]} */ ([]), undecided: /** @type {Disagreement[]} */ ([]),
+      disagreements: /** @type {Disagreement[]} */ ([]), higher: { checked: 0, unmatched: 0 },
+    };
+    // The evaluator of the oracle refuses the reads that only the recognizer
+    // runs, and it is the stage's evaluator in every other way.
+    const evaluator = new Evaluator(Object.assign(Object.create(data), {
+      lateQuery: () => { throw new GencmuError("grammar", ORACLE_REFUSAL); },
+    }));
+    evaluator.inputs = data.evaluator.inputs;
+    const context = { data, evaluator, owner, stage, result };
     const stack = [root];
     while (stack.length) {
       const node = stack.pop();
       if (!node || (node.kind !== "rule" && node.kind !== "splice")) continue;
       for (let index = node.children.length - 1; index >= 0; index--) stack.push(node.children[index]);
-      const origin = node.origin;
-      if (!origin) continue;
-      const rule = origin.rule;
-      // A clause whose captures belong to a ranked option qualifies only that
-      // option. Where another option won, the clause did not apply.
-      const ranked = rankedOnlyNames(origin.alternative.expr);
-      const declared = new Set(node.captures.keys());
-      for (const written of rule.conditions ?? []) {
-        // The loader simplifies the presence tests of the names that this
-        // alternative does not declare. The clause applies where the
-        // alternative declares every name that remains (docs/notation.md,
-        // "Conditions").
-        const condition = simplified(written, declared);
-        if (condition === true) continue;
-        const names = capturesOf(condition === false ? written : condition);
-        if (condition !== false && [...names].some(name => !declared.has(name))) continue;
-        if ([...names].some(name => ranked.has(name) && !bound(node.captures.get(name)))) continue;
-        const scope = { node, captures: boundCaptures(node.captures), declared, items: [], names: new Map(),
-          document: origin.document, shared: true };
-        result.checked++;
-        let answer;
-        try {
-          answer = condition === false ? false : data.evaluator.truth(condition, scope);
-        } catch (error) {
-          // A read that the late evaluator cannot run leaves the clause
-          // undecided. A failure of the late path itself is counted apart.
-          const detail = error instanceof GencmuError ? error.message : `late path failure: ${error instanceof Error ? error.message : String(error)}`;
-          result.undecided.push({ stage, kind: "condition", rule: node.rule, document: origin.document, at: written.at, answer: null, detail });
+      checkOccurrence(node, context);
+    }
+    return result;
+  }
+
+  /**
+   * @param {any} node a rule or splice occurrence
+   * @param {any} context
+   */
+  function checkOccurrence(node, context) {
+    const { result, stage } = context;
+    const origin = node.origin;
+    const report = (/** @type {Disagreement[]} */ list, /** @type {string} */ kind, /** @type {string} */ detail, /** @type {any} */ at) =>
+      list.push({ stage, kind, rule: node.rule, document: origin?.document, at, answer: null, detail });
+    if (!origin) {
+      report(result.undecided, "occurrence", "the occurrence has no written origin", undefined);
+      return;
+    }
+    const expr = origin.alternative.expr;
+    const kinds = captureKindsOf(expr);
+    const matcher = new Matcher(node, context, kinds);
+    let routes;
+    try {
+      routes = matcher.routes();
+    } catch (error) {
+      if (error instanceof OracleLimit) {
+        report(result.undecided, "occurrence", error.message, origin.alternative.at);
+        return;
+      }
+      throw error;
+    }
+    const conditions = applicableConditions(origin.rule.conditions ?? [], kinds, expr);
+    /** @type {any} */
+    let best = null;
+    for (const route of routes) {
+      const verdict = judge(route, conditions, node, context);
+      if (verdict.state === "holds") {
+        best = verdict;
+        break;
+      }
+      if (!best || rank(verdict.state) < rank(best.state)) best = verdict;
+    }
+    if (!best) {
+      report(result.disagreements, "body", "the recognizer accepted the occurrence, and no route of its written body matches its children", origin.alternative.at);
+      return;
+    }
+    result.checked += best.checked;
+    for (const item of best.refused) report(result.refused, item.kind, item.detail, item.at);
+    if (best.state === "fails") {
+      report(result.disagreements, best.failure.kind, best.failure.detail, best.failure.at);
+      return;
+    }
+    if (best.state === "undecided") return;
+    higherOptions(best.route, conditions, node, context);
+  }
+
+  /** @param {string} state */
+  function rank(state) {
+    return state === "holds" ? 0 : state === "undecided" ? 1 : 2;
+  }
+
+  /**
+   * The verdict of one route: its symbol tests, then each condition that
+   * applies to it.
+   * @param {any} route
+   * @param {any[]} conditions
+   * @param {any} node
+   * @param {any} context
+   */
+  function judge(route, conditions, node, context) {
+    const verdict = { state: "holds", checked: 0, refused: /** @type {any[]} */ ([]), failure: /** @type {any} */ (null), route };
+    /** @param {string} kind @param {string} detail @param {any} at */
+    const fail = (kind, detail, at) => {
+      if (verdict.state !== "fails") verdict.failure = { kind, detail, at };
+      verdict.state = "fails";
+    };
+    for (const test of route.tests) {
+      if (test.outcome === true) verdict.checked++;
+      else if (test.outcome === "refused") {
+        verdict.refused.push({ kind: "filter", detail: test.detail, at: test.at });
+        if (verdict.state === "holds") verdict.state = "undecided";
+      } else fail("filter", test.detail, test.at);
+    }
+    if (verdict.state === "fails") return verdict;
+    const scope = routeScope(route, node, context);
+    for (const { written, condition, names } of conditions) {
+      if (!applies(names, route)) continue;
+      let answer;
+      try {
+        answer = condition === false ? false : context.evaluator.truth(condition, scope);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        if (error instanceof GencmuError && REFUSAL.test(message)) {
+          verdict.refused.push({ kind: "condition", detail: message, at: written.at });
+          if (verdict.state === "holds") verdict.state = "undecided";
           continue;
         }
-        if (answer !== true) {
-          result.disagreements.push({ stage, kind: "condition", rule: node.rule, document: origin.document, at: written.at, answer,
-            detail: "the recognizer held the condition, and the stage gives false" });
+        fail("condition", `the recognizer held the condition, and the stage fails on it: ${message}`, written.at);
+        return verdict;
+      }
+      if (answer !== true) {
+        fail("condition", "the recognizer held the condition, and the stage gives false", written.at);
+        return verdict;
+      }
+      verdict.checked++;
+    }
+    return verdict;
+  }
+
+  /**
+   * For each ranked group of the chosen route, each higher option that
+   * matches the same children must fail: its symbol tests or the conditions
+   * that read its own captures. Otherwise recognition rejected an option
+   * that qualifies.
+   * @param {any} route
+   * @param {any[]} conditions
+   * @param {any} node
+   * @param {any} context
+   */
+  function higherOptions(route, conditions, node, context) {
+    const { result } = context;
+    for (const choice of route.options) {
+      for (let index = 0; index < choice.index; index++) {
+        const option = choice.group.ranked[index];
+        const matcher = new Matcher(node, context, route.kinds);
+        let routes;
+        try {
+          routes = matcher.over(option, choice.start, choice.end, route);
+        } catch (error) {
+          if (error instanceof OracleLimit) continue;
+          throw error;
+        }
+        if (!routes.length) {
+          result.higher.unmatched++;
+          continue;
+        }
+        result.higher.checked++;
+        const own = rankedNames(option);
+        const relevant = conditions.filter(({ names }) => [...names].some(name => own.has(name)));
+        for (const other of routes) {
+          const verdict = judge(other, relevant, node, context);
+          if (verdict.state === "holds") {
+            result.disagreements.push({ stage: context.stage, kind: "ranked", rule: node.rule, document: node.origin.document,
+              at: choice.group.at, answer: null,
+              detail: `the recognizer rejected option ${index + 1} of a ranked choice, and its tests and conditions hold on the children of option ${choice.index + 1}` });
+            return;
+          }
         }
       }
     }
   }
 
   /**
-   * Each symbol test of the chosen derivation holds of the child that it
-   * read: the keys of a tag test on the child's bag, and the value of a value
-   * test on the child's value.
-   * @param {any} derivation
-   * @param {Map<any, any>} made
-   * @param {string} stage
-   * @param {any} result
+   * The scope of the conditions of a route: the occurrence and the captures
+   * that the route binds.
+   * @param {any} route
+   * @param {any} node
+   * @param {any} context
    */
-  function filtersOf(derivation, made, stage, result) {
-    const stack = [derivation];
-    while (stack.length) {
-      const node = stack.pop();
-      if (!node || "read" in node || !node.production) continue;
-      const rhs = node.production.rhs;
-      node.children.forEach((/** @type {any} */ child, /** @type {number} */ index) => {
-        stack.push(child);
-        const test = rhs[index]?.test;
-        if (!test) return;
-        const occurrence = made.get(child);
-        if (!occurrence) return;
-        result.checked++;
-        let answer;
-        try {
-          answer = filterHolds(test, occurrence);
-        } catch (error) {
-          if (!(error instanceof GencmuError)) throw error;
-          result.undecided.push({ stage, kind: "filter", rule: node.production.owner ?? node.production.lhs, answer: null,
-            detail: `${test.written}: ${error.message}` });
-          return;
-        }
-        if (!answer) {
-          result.disagreements.push({ stage, kind: "filter", rule: node.production.owner ?? node.production.lhs, answer,
-            detail: `the recognizer held ${test.written} on ${occurrence.rule ?? occurrence.terminal} at [${occurrence.span}], and its bag fails it` });
-        }
+  function routeScope(route, node, context) {
+    const captures = new Map();
+    for (const [name, kind] of route.kinds) {
+      const values = route.bindings.get(name) ?? [];
+      if (kind === "list") captures.set(name, values.map((/** @type {any} */ value) => bindingNode(value, node, context)));
+      else if (values.length) captures.set(name, bindingNode(values[0], node, context));
+    }
+    return { node, captures, declared: new Set(route.kinds.keys()), items: [], names: new Map(), document: node.origin.document, shared: true };
+  }
+
+  /**
+   * The node of a binding: a child, or a compound binding over a run of the
+   * children, which the stage makes as it does for the recognizer's bindings.
+   * @param {any} value
+   * @param {any} node
+   * @param {any} context
+   */
+  function bindingNode(value, node, context) {
+    if (!value.compound) return value.node;
+    if (value.made) return value.made;
+    const span = value.start < value.end
+      ? [node.children[value.start].span[0], node.children[value.end - 1].span[1]]
+      : [value.point, value.point];
+    const made = context.owner.compoundOccurrence({ name: value.name, start: value.start, end: value.end, span, compound: true },
+      node.children, node.origin, context.data);
+    made.primary = node.primary && made.children.includes(node.primary) ? node.primary : null;
+    value.made = made;
+    return made;
+  }
+
+  /**
+   * The conditions of a statement, each simplified for the names that the
+   * alternative declares, with the names that it reads.
+   * @param {any[]} written
+   * @param {Map<string, string>} kinds
+   * @param {any} expr
+   */
+  function applicableConditions(written, kinds, expr) {
+    const declared = new Set(kinds.keys());
+    const ranked = rankedOnlyNames(expr);
+    const list = [];
+    for (const item of written) {
+      // The loader simplifies the presence tests of the names that this
+      // alternative does not declare. The clause applies where the
+      // alternative declares every name that remains (docs/notation.md,
+      // "Conditions").
+      const condition = simplified(item, declared);
+      if (condition === true) continue;
+      const names = capturesOf(condition === false ? item : condition);
+      if (condition !== false && [...names].some(name => !declared.has(name))) continue;
+      list.push({ written: item, condition, names, ranked: new Set([...names].filter(name => ranked.has(name))) });
+    }
+    return list;
+  }
+
+  /**
+   * Whether a condition applies on a route: each name that only a ranked
+   * option declares belongs to an option that the route took.
+   * @param {Set<string>} names
+   * @param {any} route
+   */
+  function applies(names, route) {
+    for (const name of names) if (route.privateNames.has(name) && !route.taken.has(name)) return false;
+    return true;
+  }
+
+  /**
+   * The capture names that the options of a ranked choice declare, each in
+   * one option alone.
+   * @param {any} option
+   */
+  function rankedNames(option) {
+    // A name that only a ranked choice nested in the option declares belongs
+    // to that choice, whose own option the route records.
+    const nested = rankedOnlyNames(option);
+    return new Set([...captureKindsOf(option).keys()].filter(name => !nested.has(name)));
+  }
+
+  class OracleLimit extends Error {}
+
+  // A route of a body over the children of an occurrence: the next child,
+  // the bindings so far, the symbol tests with their outcomes, the ranked
+  // options taken, and the names that a taken option declares.
+  /**
+   * @typedef {{at: number, bindings: Map<string, any[]>, tests: any[], options: any[], taken: Set<string>}} Route
+   */
+
+  class Matcher {
+    /**
+     * @param {any} node
+     * @param {any} context
+     * @param {Map<string, string>} kinds
+     */
+    constructor(node, context, kinds) {
+      this.node = node;
+      this.children = node.children;
+      this.context = context;
+      this.kinds = kinds;
+      this.count = 0;
+      this.scope = { node, items: [], names: new Map(), document: node.origin?.document };
+      this.privateNames = rankedOnlyNames(node.origin.alternative.expr);
+    }
+
+    /** The complete routes of the alternative over all the children. */
+    routes() {
+      const start = { at: 0, bindings: new Map(), tests: [], options: [], taken: new Set() };
+      return this.match(this.node.origin.alternative.expr, [start], true)
+        .filter(route => route.at === this.children.length)
+        .map(route => this.finish(route));
+    }
+
+    /**
+     * The complete routes of one ranked option over a run of the children,
+     * with the bindings of the rest of a chosen route.
+     * @param {any} option
+     * @param {number} start
+     * @param {number} end
+     * @param {any} outer
+     */
+    over(option, start, end, outer) {
+      const begin = { at: start, bindings: new Map(), tests: [], options: [], taken: new Set() };
+      return this.match(option, [begin], false)
+        .filter(route => route.at === end)
+        .map(route => this.finish({ ...route, bindings: merged(outer.bindings, route.bindings),
+          taken: new Set([...outer.taken, ...rankedNames(option), ...route.taken]) }));
+    }
+
+    /** @param {Route} route */
+    finish(route) {
+      return { ...route, kinds: this.kinds, privateNames: this.privateNames };
+    }
+
+    /**
+     * Each route that continues the given routes over one body record.
+     * @param {any} expr
+     * @param {Route[]} routes
+     * @param {boolean} top whether the record is the whole alternative
+     * @returns {Route[]}
+     */
+    match(expr, routes, top = false) {
+      if (!routes.length) return routes;
+      this.count += routes.length;
+      if (this.count > ROUTE_LIMIT * 64) throw new OracleLimit("the oracle stops at its limit of routes");
+      if (!expr || typeof expr !== "object") return [];
+      if (expr.seq) {
+        let current = routes;
+        for (const part of expr.seq) current = this.match(part, current);
+        return current;
+      }
+      if (expr.choice) return expr.choice.flatMap((/** @type {any} */ part) => this.match(part, routes));
+      if (expr.ranked) {
+        return expr.ranked.flatMap((/** @type {any} */ part, /** @type {number} */ index) => routes.flatMap(route => {
+          const names = rankedNames(part);
+          return this.match(part, [route]).map(next => ({
+            ...next, options: [...next.options, { group: expr, index, start: route.at, end: next.at }],
+            taken: new Set([...next.taken, ...names]),
+          }));
+        }));
+      }
+      if (expr.and) return this.subsets(expr.and, routes);
+      if (expr.empty) return routes;
+      if (expr.primary) return this.match(expr.primary, routes);
+      if (expr.optional) return this.optional(expr, routes);
+      if (expr.repeat) {
+        if (expr.chain) return top ? this.chain(expr, routes) : [];
+        return this.repeat(expr.repeat, expr.separator, routes);
+      }
+      if (expr.capture !== undefined && expr.expr) return this.capture(expr, routes);
+      if (expr.test !== undefined) return this.tested(expr, routes);
+      if (expr.remainder || expr.param !== undefined) throw new OracleLimit(`the oracle cannot yet match the body form ${JSON.stringify(Object.keys(expr))}`);
+      return routes.flatMap(route => {
+        const child = this.children[route.at];
+        return child && this.symbol(expr, child) ? [{ ...route, at: route.at + 1 }] : [];
       });
     }
-  }
 
-  /**
-   * Whether a symbol test holds of an occurrence, read from its bag.
-   * @param {any} test
-   * @param {any} occurrence
-   * @returns {boolean}
-   */
-  function filterHolds(test, occurrence) {
-    if (test.inner && !filterHolds(test.inner, occurrence)) return false;
-    if (test.op === "tags") {
-      for (const key of test.positive ?? []) if (!hasKey(occurrence, key)) return false;
-      for (const key of test.negative ?? []) if (hasKey(occurrence, key)) return false;
-      return true;
+    /**
+     * An ordered subset: one operand or more, in their written order.
+     * @param {any[]} parts
+     * @param {Route[]} routes
+     */
+    subsets(parts, routes) {
+      /** @type {Route[]} */
+      const out = [];
+      /** @type {[number, Route[], boolean][]} */
+      const pending = [[0, routes, false]];
+      while (pending.length) {
+        const [index, current, some] = /** @type {[number, Route[], boolean]} */ (pending.pop());
+        if (index === parts.length) {
+          if (some) for (const route of current) out.push(route);
+          continue;
+        }
+        pending.push([index + 1, current, some]);
+        const taken = this.match(parts[index], current);
+        if (taken.length) pending.push([index + 1, taken, true]);
+      }
+      return out;
     }
-    const value = occurrence.bag().value("value");
-    return (value === test.value) === (test.op === "=");
+
+    /**
+     * An optional: absent, written, or for an elidable optional, an omitted
+     * head leaf.
+     * @param {any} expr
+     * @param {Route[]} routes
+     */
+    optional(expr, routes) {
+      const written = this.match(expr.optional, routes);
+      if (!expr.elidable) return [...routes, ...written];
+      const head = headTerminal(expr.optional);
+      const omitted = routes.flatMap(route => {
+        const child = this.children[route.at];
+        if (!child || child.kind !== "elided" || child.terminal !== head) return [];
+        // An omitted head binds no capture, since a binder inside the
+        // optional names a written terminal only.
+        return [{ ...route, at: route.at + 1 }];
+      });
+      return [...routes, ...written, ...omitted];
+    }
+
+    /**
+     * One item or more, with a separator between items.
+     * @param {any} item
+     * @param {any} separator
+     * @param {Route[]} routes
+     */
+    repeat(item, separator, routes) {
+      // An item reads one child at least, so each round moves on.
+      const out = [];
+      let frontier = this.match(item, routes);
+      for (let round = 0; frontier.length && round <= this.children.length; round++) {
+        for (const route of frontier) out.push(route);
+        if (out.length > ROUTE_LIMIT) throw new OracleLimit("the oracle stops at its limit of routes");
+        const next = separator ? this.match(separator, frontier) : frontier;
+        frontier = this.match(item, next);
+      }
+      return out;
+    }
+
+    /**
+     * A chain: its base level, or an inner level of the same rule with a
+     * separator and an item.
+     * @param {any} expr
+     * @param {Route[]} routes
+     */
+    chain(expr, routes) {
+      const base = this.match(expr.repeat, routes);
+      const level = (/** @type {Route[]} */ current) => current.flatMap(route => {
+        const child = this.children[route.at];
+        return child && (child.kind === "rule" || child.kind === "splice") && child.rule === this.node.rule ? [{ ...route, at: route.at + 1 }] : [];
+      });
+      const sep = (/** @type {Route[]} */ current) => expr.separator ? this.match(expr.separator, current) : current;
+      const inner = expr.chain === "left"
+        ? this.match(expr.repeat, sep(level(routes)))
+        : level(sep(this.match(expr.repeat, routes)));
+      return [...base, ...inner];
+    }
+
+    /**
+     * A capture binds a child, or a compound binding over the children of
+     * one visit of its operand.
+     * @param {any} expr
+     * @param {Route[]} routes
+     */
+    capture(expr, routes) {
+      const compound = isCompound(expr.expr);
+      return routes.flatMap(route => this.match(expr.expr, [route]).map(next => {
+        const value = compound
+          ? { compound: true, name: expr.capture, start: route.at, end: next.at, point: this.point(route.at) }
+          : { node: this.children[route.at] };
+        const bindings = new Map(next.bindings);
+        bindings.set(expr.capture, [...(bindings.get(expr.capture) ?? []), value]);
+        return { ...next, bindings };
+      }));
+    }
+
+    /**
+     * The place of an empty compound binding: the end of the child before
+     * it, or the start of the occurrence.
+     * @param {number} at
+     */
+    point(at) {
+      return at > 0 ? this.children[at - 1].span[1] : this.node.span[0];
+    }
+
+    /**
+     * A tested symbol: the symbol, then its test on the child that it reads.
+     * @param {any} expr
+     * @param {Route[]} routes
+     */
+    tested(expr, routes) {
+      return routes.flatMap(route => this.match(expr.expr, [route]).map(next => {
+        const child = this.children[route.at];
+        return { ...next, tests: [...next.tests, this.test(expr, child)] };
+      }));
+    }
+
+    /**
+     * The outcome of a symbol test on a child, from its real bag.
+     * @param {any} expr
+     * @param {any} child
+     */
+    test(expr, child) {
+      const shown = `the test at ${expr.at?.join?.(":") ?? "?"} on ${child.rule ?? child.terminal} at [${child.span}]`;
+      try {
+        const bag = child.bag();
+        if (expr.test === "tags") {
+          for (const requirement of expr.requirements) {
+            for (const key of this.requirementKeys(requirement.value)) {
+              const held = key === "_Elided" ? child.kind === "elided" : bag.has(key);
+              if (held === requirement.negated) return { outcome: false, detail: `the recognizer held ${shown}, and its bag fails it on ${key}`, at: expr.at };
+            }
+          }
+          return { outcome: true, at: expr.at };
+        }
+        const value = bag.value("value");
+        const expected = this.context.evaluator.string(expr.value, this.scope);
+        const equal = value === expected;
+        if (equal !== (expr.test === "=")) return { outcome: false, detail: `the recognizer held ${shown}, and its value is ${JSON.stringify(value)}`, at: expr.at };
+        return { outcome: true, at: expr.at };
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        if (error instanceof GencmuError && REFUSAL.test(message)) return { outcome: "refused", detail: message, at: expr.at };
+        return { outcome: false, detail: `the recognizer held ${shown}, and the stage fails on it: ${message}`, at: expr.at };
+      }
+    }
+
+    /**
+     * The keys that a requirement names: a tag, or the keys of a key-set
+     * constant.
+     * @param {any} value
+     * @returns {string[]}
+     */
+    requirementKeys(value) {
+      if (value.tag !== undefined) return [value.tag];
+      const keys = this.context.evaluator.evaluate(value, this.scope);
+      return keys.keys();
+    }
+
+    /**
+     * Whether a child is an occurrence of a symbol.
+     * @param {any} expr
+     * @param {any} child
+     */
+    symbol(expr, child) {
+      if (expr.ref !== undefined) {
+        const name = expr.ref;
+        if (isTerminalTag(name)) {
+          if (child.kind === "elided") return child.terminal === name;
+          return child.kind === "token" && child.bag().has(name);
+        }
+        return child.kind === "rule" && child.rule === name;
+      }
+      if (expr.call !== undefined) return child.kind === "rule" && this.templateOf(child) === expr.call;
+      if (expr.splice) {
+        if (child.kind !== "splice") return false;
+        const target = expr.splice;
+        return target.ref !== undefined ? child.rule === target.ref : this.templateOf(child) === target.call;
+      }
+      if (expr.wildcard) return child.kind === "token";
+      if (expr.literal !== undefined) {
+        if (child.kind !== "token") return false;
+        return child.bag().value("value") === this.context.evaluator.string(expr.literal, this.scope);
+      }
+      if (expr.range) {
+        if (child.kind !== "token") return false;
+        const value = child.bag().value("value");
+        const [low, high] = expr.range.map((/** @type {any} */ bound) => this.context.evaluator.string(bound, this.scope));
+        if (typeof value !== "string" || [...value].length !== 1) return false;
+        const code = /** @type {number} */ (value.codePointAt(0));
+        return code >= /** @type {number} */ (low.codePointAt(0)) && code <= /** @type {number} */ (high.codePointAt(0));
+      }
+      throw new OracleLimit(`the oracle cannot yet match the body form ${JSON.stringify(Object.keys(expr))}`);
+    }
+
+    /**
+     * The template of a rule occurrence that is an instance, or null.
+     * @param {any} child
+     */
+    templateOf(child) {
+      const lhs = child.derivation?.production?.spliceOf ?? child.derivation?.production?.lhs;
+      const instance = this.context.data.grammar?.instances?.find((/** @type {any} */ item) => (item.name ?? item.canonical) === lhs);
+      return instance?.call?.call ?? null;
+    }
   }
 
   /**
-   * Whether an occurrence has a key, where an origin test reads its kind.
-   * @param {any} occurrence
-   * @param {string} key
+   * The bindings of a chosen route with those of an option over its run.
+   * @param {Map<string, any[]>} outer
+   * @param {Map<string, any[]>} inner
    */
-  function hasKey(occurrence, key) {
-    // An origin test: a written token, or an omitted leaf.
-    if (key === "Written_token") return occurrence.kind === "token";
-    if (key === "_Elided") return occurrence.kind === "elided";
-    return occurrence.bag().has(key);
+  function merged(outer, inner) {
+    const bindings = new Map(outer);
+    for (const [name, values] of inner) bindings.set(name, values);
+    return bindings;
+  }
+
+  /** @param {string} name */
+  function isTerminalTag(name) {
+    return /^[A-Z_]/.test(name);
+  }
+
+  /**
+   * The head terminal of the body of an elidable optional.
+   * @param {any} body
+   * @returns {string | undefined}
+   */
+  function headTerminal(body) {
+    let current = body;
+    while (current) {
+      if (current.seq) current = current.seq[0];
+      else if (current.capture !== undefined && current.expr) current = current.expr;
+      else if (current.test !== undefined) current = current.expr;
+      else if (current.primary) current = current.primary;
+      else return current.ref;
+    }
+    return undefined;
+  }
+
+  /** @param {any} expr */
+  function isCompound(expr) {
+    return Boolean(expr.seq || expr.choice || expr.ranked || expr.and || expr.optional || (expr.repeat && !expr.chain));
+  }
+
+  /**
+   * The capture slots of a body: one node, or a list, as the stage gives
+   * them. A compound operand is one node for each visit too.
+   * @param {any} body
+   * @returns {Map<string, string>}
+   */
+  function captureKindsOf(body) {
+    return captureKindsCache.get(body) ?? computeKinds(body);
+  }
+
+  /** @type {WeakMap<object, Map<string, string>>} */
+  const captureKindsCache = new WeakMap();
+  /** @type {(body: any) => Map<string, string>} */
+  let kindsOf = () => new Map();
+
+  /**
+   * @param {any} body
+   */
+  function computeKinds(body) {
+    const kinds = kindsOf(body);
+    if (body && typeof body === "object") captureKindsCache.set(body, kinds);
+    return kinds;
+  }
+
+  /**
+   * Sets the function that gives the capture slots of a body. The stage
+   * owns it, and the oracle reads it.
+   * @param {(body: any) => Map<string, string>} fn
+   */
+  function setCaptureKinds(fn) {
+    kindsOf = fn;
   }
 
   /**
@@ -32642,23 +33347,13 @@
         if (then === false) return { not: test };
         return { ...node, if: test, then };
       }
-      if (test === true) return simplified(node.then, declared);
-      if (test === false) return simplified(node.else, declared);
-      return { ...node, if: test };
+      const then = simplified(node.then, declared);
+      const otherwise = simplified(node.else, declared);
+      if (test === true) return then;
+      if (test === false) return otherwise;
+      return { ...node, if: test, then, else: otherwise };
     }
     return node;
-  }
-
-  /** @param {any} value */
-  function bound(value) {
-    return Array.isArray(value) ? value.length > 0 : value !== null && value !== undefined;
-  }
-
-  /** @param {Map<string, any>} captures */
-  function boundCaptures(captures) {
-    const map = new Map();
-    for (const [name, value] of captures) if (value !== null) map.set(name, value);
-    return map;
   }
 
   /**
@@ -32669,13 +33364,22 @@
    * @returns {Set<string>}
    */
   function capturesOf(node, into = new Set()) {
-    if (!node || typeof node !== "object") return into;
-    if (Array.isArray(node)) {
-      for (const item of node) capturesOf(item, into);
-      return into;
+    /** @type {[any, Set<string>][]} */
+    const pending = [[node, new Set()]];
+    while (pending.length) {
+      const [current, bound] = /** @type {[any, Set<string>]} */ (pending.pop());
+      if (!current || typeof current !== "object") continue;
+      if (Array.isArray(current)) {
+        for (const item of current) pending.push([item, bound]);
+        continue;
+      }
+      if (current.lambda !== undefined) {
+        pending.push([current.body, new Set([...bound, current.lambda])]);
+        continue;
+      }
+      if (typeof current.capture === "string" && current.capture !== "" && !bound.has(current.capture)) into.add(current.capture);
+      for (const [key, value] of Object.entries(current)) if (key !== "at" && value && typeof value === "object") pending.push([value, bound]);
     }
-    if (typeof node.capture === "string" && node.capture !== "") into.add(node.capture);
-    for (const value of Object.values(node)) if (value && typeof value === "object") capturesOf(value, into);
     return into;
   }
 
@@ -32749,6 +33453,45 @@
 
 
   /**
+   * The satellites that a published unit shows, along its whole primary
+   * path: the satellites before the core from the outermost level inwards,
+   * and those after it from the innermost level outwards. The path crosses
+   * into earlier stages through input tokens (engine §11.3).
+   * @param {any} node
+   * @returns {{before: any[], after: any[]}}
+   */
+  function satellitesOf(node) {
+    /** @type {any[][]} */
+    const befores = [];
+    /** @type {any[][]} */
+    const afters = [];
+    const seen = new Set();
+    for (let current = node; current && !seen.has(current); current = nextOnPath(current)) {
+      seen.add(current);
+      if (current.kind === "token") continue;
+      const decorated = decoration(current);
+      if (!decorated) continue;
+      befores.push(decorated.before);
+      afters.unshift(decorated.after);
+    }
+    return { before: befores.flat(), after: afters.flat() };
+  }
+
+  /**
+   * The next node of a primary path: the part of a projection, the primary
+   * of a rule or splice, or the node of an earlier stage that an input token
+   * stands for.
+   * @param {any} node
+   * @returns {any}
+   */
+  function nextOnPath(node) {
+    if (node.kind === "projection") return node.part;
+    if (node.kind === "rule" || node.kind === "splice") return node.primary ?? null;
+    if (node.kind === "token") return node.input?.node ?? null;
+    return null;
+  }
+
+  /**
    * Makes the faces of the units that the published tokens of a stage can
    * show: each satellite beside a primary, and each primary whose path
    * reaches satellites, as display reads them. A satellite needs an image,
@@ -32774,25 +33517,26 @@
     };
     // Display shows the satellites of each unit, and the primary of a unit
     // only where its path reaches satellites. Only those units get a face,
-    // so no other recipe runs.
+    // so no other recipe runs. The faces are made in display order: the
+    // tokens in order, and in each unit its satellites before, its primary,
+    // then its satellites after (engine §11.3).
     /** @type {any[]} */
-    const pending = tokens.map(token => token.node).filter(Boolean);
+    const pending = tokens.map(token => token.node).filter(Boolean).reverse();
     const seen = new Set();
     while (pending.length) {
       const node = pending.pop();
       if (seen.has(node)) continue;
       seen.add(node);
       const decorated = decoration(node, listed);
-      for (const unit of decorated ? [...decorated.before, ...decorated.after] : []) {
-        if (!FACES.has(unit)) FACES.set(unit, faceNow(unit, true));
-        pending.push(unit);
-      }
       const base = node.kind === "projection" ? node.part : node;
       const primary = base && (base.kind === "rule" || base.kind === "splice") ? base.primary : null;
-      if (primary && primary.kind !== "token" && reaches(primary, true)) {
-        if (!FACES.has(primary)) FACES.set(primary, faceNow(primary, false));
-        pending.push(primary);
-      }
+      const shown = primary && primary.kind !== "token" && reaches(primary, true) ? primary : null;
+      /** @type {[any, boolean][]} */
+      const units = [...(decorated?.before ?? []).map((/** @type {any} */ unit) => /** @type {[any, boolean]} */ ([unit, true])),
+        ...(shown ? [/** @type {[any, boolean]} */ ([shown, false])] : []),
+        ...(decorated?.after ?? []).map((/** @type {any} */ unit) => /** @type {[any, boolean]} */ ([unit, true]))];
+      for (const [unit, satellite] of units) if (!FACES.has(unit)) FACES.set(unit, faceNow(unit, satellite));
+      for (let index = units.length - 1; index >= 0; index--) pending.push(units[index][0]);
     }
   }
 
@@ -32966,7 +33710,7 @@
   // One stage of a format 50 pipeline. The format 49 recognizer finds and
   // ranks the derivations. This module builds the chosen tree of
   // occurrences, gives each rule node its bag (engine §3.7) and publishes
-  // the selected nodes as tokens (engine §5).
+  // the selected nodes as tokens (engine §11).
 
 
 
@@ -33127,6 +33871,9 @@
     return kinds;
   }
 
+  // The oracle reads the capture slots as the stage gives them.
+  setCaptureKinds(captureKinds);
+
   /**
    * Whether an alternative is one plain symbol (docs/notation.md, "Rule bags").
    * @param {any} node
@@ -33272,7 +34019,7 @@
      * @param {Token50[]} tokens
      * @param {string[]} sourceText
      * @param {any} unicode
-     * @param {{features: Set<string>, inputKeys: Set<string>}} options
+     * @param {{features: Set<string>, inputKeys: Set<string>, elisionOnly?: boolean, pendingErrors?: boolean}} options
      */
     run(tokens, sourceText, unicode, options) {
       /** @type {any} */
@@ -33324,7 +34071,7 @@
         report.readings = [ranking.first, ranking.second].map(rope => this.tree(derivationTree(/** @type {any} */ (rope)), data, context));
         report.witness = /** @type {any[]} */ (ranking.witness).map(wireAction);
         // A tie evaluates the messages and competitor evidence of the first
-        // reading and then of the second (engine §6). A message that fails
+        // reading and then of the second (engine §12.1). A message that fails
         // there is a grammar error, which keeps the verdict and the witness.
         try {
           report.readingOwn = report.readings.map((/** @type {any} */ reading) => this.diagnostics(reading, data));
@@ -33367,9 +34114,12 @@
         // (engine §11.4, rule 4).
         this.assignDiagnostics(report, root, data);
       }
-      this.elisionOnly(report, derivation, root, context, lowered, options);
+      // The check of elision-only runs only where no error counts at the
+      // stage: no own error, and no error that the input carries (engine §7.1).
+      const ownErrors = (own ?? []).some((/** @type {any} */ item) => item.kind === "errors");
+      this.elisionOnly(report, derivation, root, context, lowered, { ...options, pendingErrors: options.pendingErrors || ownErrors });
       // A test can check the chosen tree on the real bags (oracle.js).
-      if (hooks.oracle50) hooks.oracle50(checkChosenTree(root, derivation, made, data, this.name));
+      if (hooks.oracle50) hooks.oracle50(checkChosenTree(root, data, this.name, this));
       return report;
     }
 
@@ -33485,7 +34235,7 @@
     }
 
     /**
-     * The messages of the chosen tree (engine §6): each %error, and each
+     * The messages of the chosen tree (engine §12.1): each %error, and each
      * %warning whose code is on and not suppressed, in preorder. Erased
      * subtrees evaluate no message.
      * @param {any} root
@@ -33495,7 +34245,7 @@
       const found = [];
       // The recognizer of format 49 ranks a later stage by the fixed charge of
       // each report that its tokens carry, and tells reports apart by identity.
-      // Occurrences are numbered in preorder, erased ones too (engine §6).
+      // Occurrences are numbered in preorder, erased ones too (engine §12).
       const measures = data.context ? new Measures(data.context.tokens, data.context.sources) : null;
       const identityScope = {};
       let ordinal = 0;
@@ -33530,7 +34280,7 @@
     }
 
     /**
-     * Competitor rejection evidence (engine §6, as in format 49): an error
+     * Competitor rejection evidence (engine §12.1, as in format 49): an error
      * whose rule is itself one ranked option gets the expected terminals of
      * the other options of its definition, up to the end of the error.
      * @param {any[]} found
@@ -33563,7 +34313,7 @@
     }
 
     /**
-     * Gives each report an owner among the output tokens (engine §6). The
+     * Gives each report an owner among the output tokens (engine §11.4). The
      * support of a node is the set of live input leaves under it.
      *
      * 1. The first token whose support meets the support of the report.
@@ -33780,13 +34530,26 @@
       const grammar = data.grammar;
       const instance = grammar?.instances?.find((/** @type {any} */ item) => (item.name ?? item.canonical) === production.lhs);
       if (!instance) return undefined;
+      // The alternative of the template is that of the same statement, at
+      // the same index in it. A template can have several statements: its
+      // definition and its extensions.
+      if (!source?.document || !source.at) return undefined;
       const rule = grammar.rules.get(production.lhs);
-      const index = rule ? rule.alternatives.indexOf(source) : -1;
-      const template = this.origins.get(`template:${instance.call.call}#${index}`);
+      const same = rule ? rule.alternatives.filter((/** @type {any} */ item) => item.document === source.document &&
+        item.at.line === source.at.line && item.at.column === source.at.column) : [];
+      const index = same.indexOf(source);
+      const template = index < 0 ? undefined : this.origins.get(`template:${alternativeKey(source.document, [source.at.line, source.at.column], index)}`);
       if (!template) return undefined;
+      // The arguments are those of the written call, in format 50. A call
+      // inside a template forwards a parameter of that template, which only
+      // the expanded call of the recognizer resolves.
+      const at = Array.isArray(instance.origin?.at) ? instance.origin.at : [instance.origin?.at?.line, instance.origin?.at?.column];
+      const written = this.origins.get(`call:${instance.origin?.document}#${at[0]}:${at[1]}`)?.args;
+      const args = instance.call.args.map((/** @type {any} */ arg, /** @type {number} */ position) =>
+        written?.[position] !== undefined && !JSON.stringify(written[position]).includes('"param"') ? written[position] : arg);
       const env = new Map(template.rule.params.map((/** @type {any} */ param, /** @type {any} */ position) => {
-        const arg = instance.call.args[position];
-        return [param, argumentExpression(arg)];
+        const arg = args[position];
+        return [param, expressionOfArgument(arg)];
       }));
       // An argument stands in an expression as its expression, and in a body
       // as its body form: a rule or a terminal as a reference, a group or ε
@@ -33811,7 +34574,7 @@
         if (node.param !== undefined && env.has(node.param)) return argumentBody(bodyArgs.get(node.param));
         return Object.fromEntries(Object.entries(node).map(/** @returns {any} */ ([key, value]) => [key, BODY_FIELDS.has(key) ? bodySubstitute(value) : substitute(value)]));
       };
-      const bodyArgs = new Map(template.rule.params.map((/** @type {any} */ param, /** @type {any} */ position) => [param, instance.call.args[position]]));
+      const bodyArgs = new Map(template.rule.params.map((/** @type {any} */ param, /** @type {any} */ position) => [param, args[position]]));
       /** @param {any} rule */
       const inRule = rule => ({ ...substitute(rule), alternatives: rule.alternatives.map(inAlternative) });
       /** @param {any} alternative */
@@ -34052,14 +34815,19 @@
        */
       const emitted = (node, published = true) => {
         const emit = node.origin.rule.emit;
+        // A unit that no output token holds, such as a unit of a satellite
+        // branch, needs only its place. Its face reads its image and classes.
+        /** @param {any} occurrence @param {any} place @param {any} [by] */
+        const made = (occurrence, place, by) => published ? this.token(occurrence, place, data, mask, by)
+          : { span: occurrence.span, source: occurrence.source };
         if (!emit.items.length) {
-          if (node.kind !== "splice") return [{ node, token: this.token(node, node, data, mask) }];
+          if (node.kind !== "splice") return [{ node, token: made(node, node) }];
           // A splice has no node to publish, so bare emission makes one at
           // the place of the call, with the whole bag of the call.
           const projection = new Occurrence("projection", { producer: node, part: node, item: 0, span: node.span, source: node.source });
           projection.makeBag = () => node.bag();
           synthetic.push(projection);
-          return [{ node: projection, token: this.token(projection, node, data, mask) }];
+          return [{ node: projection, token: made(projection, node) }];
         }
         const list = [];
         const scope = { node, captures: present(node.captures), declared: new Set(node.captures.keys()), items: [], names: new Map(), document: node.origin.document };
@@ -34092,7 +34860,7 @@
             return data.evaluator.bag(item.term.bag, scope, bag);
           };
           synthetic.push(projection);
-          list.push({ node: projection, token: this.token(projection, part, data, mask) });
+          list.push({ node: projection, token: made(projection, part) });
         });
         // An insertion stands at the start of the first token that the items
         // after it hand on, or at the end of the node.
@@ -34107,7 +34875,7 @@
             const source = anchor ? [point, point] : (node.span[1] > node.span[0] ? [data.tokens[node.span[1] - 1].source[1], data.tokens[node.span[1] - 1].source[1]] : [point, point]);
             inserted.span = [at, at];
             inserted.source = source;
-            list[index] = { node: inserted, token: this.token(inserted, inserted, data, mask, node.rule) };
+            list[index] = { node: inserted, token: made(inserted, inserted, node.rule) };
           } else anchor = entry.token;
         }
         return list;
@@ -34275,6 +35043,17 @@
 
   // The fields of a body record that hold bodies.
   const BODY_FIELDS = new Set(["seq", "choice", "ranked", "and", "expr", "primary", "optional", "repeat", "separator"]);
+
+  /**
+   * The expression that a template argument gives in an expression position.
+   * A format 50 argument holds its expression or its string literal.
+   * @param {any} arg
+   */
+  function expressionOfArgument(arg) {
+    if (arg && typeof arg === "object" && arg.expression !== undefined) return arg.expression;
+    if (arg && typeof arg === "object" && arg.literal !== undefined && Object.keys(arg).every(key => key === "literal" || key === "at")) return arg.literal;
+    return argumentExpression(arg);
+  }
 
   /**
    * The body form of a template argument.
@@ -34450,7 +35229,7 @@
   }
 
   /**
-   * The support of each node of a tree (engine §6): its live input leaves,
+   * The support of each node of a tree (engine §11.4): its live input leaves,
    * as sorted disjoint ranges. An erased subtree has none. The walk keeps
    * its own stack, since a tree can be as deep as its text.
    * @param {any} root
@@ -36194,12 +36973,19 @@
         if (rule.instance) continue;
         const statementKinds = new Map();
         const statementRules = new Map();
+        /** @type {Set<string>} */
+        const mixed = new Set();
         for (const alternative of rule.alternatives) {
           for (const [name, kind] of captureKinds(alternative.expr)) {
+            if (statementKinds.has(name) && statementKinds.get(name) !== kind) mixed.add(name);
             statementKinds.set(name, statementKinds.has(name) && statementKinds.get(name) === "one" || kind === "one" ? "one" : "list");
           }
           captureRuleSets(alternative.expr, statementRules);
         }
+        // A read in a shared clause must fit every alternative. Where one
+        // alternative binds a name as one node and another as a list, only
+        // its presence fits both.
+        if (mixed.size) for (const clause of [...rule.conditions, ...(rule.term ? [rule.term] : [])]) mixedReads(clause, mixed, document);
         const shared = { captures: statementKinds, captureRules: statementRules, document };
         for (const condition of rule.conditions) this.walk(condition, shared, document, deferred, true);
         for (const term of [rule.term, ...rule.alternatives.map((/** @type {any} */ alternative) => alternative.term)]) if (term) ownBagReads(term, document);
@@ -36235,7 +37021,8 @@
         const value = version.record.value;
         const body = value.lambda !== undefined ? value.body : value;
         this.provenance(body, version.document);
-        const own = (body?.bag ?? []).find((/** @type {any} */ entry) => this.fromPermission({ bag: [entry] }));
+        const own = (body?.bag ?? []).find((/** @type {any} */ entry) => entry.kind === "bare" && entry.key.startsWith("_") ||
+          entry.kind === "write" && entry.keys.some((/** @type {string} */ key) => key.startsWith("_")));
         if (own) throw located(`a constructor cannot write the engine key ${own.key ?? own.keys.find((/** @type {string} */ key) => key.startsWith("_"))}`, version.document, own.at);
       }
       this.instances(rules, deferred);
@@ -36383,7 +37170,7 @@
         // A splice adds its called rule's value.
         if (node.splice) return symbolPasses(node.splice);
         if (node.seq || node.choice || node.and || node.ranked) return (node.seq ?? node.choice ?? node.and ?? node.ranked).every(symbolPasses);
-        if (node.optional) return (!node.elidable || !node.default || node.default.string === "") && symbolPasses(node.optional);
+        if (node.optional) return (!node.elidable || !elidableDefault(node)) && symbolPasses(node.optional);
         if (node.repeat) return symbolPasses(node.repeat) && symbolPasses(node.separator);
         return false;
       };
@@ -36400,7 +37187,8 @@
         let writer = null;
         for (const term of terms) for (const entry of term.bag) {
           if (entry.kind === "write" && entry.keys.includes("value") || entry.kind === "delete" && entry.key === "value" ||
-              entry.kind === "splat" && splatMayWriteValue(entry.value) || entry.kind === "copy" && entry.key === "value") writer = entry;
+              entry.kind === "splat" && splatMayWriteValue(entry.value, (/** @type {string} */ name) => this.constantValue(name)?.record.value) ||
+              entry.kind === "copy" && entry.key === "value") writer = entry;
         }
         // An erased rule has the empty string as its value, which is not the
         // join of a consuming window, whatever its terms write.
@@ -36413,9 +37201,7 @@
         if (body.primary) return symbolPasses(body.primary);
         if (body.seq?.some((/** @type {any} */ item) => item.primary || hasPrimary(item))) return false;
         const compound = isCompoundCapture50(alternative.expr);
-        if (!compound && !terms.length && (body.ref !== undefined || body.literal || body.range || body.wildcard || body.test !== undefined || body.capture !== undefined || body.choice || body.splice)) {
-          return symbolPasses(body);
-        }
+        if (!compound && !terms.length && plainSymbol(body)) return symbolPasses(body);
         return joinsInput || joinsChildren && symbolPasses(body);
       };
       const reasons = new Map();
@@ -36448,11 +37234,16 @@
       }
       // The calls of each template in the bodies of the stage, for a read of
       // a capture of a parameter: it reads the actual of each call.
-      /** @type {Map<string, any[]>} */
+      /** @type {Map<string, {call: any, template: string | undefined}[]>} */
       const calls = new Map();
       for (const { rule } of rules) {
+        // A call stands in a body, an instance binding, a condition, a term,
+        // a message or an emission item. A call inside a template can pass
+        // a parameter of that template on.
+        const enclosing = rule.params ? rule.name : undefined;
         /** @type {any[]} */
-        const pending = [rule.alternatives?.map((/** @type {any} */ alternative) => alternative.expr), rule.instance];
+        const pending = [rule.alternatives?.map((/** @type {any} */ alternative) => [alternative.expr, alternative.term]), rule.instance,
+          rule.conditions, rule.term, rule.error, rule.warning, rule.emit];
         while (pending.length) {
           const node = pending.pop();
           if (!node || typeof node !== "object") continue;
@@ -36462,7 +37253,7 @@
           }
           if (typeof node.call === "string" && Array.isArray(node.args)) {
             if (!calls.has(node.call)) calls.set(node.call, []);
-            calls.get(node.call)?.push(node);
+            calls.get(node.call)?.push({ call: node, template: enclosing });
           }
           for (const [field, value] of Object.entries(node)) if (field !== "at" && value && typeof value === "object") pending.push(value);
         }
@@ -36474,7 +37265,7 @@
        * @param {string | undefined} template the template whose parameters the read names
        * @returns {string | null}
        */
-      const proof = (target, template) => {
+      const proof = (target, template, seen = new Set()) => {
         if (target.leaf || target.ref !== undefined && /^[A-Z_]/.test(target.ref)) return null;
         if (target.unknown) return "the capture binds a form that has no certificate";
         if (target.ref !== undefined) {
@@ -36487,9 +37278,11 @@
           const params = template ? templates.get(template)?.params ?? [] : [];
           const index = params.indexOf(target.param);
           if (index < 0) return null;
-          for (const call of calls.get(/** @type {string} */ (template)) ?? []) {
+          const key = `${template}@${target.param}`;
+          if (seen.has(key)) return null;
+          for (const { call, template: enclosing } of calls.get(/** @type {string} */ (template)) ?? []) {
             const actual = actualBody(call.args[index]);
-            const failed = actual && proof(actual, undefined);
+            const failed = actual && proof(actual, enclosing, new Set([...seen, key]));
             if (failed) return `the actual of @${target.param} in a call of ${template}: ${failed}`;
           }
           return null;
@@ -36625,13 +37418,35 @@
         for (const item of rule.emit?.items ?? []) terms.push(item.term);
       }
       for (const version of this.constants.get("DEFAULTS") ?? []) if (version.record.value.body?.bag) terms.push(version.record.value.body);
-      for (const term of terms.filter(Boolean)) {
-        for (const entry of term.bag) {
+      // A splat of a bag or a constant gives the keys of its entries. A node
+      // gives keys that its own terms and the input already give.
+      /** @param {any} bag @param {Set<any>} active */
+      const entries = (bag, active) => {
+        for (const entry of bag) {
           if (entry.kind === "bare") add(entry.key, "bare");
           if (entry.kind === "write") for (const key of entry.keys) add(key, "valued");
           if (entry.kind === "copy") for (const value of input?.get(entry.key) ?? ["valued"]) add(entry.key, value);
+          if (entry.kind === "splat") splatted(entry.value, active);
         }
-      }
+      };
+      /** @param {any} value @param {Set<any>} active */
+      const splatted = (value, active) => {
+        if (value?.bag) return entries(value.bag, active);
+        if (value?.const !== undefined && value.const !== "INPUTS" && !active.has(value.const)) {
+          for (const version of this.constants.get(value.const) ?? []) {
+            const record = version.record.value;
+            splatted(record.lambda !== undefined ? record.body : record, new Set([...active, value.const]));
+          }
+        }
+        if (value?.apply !== undefined && !active.has(value.apply)) {
+          for (const version of this.constants.get(value.apply) ?? []) splatted(version.record.value.body, new Set([...active, value.apply]));
+        }
+        if (value?.if !== undefined) {
+          splatted(value.then, active);
+          splatted(value.else, active);
+        }
+      };
+      for (const term of terms.filter(Boolean)) entries(term.bag, new Set());
       return states;
     }
 
@@ -36769,8 +37584,11 @@
      */
     defaultsWrites() {
       const value = this.constantValue("DEFAULTS")?.record.value;
-      const bag = value?.lambda !== undefined ? value.body?.bag : undefined;
-      if (!bag) return null;
+      if (!value) return null;
+      const bag = value.lambda !== undefined ? value.body?.bag : undefined;
+      // Defaults of another form, such as an alias, a call or a conditional,
+      // can write any key, so every key counts as written.
+      if (!bag) return { written: new Set(), open: true };
       /** @type {Set<string>} */
       const written = new Set();
       let open = false;
@@ -36790,8 +37608,7 @@
     defaultsJoinInput() {
       const value = this.constantValue("DEFAULTS")?.record.value;
       if (!value || value.lambda === undefined || !value.body?.bag) return false;
-      let writer = null;
-      for (const entry of value.body.bag) if (entry.kind === "write" && entry.keys.includes("value") || entry.kind === "splat") writer = entry;
+      const writer = lastValueWriter(value.body.bag);
       const join = writer?.value;
       return writer?.kind === "write" && !writer.guard && !writer.gates.length && join?.method === "join" && !join.args.length &&
         join.receiver?.map?.method === "tokens" && join.receiver.by?.property === "value" &&
@@ -36802,10 +37619,9 @@
       const version = this.constantValue("DEFAULTS");
       const value = version?.record.value;
       if (!value || value.lambda === undefined || !value.body?.bag) return false;
-      let writer = null;
-      for (const entry of value.body.bag) if (entry.kind === "write" && entry.keys.includes("value") || entry.kind === "splat") writer = entry;
+      const writer = lastValueWriter(value.body.bag);
       const join = writer?.value;
-      return writer?.kind === "write" && !writer.guard && join?.method === "join" && !join.args.length &&
+      return writer?.kind === "write" && !writer.guard && !writer.gates.length && join?.method === "join" && !join.args.length &&
         join.receiver?.map?.method === "children" && join.receiver.map.receiver?.capture === value.lambda &&
         join.receiver.by?.property === "value";
     }
@@ -36869,6 +37685,7 @@
      */
     nodeBag(term, document) {
       this.provenance(term, document);
+      for (const entry of term.bag) if (entry.guard) neighborGuard(entry.guard, document);
       for (const entry of term.bag) {
         const keys = entry.kind === "write" ? entry.keys : entry.kind === "bare" ? [entry.key] : [];
         for (const key of keys) {
@@ -36905,9 +37722,13 @@
     }
 
     /**
-     * Whether a value takes its entries from a permission set: $INPUTS, a bag
-     * that names an engine key, or a constant, a function or a selection whose
-     * entries come from one.
+     * Whether a value can carry an engine membership that no node gives: the
+     * permission set $INPUTS, or a value that names an engine key. A value is
+     * safe in two ways only. A node gives its keys, as a capture, the item of
+     * a predicate, and the key sets and selections of these. Or the value
+     * provably holds no engine key: strings, numbers, and bags, lists and key
+     * sets whose written keys are ordinary. Every other form counts as
+     * permission, so a new form is refused until it is proven safe.
      * @param {any} node
      * @param {Set<any>} [active] the constant versions being followed
      * @returns {boolean}
@@ -36915,30 +37736,48 @@
     fromPermission(node, active = new Set()) {
       if (!node || typeof node !== "object") return false;
       if (Array.isArray(node)) return node.some(item => this.fromPermission(item, active));
+      if (fromNode(node)) return false;
+      if (node.string !== undefined || node.integer !== undefined || node.number !== undefined || node.concat !== undefined) return false;
+      // A parameter stands for an argument, which the check of each instance
+      // judges in the substituted term.
+      if (node.param !== undefined) return false;
       if (node.const === "INPUTS") return true;
       if (node.const !== undefined || node.apply !== undefined) {
         const name = node.const ?? node.apply;
-        for (const version of this.constants.get(name) ?? []) {
+        const versions = this.constants.get(name);
+        if (!versions) return true;
+        for (const version of versions) {
           if (active.has(version)) continue;
           const value = version.record.value;
           if (this.fromPermission(value.lambda !== undefined ? value.body : value, new Set([...active, version]))) return true;
         }
-        return node.apply !== undefined && this.fromPermission(node.arg, active);
+        return node.apply !== undefined && this.fromPermission(node.arg ?? node.args, active);
       }
-      // A capture, a span and the item of a predicate read a node, which is
-      // evidence. Their key sets are too.
-      if (node.capture !== undefined || node.item) return false;
-      // A selection takes the entries of its receiver, and a key set of a
-      // value takes its names.
-      if (node.method === "select" || node.method === "keys" || node.method === "flags" || node.method === "classes") return this.fromPermission(node.receiver, active);
-      if (node.method !== undefined) return false;
-      // An intersection holds only names that each operand holds.
+      if (node.lambda !== undefined) return this.fromPermission(node.body, active);
+      // A selection keeps the entries of its receiver, and a key set, a
+      // classification or a union of a list keeps the names of its receiver.
+      // A property keeps what its receiver holds.
+      if (["select", "keys", "flags", "classes", "classify", "union"].includes(node.method) || node.property !== undefined) {
+        return this.fromPermission(node.receiver, active);
+      }
+      if (node.method !== undefined) return true;
+      // An intersection holds only names that each operand holds, and a
+      // difference only names of its first operand.
       if (Array.isArray(node.intersection)) return node.intersection.every((/** @type {any} */ item) => this.fromPermission(item, active));
       if (Array.isArray(node.difference)) return this.fromPermission(node.difference[0], active);
+      if (Array.isArray(node.union)) return node.union.some((/** @type {any} */ item) => this.fromPermission(item, active));
+      if (node.if !== undefined) return this.fromPermission(node.then, active) || this.fromPermission(node.else, active);
+      if (Array.isArray(node.list)) return node.list.some((/** @type {any} */ item) => this.fromPermission(item.value ?? item, active));
       if (node.bag) return node.bag.some((/** @type {any} */ entry) => (entry.kind === "splat" && this.fromPermission(entry.value, active)) ||
-        (entry.kind === "copy" && this.fromPermission(entry.source, active)) ||
-        (entry.kind === "bare" && entry.key.startsWith("_")) || (entry.kind === "write" && entry.keys.some((/** @type {string} */ key) => key.startsWith("_"))));
-      return ["union", "if", "then", "else", "list"].some(key => this.fromPermission(node[key], active));
+        (entry.kind === "copy" && entry.key.startsWith("_") && this.fromPermission(entry.source, active)) ||
+        (entry.kind === "bare" && entry.key.startsWith("_")) ||
+        (entry.kind === "write" && (entry.keys.some((/** @type {string} */ key) => key.startsWith("_")) ||
+          // A payload that is itself a bag or a key set can carry engine keys
+          // that a property read takes out.
+          bagLike(entry.value) && this.fromPermission(entry.value, active))));
+      if (node.tag !== undefined) return node.tag.startsWith("_");
+      if (node.emptySet) return false;
+      return true;
     }
 
     // A constant reads the final version of another constant, and the
@@ -37028,12 +37867,154 @@
     }
   }
 
+  /**
+   * Refuses a read of a capture that the alternatives bind as one node and as
+   * a list, other than its presence: the name in a truth position, or the
+   * receiver of .present or .absent.
+   * @param {any} clause
+   * @param {Set<string>} mixed
+   * @param {any} document
+   */
+  function mixedReads(clause, mixed, document) {
+    /** @type {[any, boolean][]} */
+    const pending = [[clause, true]];
+    while (pending.length) {
+      const [node, truth] = /** @type {[any, boolean]} */ (pending.pop());
+      if (!node || typeof node !== "object") continue;
+      if (Array.isArray(node)) {
+        for (const item of node) pending.push([item, false]);
+        continue;
+      }
+      if (node.lambda !== undefined && mixed.has(node.lambda)) continue;
+      if (typeof node.capture === "string" && mixed.has(node.capture) && !truth) {
+        throw located("the alternatives bind $" + node.capture + " as one node and as a list, so a shared clause can test only its presence", document, node.at ?? clause.at);
+      }
+      if ((node.method === "present" || node.method === "absent") && node.receiver?.capture !== undefined && mixed.has(node.receiver.capture)) continue;
+      if (node.not !== undefined) pending.push([node.not, truth]);
+      else if (Array.isArray(node.all) || Array.isArray(node.any)) for (const item of node.all ?? node.any) pending.push([item, truth]);
+      else if (node.if !== undefined) {
+        pending.push([node.if, truth]);
+        pending.push([node.then, truth]);
+        if (node.else !== undefined) pending.push([node.else, truth]);
+      } else {
+        for (const [key, value] of Object.entries(node)) if (key !== "at" && value && typeof value === "object") pending.push([value, false]);
+      }
+    }
+  }
+
+  /**
+   * Whether an elidable optional gives its omitted leaf a value: a written
+   * nonempty default, or a positive value test on its head.
+   * @param {any} node
+   */
+  function elidableDefault(node) {
+    if (node.default !== undefined) return node.default.string !== "";
+    let head = node.optional;
+    while (head?.seq) head = head.seq[0];
+    while (head && (head.capture !== undefined && head.expr || head.primary)) head = head.expr ?? head.primary;
+    for (let test = head; test?.test !== undefined; test = test.expr) {
+      if (test.test === "=" && test.value?.string !== "") return true;
+    }
+    return false;
+  }
+
+  /**
+   * Whether a body is one plain symbol, or a choice of plain symbols, whose
+   * one child gives its bag (docs/notation.md, "Rule bags").
+   * @param {any} node
+   * @returns {boolean}
+   */
+  function plainSymbol(node) {
+    if (node.capture !== undefined && node.expr) return plainSymbol(node.expr);
+    if (node.test !== undefined) return plainSymbol(node.expr);
+    if (node.choice) return node.choice.every(plainSymbol);
+    return node.ref !== undefined || node.literal !== undefined || Boolean(node.range) || Boolean(node.wildcard) ||
+      Boolean(node.splice) || node.call !== undefined;
+  }
+
+  /**
+   * The last entry of a bag that can change the key value: a write, a
+   * deletion, a copy or a splat.
+   * @param {any[]} bag
+   */
+  function lastValueWriter(bag) {
+    let writer = null;
+    for (const entry of bag) {
+      if (entry.kind === "write" && entry.keys.includes("value") || entry.kind === "delete" && entry.key === "value" ||
+          entry.kind === "copy" && entry.key === "value" || entry.kind === "splat") writer = entry;
+    }
+    return writer;
+  }
+
+  /**
+   * Whether a payload is a bag, a key set or a list, which can hold keys.
+   * @param {any} value
+   */
+  function bagLike(value) {
+    return Boolean(value && typeof value === "object" && (value.bag || value.const !== undefined || value.union || value.list ||
+      value.tag !== undefined || value.intersection || value.difference || value.apply !== undefined));
+  }
+
+  /**
+   * Whether a value takes its keys from a node: a capture, $, the item of a
+   * predicate, or a key set or a selection of one of these.
+   * @param {any} node
+   * @returns {boolean}
+   */
+  function fromNode(node) {
+    if (!node || typeof node !== "object") return false;
+    if (node.capture !== undefined || node.item) return true;
+    // The roots of a forest are nodes that recognition makes from the input.
+    if (node.method === "parse" || node.method === "error-free") return true;
+    // A list of nodes, mapped to their key sets, and the union of such a list.
+    // The mapped expression reads the item without a receiver.
+    if (node.map !== undefined) {
+      const by = node.by;
+      return fromNode(node.map) && (by === undefined || by.item === true || fromNode(by) ||
+        by.receiver === undefined && ["select", "keys", "flags", "classes", "tags"].includes(by.method));
+    }
+    // A span of a node, a token of it, and a property of a node.
+    if (["span", "first-token", "last-token", "tokens-after-first", "onward", "following-tokens", "preceding-tokens"].includes(node.method)) return fromNode(node.receiver);
+    if (node.property !== undefined) return fromNode(node.receiver);
+    if (["select", "keys", "flags", "classes", "tags", "union"].includes(node.method)) return fromNode(node.receiver);
+    return false;
+  }
+
+  /** The boundary methods of a neighbor guard. */
+  const BOUNDARY = new Set(["followed-by", "preceded-by"]);
+
+  /**
+   * Checks the form of a guard of a rule term that tests a neighbor: one
+   * boundary atom on $, with optional negation (docs/engine.md, "Neighbor
+   * guards").
+   * @param {any} guard
+   * @param {any} document
+   */
+  function neighborGuard(guard, document) {
+    /** @param {any} node @returns {boolean} */
+    const mentions = node => !!node && typeof node === "object" &&
+      (BOUNDARY.has(node.method) || Object.values(node).some(value => value && typeof value === "object" && mentions(value)));
+    if (!mentions(guard)) return;
+    const atom = guard.not ?? guard;
+    if (BOUNDARY.has(atom.method)) {
+      if (atom.receiver?.capture !== "") throw located("a neighbor guard in a term tests $ itself", document, atom.at ?? guard.at);
+      return;
+    }
+    throw located("a neighbor guard in a term uses one boundary atom on $, with optional negation", document, atom.at ?? guard.at);
+  }
+
   // Whether a splat can give the key value: a key set never does.
   /** @param {any} node */
-  function splatMayWriteValue(node) {
-    if (node.bag) return node.bag.some((/** @type {any} */ entry) => entry.kind === "splat" ? splatMayWriteValue(entry.value) :
+  function splatMayWriteValue(node, constant = (/** @type {string} */ name) => /** @type {any} */ (undefined)) {
+    if (node.bag) return node.bag.some((/** @type {any} */ entry) => entry.kind === "splat" ? splatMayWriteValue(entry.value, constant) :
       (entry.keys ?? [entry.key]).includes("value"));
-    if (["flags", "keys", "classes", "select", "classify", "union"].includes(node.method)) return node.method === "select";
+    // A classification gives the keys of its classifier whose lists hold the
+    // string. A classifier with the key value writes it.
+    if (node.method === "classify") {
+      const classifier = node.receiver?.const !== undefined ? constant(node.receiver.const) : undefined;
+      return !classifier?.bag || classifier.bag.some((/** @type {any} */ entry) => (entry.keys ?? [entry.key]).includes("value"));
+    }
+    if (["flags", "keys", "classes", "select", "union"].includes(node.method)) return node.method === "select";
     if (node.intersection || node.union || node.difference) return false;
     return true;
   }
@@ -37327,20 +38308,30 @@
   function emissionCovers(rules) {
     /** @type {Map<string, any[]>} */
     const byName = new Map();
+    // An instance binding, as %rule a = t("a"), names the template whose
+    // alternatives its rule has.
+    /** @type {Map<string, string>} */
+    const instanceOf = new Map();
     for (const { rule } of rules) {
-      if (rule.instance || !rule.alternatives?.length) continue;
+      if (rule.instance) {
+        instanceOf.set(rule.name, rule.instance.call);
+        continue;
+      }
+      if (!rule.alternatives?.length) continue;
       if (!byName.has(rule.name)) byName.set(rule.name, []);
       byName.get(rule.name)?.push(rule);
     }
     /** @type {Set<string>} */
     const consuming = new Set();
+    /** @param {string} name */
+    const consumingName = name => consuming.has(name) || consuming.has(instanceOf.get(name) ?? "");
     /** @param {any} node @returns {boolean} */
     const consumes = node => {
       if (!node || typeof node !== "object") return false;
       if (Array.isArray(node)) return node.some(consumes);
       if (node.literal !== undefined || node.range !== undefined || node.wildcard !== undefined || node.remainder) return true;
       if (node.empty) return false;
-      if (node.ref !== undefined) return /^[A-Z_]/.test(node.ref) || consuming.has(node.ref);
+      if (node.ref !== undefined) return /^[A-Z_]/.test(node.ref) || consumingName(node.ref);
       if (node.call !== undefined) return consuming.has(node.call);
       if (node.param !== undefined) return true;
       if (node.splice !== undefined) return consumes(node.splice.ref !== undefined || node.splice.call !== undefined ? node.splice : node.splice.target ?? node.splice);
@@ -37364,7 +38355,7 @@
       if (!node || typeof node !== "object") return false;
       if (Array.isArray(node)) return node.some(hands);
       const name = node.ref ?? node.call;
-      if (typeof name === "string") return handing.has(name);
+      if (typeof name === "string") return handing.has(name) || handing.has(instanceOf.get(name) ?? "");
       if (node.param !== undefined) return true;
       return ["seq", "choice", "ranked", "and", "expr", "primary", "optional", "repeat", "separator", "splice"].some(key => hands(node[key]));
     };
@@ -37382,30 +38373,82 @@
       const items = rule.emit?.items ?? [];
       if (rule.instance || items.length < 2) continue;
       for (const alternative of rule.alternatives ?? []) {
-        const layout = coverLayout(alternative.expr);
-        /** @type {{item: any, whole: boolean, place?: any}[]} */
-        const covers = [];
-        for (const item of items) {
-          if (item.insert || item.guard || item.gates?.length) continue;
-          if (item.capture === "") {
-            if (item.term !== undefined && consumes(alternative.expr)) covers.push({ item, whole: true });
-            continue;
+        // Each route through the choices of the body has its own order of
+        // parts. Past a bound on the routes, one layout of all the choices,
+        // with its routes as paths, stands for them.
+        const routes = bodyRoutes(alternative.expr);
+        for (const route of routes ?? [alternative.expr]) {
+          const layout = coverLayout(route);
+          /** @type {{item: any, whole: boolean, place?: any}[]} */
+          const covers = [];
+          for (const item of items) {
+            if (item.insert || item.guard || item.gates?.length) continue;
+            if (item.capture === "") {
+              if (item.term !== undefined && consumes(route)) covers.push({ item, whole: true });
+              continue;
+            }
+            const place = layout.get(item.capture);
+            if (!place) continue;
+            if (item.term !== undefined ? consumes(place.node.expr) : hands(place.node.expr)) covers.push({ item, whole: false, place });
           }
-          const place = layout.get(item.capture);
-          if (!place) continue;
-          if (item.term !== undefined ? consumes(place.node.expr) : hands(place.node.expr)) covers.push({ item, whole: false, place });
-        }
-        for (let right = 1; right < covers.length; right++) {
-          for (let left = 0; left < right; left++) {
-            const a = covers[left], b = covers[right];
-            const nested = a.whole || b.whole || a.place === b.place || a.place.inside.has(b.item.capture) || b.place.inside.has(a.item.capture);
-            const exclusive = !nested && exclusiveRoutes(a.place.path, b.place.path);
-            if (nested && !exclusive) throw located(`the emission of ${rule.name} covers input that another of its items covers`, document, b.item.at);
-            if (!exclusive && a.place.order > b.place.order) throw located(`the emission of ${rule.name} lists its covers out of the input order of their parts`, document, b.item.at);
+          for (let right = 1; right < covers.length; right++) {
+            for (let left = 0; left < right; left++) {
+              const a = covers[left], b = covers[right];
+              const nested = a.whole || b.whole || a.place === b.place || a.place.inside.has(b.item.capture) || b.place.inside.has(a.item.capture);
+              const exclusive = !nested && exclusiveRoutes(a.place.path, b.place.path);
+              if (nested && !exclusive) throw located(`the emission of ${rule.name} covers input that another of its items covers`, document, b.item.at);
+              if (!exclusive && a.place.order > b.place.order) throw located(`the emission of ${rule.name} lists its covers out of the input order of their parts`, document, b.item.at);
+            }
           }
         }
       }
     }
+  }
+
+  /**
+   * The routes of a body through its unranked and ranked choices: copies of
+   * the body with each choice replaced by one branch. Null past 256 routes.
+   * @param {any} body
+   * @returns {any[] | null}
+   */
+  function bodyRoutes(body) {
+    const LIMIT = 256;
+    /** @param {any} node @returns {any[] | null} */
+    const routes = node => {
+      if (!node || typeof node !== "object") return [node];
+      if (Array.isArray(node)) {
+        /** @type {any[][]} */
+        let product = [[]];
+        for (const item of node) {
+          const options = routes(item);
+          if (options === null) return null;
+          product = product.flatMap(left => options.map(right => [...left, right]));
+          if (product.length > LIMIT) return null;
+        }
+        return product;
+      }
+      const choices = node.choice ?? node.ranked;
+      if (Array.isArray(choices)) {
+        const all = [];
+        for (const choice of choices) {
+          const options = routes(choice);
+          if (options === null) return null;
+          for (const option of options) all.push(option);
+          if (all.length > LIMIT) return null;
+        }
+        return all;
+      }
+      let product = [{ ...node }];
+      for (const key of ["seq", "and", "expr", "primary", "optional", "repeat", "separator"]) {
+        if (node[key] === undefined) continue;
+        const options = routes(node[key]);
+        if (options === null) return null;
+        product = product.flatMap(left => options.map(right => ({ ...left, [key]: right })));
+        if (product.length > LIMIT) return null;
+      }
+      return product;
+    };
+    return routes(body);
   }
 
   /**
@@ -37470,6 +38513,9 @@
    */
   function actualBody(arg) {
     if (!arg || typeof arg !== "object") return null;
+    // A refined symbol, as t(uncert<K>), supplies the value of its symbol, and
+    // a parameter passed on stands for the actuals of its own template.
+    if (arg.test !== undefined || arg.param !== undefined) return arg;
     if (arg.rule !== undefined) return { ref: arg.rule };
     if (arg.tag !== undefined) return { ref: arg.tag };
     if (arg.body !== undefined) return arg.body;
@@ -37581,7 +38627,8 @@
     // shared renderers show attachments.
     /** @type {(node: any, image: string, tags: Set<string>, source: any) => any} */
     const shown = (node, image, tags, source) => {
-      const decorated = node ? decoration(node) : null;
+      // The satellites along the whole primary path of the unit.
+      const decorated = node ? satellitesOf(node) : null;
       const unit = (/** @type {any} */ satellite) => {
         const face = unitFace(satellite);
         return shown(satellite, face.image, new Set(face.classes), satellite.source);
@@ -37950,7 +38997,7 @@
             continue;
           }
           if (!rule.alternatives?.length) continue;
-          const origin = origins.get(rule.params ? `template:${rule.name}#0` : alternativeKey(run.path, rule.at, 0));
+          const origin = origins.get(rule.params ? `template:${alternativeKey(run.path, rule.at, 0)}` : alternativeKey(run.path, rule.at, 0));
           if (origin) written.push({ rule: origin.rule, document: run.path });
         }
         const stageConstants = new Map();
@@ -38151,7 +39198,12 @@
       for (let index = 0; index <= last; index++) {
         const stage = this.stages[index];
         const conflict = stage.declareFeatures(tokens, sourceText, features, off, inputKeys);
-        const report = conflict ?? stage.run(tokens, sourceText, unicode, { features, inputKeys, elisionOnly: options.elisionOnly });
+        // An error that the input tokens or an earlier stage carry counts at
+        // this stage too.
+        /** @type {boolean} */
+        const pendingErrors = tokens.some((/** @type {any} */ token) => token.errors?.length) || stages.some((/** @type {any} */ earlier) => earlier.errors?.length);
+        /** @type {any} */
+        const report = conflict ?? stage.run(tokens, sourceText, unicode, { features, inputKeys, elisionOnly: options.elisionOnly, pendingErrors });
         report.input = tokens;
         report.inputIndex = index - 1;
         stages.push(report);
@@ -38257,11 +39309,31 @@
     const length = [...text].length;
     return supplied.map((token, index) => {
       if (!token || typeof token !== "object") throw new GencmuError("usage", `token ${index}: invalid input token`);
-      const props = token.props ?? Object.fromEntries((token.tags ?? []).map((/** @type {any} */ tag) => [tag, true]));
+      // The rules of docs/api.md for every caller token, as both libraries
+      // apply them: strings of scalar values, valid tags, and no attachments
+      // or diagnostics of the caller's own.
+      for (const field of ["text", "value", "image"]) {
+        const value = token[field];
+        if (value === undefined && field !== "text") continue;
+        if (typeof value !== "string" || /[\uD800-\uDFFF]/u.test(value)) throw new GencmuError("usage", `token ${index}: ${field} must contain scalar values`);
+      }
+      if (token.props === undefined) {
+        const tags = token.tags ?? [];
+        if (!tags || typeof tags[Symbol.iterator] !== "function" || ![...tags].every(tag => isTag(tag, unicode))) {
+          throw new GencmuError("usage", `token ${index}: invalid tags`);
+        }
+      }
+      if ([token.before, token.after].some(list => list !== undefined && (!Array.isArray(list) || list.length > 0))) {
+        throw new GencmuError("usage", `token ${index} has attachments, which a caller cannot supply`);
+      }
+      if ([token.errors, token.warnings].some(list => list !== undefined && (!Array.isArray(list) || list.length > 0))) {
+        throw new GencmuError("usage", `token ${index} has diagnostics, which a caller cannot supply`);
+      }
+      const props = token.props ?? Object.fromEntries([...(token.tags ?? [])].map((/** @type {any} */ tag) => [tag, true]));
       const entries = [];
       for (const [key, value] of Object.entries(props)) {
         if (key === "value" || key === "image") {
-          if (typeof value !== "string") throw new GencmuError("usage", `token ${index}: ${key} must be a string`);
+          if (typeof value !== "string" || /[\uD800-\uDFFF]/u.test(value)) throw new GencmuError("usage", `token ${index}: ${key} must contain scalar values`);
           continue;
         }
         if (value !== true) throw new GencmuError("usage", `token ${index}: the key ${key} cannot carry a value`);
