@@ -33213,6 +33213,8 @@
         return target.ref !== undefined ? child.rule === target.ref : this.templateOf(child) === target.call;
       }
       if (expr.wildcard) return child.kind === "token";
+      // A string argument of an instance stands in its body as the string.
+      if (expr.string !== undefined) return child.kind === "token" && child.bag().value("value") === expr.string;
       if (expr.literal !== undefined) {
         if (child.kind !== "token") return false;
         return child.bag().value("value") === this.context.evaluator.string(expr.literal, this.scope);
@@ -37799,7 +37801,9 @@
       if (node.const !== undefined || node.apply !== undefined) {
         const name = node.const ?? node.apply;
         const versions = this.constants.get(name);
-        if (!versions) return true;
+        // A read of a constant with no definition fails the load at its own
+        // site, in written order with the other errors.
+        if (!versions) return false;
         for (const version of versions) {
           if (active.has(version)) continue;
           const value = version.record.value;
@@ -38347,6 +38351,43 @@
       for (const [key, value] of Object.entries(node)) if (key !== "at" && value && typeof value === "object") visit(value);
     };
     visit(term);
+  }
+
+  /**
+   * Each constant that a clause of a stage reads has a definition in the
+   * stage, as the loader rejects unknown names (docs/notation.md, "Constants"). The
+   * recognizer checks the clauses that it reads, when the stage builds its
+   * grammar. This check runs after that, and it also covers the clauses that
+   * only the stage evaluates, such as the items of an emission list. The
+   * first unknown read of a rule, in written order, fails.
+   * @param {{rule: any, document: string}[]} rules
+   * @param {Map<string, any>} constants the versions of each constant of the stage
+   * @param {string} stage the name of the stage
+   */
+  function undefinedConstants(rules, constants, stage) {
+    for (const { rule, document } of rules) {
+      /** @type {any[]} */
+      const unknown = [];
+      const pending = [rule.term, rule.conditions, rule.error, rule.warning, rule.emit,
+        ...(rule.alternatives ?? []).map((/** @type {any} */ alternative) => alternative.term)];
+      while (pending.length) {
+        const node = pending.pop();
+        if (!node || typeof node !== "object") continue;
+        if (Array.isArray(node)) {
+          for (const item of node) pending.push(item);
+          continue;
+        }
+        for (const field of ["const", "apply", "constant"]) {
+          const name = node[field];
+          if (typeof name === "string" && name !== "INPUTS" && !constants.has(name)) unknown.push({ name, at: node.at });
+        }
+        for (const [key, value] of Object.entries(node)) if (key !== "at" && value && typeof value === "object") pending.push(value);
+      }
+      if (!unknown.length) continue;
+      const position = (/** @type {any} */ at) => Array.isArray(at) ? at[0] * 1e6 + at[1] : Infinity;
+      unknown.sort((left, right) => position(left.at) - position(right.at));
+      throw located(`$${unknown[0].name} is not defined in stage ${stage}`, document, unknown[0].at);
+    }
   }
 
   // The methods whose arguments are no expressions: a query body, neighbor
@@ -39300,6 +39341,8 @@
         /** @param {any} runs */
         const grammar = runs => withNativeMethods(() => new Grammar(stage.name, runs, this.unicode));
         const made = new Stage50(stage.name, stage.documents, origins, constants, grammar);
+        // The reads of constants that only the stage evaluates.
+        undefinedConstants(written, constants, stage.name);
         // The covers of the emission lists, after the stitching that the
         // stage did with its first grammar.
         emissionCovers(written);
