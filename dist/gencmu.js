@@ -33468,7 +33468,9 @@
     const seen = new Set();
     for (let current = node; current && !seen.has(current); current = nextOnPath(current)) {
       seen.add(current);
-      if (current.kind === "token") continue;
+      // A projection shows the satellites of its part, which is the next
+      // node of the path.
+      if (current.kind === "token" || current.kind === "projection") continue;
       const decorated = decoration(current);
       if (!decorated) continue;
       befores.push(decorated.before);
@@ -34089,11 +34091,15 @@
       const root = this.tree(derivation, data, context);
       const made = data.made;
       report.root = root;
+      /** @type {any[]} */
+      const evaluated = [];
       let own;
       try {
-        own = this.diagnostics(root, data);
+        own = this.diagnostics(root, data, evaluated);
       } catch (error) {
         if (!(error instanceof GencmuError)) throw error;
+        // A message failure keeps the reports before it (engine §12.1).
+        report.own = evaluated;
         report.error = runtimeGrammarError(error.withLocation({ stage: undefined }), this.name);
         return report;
       }
@@ -34138,9 +34144,12 @@
       if (!on || options.pendingErrors) return;
       const elided = treeHasElided(root);
       if (!(report.verdict === "resolved" || report.verdict === "unique" && elided)) return;
+      // The check of format 49 reads the elided leaves of a tree of its own
+      // form, so it gets a view of the occurrence tree in that form.
+      const view = elisionView(root);
       let check;
       try {
-        check = Stage.prototype.elisionCheck.call(null, derivation, root, context, options.features);
+        check = Stage.prototype.elisionCheck.call(null, derivation, view, context, options.features);
       } catch (error) {
         if (!(error instanceof GencmuError)) throw error;
         report.output = null;
@@ -34152,7 +34161,7 @@
         report.error = { kind: "grammar", stage: this.name, code: "elision-witness-lost",
           message: `the ${this.name} stage could not reconstruct its chosen derivation for elision-only`, completion: check.completion };
       } else if (check.kind === "ambiguous") {
-        report.readings = check.readings.map(fromResultTree);
+        report.readings = check.readings.map((/** @type {any} */ reading) => fromResultTree(reading === view ? root : reading));
         report.error = { kind: "ambiguous", stage: this.name, reason: "elision-only",
           ...(check.witness ? { witness: check.witness.map(wireWitness) } : {}),
           message: `the ${this.name} stage's text is ambiguous with every elided terminator written out` };
@@ -34237,12 +34246,13 @@
     /**
      * The messages of the chosen tree (engine §12.1): each %error, and each
      * %warning whose code is on and not suppressed, in preorder. Erased
-     * subtrees evaluate no message.
+     * subtrees evaluate no message. Where a message fails, the found list
+     * keeps the reports before it.
      * @param {any} root
      * @param {any} data
+     * @param {any[]} [found] the list that receives the reports
      */
-    diagnostics(root, data) {
-      const found = [];
+    diagnostics(root, data, found = []) {
       // The recognizer of format 49 ranks a later stage by the fixed charge of
       // each report that its tokens carry, and tells reports apart by identity.
       // Occurrences are numbered in preorder, erased ones too (engine §12).
@@ -35081,6 +35091,40 @@
       for (const child of node.children) stack.push(child);
     }
     return false;
+  }
+
+  /**
+   * The occurrence tree in the form of a format 49 result tree, for the
+   * check of elision-only: a splice is a rule node with its children, and an
+   * elided leaf has its default as its value. It is built without recursion,
+   * as a left chain can be as deep as its text.
+   * @param {any} root
+   * @returns {any}
+   */
+  function elisionView(root) {
+    /** @type {Map<any, any>} */
+    const built = new Map();
+    /** @type {[any, boolean][]} */
+    const stack = [[root, false]];
+    while (stack.length) {
+      const [node, expanded] = /** @type {[any, boolean]} */ (stack.pop());
+      if (built.has(node)) continue;
+      if (node.kind === "elided") {
+        built.set(node, { kind: "elided", terminal: node.terminal, span: node.span, source: node.source, ...(node.default !== undefined ? { value: node.default } : {}) });
+        continue;
+      }
+      if (node.kind !== "rule" && node.kind !== "splice") {
+        built.set(node, node);
+        continue;
+      }
+      if (!expanded) {
+        stack.push([node, true]);
+        for (let index = node.children.length - 1; index >= 0; index--) stack.push([node.children[index], false]);
+        continue;
+      }
+      built.set(node, { kind: "rule", rule: node.rule, span: node.span, source: node.source, tags: node.tags, children: node.children.map((/** @type {any} */ child) => built.get(child)) });
+    }
+    return built.get(root);
   }
 
   // A tree of the format 49 result as occurrences, for a displayed reading.
@@ -37268,6 +37312,16 @@
       const proof = (target, template, seen = new Set()) => {
         if (target.leaf || target.ref !== undefined && /^[A-Z_]/.test(target.ref)) return null;
         if (target.unknown) return "the capture binds a form that has no certificate";
+        if (target.ref !== undefined && templates.has(target.ref)) {
+          // A family atom matches every instance of its template, and each
+          // call of the template makes an instance. A call that passes a
+          // parameter on makes the instances of the calls around it.
+          for (const { call } of calls.get(target.ref) ?? []) {
+            if (JSON.stringify(call.args).includes('"param"')) return `${target.ref}: a call of the template passes a parameter on, so the instances are not known here`;
+            if (!symbolPasses(call)) return `${target.ref}: the instance of the call at ${call.at?.join(":") ?? "?"} is not the join of its input`;
+          }
+          return null;
+        }
         if (target.ref !== undefined) {
           const shown = target.ref.startsWith(COMPOUND_PREFIX) ? `the compound binding $${target.ref.split(":").at(-1)}` : target.ref;
           if (!byName.has(target.ref)) return `${shown}: the stage has no definition of it`;
@@ -38016,6 +38070,8 @@
     }
     if (["flags", "keys", "classes", "select", "union"].includes(node.method)) return node.method === "select";
     if (node.intersection || node.union || node.difference) return false;
+    // A tag argument of an instance adds its own key, which is a tag.
+    if (typeof node.ref === "string" && /^[A-Z_]/.test(node.ref)) return false;
     return true;
   }
 
@@ -38291,6 +38347,118 @@
       for (const [key, value] of Object.entries(node)) if (key !== "at" && value && typeof value === "object") visit(value);
     };
     visit(term);
+  }
+
+  // The methods whose arguments are no expressions: a query body, neighbor
+  // targets, a family and a literal key.
+  const NON_EXPRESSION_ARGUMENTS = new Set(["parse", "followed-by", "preceded-by", "without-elision-except", "has", "has-value"]);
+
+  /**
+   * The parameters that stand in an expression in one clause (docs/engine.md, "Arguments and
+   * substitution"): in a term, a condition, a message or an output item,
+   * outside a pattern, a query body and the arguments of a neighbor test.
+   * @param {any} root
+   * @param {Set<string>} out
+   */
+  function expressionParameters(root, out) {
+    const pending = [root];
+    while (pending.length) {
+      const node = pending.pop();
+      if (!node || typeof node !== "object") continue;
+      if (Array.isArray(node)) {
+        for (const item of node) pending.push(item);
+        continue;
+      }
+      if (typeof node.param === "string") out.add(node.param);
+      for (const [key, value] of Object.entries(node)) {
+        if (key === "at" || key === "pattern" || key === "args" && NON_EXPRESSION_ARGUMENTS.has(node.method)) continue;
+        if (value && typeof value === "object") pending.push(value);
+      }
+    }
+  }
+
+  /**
+   * Each argument for a parameter that stands in an expression is a marked
+   * expression, a string, a constant or a parameter. A tag, a rule, a body
+   * or a call has no form as an expression (docs/engine.md, "Arguments and
+   * substitution"). A parameter that a template passes on to such a
+   * parameter stands in an expression too. The calls are those of the rules,
+   * the constants and the directives of a stage, patterns included.
+   * @param {{rule: any, document: string}[]} rules
+   * @param {{record: any, document: string}[]} constants
+   * @param {{directive: any, document: string}[]} directives
+   */
+  function expressionArguments(rules, constants, directives) {
+    /** @type {Map<string, string[]>} */
+    const params = new Map();
+    /** @type {Map<string, Set<string>>} */
+    const inExpressions = new Map();
+    for (const { rule } of rules) {
+      if (!rule.params) continue;
+      params.set(rule.name, rule.params);
+      const out = inExpressions.get(rule.name) ?? new Set();
+      for (const clause of [rule.term, rule.conditions, rule.message, rule.emit, ...(rule.alternatives ?? []).map((/** @type {any} */ alternative) => alternative.term)]) {
+        expressionParameters(clause, out);
+      }
+      inExpressions.set(rule.name, out);
+    }
+    if (!params.size) return;
+    /** @type {{call: any, document: string, template: string | undefined}[]} */
+    const calls = [];
+    /**
+     * @param {any} root
+     * @param {string} document
+     * @param {string | undefined} template
+     */
+    const find = (root, document, template) => {
+      const pending = [root];
+      while (pending.length) {
+        const node = pending.pop();
+        if (!node || typeof node !== "object") continue;
+        if (Array.isArray(node)) {
+          for (const item of node) pending.push(item);
+          continue;
+        }
+        if (typeof node.call === "string" && Array.isArray(node.args) && params.has(node.call)) calls.push({ call: node, document, template });
+        for (const [key, value] of Object.entries(node)) if (key !== "at" && value && typeof value === "object") pending.push(value);
+      }
+    };
+    for (const { rule, document } of rules) {
+      const own = rule.params ? rule.name : undefined;
+      find([rule.alternatives, rule.term, rule.conditions, rule.message, rule.emit, rule.instance], document, own);
+      // An edit head of one instance names its call.
+      if (rule.args && !rule.params) find({ call: rule.name, args: rule.args, at: rule.at }, document, undefined);
+    }
+    for (const { record, document } of constants) find(record.value, document, undefined);
+    for (const { directive, document } of directives) find(directive.steps, document, undefined);
+    // A parameter that a template passes to a parameter in an expression
+    // stands in an expression of that template too.
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (const { call, template } of calls) {
+        if (template === undefined) continue;
+        const names = /** @type {string[]} */ (params.get(call.call));
+        const target = /** @type {Set<string>} */ (inExpressions.get(call.call));
+        const own = /** @type {Set<string>} */ (inExpressions.get(template));
+        call.args.forEach((/** @type {any} */ arg, /** @type {number} */ index) => {
+          if (typeof arg?.param === "string" && target.has(names[index]) && !own.has(arg.param)) {
+            own.add(arg.param);
+            changed = true;
+          }
+        });
+      }
+    }
+    for (const { call, document } of calls) {
+      const names = /** @type {string[]} */ (params.get(call.call));
+      const target = /** @type {Set<string>} */ (inExpressions.get(call.call));
+      call.args.forEach((/** @type {any} */ arg, /** @type {number} */ index) => {
+        if (!target.has(names[index]) || !arg || typeof arg !== "object") return;
+        if (arg.expression !== undefined || arg.literal !== undefined || typeof arg.param === "string") return;
+        throw located(`the argument for @${names[index]} of ${call.call} stands in an expression, which takes a marked expression (=…), a string or a constant`,
+          document, arg.at ?? call.at);
+      });
+    }
   }
 
   /**
@@ -39006,6 +39174,11 @@
           if (!stageConstants.has(constant.name)) stageConstants.set(constant.name, []);
           stageConstants.get(constant.name).push({ record: constant, document });
         }
+        // An argument fits each position of its parameter. The steps of the
+        // resolution directives can call templates in their patterns.
+        const stageDirectives = [...new Set(stage.documents.map(run => run.path))]
+          .flatMap(document => (doms.get(document)?.directives ?? []).map((/** @type {any} */ directive) => ({ directive, document })));
+        expressionArguments(written, [...stageConstants.values()].flat(), stageDirectives);
         const checker = new StageCheck(stageConstants);
         checker.check(written);
         const interfaceFailures = inputStates ? checker.inputRefinement(written, inputStates) : [];
@@ -39224,19 +39397,10 @@
       const collected = { errors: [], warnings: [] };
       for (const stage of stages.slice(0, -1)) for (const kind of ["errors", "warnings"]) for (const diagnostic of stage[kind] ?? []) collected[kind].push(diagnostic);
       const reporting = stages.at(-1);
+      // The chosen derivation gives them in preorder: an own occurrence its
+      // report, and a live leaf the reports that its token carries.
       if (reporting?.root && !reporting.error) {
-        const live = new Set();
-        const stack = [reporting.root];
-        while (stack.length) {
-          const node = stack.pop();
-          if (node.erased) continue;
-          if (node.kind === "token") live.add(node.token);
-          for (const child of node.children) stack.push(child);
-        }
-        for (const index of [...live].sort((a, b) => a - b)) {
-          for (const kind of ["errors", "warnings"]) for (const diagnostic of reporting.input[index][kind] ?? []) collected[kind].push(diagnostic);
-        }
-        for (const { kind, diagnostic } of reporting.own ?? []) collected[kind].push(diagnostic);
+        for (const { kind, diagnostic } of readingCollection(reporting.root, reporting.input, reporting.own ?? [])) collected[kind].push(diagnostic.record);
       }
       // A failed stage collects the reports of its input: through the
       // furthest token on a rejection, and all of it on other failures.
@@ -39269,7 +39433,18 @@
         if (collected.errors.length) failedStage.error.errors = collected.errors;
         if (collected.warnings.length) failedStage.error.warnings = collected.warnings;
       }
+      // A failed check of elision-only collects warnings as a success does,
+      // over the chosen derivation. No error counts there (engine §12.1).
+      if (failedStage?.error.kind === "ambiguous" && failedStage.error.reason === "elision-only" && failedStage.root) {
+        for (const { kind, diagnostic } of readingCollection(failedStage.root, failedStage.input, failedStage.own ?? [])) {
+          if (kind === "warnings") collected.warnings.push(diagnostic.record);
+        }
+        if (collected.warnings.length) failedStage.error.warnings = collected.warnings;
+      }
       if (failedStage && failedStage.error.kind !== "ambiguous") {
+        // A grammar failure after the choice of a parse gives the reports of
+        // the stage that it evaluated, in preorder, before the carried ones.
+        if (failedStage.error.kind === "grammar") for (const { kind, diagnostic } of failedStage.own ?? []) collected[kind].push(diagnostic);
         const end = failedStage.error.kind === "rejected" ? Math.min(failedStage.input.length, (failedStage.error.token ?? failedStage.input.length) + 1) : failedStage.input.length;
         for (const token of failedStage.input.slice(0, end)) {
           for (const kind of ["errors", "warnings"]) for (const diagnostic of token[kind] ?? []) collected[kind].push(diagnostic);
