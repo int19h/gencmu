@@ -30230,9 +30230,11 @@
         /** @param {any} key */
         const hidden = key => !isVisibleKey(key) && (this.hidden.demanded.has(key) || !!this.hidden.roots.get(key)?.has(this.currentRule));
         if (entry.gates.length && this.entryReadsKeys(entry, hidden)) this.fail("gate an entry of a bag", entry.at);
-        // The guard is lowered only for an entry that changes the tags.
+        // The guard is lowered only for an entry that changes the tags. A
+        // guard that the bridge decides adds no test, as the recognizer has
+        // no constant truth.
         /** @param {any} part */
-        const guarded = part => entry.guard ? { if: this.truth(entry.guard), then: part } : part;
+        const guarded = part => entry.guard ? guardedPart(this.truth(entry.guard), part, { emptySet: true }) : part;
         switch (entry.kind) {
           case "bare":
             if (isVisibleKey(entry.key)) tags = union(tags, guarded({ tag: entry.key }));
@@ -30482,6 +30484,8 @@
       }
       if (node.if !== undefined && node.else !== undefined) {
         const test = this.truth(node.if);
+        if (test === DOM_TRUE) return this.valueTest(node.then, value);
+        if (test === DOM_FALSE) return this.valueTest(node.else, value);
         /** @type {any} */
         const sides = [[test, this.valueTest(node.then, value)], [{ not: test }, this.valueTest(node.else, value)]]
           .filter(([, branch]) => branch !== false).map(([condition, branch]) => branch === true ? condition : { all: [condition, branch] });
@@ -30967,6 +30971,8 @@
         /** @type {any} */
         const test = this.truth(itemAsCapture(node.args[0], node.receiver.capture));
         const bound = this.observe("presence", this.receiverKind(node.receiver), { captured: node.receiver.capture }, node.at);
+        if (test === DOM_TRUE) return node.method === "all" ? DOM_TRUE : bound;
+        if (test === DOM_FALSE) return node.method === "all" ? { not: bound } : DOM_FALSE;
         return node.method === "all" ? { if: bound, then: test } : { all: [bound, test] };
       }
       // A presence or payload test of a key that is not visible, and a
@@ -31379,7 +31385,7 @@
         // only where it holds.
         const parts = node.list.map((/** @type {any} */ item) => {
           const part = item.kind === "splat" ? this.strings(item.value) : setOf([this.string(item.value)]);
-          return item.guard ? { if: this.truth(item.guard), then: part } : part;
+          return item.guard ? guardedPart(this.truth(item.guard), part, setOf([])) : part;
         });
         return parts.length === 1 ? parts[0] : { union: parts };
       }
@@ -31878,6 +31884,9 @@
   // of atoms. Null where it grows beyond a small bound.
   /** @param {any} node */
   function normalForm(node) {
+    // A constant atom holds on every root or on none.
+    if (node === DOM_TRUE) return [[]];
+    if (node === DOM_FALSE) return [];
     if (node.any) {
       const parts = node.any.map(normalForm);
       return parts.includes(null) ? null : parts.flat();
@@ -31892,6 +31901,20 @@
       return product;
     }
     return [[node]];
+  }
+
+  /**
+   * A part of a term under a lowered guard. A guard that the bridge decides
+   * gives the part or the empty value, so the recognizer gets no constant
+   * truth.
+   * @param {any} test
+   * @param {any} part
+   * @param {any} empty
+   */
+  function guardedPart(test, part, empty) {
+    if (test === DOM_TRUE) return part;
+    if (test === DOM_FALSE) return empty;
+    return { if: test, then: part };
   }
 
   /**
@@ -37034,7 +37057,7 @@
         if (mixed.size) for (const clause of [...rule.conditions, ...(rule.term ? [rule.term] : [])]) mixedReads(clause, mixed, document);
         const shared = { captures: statementKinds, captureRules: statementRules, document };
         for (const condition of rule.conditions) this.walk(condition, shared, document, deferred, true);
-        for (const term of [rule.term, ...rule.alternatives.map((/** @type {any} */ alternative) => alternative.term)]) if (term) ownBagReads(term, document);
+        for (const term of [rule.term, ...rule.alternatives.map((/** @type {any} */ alternative) => alternative.term)]) if (term) ownBagReads(term, document, rule.name);
         if (rule.term) {
           this.scope(rule.term, rule, statementKinds, document, true);
           this.walk(rule.term, shared, document, deferred);
@@ -38336,8 +38359,30 @@
   /**
    * @param {any} term
    * @param {any} document
+   * @param {string} rule the name of the rule or template that holds the term
    */
-  function ownBagReads(term, document) {
+  function ownBagReads(term, document, rule) {
+    /**
+     * Whether a pattern tests the keys of the root node itself: a test of
+     * keys at the root, in any operand of a set of patterns, on an atom that
+     * names the rule or its template. A test of a terminal or of another
+     * rule follows a child, whose bag is finished. A value test reads the
+     * join of the input, not the bag.
+     * @param {any} pattern
+     * @returns {boolean}
+     */
+    const rootReadsBag = pattern => {
+      if (!pattern || typeof pattern !== "object") return false;
+      for (const field of ["union", "intersection", "difference", "choice"]) {
+        if (Array.isArray(pattern[field])) return pattern[field].some(rootReadsBag);
+      }
+      if (pattern.test === "tags") {
+        let base = pattern.expr;
+        while (base && base.test !== undefined) base = base.expr;
+        return base?.name === rule || base?.call === rule || rootReadsBag(pattern.expr);
+      }
+      return pattern.test !== undefined && rootReadsBag(pattern.expr);
+    };
     /** @param {any} node */
     const visit = node => {
       if (!node || typeof node !== "object") return;
@@ -38347,6 +38392,11 @@
         throw located("a term cannot read the bag of $, which the term builds", document, node.at);
       }
       if (node.kind === "splat" && node.value?.capture === "") throw located("a term cannot read the bag of $, which the term builds", document, node.at);
+      // A comparison of $ with a pattern that tests the keys of the root
+      // itself reads the bag too, whatever an operand beside it decides.
+      if ((node.op === "≅" || node.op === "≇") && node.left?.capture === "" && !node.left.expr && rootReadsBag(node.right?.pattern)) {
+        throw located("a term cannot read the bag of $, which the term builds", document, node.at);
+      }
       if (node.kind === "copy" && node.source?.capture === "") throw located("a term cannot read the bag of $, which the term builds", document, node.at);
       for (const [key, value] of Object.entries(node)) if (key !== "at" && value && typeof value === "object") visit(value);
     };
